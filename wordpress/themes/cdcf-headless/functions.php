@@ -888,75 +888,139 @@ function cdcf_ai_translate_meta_box($post) {
         return;
     }
 
-    // Find the source (default-language) post for this translation group.
     $default_lang = pll_default_language('slug');
-    if ($lang === $default_lang) {
-        echo '<p>This is the source-language post. Open a translation to use AI translation.</p>';
-        return;
-    }
-
-    $source_id = pll_get_post($post->ID, $default_lang);
-    if (!$source_id) {
-        echo '<p>No source post found in the default language.</p>';
-        return;
-    }
-
-    $lang_name = CDCF_LOCALE_NAMES[$lang] ?? $lang;
+    $is_source = ($lang === $default_lang);
 
     wp_nonce_field('cdcf_ai_translate', 'cdcf_ai_translate_nonce');
-    ?>
-    <p>Translate from <strong><?php echo esc_html(CDCF_LOCALE_NAMES[$default_lang] ?? $default_lang); ?></strong>
-       to <strong><?php echo esc_html($lang_name); ?></strong> using OpenAI.</p>
-    <p><em>This will overwrite the title, content, excerpt, and translatable ACF fields on this post.</em></p>
-    <button type="button" id="cdcf-ai-translate-btn" class="button button-primary"
-            data-post-id="<?php echo esc_attr($post->ID); ?>"
-            data-source-id="<?php echo esc_attr($source_id); ?>"
-            data-target-lang="<?php echo esc_attr($lang); ?>">
-        Translate with AI
-    </button>
-    <span id="cdcf-ai-translate-status" style="display:inline-block;margin-left:8px;"></span>
 
+    if ($is_source) {
+        // ── Source post: show buttons for each target language ──
+        $all_langs = pll_languages_list(['fields' => 'slug']);
+        $target_langs = array_values(array_filter($all_langs, fn($l) => $l !== $default_lang));
+        $translations = pll_get_post_translations($post->ID);
+
+        if (empty($target_langs)) {
+            echo '<p>No other languages configured.</p>';
+            return;
+        }
+        ?>
+        <p>Generate AI translations from this source post.</p>
+        <p><em>Creates translation posts if needed, then translates title, content, excerpt, and ACF fields.</em></p>
+        <div style="margin-top:8px;">
+        <?php foreach ($target_langs as $tl):
+            $lang_name = CDCF_LOCALE_NAMES[$tl] ?? $tl;
+            $existing_id = $translations[$tl] ?? 0;
+        ?>
+            <div style="margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+                <button type="button" class="button cdcf-ai-translate-btn"
+                        data-source-id="<?php echo esc_attr($post->ID); ?>"
+                        data-target-lang="<?php echo esc_attr($tl); ?>"
+                        data-post-id="<?php echo esc_attr($existing_id); ?>">
+                    <?php echo esc_html($lang_name); ?>
+                </button>
+                <span class="cdcf-ai-translate-status" style="font-size:12px;"></span>
+            </div>
+        <?php endforeach; ?>
+        </div>
+        <div style="margin-top:10px;">
+            <button type="button" id="cdcf-ai-translate-all" class="button button-primary">
+                Translate All
+            </button>
+        </div>
+        <?php
+    } else {
+        // ── Translation post: single translate button ──
+        $source_id = pll_get_post($post->ID, $default_lang);
+        if (!$source_id && isset($_GET['from_post'])) {
+            $source_id = (int) $_GET['from_post'];
+        }
+        if (!$source_id) {
+            echo '<p>No source post found in the default language.</p>';
+            return;
+        }
+        $lang_name = CDCF_LOCALE_NAMES[$lang] ?? $lang;
+        ?>
+        <p>Translate from <strong><?php echo esc_html(CDCF_LOCALE_NAMES[$default_lang] ?? $default_lang); ?></strong>
+           to <strong><?php echo esc_html($lang_name); ?></strong> using OpenAI.</p>
+        <p><em>This will overwrite the title, content, excerpt, and translatable ACF fields on this post.</em></p>
+        <div style="margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+            <button type="button" class="button button-primary cdcf-ai-translate-btn"
+                    data-post-id="<?php echo esc_attr($post->ID); ?>"
+                    data-source-id="<?php echo esc_attr($source_id); ?>"
+                    data-target-lang="<?php echo esc_attr($lang); ?>">
+                Translate with AI
+            </button>
+            <span class="cdcf-ai-translate-status" style="font-size:12px;"></span>
+        </div>
+        <?php
+    }
+    ?>
     <script>
     (function() {
-        var btn = document.getElementById('cdcf-ai-translate-btn');
-        var status = document.getElementById('cdcf-ai-translate-status');
-        if (!btn) return;
-
-        btn.addEventListener('click', function() {
-            if (!confirm('This will overwrite translatable fields on this post with AI-generated translations. Continue?')) {
-                return;
-            }
-
+        function translateOne(btn) {
+            var status = btn.parentElement.querySelector('.cdcf-ai-translate-status');
             btn.disabled = true;
             status.textContent = 'Translating…';
             status.style.color = '#0073aa';
 
             var data = new FormData();
             data.append('action', 'cdcf_ai_translate');
-            data.append('post_id', btn.dataset.postId);
             data.append('source_id', btn.dataset.sourceId);
             data.append('target_lang', btn.dataset.targetLang);
+            data.append('post_id', btn.dataset.postId || '0');
             data.append('_wpnonce', document.getElementById('cdcf_ai_translate_nonce').value);
 
-            fetch(ajaxurl, { method: 'POST', body: data })
+            return fetch(ajaxurl, { method: 'POST', body: data })
                 .then(function(r) { return r.json(); })
                 .then(function(resp) {
                     if (resp.success) {
-                        status.textContent = 'Done — reloading…';
                         status.style.color = '#46b450';
-                        window.location.reload();
+                        if (resp.data && resp.data.post_id) {
+                            btn.dataset.postId = resp.data.post_id;
+                            var editUrl = '<?php echo admin_url('post.php?action=edit&post='); ?>' + resp.data.post_id;
+                            status.innerHTML = '✓ <a href="' + editUrl + '" target="_blank">Edit</a>';
+                        } else {
+                            status.textContent = '✓ Done';
+                        }
                     } else {
-                        status.textContent = 'Error: ' + (resp.data || 'Unknown error');
+                        status.textContent = resp.data || 'Error';
                         status.style.color = '#dc3232';
                         btn.disabled = false;
+                        throw new Error(resp.data);
                     }
                 })
                 .catch(function(err) {
-                    status.textContent = 'Request failed: ' + err.message;
-                    status.style.color = '#dc3232';
-                    btn.disabled = false;
+                    if (!status.textContent || status.textContent === 'Translating…') {
+                        status.textContent = 'Failed';
+                        status.style.color = '#dc3232';
+                        btn.disabled = false;
+                    }
+                    throw err;
                 });
+        }
+
+        // Individual language buttons
+        document.querySelectorAll('.cdcf-ai-translate-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                translateOne(btn).catch(function() {});
+            });
         });
+
+        // "Translate All" button — sequential to avoid rate limits
+        var allBtn = document.getElementById('cdcf-ai-translate-all');
+        if (allBtn) {
+            allBtn.addEventListener('click', function() {
+                if (!confirm('This will create/overwrite translations for ALL languages. Continue?')) return;
+                allBtn.disabled = true;
+                var buttons = Array.from(document.querySelectorAll('.cdcf-ai-translate-btn'));
+                var chain = Promise.resolve();
+                buttons.forEach(function(btn) {
+                    chain = chain.then(function() { return translateOne(btn); })
+                                 .catch(function() { return Promise.resolve(); }); // continue on error
+                });
+                chain.then(function() { allBtn.textContent = 'All done!'; });
+            });
+        }
     })();
     </script>
     <?php
@@ -975,8 +1039,28 @@ add_action('wp_ajax_cdcf_ai_translate', function () {
     $source_id   = intval($_POST['source_id']   ?? 0);
     $target_lang = sanitize_text_field($_POST['target_lang'] ?? '');
 
-    if (!$post_id || !$source_id || !$target_lang) {
+    if (!$source_id || !$target_lang) {
         wp_send_json_error('Missing parameters.');
+    }
+
+    // Auto-create translation post if it doesn't exist yet.
+    if (!$post_id) {
+        $source = get_post($source_id);
+        if (!$source) {
+            wp_send_json_error('Source post not found.');
+        }
+        $post_id = wp_insert_post([
+            'post_type'   => $source->post_type,
+            'post_status' => 'draft',
+            'post_title'  => $source->post_title, // will be overwritten by translation
+        ]);
+        if (is_wp_error($post_id) || !$post_id) {
+            wp_send_json_error('Failed to create translation post.');
+        }
+        pll_set_post_language($post_id, $target_lang);
+        $translations = pll_get_post_translations($source_id);
+        $translations[$target_lang] = $post_id;
+        pll_save_post_translations($translations);
     }
 
     $api_key = get_option('cdcf_openai_api_key');
@@ -1084,7 +1168,16 @@ add_action('wp_ajax_cdcf_ai_translate', function () {
         }
     }
 
-    wp_send_json_success('Translation complete.');
+    // Auto-publish the translation post if the source is published.
+    $source_status = get_post_status($source_id);
+    if ($source_status === 'publish' && get_post_status($post_id) !== 'publish') {
+        wp_update_post(['ID' => $post_id, 'post_status' => 'publish']);
+    }
+
+    wp_send_json_success([
+        'message' => 'Translation complete.',
+        'post_id' => $post_id,
+    ]);
 });
 
 /**
