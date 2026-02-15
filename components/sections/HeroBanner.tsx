@@ -83,7 +83,7 @@ export default function HeroBanner({ hero }: HeroBannerProps) {
             </Link>
           )}
           {hero.heroSecondaryBtnLabel && (
-            <Link href={hero.heroSecondaryBtnUrl || '#'} className="cdcf-btn-secondary text-base">
+            <Link href={hero.heroSecondaryBtnUrl || '#'} className="cdcf-btn-secondary border-white text-white hover:bg-white hover:text-cdcf-navy text-base">
               {hero.heroSecondaryBtnLabel}
             </Link>
           )}
