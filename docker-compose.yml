@@ -1,0 +1,99 @@
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${WP_DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${WP_DB_NAME:-wordpress}
+      MARIADB_USER: ${WP_DB_USER:-wordpress}
+      MARIADB_PASSWORD: ${WP_DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+
+  wordpress:
+    image: wordpress:6-php8.4-apache
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: ${WP_DB_NAME:-wordpress}
+      WORDPRESS_DB_USER: ${WP_DB_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
+      WORDPRESS_CONFIG_EXTRA: "define('FS_METHOD', 'direct');"
+    volumes:
+      - wordpress_data:/var/www/html
+      - ./wordpress/themes/cdcf-headless:/var/www/html/wp-content/themes/cdcf-headless
+
+  wp-init:
+    image: wordpress:cli
+    user: "0:0"
+    depends_on:
+      - db
+      - wordpress
+    volumes:
+      - wordpress_data:/var/www/html
+      - ./wordpress/themes/cdcf-headless:/var/www/html/wp-content/themes/cdcf-headless
+      - ./wordpress/init.sh:/usr/local/bin/init.sh:ro
+      - ./wordpress/translate-all.php:/usr/local/bin/translate-all.php:ro
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: ${WP_DB_NAME:-wordpress}
+      WORDPRESS_DB_USER: ${WP_DB_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
+      WP_URL: ${WP_URL:-http://localhost}
+      WP_ADMIN_USER: ${WP_ADMIN_USER:-admin}
+      WP_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD:-admin}
+      WP_ADMIN_EMAIL: ${WP_ADMIN_EMAIL:-admin@cdcf.dev}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+    entrypoint: ["sh", "/usr/local/bin/init.sh"]
+    restart: "no"
+
+  wpcli:
+    image: wordpress:cli
+    user: "0:0"
+    depends_on:
+      - db
+      - wordpress
+    volumes:
+      - wordpress_data:/var/www/html
+      - ./wordpress/themes/cdcf-headless:/var/www/html/wp-content/themes/cdcf-headless
+      - ./wordpress/translate-all.php:/usr/local/bin/translate-all.php:ro
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: ${WP_DB_NAME:-wordpress}
+      WORDPRESS_DB_USER: ${WP_DB_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
+    profiles:
+      - cli
+
+  cdcf-cms:
+    build:
+      context: .
+      args:
+        WORDPRESS_GRAPHQL_URL: ${WORDPRESS_GRAPHQL_URL}
+    image: cdcf-cms:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - WORDPRESS_GRAPHQL_URL=${WORDPRESS_GRAPHQL_URL}
+      - WORDPRESS_PREVIEW_SECRET=${WORDPRESS_PREVIEW_SECRET}
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - cdcf-cms
+      - wordpress
+
+volumes:
+  db_data:
+  wordpress_data:

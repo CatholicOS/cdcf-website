@@ -1,0 +1,56 @@
+@import 'tailwindcss';
+@config '../tailwind.config.ts';
+@plugin '@tailwindcss/typography';
+
+/* Reusable component utilities */
+@utility cdcf-section {
+  @apply mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8;
+}
+
+@utility cdcf-heading {
+  @apply font-serif text-cdcf-navy font-bold tracking-tight;
+}
+
+@utility cdcf-btn-primary {
+  @apply inline-flex items-center justify-center rounded-md bg-cdcf-gold px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-cdcf-gold-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cdcf-gold;
+}
+
+@utility cdcf-btn-secondary {
+  @apply inline-flex items-center justify-center rounded-md border-2 border-cdcf-navy px-6 py-3 text-sm font-semibold text-cdcf-navy shadow-sm transition-colors hover:bg-cdcf-navy hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cdcf-navy;
+}
+
+@utility cdcf-card {
+  @apply rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md;
+}
+
+@utility cdcf-divider {
+  @apply mx-auto my-8 h-1 w-16 rounded bg-cdcf-gold;
+}
+
+/* Base styles */
+body {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  color: #1a1a1a;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-merriweather), Georgia, serif;
+}
+
+/* Prose customization for WordPress content */
+.prose {
+  --tw-prose-links: #213463;
+  max-width: none;
+}
+
+.prose a {
+  text-decoration-color: #9a8432;
+  text-underline-offset: 3px;
+  transition: color 0.15s;
+}
+
+.prose a:hover {
+  color: #9a8432;
+}

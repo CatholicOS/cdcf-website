@@ -1,0 +1,63 @@
+{
+  "nav": {
+    "home": "Home",
+    "about": "About",
+    "projects": "Projects",
+    "community": "Community",
+    "news": "News",
+    "contact": "Contact",
+    "donate": "Donate"
+  },
+  "footer": {
+    "about": {
+      "title": "About CDCF",
+      "description": "The Catholic Digital Commons Foundation nurtures open-source projects that serve the Catholic community worldwide."
+    },
+    "community": {
+      "title": "Community",
+      "github": "GitHub",
+      "discord": "Discord",
+      "forum": "Forum",
+      "contribute": "Contribute"
+    },
+    "resources": {
+      "title": "Resources",
+      "documentation": "Documentation",
+      "blog": "Blog",
+      "events": "Events",
+      "newsletter": "Newsletter"
+    },
+    "legal": {
+      "title": "Legal",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Use",
+      "licenses": "Licenses"
+    },
+    "copyright": "Catholic Digital Commons Foundation. All rights reserved.",
+    "tagline": "Building the digital commons for the Catholic community."
+  },
+  "common": {
+    "learnMore": "Learn More",
+    "getStarted": "Get Started",
+    "viewAll": "View All",
+    "readMore": "Read More",
+    "backToTop": "Back to Top",
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "notFound": "Page not found",
+    "search": "Search",
+    "language": "Language"
+  },
+  "hero": {
+    "defaultTagline": "Catholic Digital Commons Foundation",
+    "defaultSubtitle": "Nurturing open-source projects that serve the Catholic community worldwide."
+  },
+  "projects": {
+    "status": {
+      "incubating": "Incubating",
+      "active": "Active",
+      "graduated": "Graduated"
+    },
+    "filterAll": "All Projects"
+  }
+}

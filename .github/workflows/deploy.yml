@@ -1,0 +1,28 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+  repository_dispatch:
+    types: [reactbricks-publish]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd ${{ secrets.VPS_APP_DIR }}
+            git pull origin main
+            docker compose build \
+              --build-arg NEXT_PUBLIC_APP_ID=${{ secrets.NEXT_PUBLIC_APP_ID }} \
+              --build-arg API_KEY=${{ secrets.API_KEY }} \
+              --build-arg NEXT_PUBLIC_ENVIRONMENT=${{ secrets.NEXT_PUBLIC_ENVIRONMENT }}
+            docker compose up -d --remove-orphans
+            docker image prune -f

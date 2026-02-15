@@ -1,0 +1,26 @@
+import type { NextConfig } from 'next'
+import createNextIntlPlugin from 'next-intl/plugin'
+
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts')
+
+const wpHost = process.env.WORDPRESS_GRAPHQL_URL
+  ? new URL(process.env.WORDPRESS_GRAPHQL_URL).hostname
+  : 'localhost'
+
+const nextConfig: NextConfig = {
+  output: 'standalone',
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: wpHost,
+      },
+      {
+        protocol: 'https',
+        hostname: wpHost,
+      },
+    ],
+  },
+}
+
+export default withNextIntl(nextConfig)
