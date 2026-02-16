@@ -1049,14 +1049,37 @@ add_action('wp_ajax_cdcf_ai_translate', function () {
         if (!$source) {
             wp_send_json_error('Source post not found.');
         }
-        $post_id = wp_insert_post([
+
+        $insert_args = [
             'post_type'   => $source->post_type,
             'post_status' => 'draft',
             'post_title'  => $source->post_title, // will be overwritten by translation
-        ]);
+        ];
+
+        // Attachments use 'inherit' status and share the same uploaded file.
+        if ($source->post_type === 'attachment') {
+            $insert_args['post_status']    = 'inherit';
+            $insert_args['post_mime_type'] = $source->post_mime_type;
+        }
+
+        $post_id = wp_insert_post($insert_args);
         if (is_wp_error($post_id) || !$post_id) {
             wp_send_json_error('Failed to create translation post.');
         }
+
+        // For attachments, copy the file reference and metadata so both
+        // translations point to the same physical file on disk.
+        if ($source->post_type === 'attachment') {
+            $attached_file = get_post_meta($source_id, '_wp_attached_file', true);
+            if ($attached_file) {
+                update_post_meta($post_id, '_wp_attached_file', $attached_file);
+            }
+            $attachment_meta = get_post_meta($source_id, '_wp_attachment_metadata', true);
+            if ($attachment_meta) {
+                update_post_meta($post_id, '_wp_attachment_metadata', $attachment_meta);
+            }
+        }
+
         pll_set_post_language($post_id, $target_lang);
         $translations = pll_get_post_translations($source_id);
         $translations[$target_lang] = $post_id;
@@ -1085,6 +1108,14 @@ add_action('wp_ajax_cdcf_ai_translate', function () {
     }
     if ($source->post_excerpt) {
         $strings['post_excerpt'] = $source->post_excerpt;
+    }
+
+    // Collect alt text for attachments.
+    if ($source->post_type === 'attachment') {
+        $alt = get_post_meta($source_id, '_wp_attachment_image_alt', true);
+        if ($alt) {
+            $strings['alt_text'] = $alt;
+        }
     }
 
     // Collect translatable ACF fields.
@@ -1138,6 +1169,11 @@ add_action('wp_ajax_cdcf_ai_translate', function () {
         wp_update_post($update);
     }
 
+    // Write translated alt text for attachments.
+    if (isset($result['alt_text'])) {
+        update_post_meta($post_id, '_wp_attachment_image_alt', sanitize_text_field($result['alt_text']));
+    }
+
     // Write translated ACF fields.
     if (function_exists('update_field')) {
         foreach ($result as $key => $value) {
@@ -1169,9 +1205,12 @@ add_action('wp_ajax_cdcf_ai_translate', function () {
     }
 
     // Auto-publish the translation post if the source is published.
-    $source_status = get_post_status($source_id);
-    if ($source_status === 'publish' && get_post_status($post_id) !== 'publish') {
-        wp_update_post(['ID' => $post_id, 'post_status' => 'publish']);
+    // Attachments use 'inherit' status, so skip them.
+    $source_obj = get_post($source_id);
+    if ($source_obj && $source_obj->post_type !== 'attachment') {
+        if ($source_obj->post_status === 'publish' && get_post_status($post_id) !== 'publish') {
+            wp_update_post(['ID' => $post_id, 'post_status' => 'publish']);
+        }
     }
 
     wp_send_json_success([
@@ -1258,4 +1297,209 @@ PROMPT;
     }
 
     return $translated;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Bulk Translate media from the Media Library list view
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Add "Translate All Languages" to the Media Library bulk-actions dropdown.
+ */
+add_filter('bulk_actions-upload', function ($actions) {
+    if (function_exists('pll_default_language') && get_option('cdcf_openai_api_key')) {
+        $actions['cdcf_bulk_translate'] = 'Translate All Languages';
+    }
+    return $actions;
+});
+
+/**
+ * Handle the bulk action — redirect to a progress page.
+ */
+add_filter('handle_bulk_actions-upload', function ($redirect_url, $action, $post_ids) {
+    if ($action !== 'cdcf_bulk_translate') {
+        return $redirect_url;
+    }
+    $redirect_url = add_query_arg([
+        'page'     => 'cdcf-bulk-translate',
+        'post_ids' => implode(',', array_map('intval', $post_ids)),
+    ], admin_url('admin.php'));
+    return $redirect_url;
+}, 10, 3);
+
+/**
+ * Register the hidden admin page for the bulk-translate progress screen.
+ */
+add_action('admin_menu', function () {
+    add_submenu_page(
+        null, // hidden — no menu entry
+        'Bulk Translate Media',
+        'Bulk Translate Media',
+        'edit_posts',
+        'cdcf-bulk-translate',
+        'cdcf_bulk_translate_page'
+    );
+});
+
+/**
+ * Render the bulk-translate progress page.
+ * Uses the existing cdcf_ai_translate AJAX endpoint sequentially.
+ */
+function cdcf_bulk_translate_page() {
+    if (!current_user_can('edit_posts')) {
+        wp_die('Insufficient permissions.');
+    }
+
+    $post_ids = array_filter(array_map('intval', explode(',', $_GET['post_ids'] ?? '')));
+    if (empty($post_ids)) {
+        echo '<div class="wrap"><h1>Bulk Translate Media</h1><p>No media items selected.</p></div>';
+        return;
+    }
+
+    $default_lang = function_exists('pll_default_language') ? pll_default_language('slug') : 'en';
+    $all_langs    = function_exists('pll_languages_list') ? pll_languages_list(['fields' => 'slug']) : [];
+    $target_langs = array_values(array_filter($all_langs, fn($l) => $l !== $default_lang));
+
+    if (empty($target_langs)) {
+        echo '<div class="wrap"><h1>Bulk Translate Media</h1><p>No target languages configured.</p></div>';
+        return;
+    }
+
+    $nonce = wp_create_nonce('cdcf_ai_translate');
+    ?>
+    <div class="wrap">
+        <h1>Bulk Translate Media</h1>
+        <p>Translating <strong><?php echo count($post_ids); ?></strong> media item(s)
+           into <strong><?php echo count($target_langs); ?></strong> language(s).
+           Total API calls: <strong><?php echo count($post_ids) * count($target_langs); ?></strong>.</p>
+
+        <table class="widefat fixed striped" style="max-width:800px;">
+            <thead>
+                <tr>
+                    <th style="width:40%;">Media</th>
+                    <?php foreach ($target_langs as $tl): ?>
+                        <th style="text-align:center;"><?php echo esc_html(CDCF_LOCALE_NAMES[$tl] ?? $tl); ?></th>
+                    <?php endforeach; ?>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($post_ids as $pid):
+                    $post = get_post($pid);
+                    if (!$post || $post->post_type !== 'attachment') continue;
+                    $thumb = wp_get_attachment_image($pid, [48, 48]);
+                    $translations = function_exists('pll_get_post_translations') ? pll_get_post_translations($pid) : [];
+                ?>
+                <tr data-source-id="<?php echo esc_attr($pid); ?>">
+                    <td>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <?php echo $thumb; ?>
+                            <span><?php echo esc_html($post->post_title); ?></span>
+                        </div>
+                    </td>
+                    <?php foreach ($target_langs as $tl): ?>
+                        <td style="text-align:center;">
+                            <span class="cdcf-bulk-status"
+                                  data-target-lang="<?php echo esc_attr($tl); ?>"
+                                  data-post-id="<?php echo esc_attr($translations[$tl] ?? 0); ?>">
+                                &mdash;
+                            </span>
+                        </td>
+                    <?php endforeach; ?>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+
+        <p style="margin-top:16px;">
+            <button type="button" id="cdcf-bulk-start" class="button button-primary button-hero">
+                Start Translating
+            </button>
+            <span id="cdcf-bulk-overall" style="margin-left:12px;font-size:14px;"></span>
+        </p>
+    </div>
+
+    <script>
+    (function() {
+        var nonce = <?php echo wp_json_encode($nonce); ?>;
+        var startBtn = document.getElementById('cdcf-bulk-start');
+        var overallStatus = document.getElementById('cdcf-bulk-overall');
+
+        // Collect all translation tasks.
+        var tasks = [];
+        document.querySelectorAll('tr[data-source-id]').forEach(function(row) {
+            var sourceId = row.dataset.sourceId;
+            row.querySelectorAll('.cdcf-bulk-status').forEach(function(cell) {
+                tasks.push({
+                    sourceId: sourceId,
+                    targetLang: cell.dataset.targetLang,
+                    postId: cell.dataset.postId || '0',
+                    cell: cell
+                });
+            });
+        });
+
+        startBtn.addEventListener('click', function() {
+            if (!confirm('This will translate ' + tasks.length + ' item(s). Continue?')) return;
+            startBtn.disabled = true;
+
+            var done = 0;
+            var failed = 0;
+            var total = tasks.length;
+
+            function updateOverall() {
+                overallStatus.textContent = done + '/' + total + ' done' + (failed ? ', ' + failed + ' failed' : '');
+            }
+
+            function runNext(i) {
+                if (i >= total) {
+                    overallStatus.textContent = 'Complete! ' + done + ' translated' + (failed ? ', ' + failed + ' failed' : '') + '.';
+                    startBtn.textContent = 'Done';
+                    return;
+                }
+
+                var task = tasks[i];
+                task.cell.textContent = '…';
+                task.cell.style.color = '#0073aa';
+                updateOverall();
+
+                var data = new FormData();
+                data.append('action', 'cdcf_ai_translate');
+                data.append('source_id', task.sourceId);
+                data.append('target_lang', task.targetLang);
+                data.append('post_id', task.postId);
+                data.append('_wpnonce', nonce);
+
+                fetch(ajaxurl, { method: 'POST', body: data })
+                    .then(function(r) { return r.json(); })
+                    .then(function(resp) {
+                        if (resp.success) {
+                            task.cell.textContent = '✓';
+                            task.cell.style.color = '#46b450';
+                            if (resp.data && resp.data.post_id) {
+                                task.cell.dataset.postId = resp.data.post_id;
+                            }
+                            done++;
+                        } else {
+                            task.cell.textContent = '✗';
+                            task.cell.title = resp.data || 'Error';
+                            task.cell.style.color = '#dc3232';
+                            failed++;
+                        }
+                    })
+                    .catch(function() {
+                        task.cell.textContent = '✗';
+                        task.cell.style.color = '#dc3232';
+                        failed++;
+                    })
+                    .then(function() {
+                        updateOverall();
+                        runNext(i + 1);
+                    });
+            }
+
+            runNext(0);
+        });
+    })();
+    </script>
+    <?php
 }
