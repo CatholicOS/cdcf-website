@@ -41,17 +41,27 @@ jobs:
 
       - name: Deploy Next.js to VPS
         run: |
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/deploy_key" \
-            .next/standalone/ \
-            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:${{ secrets.VPS_APP_DIR }}/
+          tar -czf /tmp/nextjs-bundle.tar.gz -C .next/standalone .
+          scp -i ~/.ssh/deploy_key \
+            /tmp/nextjs-bundle.tar.gz \
+            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/tmp/nextjs-bundle.tar.gz
+          ssh -i ~/.ssh/deploy_key \
+            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
+            "mkdir -p ${{ secrets.VPS_APP_DIR }} && \
+             tar -xzf /tmp/nextjs-bundle.tar.gz -C ${{ secrets.VPS_APP_DIR }} && \
+             rm /tmp/nextjs-bundle.tar.gz"
 
       - name: Deploy WordPress theme
         run: |
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/deploy_key" \
-            wordpress/themes/cdcf-headless/ \
-            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:${{ secrets.WP_THEME_DIR }}/
+          tar -czf /tmp/wp-theme.tar.gz -C wordpress/themes/cdcf-headless .
+          scp -i ~/.ssh/deploy_key \
+            /tmp/wp-theme.tar.gz \
+            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/tmp/wp-theme.tar.gz
+          ssh -i ~/.ssh/deploy_key \
+            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
+            "mkdir -p ${{ secrets.WP_THEME_DIR }} && \
+             tar -xzf /tmp/wp-theme.tar.gz -C ${{ secrets.WP_THEME_DIR }} && \
+             rm /tmp/wp-theme.tar.gz"
 
       - name: Restart Next.js
         run: |
