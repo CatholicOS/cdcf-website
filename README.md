@@ -9,7 +9,8 @@ The official website for the **Catholic Digital Commons Foundation (CDCF)**, bui
 - **Styling:** Tailwind CSS v4 + custom CDCF brand system
 - **i18n:** next-intl (UI chrome) + Polylang (CMS content)
 - **Translation Management:** Weblate (for `messages/*.json` UI strings)
-- **Deployment:** Docker (WordPress + MariaDB + Next.js + Nginx) via GitHub Actions CI/CD
+- **Development:** Docker Compose (WordPress + MariaDB + Next.js + Nginx)
+- **Production:** Native on Plesk (WordPress + Next.js standalone) with GitHub Actions CI/CD
 
 ## Getting Started
 
@@ -17,7 +18,7 @@ The official website for the **Catholic Digital Commons Foundation (CDCF)**, bui
 
 - Node.js 22+
 - npm 10+
-- Docker & Docker Compose (for WordPress + database)
+- Docker & Docker Compose (for local development)
 
 ### Installation
 
@@ -73,7 +74,18 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### WordPress Setup (First Run)
 
-After `docker compose up`, complete the WordPress install wizard at `/wp-admin`, then:
+**Using Docker (automatic):** The `wp-init` service in `docker-compose.yml` runs `wordpress/init.sh` on first boot, which automatically:
+- Installs WordPress core with admin credentials from env vars
+- Installs and activates all required plugins (WPGraphQL, ACF, WPGraphQL for ACF, Polylang, WPGraphQL Polylang)
+- Activates the `cdcf-headless` theme
+- Configures all 6 Polylang languages
+- Creates all pages (Home, About, Projects, Community, Blog, Contact) with correct templates
+- Seeds ACF field content and sample CPT entries (projects, team members, stat items, etc.)
+- Optionally bulk-translates all content if `OPENAI_API_KEY` is set in `.env`
+
+The script is idempotent — if WordPress is already installed, it skips everything.
+
+**Manual setup (without Docker):** If installing WordPress natively (e.g. via Plesk), you need to:
 
 1. **Install and activate required plugins:**
    - [WPGraphQL](https://wordpress.org/plugins/wp-graphql/)
@@ -82,11 +94,9 @@ After `docker compose up`, complete the WordPress install wizard at `/wp-admin`,
    - [Polylang](https://wordpress.org/plugins/polylang/)
    - [WPGraphQL Polylang](https://github.com/valu-digital/wp-graphql-polylang) (download from GitHub releases)
 
-2. **Activate the headless theme:**
-   - Go to Appearance > Themes and activate **CDCF Headless**
+2. **Activate the headless theme:** copy `wordpress/themes/cdcf-headless/` into `wp-content/themes/` and activate **CDCF Headless** in Appearance > Themes
 
-3. **Configure Polylang languages:**
-   - Go to Languages > Settings and add: English (default), Italian, Spanish, French, Portuguese, German
+3. **Configure Polylang languages:** go to Languages > Settings and add: English (default), Italian, Spanish, French, Portuguese, German
 
 4. **Create pages with templates:**
    - Create pages for Home, About, Projects, Community, Blog, Contact
@@ -182,7 +192,7 @@ cdcf-cms/
 3. **WPGraphQL** exposes all content (including ACF fields and Polylang translations) via a `/graphql` endpoint.
 4. **Next.js** fetches content from the GraphQL API at build/request time using the `lib/wordpress/` client library.
 5. **PageRenderer** maps page templates to fixed section layouts — each template renders its sections in a predetermined order using data from ACF fields and related CPTs.
-6. **Nginx** routes requests: WordPress paths (`/wp-admin`, `/graphql`, `/wp-content`) go to WordPress; everything else goes to Next.js.
+6. In **development**, Nginx routes requests on a single `localhost` domain: WordPress paths (`/wp-admin`, `/graphql`, `/wp-content`) go to WordPress; everything else goes to Next.js. In **production**, WordPress and Next.js run on separate subdomains managed by Plesk.
 
 ### Content Model
 
@@ -279,7 +289,36 @@ You can set this up as a WordPress publish hook (e.g. via the WP Webhooks plugin
 
 ## Deployment
 
-### Docker (Recommended)
+### Production Architecture
+
+Production runs natively on a Plesk-managed server (no Docker) with two subdomains:
+
+- **`staging.catholicdigitalcommons.org`** — Next.js frontend (standalone build running via Node.js)
+- **`cms.catholicdigitalcommons.org`** — WordPress admin backend (PHP-FPM managed by Plesk)
+
+WordPress and Next.js share the same MariaDB instance already running on the server. Plesk manages Nginx, SSL certificates, and PHP-FPM.
+
+The Next.js app fetches content from WordPress via `WORDPRESS_GRAPHQL_URL=https://cms.catholicdigitalcommons.org/graphql`. The WordPress theme's CORS headers (registered in `functions.php`) allow cross-origin GraphQL requests from the frontend subdomain.
+
+### GitHub Actions CI/CD
+
+The deploy workflow (`.github/workflows/deploy.yml`) triggers on push to `main`. It SSHs into the VPS, pulls the latest code, builds the Next.js standalone output, deploys the WordPress theme, and restarts the Node.js process.
+
+**Required GitHub Secrets:**
+
+| Secret | Description |
+|--------|-------------|
+| `WORDPRESS_GRAPHQL_URL` | WordPress GraphQL endpoint (e.g. `https://cms.catholicdigitalcommons.org/graphql`) |
+| `WORDPRESS_PREVIEW_SECRET` | Shared secret for preview/revalidation |
+| `VPS_HOST` | VPS IP address or hostname |
+| `VPS_USERNAME` | SSH username |
+| `VPS_SSH_KEY` | SSH private key for deployment |
+| `VPS_APP_DIR` | Next.js app directory path on VPS |
+| `WP_THEME_DIR` | WordPress theme directory (e.g. `/var/www/vhosts/.../wp-content/themes/cdcf-headless`) |
+
+### Docker (Local Development Only)
+
+Docker Compose is used for local development to run the full stack:
 
 ```bash
 # Build and run all services
@@ -293,26 +332,6 @@ docker compose down
 ```
 
 Data is persisted in Docker named volumes (`db_data` for MariaDB, `wordpress_data` for WordPress uploads/plugins).
-
-### GitHub Actions CI/CD
-
-The deploy workflow (`.github/workflows/deploy.yml`) triggers on:
-- Push to `main` branch
-
-The workflow SSHs into the VPS, pulls the latest code, builds the Docker image directly on the server, and restarts the containers. No external container registry is used.
-
-**Required GitHub Secrets:**
-
-| Secret | Description |
-|--------|-------------|
-| `WORDPRESS_GRAPHQL_URL` | WordPress GraphQL endpoint URL |
-| `WORDPRESS_PREVIEW_SECRET` | Shared secret for preview/revalidation |
-| `WP_DB_ROOT_PASSWORD` | MariaDB root password |
-| `WP_DB_PASSWORD` | WordPress database password |
-| `VPS_HOST` | VPS IP address or hostname |
-| `VPS_USERNAME` | SSH username |
-| `VPS_SSH_KEY` | SSH private key for deployment |
-| `VPS_APP_DIR` | App directory path on VPS (must be a git clone of this repo) |
 
 ## Contributing
 

@@ -16,7 +16,10 @@ No test runner is configured. Use `npm run build` to verify type-correctness.
 
 ## Architecture Overview
 
-Headless CMS: Next.js 15 (App Router) frontend fetches content from WordPress via WPGraphQL. Nginx reverse-proxies WordPress paths (`/wp-admin`, `/graphql`, `/wp-content`) and everything else to Next.js.
+Headless CMS: Next.js 15 (App Router) frontend fetches content from WordPress via WPGraphQL.
+
+- **Development:** Docker Compose runs everything on `localhost` with Nginx reverse-proxying WordPress paths (`/wp-admin`, `/graphql`, `/wp-content`) and everything else to Next.js.
+- **Production:** Two subdomains on Plesk (no Docker). `staging.catholicdigitalcommons.org` runs Next.js standalone, `cms.catholicdigitalcommons.org` runs WordPress. Cross-origin GraphQL requests are allowed via CORS headers in the theme.
 
 ### Page Rendering Pipeline
 
