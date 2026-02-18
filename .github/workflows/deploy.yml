@@ -32,35 +32,33 @@ jobs:
           cp -r .next/static .next/standalone/.next/static
           cp -r public .next/standalone/public
 
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
       - name: Deploy Next.js to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: .next/standalone/.
-          target: ${{ secrets.VPS_APP_DIR }}
-          strip_components: 2
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            .next/standalone/ \
+            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:${{ secrets.VPS_APP_DIR }}/
 
       - name: Deploy WordPress theme
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: wordpress/themes/cdcf-headless/.
-          target: ${{ secrets.WP_THEME_DIR }}
-          strip_components: 3
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            wordpress/themes/cdcf-headless/ \
+            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:${{ secrets.WP_THEME_DIR }}/
 
       - name: Restart Next.js
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            cd ${{ secrets.VPS_APP_DIR }}
-            pm2 restart cdcf-cms || \
-              WORDPRESS_GRAPHQL_URL=${{ secrets.WORDPRESS_GRAPHQL_URL }} \
-              WORDPRESS_PREVIEW_SECRET=${{ secrets.WORDPRESS_PREVIEW_SECRET }} \
-              pm2 start server.js --name cdcf-cms
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
+            "cd ${{ secrets.VPS_APP_DIR }} && \
+             pm2 restart cdcf-cms || \
+             WORDPRESS_GRAPHQL_URL=${{ secrets.WORDPRESS_GRAPHQL_URL }} \
+             WORDPRESS_PREVIEW_SECRET=${{ secrets.WORDPRESS_PREVIEW_SECRET }} \
+             pm2 start server.js --name cdcf-cms"
