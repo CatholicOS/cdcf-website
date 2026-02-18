@@ -302,7 +302,7 @@ The Next.js app fetches content from WordPress via `WORDPRESS_GRAPHQL_URL=https:
 
 ### GitHub Actions CI/CD
 
-The deploy workflow (`.github/workflows/deploy.yml`) triggers on push to `main`. It SSHs into the VPS, pulls the latest code, builds the Next.js standalone output, deploys the WordPress theme, and restarts the Node.js process.
+The deploy workflow (`.github/workflows/deploy.yml`) triggers when a GitHub release is published. It builds the Next.js standalone output in CI, then SCPs the artifacts to the VPS (no repo clone needed on the server).
 
 **Required GitHub Secrets:**
 
@@ -313,7 +313,7 @@ The deploy workflow (`.github/workflows/deploy.yml`) triggers on push to `main`.
 | `VPS_HOST` | VPS IP address or hostname |
 | `VPS_USERNAME` | SSH username |
 | `VPS_SSH_KEY` | SSH private key for deployment |
-| `VPS_APP_DIR` | Next.js app directory path on VPS |
+| `VPS_APP_DIR` | Directory on the VPS where the Next.js standalone app runs |
 | `WP_THEME_DIR` | WordPress theme directory (e.g. `/var/www/vhosts/.../wp-content/themes/cdcf-headless`) |
 
 ### Docker (Local Development Only)

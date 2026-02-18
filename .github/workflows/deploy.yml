@@ -1,17 +1,57 @@
 name: Build and Deploy
 
 on:
-  push:
-    branches: [main]
-  repository_dispatch:
-    types: [reactbricks-publish]
+  release:
+    types: [published]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to VPS
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js
+        run: npm run build
+        env:
+          WORDPRESS_GRAPHQL_URL: ${{ secrets.WORDPRESS_GRAPHQL_URL }}
+
+      - name: Prepare standalone bundle
+        run: |
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public
+
+      - name: Deploy Next.js to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: .next/standalone/.
+          target: ${{ secrets.VPS_APP_DIR }}
+          strip_components: 2
+
+      - name: Deploy WordPress theme
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: wordpress/themes/cdcf-headless/.
+          target: ${{ secrets.WP_THEME_DIR }}
+          strip_components: 3
+
+      - name: Restart Next.js
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -19,10 +59,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd ${{ secrets.VPS_APP_DIR }}
-            git pull origin main
-            docker compose build \
-              --build-arg NEXT_PUBLIC_APP_ID=${{ secrets.NEXT_PUBLIC_APP_ID }} \
-              --build-arg API_KEY=${{ secrets.API_KEY }} \
-              --build-arg NEXT_PUBLIC_ENVIRONMENT=${{ secrets.NEXT_PUBLIC_ENVIRONMENT }}
-            docker compose up -d --remove-orphans
-            docker image prune -f
+            pm2 restart cdcf-cms || \
+              WORDPRESS_GRAPHQL_URL=${{ secrets.WORDPRESS_GRAPHQL_URL }} \
+              WORDPRESS_PREVIEW_SECRET=${{ secrets.WORDPRESS_PREVIEW_SECRET }} \
+              pm2 start server.js --name cdcf-cms
