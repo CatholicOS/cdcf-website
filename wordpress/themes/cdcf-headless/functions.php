@@ -1086,11 +1086,6 @@ add_action('wp_ajax_cdcf_ai_translate', function () {
         pll_save_post_translations($translations);
     }
 
-    $api_key = get_option('cdcf_openai_api_key');
-    if (!$api_key) {
-        wp_send_json_error('OpenAI API key not configured. Go to Languages → AI Translation.');
-    }
-
     $source = get_post($source_id);
     if (!$source) {
         wp_send_json_error('Source post not found.');
@@ -1135,10 +1130,23 @@ add_action('wp_ajax_cdcf_ai_translate', function () {
     }
 
     if (empty($strings)) {
+        // For attachments with nothing to translate (e.g. a photo with no alt text),
+        // the translation post was already created and linked above — just succeed.
+        if ($source->post_type === 'attachment') {
+            wp_send_json_success([
+                'post_id' => $post_id,
+                'message' => 'Media duplicated (no translatable text found).',
+            ]);
+        }
         wp_send_json_error('No translatable content found on the source post.');
     }
 
     // ── 2. Call OpenAI ──
+
+    $api_key = get_option('cdcf_openai_api_key');
+    if (!$api_key) {
+        wp_send_json_error('OpenAI API key not configured. Go to Languages → AI Translation.');
+    }
 
     $target_name = CDCF_LOCALE_NAMES[$target_lang] ?? $target_lang;
     $source_lang = pll_default_language('slug');
