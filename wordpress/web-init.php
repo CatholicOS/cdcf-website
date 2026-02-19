@@ -301,15 +301,15 @@ $ch3 = wp_insert_post( [
 cdcf_set_post_language( $ch3, 'en' );
 
 if ( function_exists( 'update_field' ) ) {
-    update_field( 'channel_icon',        '💬', $ch1 );
+    update_field( 'channel_icon',        'github', $ch1 );
     update_field( 'channel_url',         'https://github.com/orgs/CatholicOS/discussions', $ch1 );
     update_field( 'channel_description', 'Join discussions about CDCF projects and initiatives on GitHub.', $ch1 );
 
-    update_field( 'channel_icon',        '🎮', $ch2 );
+    update_field( 'channel_icon',        'discord', $ch2 );
     update_field( 'channel_url',         'https://discord.gg/q4vg3tCe', $ch2 );
     update_field( 'channel_description', 'A Discord server for Catholic coders to collaborate and share ideas.', $ch2 );
 
-    update_field( 'channel_icon',        '💼', $ch3 );
+    update_field( 'channel_icon',        'slack', $ch3 );
     update_field( 'channel_url',         'https://join.slack.com/t/catholicdevs/shared_invite/zt-1tovdt4om-YNoPduN0rQub5zBsbucj2w', $ch3 );
     update_field( 'channel_description', 'A Slack workspace for Catholic developers to connect and collaborate.', $ch3 );
 

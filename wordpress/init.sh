@@ -290,7 +290,7 @@ CH1_ID=$(wp post create --post_type=community_channel --post_title="GitHub Discu
 
 wp eval "
 if (!function_exists('update_field')) { return; }
-update_field('channel_icon',        '💬', ${CH1_ID});
+update_field('channel_icon',        'github', ${CH1_ID});
 update_field('channel_url',         'https://github.com/orgs/CatholicOS/discussions', ${CH1_ID});
 update_field('channel_description', 'Join discussions about CDCF projects and initiatives on GitHub.', ${CH1_ID});
 " --allow-root 2>/dev/null || true
@@ -300,7 +300,7 @@ CH2_ID=$(wp post create --post_type=community_channel --post_title="Catholic Cod
 
 wp eval "
 if (!function_exists('update_field')) { return; }
-update_field('channel_icon',        '🎮', ${CH2_ID});
+update_field('channel_icon',        'discord', ${CH2_ID});
 update_field('channel_url',         'https://discord.gg/q4vg3tCe', ${CH2_ID});
 update_field('channel_description', 'A Discord server for Catholic coders to collaborate and share ideas.', ${CH2_ID});
 " --allow-root 2>/dev/null || true
@@ -310,7 +310,7 @@ CH3_ID=$(wp post create --post_type=community_channel --post_title="Catholic Dev
 
 wp eval "
 if (!function_exists('update_field')) { return; }
-update_field('channel_icon',        '💼', ${CH3_ID});
+update_field('channel_icon',        'slack', ${CH3_ID});
 update_field('channel_url',         'https://join.slack.com/t/catholicdevs/shared_invite/zt-1tovdt4om-YNoPduN0rQub5zBsbucj2w', ${CH3_ID});
 update_field('channel_description', 'A Slack workspace for Catholic developers to connect and collaborate.', ${CH3_ID});
 " --allow-root 2>/dev/null || true
