@@ -49,6 +49,7 @@ jobs:
 
       - name: Extract and restart
         run: |
+          sleep 5
           ssh -i ~/.ssh/deploy_key \
             ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
             "mkdir -p ${{ secrets.VPS_APP_DIR }} && \
