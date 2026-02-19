@@ -45,7 +45,7 @@ export default function CallToAction({ cta }: CallToActionProps) {
           {cta.ctaDescription && (
             <div
               className={clsx(
-                'mt-4 text-lg',
+                'cdcf-content mt-4 text-lg',
                 style === 'banner' || style === 'card'
                   ? 'text-gray-200'
                   : 'text-gray-600'

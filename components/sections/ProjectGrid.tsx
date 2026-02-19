@@ -87,7 +87,7 @@ export default function ProjectGrid({
 
                 {project.excerpt && (
                   <div
-                    className="mt-3 flex-1 text-sm leading-relaxed text-gray-600"
+                    className="cdcf-content mt-3 flex-1 text-sm leading-relaxed text-gray-600"
                     dangerouslySetInnerHTML={{ __html: project.excerpt }}
                   />
                 )}

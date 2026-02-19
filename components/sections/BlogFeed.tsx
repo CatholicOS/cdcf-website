@@ -57,7 +57,7 @@ export default function BlogFeed({ posts, title }: BlogFeedProps) {
 
                   {post.excerpt && (
                     <div
-                      className="mt-2 flex-1 text-sm leading-relaxed text-gray-600"
+                      className="cdcf-content mt-2 flex-1 text-sm leading-relaxed text-gray-600"
                       dangerouslySetInnerHTML={{ __html: post.excerpt }}
                     />
                   )}
