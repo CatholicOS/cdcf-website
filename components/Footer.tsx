@@ -26,7 +26,7 @@ export default function Footer() {
             {/* Social icons */}
             <div className="mt-6 flex gap-4">
               <a
-                href="https://github.com/CatholicOS-org"
+                href="https://github.com/CatholicOS"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 transition-colors hover:text-cdcf-gold"
@@ -55,7 +55,7 @@ export default function Footer() {
             </h3>
             <ul className="mt-4 space-y-3">
               <li>
-                <a href="https://github.com/CatholicOS-org" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-300 transition-colors hover:text-white">
+                <a href="https://github.com/CatholicOS" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-300 transition-colors hover:text-white">
                   {t('community.github')}
                 </a>
               </li>
@@ -89,7 +89,7 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <Link href="/news" className="text-sm text-gray-300 transition-colors hover:text-white">
+                <Link href="/blog" className="text-sm text-gray-300 transition-colors hover:text-white">
                   {t('resources.blog')}
                 </Link>
               </li>
