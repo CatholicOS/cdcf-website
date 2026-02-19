@@ -27,10 +27,12 @@ jobs:
         env:
           WORDPRESS_GRAPHQL_URL: ${{ secrets.WORDPRESS_GRAPHQL_URL }}
 
-      - name: Prepare standalone bundle
+      - name: Prepare bundles
         run: |
           cp -r .next/static .next/standalone/.next/static
           cp -r public .next/standalone/public
+          tar -czf /tmp/nextjs-bundle.tar.gz -C .next/standalone .
+          tar -czf /tmp/wp-theme.tar.gz -C wordpress/themes/cdcf-headless .
 
       - name: Setup SSH key
         run: |
@@ -39,33 +41,21 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy Next.js to VPS
+      - name: Upload bundles
         run: |
-          tar -czf /tmp/nextjs-bundle.tar.gz -C .next/standalone .
           scp -i ~/.ssh/deploy_key \
-            /tmp/nextjs-bundle.tar.gz \
-            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/tmp/nextjs-bundle.tar.gz
+            /tmp/nextjs-bundle.tar.gz /tmp/wp-theme.tar.gz \
+            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/tmp/
+
+      - name: Extract and restart
+        run: |
           ssh -i ~/.ssh/deploy_key \
             ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
             "mkdir -p ${{ secrets.VPS_APP_DIR }} && \
              tar -xzf /tmp/nextjs-bundle.tar.gz -C ${{ secrets.VPS_APP_DIR }} && \
-             rm /tmp/nextjs-bundle.tar.gz"
-
-      - name: Deploy WordPress theme
-        run: |
-          tar -czf /tmp/wp-theme.tar.gz -C wordpress/themes/cdcf-headless .
-          scp -i ~/.ssh/deploy_key \
-            /tmp/wp-theme.tar.gz \
-            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/tmp/wp-theme.tar.gz
-          ssh -i ~/.ssh/deploy_key \
-            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
-            "mkdir -p ${{ secrets.WP_THEME_DIR }} && \
+             rm /tmp/nextjs-bundle.tar.gz && \
+             mkdir -p ${{ secrets.WP_THEME_DIR }} && \
              tar -xzf /tmp/wp-theme.tar.gz -C ${{ secrets.WP_THEME_DIR }} && \
-             rm /tmp/wp-theme.tar.gz"
-
-      - name: Restart Next.js
-        run: |
-          ssh -i ~/.ssh/deploy_key \
-            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
-            "mkdir -p ${{ secrets.VPS_APP_DIR }}/tmp && \
+             rm /tmp/wp-theme.tar.gz && \
+             mkdir -p ${{ secrets.VPS_APP_DIR }}/tmp && \
              touch ${{ secrets.VPS_APP_DIR }}/tmp/restart.txt"
