@@ -16,7 +16,7 @@ export default function Header() {
     { href: '/about', label: t('about') },
     { href: '/projects', label: t('projects') },
     { href: '/community', label: t('community') },
-    { href: '/news', label: t('news') },
+    { href: '/blog', label: t('news') },
     { href: '/contact', label: t('contact') },
   ]
 
