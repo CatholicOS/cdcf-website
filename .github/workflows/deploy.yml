@@ -67,8 +67,5 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key \
             ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
-            "cd ${{ secrets.VPS_APP_DIR }} && \
-             pm2 restart cdcf-cms || \
-             WORDPRESS_GRAPHQL_URL=${{ secrets.WORDPRESS_GRAPHQL_URL }} \
-             WORDPRESS_PREVIEW_SECRET=${{ secrets.WORDPRESS_PREVIEW_SECRET }} \
-             pm2 start server.js --name cdcf-cms"
+            "mkdir -p ${{ secrets.VPS_APP_DIR }}/tmp && \
+             touch ${{ secrets.VPS_APP_DIR }}/tmp/restart.txt"
