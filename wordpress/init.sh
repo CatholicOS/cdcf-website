@@ -290,7 +290,7 @@ CH1_ID=$(wp post create --post_type=community_channel --post_title="GitHub Discu
 
 wp eval "
 if (!function_exists('update_field')) { return; }
-update_field('channel_url',         'https://github.com/orgs/CatholicOS-org/discussions', ${CH1_ID});
+update_field('channel_url',         'https://github.com/orgs/CatholicOS/discussions', ${CH1_ID});
 update_field('channel_description', 'Join discussions about CDCF projects and initiatives on GitHub.', ${CH1_ID});
 " --allow-root 2>/dev/null || true
 

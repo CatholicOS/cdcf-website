@@ -287,7 +287,7 @@ $ch1 = wp_insert_post( [
 cdcf_set_post_language( $ch1, 'en' );
 
 if ( function_exists( 'update_field' ) ) {
-    update_field( 'channel_url',         'https://github.com/orgs/CatholicOS-org/discussions', $ch1 );
+    update_field( 'channel_url',         'https://github.com/orgs/CatholicOS/discussions', $ch1 );
     update_field( 'channel_description', 'Join discussions about CDCF projects and initiatives on GitHub.', $ch1 );
     update_field( 'channels', [ $ch1 ], $page_ids['community'] );
     update_field( 'members',  [ $m1 ],  $page_ids['community'] );
