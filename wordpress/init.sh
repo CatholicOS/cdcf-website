@@ -284,20 +284,41 @@ update_field('team_members',       [${M1_ID}], ${ABOUT_ID});
 update_field('governance_columns', '3',         ${ABOUT_ID});
 " --allow-root 2>/dev/null || true
 
-# Sample community channel
+# Sample community channels
 CH1_ID=$(wp post create --post_type=community_channel --post_title="GitHub Discussions" \
   --post_status=publish --porcelain --allow-root)
 
 wp eval "
 if (!function_exists('update_field')) { return; }
+update_field('channel_icon',        '💬', ${CH1_ID});
 update_field('channel_url',         'https://github.com/orgs/CatholicOS/discussions', ${CH1_ID});
 update_field('channel_description', 'Join discussions about CDCF projects and initiatives on GitHub.', ${CH1_ID});
 " --allow-root 2>/dev/null || true
 
-# Link channel to Community page
+CH2_ID=$(wp post create --post_type=community_channel --post_title="Catholic Coders Guild by Clairvo" \
+  --post_status=publish --porcelain --allow-root)
+
 wp eval "
 if (!function_exists('update_field')) { return; }
-update_field('channels', [${CH1_ID}], ${COMMUNITY_ID});
+update_field('channel_icon',        '🎮', ${CH2_ID});
+update_field('channel_url',         'https://discord.gg/q4vg3tCe', ${CH2_ID});
+update_field('channel_description', 'A Discord server for Catholic coders to collaborate and share ideas.', ${CH2_ID});
+" --allow-root 2>/dev/null || true
+
+CH3_ID=$(wp post create --post_type=community_channel --post_title="Catholic Devs" \
+  --post_status=publish --porcelain --allow-root)
+
+wp eval "
+if (!function_exists('update_field')) { return; }
+update_field('channel_icon',        '💼', ${CH3_ID});
+update_field('channel_url',         'https://join.slack.com/t/catholicdevs/shared_invite/zt-1tovdt4om-YNoPduN0rQub5zBsbucj2w', ${CH3_ID});
+update_field('channel_description', 'A Slack workspace for Catholic developers to connect and collaborate.', ${CH3_ID});
+" --allow-root 2>/dev/null || true
+
+# Link channels to Community page
+wp eval "
+if (!function_exists('update_field')) { return; }
+update_field('channels', [${CH1_ID}, ${CH2_ID}, ${CH3_ID}], ${COMMUNITY_ID});
 update_field('members',  [${M1_ID}],  ${COMMUNITY_ID});
 " --allow-root 2>/dev/null || true
 
