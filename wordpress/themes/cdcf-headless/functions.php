@@ -904,7 +904,8 @@ function cdcf_ai_translate_meta_box($post) {
             return;
         }
         ?>
-        <p>Generate AI translations from this source post.</p>
+        <p>Translate from <strong><?php echo esc_html(CDCF_LOCALE_NAMES[$default_lang] ?? $default_lang); ?></strong>
+           to other languages using OpenAI.</p>
         <p><em>Creates translation posts if needed, then translates title, content, excerpt, and ACF fields.</em></p>
         <div style="margin-top:8px;">
         <?php foreach ($target_langs as $tl):
