@@ -1,19 +1,44 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link } from '@/src/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
+import { Bars3Icon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 import Logo from './Logo'
 import LanguageSwitcher from './LanguageSwitcher'
 
+interface NavLink {
+  href: string
+  label: string
+  children?: { href: string; label: string }[]
+}
+
 export default function Header() {
   const t = useTranslations('nav')
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [desktopDropdown, setDesktopDropdown] = useState<string | null>(null)
+  const [mobileDropdown, setMobileDropdown] = useState<string | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const navLinks = [
-    { href: '/about', label: t('about') },
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDesktopDropdown(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const navLinks: NavLink[] = [
+    {
+      href: '/about',
+      label: t('about'),
+      children: [
+        { href: '/about/certificate-of-formation', label: 'Certificate of Formation' },
+      ],
+    },
     { href: '/projects', label: t('projects') },
     { href: '/community', label: t('community') },
     { href: '/blog', label: t('news') },
@@ -32,16 +57,57 @@ export default function Header() {
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden items-center gap-1 md:flex">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
-            >
-              {link.label}
-            </Link>
-          ))}
+        <nav className="hidden items-center gap-1 md:flex" ref={dropdownRef}>
+          {navLinks.map((link) =>
+            link.children ? (
+              <div key={link.href} className="relative">
+                <div className="flex items-center">
+                  <Link
+                    href={link.href}
+                    className="rounded-l-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+                  >
+                    {link.label}
+                  </Link>
+                  <button
+                    onClick={() =>
+                      setDesktopDropdown(desktopDropdown === link.href ? null : link.href)
+                    }
+                    className="rounded-r-md px-1 py-2 text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+                    aria-label={`${link.label} submenu`}
+                  >
+                    <ChevronDownIcon
+                      className={clsx(
+                        'h-3.5 w-3.5 transition-transform',
+                        desktopDropdown === link.href && 'rotate-180'
+                      )}
+                    />
+                  </button>
+                </div>
+                {desktopDropdown === link.href && (
+                  <div className="absolute left-0 top-full mt-1 min-w-48 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+                    {link.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        onClick={() => setDesktopDropdown(null)}
+                        className="block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+                      >
+                        {child.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+              >
+                {link.label}
+              </Link>
+            )
+          )}
         </nav>
 
         {/* Right side: language switcher + donate CTA */}
@@ -74,16 +140,55 @@ export default function Header() {
         )}
       >
         <nav className="flex flex-col px-4 py-2">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={() => setMobileOpen(false)}
-              className="rounded-md px-3 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
-            >
-              {link.label}
-            </Link>
-          ))}
+          {navLinks.map((link) =>
+            link.children ? (
+              <div key={link.href}>
+                <div className="flex items-center justify-between">
+                  <Link
+                    href={link.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="flex-1 rounded-l-md px-3 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+                  >
+                    {link.label}
+                  </Link>
+                  <button
+                    onClick={() =>
+                      setMobileDropdown(mobileDropdown === link.href ? null : link.href)
+                    }
+                    className="rounded-r-md px-3 py-2.5 text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+                    aria-label={`${link.label} submenu`}
+                  >
+                    <ChevronDownIcon
+                      className={clsx(
+                        'h-4 w-4 transition-transform',
+                        mobileDropdown === link.href && 'rotate-180'
+                      )}
+                    />
+                  </button>
+                </div>
+                {mobileDropdown === link.href &&
+                  link.children.map((child) => (
+                    <Link
+                      key={child.href}
+                      href={child.href}
+                      onClick={() => setMobileOpen(false)}
+                      className="block rounded-md py-2 pr-3 pl-8 text-sm text-gray-600 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+                    >
+                      {child.label}
+                    </Link>
+                  ))}
+              </div>
+            ) : (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileOpen(false)}
+                className="rounded-md px-3 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+              >
+                {link.label}
+              </Link>
+            )
+          )}
           <Link
             href="/donate"
             onClick={() => setMobileOpen(false)}
