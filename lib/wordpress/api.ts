@@ -33,7 +33,18 @@ export async function getPage(
       page: { translation: WPPage | null } | null
     }>(GET_PAGE_BY_SLUG, { slug: uri, language: langCode(locale) })
 
-    return data.page?.translation ?? null
+    // Fall back to the English version if no translation exists
+    const translated = data.page?.translation ?? null
+    if (translated) return translated
+
+    if (locale !== 'en') {
+      const fallback = await wpQuery<{
+        page: { translation: WPPage | null } | null
+      }>(GET_PAGE_BY_SLUG, { slug: uri, language: 'EN' })
+      return fallback.page?.translation ?? null
+    }
+
+    return null
   } catch (error) {
     console.error('Failed to fetch page:', error)
     return null
