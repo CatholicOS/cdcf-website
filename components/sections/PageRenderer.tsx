@@ -26,8 +26,12 @@ export default function PageRenderer({
 
   return (
     <>
-      {/* Hero — shared across all templates */}
-      {page.hero && <HeroBanner hero={page.hero} />}
+      {/* Hero — shared across all templates (only if meaningful content exists) */}
+      {page.hero &&
+        (page.hero.heroTagline ||
+          page.hero.heroSubtitle ||
+          page.hero.heroPrimaryBtnLabel ||
+          page.hero.heroSecondaryBtnLabel) && <HeroBanner hero={page.hero} />}
 
       {/* Template-specific sections */}
       {template === 'Home' && renderHome(page, projects, sponsors)}
