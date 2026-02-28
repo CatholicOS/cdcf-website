@@ -120,8 +120,16 @@ add_action('acf/init', function () {
             continue;
         }
 
+        // Only register simple scalar field types. Complex types
+        // (relationship, image) store serialized arrays that can't
+        // be represented as string meta and break page saves.
+        $skip_types = ['relationship', 'image', 'file', 'gallery', 'repeater', 'flexible_content', 'group'];
+
         foreach (acf_get_fields($group['key']) as $field) {
             if (empty($field['show_in_rest'])) {
+                continue;
+            }
+            if (in_array($field['type'], $skip_types, true)) {
                 continue;
             }
             foreach ($post_types as $pt) {
