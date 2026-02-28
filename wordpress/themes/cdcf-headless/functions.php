@@ -116,6 +116,7 @@ add_action('acf/init', function () {
                 ],
                 'default_value' => 'gradient',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'     => 'field_hero_bg_color',
@@ -127,6 +128,7 @@ add_action('acf/init', function () {
                     [['field' => 'field_hero_bg_style', 'operator' => '==', 'value' => 'solid']],
                 ],
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'     => 'field_hero_show_logo',
@@ -135,6 +137,7 @@ add_action('acf/init', function () {
                 'type'    => 'true_false',
                 'default_value' => 1,
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'     => 'field_hero_alignment',
@@ -148,6 +151,7 @@ add_action('acf/init', function () {
                 ],
                 'default_value' => 'center',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_hero_tagline',
@@ -155,6 +159,7 @@ add_action('acf/init', function () {
                 'name'  => 'hero_tagline',
                 'type'  => 'text',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_hero_subtitle',
@@ -164,6 +169,7 @@ add_action('acf/init', function () {
                 'media_upload' => 0,
                 'tabs'  => 'all',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'     => 'field_hero_background_image',
@@ -175,6 +181,7 @@ add_action('acf/init', function () {
                     [['field' => 'field_hero_bg_style', 'operator' => '==', 'value' => 'image']],
                 ],
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_hero_primary_btn_label',
@@ -182,6 +189,7 @@ add_action('acf/init', function () {
                 'name'  => 'hero_primary_btn_label',
                 'type'  => 'text',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_hero_primary_btn_url',
@@ -189,6 +197,7 @@ add_action('acf/init', function () {
                 'name'  => 'hero_primary_btn_url',
                 'type'  => 'url',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_hero_secondary_btn_label',
@@ -196,6 +205,7 @@ add_action('acf/init', function () {
                 'name'  => 'hero_secondary_btn_label',
                 'type'  => 'text',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_hero_secondary_btn_url',
@@ -203,6 +213,7 @@ add_action('acf/init', function () {
                 'name'  => 'hero_secondary_btn_url',
                 'type'  => 'url',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
         ],
         'location' => [
@@ -239,6 +250,7 @@ add_action('acf/init', function () {
                 ],
                 'default_value' => 'banner',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_cta_heading',
@@ -246,6 +258,7 @@ add_action('acf/init', function () {
                 'name'  => 'cta_heading',
                 'type'  => 'text',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_cta_description',
@@ -254,6 +267,7 @@ add_action('acf/init', function () {
                 'type'  => 'wysiwyg',
                 'media_upload' => 0,
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_cta_primary_btn_label',
@@ -261,6 +275,7 @@ add_action('acf/init', function () {
                 'name'  => 'cta_primary_btn_label',
                 'type'  => 'text',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_cta_primary_btn_url',
@@ -268,6 +283,7 @@ add_action('acf/init', function () {
                 'name'  => 'cta_primary_btn_url',
                 'type'  => 'url',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_cta_secondary_btn_label',
@@ -275,6 +291,7 @@ add_action('acf/init', function () {
                 'name'  => 'cta_secondary_btn_label',
                 'type'  => 'text',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_cta_secondary_btn_url',
@@ -282,6 +299,7 @@ add_action('acf/init', function () {
                 'name'  => 'cta_secondary_btn_url',
                 'type'  => 'url',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
         ],
         'location' => [
@@ -317,6 +335,7 @@ add_action('acf/init', function () {
                 ],
                 'default_value' => 'incubating',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_project_repo_url',
@@ -324,6 +343,7 @@ add_action('acf/init', function () {
                 'name'  => 'project_repo_url',
                 'type'  => 'url',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_project_url',
@@ -331,6 +351,7 @@ add_action('acf/init', function () {
                 'name'  => 'project_url',
                 'type'  => 'url',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_project_license',
@@ -338,6 +359,7 @@ add_action('acf/init', function () {
                 'name'  => 'project_license',
                 'type'  => 'text',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_project_category',
@@ -345,6 +367,7 @@ add_action('acf/init', function () {
                 'name'  => 'project_category',
                 'type'  => 'text',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
         ],
         'location' => [
@@ -419,6 +442,7 @@ add_action('acf/init', function () {
                 ],
                 'default_value' => 'silver',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_sponsor_url',
@@ -426,6 +450,7 @@ add_action('acf/init', function () {
                 'name'  => 'sponsor_url',
                 'type'  => 'url',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
         ],
         'location' => [
@@ -447,6 +472,7 @@ add_action('acf/init', function () {
                 'name'  => 'channel_icon',
                 'type'  => 'text',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_channel_url',
@@ -454,6 +480,7 @@ add_action('acf/init', function () {
                 'name'  => 'channel_url',
                 'type'  => 'url',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_channel_description',
@@ -461,6 +488,7 @@ add_action('acf/init', function () {
                 'name'  => 'channel_description',
                 'type'  => 'textarea',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
         ],
         'location' => [
@@ -482,6 +510,7 @@ add_action('acf/init', function () {
                 'name'  => 'stat_icon',
                 'type'  => 'text',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_stat_number',
@@ -489,6 +518,7 @@ add_action('acf/init', function () {
                 'name'  => 'stat_number',
                 'type'  => 'text',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_stat_label',
@@ -496,6 +526,7 @@ add_action('acf/init', function () {
                 'name'  => 'stat_label',
                 'type'  => 'text',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
         ],
         'location' => [
@@ -519,6 +550,7 @@ add_action('acf/init', function () {
                 'post_type' => ['project'],
                 'return_format' => 'object',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_home_stats',
@@ -528,6 +560,7 @@ add_action('acf/init', function () {
                 'post_type' => ['stat_item'],
                 'return_format' => 'object',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'     => 'field_home_stats_bg',
@@ -540,6 +573,7 @@ add_action('acf/init', function () {
                 ],
                 'default_value' => 'navy',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
         ],
         'location' => [
@@ -565,6 +599,7 @@ add_action('acf/init', function () {
                 'post_type' => ['team_member'],
                 'return_format' => 'object',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_about_ecclesial_council',
@@ -574,6 +609,7 @@ add_action('acf/init', function () {
                 'post_type' => ['team_member'],
                 'return_format' => 'object',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_about_technical_council',
@@ -583,6 +619,7 @@ add_action('acf/init', function () {
                 'post_type' => ['team_member'],
                 'return_format' => 'object',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'     => 'field_about_governance_columns',
@@ -596,6 +633,7 @@ add_action('acf/init', function () {
                 ],
                 'default_value' => '3',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
         ],
         'location' => [
@@ -620,6 +658,7 @@ add_action('acf/init', function () {
                 'type'  => 'true_false',
                 'default_value' => 0,
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'     => 'field_projects_columns',
@@ -633,6 +672,7 @@ add_action('acf/init', function () {
                 ],
                 'default_value' => '3',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
         ],
         'location' => [
@@ -658,6 +698,7 @@ add_action('acf/init', function () {
                 'post_type' => ['community_channel'],
                 'return_format' => 'object',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_community_members',
@@ -667,6 +708,7 @@ add_action('acf/init', function () {
                 'post_type' => ['team_member'],
                 'return_format' => 'object',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
         ],
         'location' => [
@@ -691,6 +733,7 @@ add_action('acf/init', function () {
                 'type'    => 'number',
                 'default_value' => 6,
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
         ],
         'location' => [
@@ -714,6 +757,7 @@ add_action('acf/init', function () {
                 'name'  => 'contact_body',
                 'type'  => 'wysiwyg',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
         ],
         'location' => [
