@@ -38,7 +38,8 @@ export default function Header() {
       href: '/about',
       label: t('about'),
       children: [
-        { href: '/about/certificate-of-formation', label: 'Certificate of Formation' },
+        { href: '/about/certificate-of-formation', label: t('certificateOfFormation') },
+        { href: '/about/manifesto', label: t('manifesto') },
       ],
     },
     { href: '/projects', label: t('projects') },
