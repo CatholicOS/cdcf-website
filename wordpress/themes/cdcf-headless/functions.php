@@ -555,8 +555,26 @@ add_action('acf/init', function () {
         'fields' => [
             [
                 'key'   => 'field_about_team_members',
-                'label' => 'Team Members',
+                'label' => 'Board of Directors',
                 'name'  => 'team_members',
+                'type'  => 'relationship',
+                'post_type' => ['team_member'],
+                'return_format' => 'object',
+                'show_in_graphql' => true,
+            ],
+            [
+                'key'   => 'field_about_ecclesial_council',
+                'label' => 'Ecclesial Advisory Council',
+                'name'  => 'ecclesial_council',
+                'type'  => 'relationship',
+                'post_type' => ['team_member'],
+                'return_format' => 'object',
+                'show_in_graphql' => true,
+            ],
+            [
+                'key'   => 'field_about_technical_council',
+                'label' => 'Technical Advisory Council',
+                'name'  => 'technical_council',
                 'type'  => 'relationship',
                 'post_type' => ['team_member'],
                 'return_format' => 'object',

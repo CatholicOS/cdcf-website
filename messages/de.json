@@ -52,6 +52,11 @@
     "defaultTagline": "Catholic Digital Commons Foundation",
     "defaultSubtitle": "Wir fördern Open-Source-Projekte im Dienst der katholischen Gemeinschaft weltweit."
   },
+  "about": {
+    "boardOfDirectors": "Vorstand",
+    "ecclesialAdvisoryCouncil": "Kirchlicher Beirat",
+    "technicalAdvisoryCouncil": "Technischer Beirat"
+  },
   "projects": {
     "status": {
       "incubating": "In Entwicklung",

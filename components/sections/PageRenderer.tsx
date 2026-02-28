@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server'
 import type { WPPage, WPPost, WPProject, WPSponsor } from '@/lib/wordpress/types'
 import HeroBanner from './HeroBanner'
 import StatsBar from './StatsBar'
@@ -16,13 +17,14 @@ interface PageRendererProps {
   sponsors?: WPSponsor[]
 }
 
-export default function PageRenderer({
+export default async function PageRenderer({
   page,
   posts = [],
   projects = [],
   sponsors = [],
 }: PageRendererProps) {
   const template = page.template?.templateName || 'Default'
+  const t = await getTranslations('about')
 
   return (
     <>
@@ -35,7 +37,7 @@ export default function PageRenderer({
 
       {/* Template-specific sections */}
       {template === 'Home' && renderHome(page, projects, sponsors)}
-      {template === 'About' && renderAbout(page)}
+      {template === 'About' && renderAbout(page, t)}
       {template === 'Projects' && renderProjects(page, projects)}
       {template === 'Community' && renderCommunity(page)}
       {template === 'Blog' && renderBlog(page, posts)}
@@ -74,7 +76,7 @@ function renderHome(page: WPPage, projects: WPProject[], sponsors: WPSponsor[]) 
   )
 }
 
-function renderAbout(page: WPPage) {
+function renderAbout(page: WPPage, t: (key: string) => string) {
   const about = page.aboutFields
   return (
     <>
@@ -84,7 +86,24 @@ function renderAbout(page: WPPage) {
 
       {about?.teamMembers?.nodes && about.teamMembers.nodes.length > 0 && (
         <GovernanceSection
+          title={t('boardOfDirectors')}
           members={about.teamMembers.nodes}
+          columns={Number(about.governanceColumns?.[0]) || 3}
+        />
+      )}
+
+      {about?.ecclesialCouncil?.nodes && about.ecclesialCouncil.nodes.length > 0 && (
+        <GovernanceSection
+          title={t('ecclesialAdvisoryCouncil')}
+          members={about.ecclesialCouncil.nodes}
+          columns={Number(about.governanceColumns?.[0]) || 3}
+        />
+      )}
+
+      {about?.technicalCouncil?.nodes && about.technicalCouncil.nodes.length > 0 && (
+        <GovernanceSection
+          title={t('technicalAdvisoryCouncil')}
+          members={about.technicalCouncil.nodes}
           columns={Number(about.governanceColumns?.[0]) || 3}
         />
       )}

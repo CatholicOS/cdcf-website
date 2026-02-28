@@ -132,6 +132,8 @@ export interface WPPage {
   } | null
   aboutFields: {
     teamMembers: { nodes: WPTeamMember[] } | null
+    ecclesialCouncil: { nodes: WPTeamMember[] } | null
+    technicalCouncil: { nodes: WPTeamMember[] } | null
     governanceColumns: string[] | null
   } | null
   projectsPageFields: {

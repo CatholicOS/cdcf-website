@@ -152,6 +152,20 @@ export const GET_PAGE_BY_SLUG = `
               }
             }
           }
+          ecclesialCouncil {
+            nodes {
+              ... on TeamMember {
+                ${TEAM_MEMBER_FIELDS}
+              }
+            }
+          }
+          technicalCouncil {
+            nodes {
+              ... on TeamMember {
+                ${TEAM_MEMBER_FIELDS}
+              }
+            }
+          }
           governanceColumns
         }
         projectsPageFields {
