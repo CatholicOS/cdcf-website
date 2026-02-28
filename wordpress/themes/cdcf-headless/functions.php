@@ -91,6 +91,53 @@ add_action('init', function () {
     ]);
 });
 
+// ─── Register ACF fields as REST-writable post meta ─────────────────
+//
+// ACF Free exposes fields for reading via show_in_rest but doesn't
+// register them with register_post_meta(), so WordPress rejects
+// writes through the REST API. This hook bridges that gap.
+
+add_action('acf/init', function () {
+    if (!function_exists('acf_get_field_groups') || !function_exists('acf_get_fields')) {
+        return;
+    }
+
+    foreach (acf_get_field_groups() as $group) {
+        // Determine which post types this group applies to.
+        $post_types = [];
+        foreach ($group['location'] ?? [] as $rules) {
+            foreach ($rules as $rule) {
+                if ($rule['param'] === 'post_type' && $rule['operator'] === '==') {
+                    $post_types[] = $rule['value'];
+                }
+                if ($rule['param'] === 'page_template' && $rule['operator'] === '==') {
+                    $post_types[] = 'page';
+                }
+            }
+        }
+        $post_types = array_unique($post_types);
+        if (empty($post_types)) {
+            continue;
+        }
+
+        foreach (acf_get_fields($group['key']) as $field) {
+            if (empty($field['show_in_rest'])) {
+                continue;
+            }
+            foreach ($post_types as $pt) {
+                register_post_meta($pt, $field['name'], [
+                    'type'          => 'string',
+                    'single'        => true,
+                    'show_in_rest'  => true,
+                    'auth_callback' => function () {
+                        return current_user_can('edit_posts');
+                    },
+                ]);
+            }
+        }
+    }
+}, 20); // priority 20 so it runs after field groups are registered
+
 // ─── ACF Field Groups (registered programmatically) ──────────────────
 
 add_action('acf/init', function () {
