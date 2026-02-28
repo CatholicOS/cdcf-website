@@ -1840,6 +1840,71 @@ add_action('rest_api_init', function () {
             'post_id'     => ['required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint', 'default' => 0],
         ],
     ]);
+
+    register_rest_route('cdcf/v1', '/deploy-translation', [
+        'methods'             => 'POST',
+        'permission_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        'callback' => function (WP_REST_Request $request) {
+            $source_id   = intval($request['source_id'] ?? 0);
+            $target_lang = sanitize_text_field($request['target_lang'] ?? '');
+            $title       = sanitize_text_field($request['title'] ?? '');
+            $content     = wp_kses_post($request['content'] ?? '');
+
+            if (!$source_id || !$target_lang || !$content) {
+                return new WP_Error('missing_params', 'Missing source_id, target_lang, or content.', ['status' => 400]);
+            }
+
+            if (!function_exists('pll_set_post_language')) {
+                return new WP_Error('polylang_missing', 'Polylang is not active.', ['status' => 500]);
+            }
+
+            $source = get_post($source_id);
+            if (!$source) {
+                return new WP_Error('not_found', 'Source post not found.', ['status' => 404]);
+            }
+
+            // Check if a translation already exists for this language.
+            $translations = pll_get_post_translations($source_id);
+            $post_id = $translations[$target_lang] ?? 0;
+
+            if ($post_id) {
+                wp_update_post([
+                    'ID'           => $post_id,
+                    'post_title'   => $title ?: $source->post_title,
+                    'post_content' => $content,
+                    'post_status'  => $source->post_status,
+                ]);
+            } else {
+                $post_id = wp_insert_post([
+                    'post_type'    => $source->post_type,
+                    'post_status'  => $source->post_status,
+                    'post_title'   => $title ?: $source->post_title,
+                    'post_content' => $content,
+                ]);
+
+                if (is_wp_error($post_id) || !$post_id) {
+                    return new WP_Error('insert_failed', 'Failed to create translation post.', ['status' => 500]);
+                }
+
+                pll_set_post_language($post_id, $target_lang);
+                $translations[$target_lang] = $post_id;
+                pll_save_post_translations($translations);
+            }
+
+            return rest_ensure_response([
+                'post_id' => $post_id,
+                'message' => 'Translation deployed.',
+            ]);
+        },
+        'args' => [
+            'source_id'   => ['required' => true,  'type' => 'integer', 'sanitize_callback' => 'absint'],
+            'target_lang' => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
+            'title'       => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
+            'content'     => ['required' => true,  'type' => 'string'],
+        ],
+    ]);
 });
 
 /**
