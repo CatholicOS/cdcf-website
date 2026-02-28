@@ -106,3 +106,11 @@ Required in `.env.local` (Next.js) or `.env` (Docker Compose):
 - `WORDPRESS_PREVIEW_SECRET` — Shared secret for preview + revalidation
 - `WP_DB_ROOT_PASSWORD`, `WP_DB_NAME`, `WP_DB_USER`, `WP_DB_PASSWORD` — Database config
 - Docker Compose reads `.env` not `.env.local` for variable substitution
+
+## Deployment
+
+Deploys to production via GitHub Actions (SSH tar + scp). Automatic on new release; otherwise trigger manually:
+
+```bash
+gh workflow run deploy.yml      # after pushing to main
+```
