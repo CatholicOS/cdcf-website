@@ -156,5 +156,5 @@ function renderContact(page: WPPage) {
 
 function renderDefault(page: WPPage) {
   if (!page.content) return null
-  return <TextSection heading="" body={page.content} />
+  return <TextSection heading="" body={page.content} width="full" />
 }
