@@ -146,6 +146,325 @@ add_action('acf/init', function () {
     }
 }, 20); // priority 20 so it runs after field groups are registered
 
+// ─── REST endpoint for ACF relationship fields ──────────────────────
+//
+// ACF relationship fields store serialized arrays in post meta and
+// cannot be written through the standard WP REST API. This custom
+// endpoint allows reading and updating relationship fields via REST.
+//
+// GET  /wp-json/cdcf/v1/relationship?post_id=5&field=technical_council
+// POST /wp-json/cdcf/v1/relationship  { post_id: 5, field: "technical_council", value: [255, 256] }
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/relationship', [
+        [
+            'methods'             => 'GET',
+            'callback'            => 'cdcf_rest_get_relationship',
+            'permission_callback' => function () {
+                return current_user_can('edit_posts');
+            },
+            'args' => [
+                'post_id' => ['required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint'],
+                'field'   => ['required' => true, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
+            ],
+        ],
+        [
+            'methods'             => 'POST',
+            'callback'            => 'cdcf_rest_update_relationship',
+            'permission_callback' => function () {
+                return current_user_can('edit_posts');
+            },
+            'args' => [
+                'post_id' => ['required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint'],
+                'field'   => ['required' => true, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
+                'value'   => ['required' => true, 'type' => 'array'],
+            ],
+        ],
+    ]);
+});
+
+function cdcf_rest_get_relationship(WP_REST_Request $request) {
+    $post_id = $request['post_id'];
+    $field   = $request['field'];
+
+    if (!function_exists('get_field')) {
+        return new WP_Error('acf_missing', 'ACF is not active.', ['status' => 500]);
+    }
+
+    $acf_field = acf_get_field($field);
+    if (!$acf_field || $acf_field['type'] !== 'relationship') {
+        return new WP_Error('invalid_field', 'Field is not a relationship field.', ['status' => 400]);
+    }
+
+    $value = get_field($field, $post_id, false); // raw IDs
+    return rest_ensure_response(['post_id' => $post_id, 'field' => $field, 'value' => $value ?: []]);
+}
+
+function cdcf_rest_update_relationship(WP_REST_Request $request) {
+    $post_id = $request['post_id'];
+    $field   = $request['field'];
+    $value   = $request['value'];
+
+    if (!function_exists('update_field')) {
+        return new WP_Error('acf_missing', 'ACF is not active.', ['status' => 500]);
+    }
+
+    $acf_field = acf_get_field($field);
+    if (!$acf_field || $acf_field['type'] !== 'relationship') {
+        return new WP_Error('invalid_field', 'Field is not a relationship field.', ['status' => 400]);
+    }
+
+    // Sanitize to array of integers.
+    $value = array_map('absint', array_filter($value));
+    update_field($field, $value, $post_id);
+
+    return rest_ensure_response(['post_id' => $post_id, 'field' => $field, 'value' => $value, 'updated' => true]);
+}
+
+// ─── REST endpoint for creating a team member with translations ──────
+//
+// Creates an English team_member post, translates it to all configured
+// languages via OpenAI, and appends each translation to the correct
+// language version of the About page's relationship field (council).
+//
+// POST /wp-json/cdcf/v1/team-member (Application Password auth)
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/team-member', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_create_team_member',
+        'permission_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        'args' => [
+            'title'              => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
+            'content'            => ['required' => true,  'type' => 'string'],
+            'member_title'       => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'member_role'        => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'member_linkedin_url' => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => ''],
+            'member_github_url'  => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'esc_url_raw', 'default' => ''],
+            'council'            => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
+            'featured_image_id'  => ['required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint', 'default' => 0],
+        ],
+    ]);
+});
+
+function cdcf_rest_create_team_member(WP_REST_Request $request) {
+    $allowed_councils = ['team_members', 'ecclesial_council', 'technical_council'];
+    $council = $request['council'];
+
+    if (!in_array($council, $allowed_councils, true)) {
+        return new WP_Error('invalid_council', 'council must be one of: ' . implode(', ', $allowed_councils), ['status' => 400]);
+    }
+
+    if (!function_exists('pll_set_post_language') || !function_exists('pll_save_post_translations')) {
+        return new WP_Error('polylang_missing', 'Polylang is not active.', ['status' => 500]);
+    }
+    if (!function_exists('update_field') || !function_exists('get_field')) {
+        return new WP_Error('acf_missing', 'ACF is not active.', ['status' => 500]);
+    }
+
+    $api_key = get_option('cdcf_openai_api_key');
+    if (!$api_key) {
+        return new WP_Error('no_api_key', 'OpenAI API key not configured.', ['status' => 500]);
+    }
+
+    set_time_limit(300);
+
+    $errors = [];
+
+    // ── 1. Create the English post ──
+
+    $en_post_id = wp_insert_post([
+        'post_type'    => 'team_member',
+        'post_status'  => 'publish',
+        'post_title'   => $request['title'],
+        'post_content' => wp_kses_post($request['content']),
+    ]);
+
+    if (is_wp_error($en_post_id) || !$en_post_id) {
+        return new WP_Error('insert_failed', 'Failed to create English team member post.', ['status' => 500]);
+    }
+
+    pll_set_post_language($en_post_id, 'en');
+
+    // Set ACF fields on English post.
+    if ($request['member_title']) {
+        update_field('member_title', $request['member_title'], $en_post_id);
+    }
+    if ($request['member_role']) {
+        update_field('member_role', $request['member_role'], $en_post_id);
+    }
+    if ($request['member_linkedin_url']) {
+        update_field('member_linkedin_url', $request['member_linkedin_url'], $en_post_id);
+    }
+    if ($request['member_github_url']) {
+        update_field('member_github_url', $request['member_github_url'], $en_post_id);
+    }
+
+    // Set featured image.
+    if ($request['featured_image_id']) {
+        set_post_thumbnail($en_post_id, $request['featured_image_id']);
+    }
+
+    // ── 2. Translate to other languages ──
+
+    $target_langs = ['it', 'es', 'fr', 'pt', 'de'];
+    $translations = ['en' => $en_post_id];
+
+    foreach ($target_langs as $lang) {
+        try {
+            // Create draft translation post.
+            $trans_id = wp_insert_post([
+                'post_type'    => 'team_member',
+                'post_status'  => 'draft',
+                'post_title'   => $request['title'],
+                'post_content' => wp_kses_post($request['content']),
+            ]);
+
+            if (is_wp_error($trans_id) || !$trans_id) {
+                $errors[] = "{$lang}: Failed to create translation post.";
+                continue;
+            }
+
+            pll_set_post_language($trans_id, $lang);
+
+            // Link all translations together.
+            $translations[$lang] = $trans_id;
+            pll_save_post_translations($translations);
+
+            // Collect translatable strings.
+            $strings = ['post_title' => $request['title']];
+            if ($request['content']) {
+                $strings['post_content'] = $request['content'];
+            }
+            if ($request['member_title']) {
+                $strings['acf_member_title'] = $request['member_title'];
+            }
+            if ($request['member_role']) {
+                $strings['acf_member_role'] = $request['member_role'];
+            }
+
+            // Call OpenAI translation.
+            $target_name = CDCF_LOCALE_NAMES[$lang] ?? $lang;
+            $result = cdcf_openai_translate($strings, 'English', $target_name, $api_key);
+
+            if (is_wp_error($result)) {
+                $errors[] = "{$lang}: " . $result->get_error_message();
+                // Still publish with untranslated content.
+                wp_update_post(['ID' => $trans_id, 'post_status' => 'publish']);
+                // Copy non-translatable fields.
+                if ($request['member_linkedin_url']) {
+                    update_field('member_linkedin_url', $request['member_linkedin_url'], $trans_id);
+                }
+                if ($request['member_github_url']) {
+                    update_field('member_github_url', $request['member_github_url'], $trans_id);
+                }
+                if ($request['featured_image_id']) {
+                    set_post_thumbnail($trans_id, $request['featured_image_id']);
+                }
+                continue;
+            }
+
+            // Write translated core fields.
+            $update = ['ID' => $trans_id];
+            if (isset($result['post_title'])) {
+                $update['post_title'] = sanitize_text_field($result['post_title']);
+            }
+            if (isset($result['post_content'])) {
+                $update['post_content'] = wp_kses_post($result['post_content']);
+            }
+            $update['post_status'] = 'publish';
+            wp_update_post($update);
+
+            // Write translated ACF fields.
+            if (isset($result['acf_member_title'])) {
+                update_field('member_title', $result['acf_member_title'], $trans_id);
+            }
+            if (isset($result['acf_member_role'])) {
+                update_field('member_role', $result['acf_member_role'], $trans_id);
+            }
+
+            // Copy non-translatable fields (URLs).
+            if ($request['member_linkedin_url']) {
+                update_field('member_linkedin_url', $request['member_linkedin_url'], $trans_id);
+            }
+            if ($request['member_github_url']) {
+                update_field('member_github_url', $request['member_github_url'], $trans_id);
+            }
+
+            // Copy featured image.
+            if ($request['featured_image_id']) {
+                set_post_thumbnail($trans_id, $request['featured_image_id']);
+            }
+        } catch (Exception $e) {
+            $errors[] = "{$lang}: " . $e->getMessage();
+        }
+    }
+
+    // ── 3. Update About page relationships ──
+
+    // Find the English About page by its template.
+    $about_pages = get_pages([
+        'meta_key'   => '_wp_page_template',
+        'meta_value' => 'templates/about.php',
+        'number'     => 1,
+    ]);
+
+    if (!empty($about_pages)) {
+        $en_about_id = null;
+
+        // Find the English version of the About page.
+        foreach ($about_pages as $page) {
+            $page_lang = pll_get_post_language($page->ID, 'slug');
+            if ($page_lang === 'en') {
+                $en_about_id = $page->ID;
+                break;
+            }
+        }
+
+        // If the first result wasn't English, get the English translation.
+        if (!$en_about_id && !empty($about_pages)) {
+            $en_about_id = pll_get_post($about_pages[0]->ID, 'en');
+        }
+
+        if ($en_about_id) {
+            $about_translations = pll_get_post_translations($en_about_id);
+
+            foreach ($translations as $lang => $member_id) {
+                $about_page_id = $about_translations[$lang] ?? null;
+                if (!$about_page_id) {
+                    $errors[] = "{$lang}: No About page translation found.";
+                    continue;
+                }
+
+                $current = get_field($council, $about_page_id, false);
+                if (!is_array($current)) {
+                    $current = [];
+                }
+
+                // Append the new team member ID if not already present.
+                if (!in_array($member_id, $current)) {
+                    $current[] = $member_id;
+                    update_field($council, $current, $about_page_id);
+                }
+            }
+        } else {
+            $errors[] = 'Could not find the English About page.';
+        }
+    } else {
+        $errors[] = 'No About page found with templates/about.php template.';
+    }
+
+    return rest_ensure_response([
+        'success'      => true,
+        'en_post_id'   => $en_post_id,
+        'translations' => $translations,
+        'council'      => $council,
+        'errors'       => $errors,
+    ]);
+}
+
 // ─── ACF Field Groups (registered programmatically) ──────────────────
 
 add_action('acf/init', function () {
@@ -1346,6 +1665,180 @@ add_action('wp_ajax_cdcf_ai_translate', function () {
     wp_send_json_success([
         'message' => 'Translation complete.',
         'post_id' => $post_id,
+    ]);
+});
+
+// ─── REST endpoint for AI translation ────────────────────────────────
+//
+// Mirrors the admin-ajax cdcf_ai_translate handler but uses REST API
+// authentication (Application Passwords) instead of cookie + nonce.
+//
+// POST /wp-json/cdcf/v1/translate { source_id: 255, target_lang: "it", post_id: 0 }
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/translate', [
+        'methods'             => 'POST',
+        'permission_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        'callback' => function (WP_REST_Request $request) {
+            $post_id     = intval($request['post_id'] ?? 0);
+            $source_id   = intval($request['source_id'] ?? 0);
+            $target_lang = sanitize_text_field($request['target_lang'] ?? '');
+
+            if (!$source_id || !$target_lang) {
+                return new WP_Error('missing_params', 'Missing source_id or target_lang.', ['status' => 400]);
+            }
+
+            if (!function_exists('pll_set_post_language')) {
+                return new WP_Error('polylang_missing', 'Polylang is not active.', ['status' => 500]);
+            }
+
+            // Auto-create translation post if needed.
+            if (!$post_id) {
+                $source = get_post($source_id);
+                if (!$source) {
+                    return new WP_Error('not_found', 'Source post not found.', ['status' => 404]);
+                }
+
+                $insert_args = [
+                    'post_type'   => $source->post_type,
+                    'post_status' => 'draft',
+                    'post_title'  => $source->post_title,
+                ];
+
+                if ($source->post_type === 'attachment') {
+                    $insert_args['post_status']    = 'inherit';
+                    $insert_args['post_mime_type'] = $source->post_mime_type;
+                }
+
+                $post_id = wp_insert_post($insert_args);
+                if (is_wp_error($post_id) || !$post_id) {
+                    return new WP_Error('insert_failed', 'Failed to create translation post.', ['status' => 500]);
+                }
+
+                if ($source->post_type === 'attachment') {
+                    $attached_file = get_post_meta($source_id, '_wp_attached_file', true);
+                    if ($attached_file) {
+                        update_post_meta($post_id, '_wp_attached_file', $attached_file);
+                    }
+                    $attachment_meta = get_post_meta($source_id, '_wp_attachment_metadata', true);
+                    if ($attachment_meta) {
+                        update_post_meta($post_id, '_wp_attachment_metadata', $attachment_meta);
+                    }
+                }
+
+                pll_set_post_language($post_id, $target_lang);
+                $translations = pll_get_post_translations($source_id);
+                $translations[$target_lang] = $post_id;
+                pll_save_post_translations($translations);
+            }
+
+            $source = get_post($source_id);
+            if (!$source) {
+                return new WP_Error('not_found', 'Source post not found.', ['status' => 404]);
+            }
+
+            // Collect translatable strings.
+            $strings = [];
+            if ($source->post_title)   $strings['post_title']   = $source->post_title;
+            if ($source->post_content) $strings['post_content'] = $source->post_content;
+            if ($source->post_excerpt) $strings['post_excerpt'] = $source->post_excerpt;
+
+            if ($source->post_type === 'attachment') {
+                $alt = get_post_meta($source_id, '_wp_attachment_image_alt', true);
+                if ($alt) $strings['alt_text'] = $alt;
+            }
+
+            if (function_exists('get_field_objects')) {
+                $field_objects = get_field_objects($source_id);
+                if ($field_objects) {
+                    foreach ($field_objects as $field) {
+                        if (
+                            in_array($field['type'], CDCF_TRANSLATABLE_ACF_TYPES, true)
+                            && !empty($field['value'])
+                            && is_string($field['value'])
+                        ) {
+                            $strings['acf_' . $field['name']] = $field['value'];
+                        }
+                    }
+                }
+            }
+
+            if (empty($strings)) {
+                if ($source->post_type === 'attachment') {
+                    return rest_ensure_response(['post_id' => $post_id, 'message' => 'Media duplicated (no translatable text found).']);
+                }
+                return new WP_Error('no_content', 'No translatable content found.', ['status' => 400]);
+            }
+
+            // Call OpenAI.
+            $api_key = get_option('cdcf_openai_api_key');
+            if (!$api_key) {
+                return new WP_Error('no_api_key', 'OpenAI API key not configured.', ['status' => 500]);
+            }
+
+            $target_name = CDCF_LOCALE_NAMES[$target_lang] ?? $target_lang;
+            $source_lang = pll_default_language('slug');
+            $source_name = CDCF_LOCALE_NAMES[$source_lang] ?? $source_lang;
+
+            $result = cdcf_openai_translate($strings, $source_name, $target_name, $api_key);
+            if (is_wp_error($result)) {
+                return $result;
+            }
+
+            // Write translations.
+            $update = [];
+            if (isset($result['post_title']))   $update['post_title']   = sanitize_text_field($result['post_title']);
+            if (isset($result['post_content'])) $update['post_content'] = wp_kses_post($result['post_content']);
+            if (isset($result['post_excerpt'])) $update['post_excerpt'] = sanitize_textarea_field($result['post_excerpt']);
+
+            if (!empty($update)) {
+                $update['ID'] = $post_id;
+                wp_update_post($update);
+            }
+
+            if (isset($result['alt_text'])) {
+                update_post_meta($post_id, '_wp_attachment_image_alt', sanitize_text_field($result['alt_text']));
+            }
+
+            if (function_exists('update_field')) {
+                foreach ($result as $key => $value) {
+                    if (strpos($key, 'acf_') === 0) {
+                        update_field(substr($key, 4), $value, $post_id);
+                    }
+                }
+            }
+
+            // Copy non-translatable ACF fields from source.
+            if (function_exists('get_field_objects') && function_exists('update_field')) {
+                $field_objects = get_field_objects($source_id);
+                if ($field_objects) {
+                    foreach ($field_objects as $field) {
+                        if (in_array($field['type'], CDCF_TRANSLATABLE_ACF_TYPES, true)) continue;
+                        $existing = get_field($field['name'], $post_id);
+                        if (empty($existing) && !empty($field['value'])) {
+                            update_field($field['name'], $field['value'], $post_id);
+                        }
+                    }
+                }
+            }
+
+            // Auto-publish if source is published.
+            if ($source->post_type !== 'attachment' && $source->post_status === 'publish' && get_post_status($post_id) !== 'publish') {
+                wp_update_post(['ID' => $post_id, 'post_status' => 'publish']);
+            }
+
+            return rest_ensure_response([
+                'post_id' => $post_id,
+                'message' => 'Translation complete.',
+            ]);
+        },
+        'args' => [
+            'source_id'   => ['required' => true,  'type' => 'integer', 'sanitize_callback' => 'absint'],
+            'target_lang' => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
+            'post_id'     => ['required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint', 'default' => 0],
+        ],
     ]);
 });
 

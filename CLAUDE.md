@@ -50,6 +50,7 @@ Headless CMS: Next.js 15 (App Router) frontend fetches content from WordPress vi
 - **ACF field groups:** Shared (hero, cta) + per-template (homeFields, aboutFields, etc.) + per-CPT
 - **Page templates:** Home, About, Projects, Community, Blog, Contact
 - **CORS headers** for GraphQL, **preview URL rewriting** to Next.js draft mode, **AI translation** via OpenAI
+- **Custom REST endpoints** under `cdcf/v1` namespace (see REST API Endpoints below)
 
 ## Key Conventions
 
@@ -70,6 +71,25 @@ Uses `@import 'tailwindcss'` (not `@tailwind` directives). Custom utilities via 
 - ACF image fields return `AcfMediaItemConnectionEdge` — need `node { ... }` wrapper
 - Polylang `translation()` uses `LanguageCodeEnum!`; `where` filters use `LanguageCodeFilterEnum`
 - CPTs must have `has_archive => false` to avoid hijacking page URIs with the same slug
+
+## REST API Endpoints (`cdcf/v1`)
+
+All endpoints require Application Password authentication (`edit_posts` capability).
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/relationship` | Read an ACF relationship field (`post_id`, `field`) |
+| `POST` | `/relationship` | Update an ACF relationship field (`post_id`, `field`, `value[]`) |
+| `POST` | `/translate` | Translate a post to a target language via OpenAI (`source_id`, `target_lang`, optional `post_id`) |
+| `POST` | `/team-member` | Create a team member with auto-translation and About page linking (see below) |
+
+### `POST /team-member`
+
+Creates an English `team_member` post, translates it to all 5 languages via OpenAI, and appends each translation to the matching language version of the About page's council relationship field.
+
+**Parameters:** `title` (required), `content` (required), `council` (required — one of `team_members`, `ecclesial_council`, `technical_council`), `member_title`, `member_role`, `member_linkedin_url`, `member_github_url`, `featured_image_id`
+
+**Returns:** `{ success, en_post_id, translations: { en, it, es, fr, pt, de }, council, errors[] }`
 
 ## Adding a New Language
 
