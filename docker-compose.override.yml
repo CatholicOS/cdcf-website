@@ -1,0 +1,7 @@
+# Dev overrides: expose WordPress on localhost:8000
+# This file is auto-loaded by `docker compose up` alongside docker-compose.yml.
+# It is NOT used in production (CI/CD should use `docker compose -f docker-compose.yml`).
+services:
+  wordpress:
+    ports:
+      - "8000:80"
