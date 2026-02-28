@@ -20,7 +20,7 @@ add_action('init', function () {
         'show_in_graphql' => true,
         'graphql_single_name' => 'project',
         'graphql_plural_name' => 'projects',
-        'supports'     => ['title', 'editor', 'thumbnail', 'excerpt'],
+        'supports'     => ['title', 'editor', 'thumbnail', 'excerpt', 'custom-fields'],
         'menu_icon'    => 'dashicons-portfolio',
         'has_archive'  => false,
         'rewrite'      => ['slug' => 'projects'],
@@ -37,7 +37,7 @@ add_action('init', function () {
         'show_in_graphql' => true,
         'graphql_single_name' => 'teamMember',
         'graphql_plural_name' => 'teamMembers',
-        'supports'     => ['title', 'editor', 'thumbnail'],
+        'supports'     => ['title', 'editor', 'thumbnail', 'custom-fields'],
         'menu_icon'    => 'dashicons-groups',
         'has_archive'  => false,
     ]);
@@ -53,7 +53,7 @@ add_action('init', function () {
         'show_in_graphql' => true,
         'graphql_single_name' => 'sponsor',
         'graphql_plural_name' => 'sponsors',
-        'supports'     => ['title', 'thumbnail'],
+        'supports'     => ['title', 'thumbnail', 'custom-fields'],
         'menu_icon'    => 'dashicons-star-filled',
         'has_archive'  => false,
     ]);
@@ -69,7 +69,7 @@ add_action('init', function () {
         'show_in_graphql' => true,
         'graphql_single_name' => 'communityChannel',
         'graphql_plural_name' => 'communityChannels',
-        'supports'     => ['title'],
+        'supports'     => ['title', 'custom-fields'],
         'menu_icon'    => 'dashicons-networking',
         'has_archive'  => false,
     ]);
@@ -85,7 +85,7 @@ add_action('init', function () {
         'show_in_graphql' => true,
         'graphql_single_name' => 'statItem',
         'graphql_plural_name' => 'statItems',
-        'supports'     => ['title'],
+        'supports'     => ['title', 'custom-fields'],
         'menu_icon'    => 'dashicons-chart-bar',
         'has_archive'  => false,
     ]);
