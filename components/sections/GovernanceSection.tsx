@@ -64,7 +64,7 @@ export default function GovernanceSection({
 
               {member.content && (
                 <div
-                  className="cdcf-content mt-3 text-sm leading-relaxed text-gray-600"
+                  className="cdcf-content mt-3 text-justify text-sm leading-relaxed text-gray-600"
                   dangerouslySetInnerHTML={{ __html: member.content }}
                 />
               )}
