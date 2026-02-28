@@ -366,6 +366,7 @@ add_action('acf/init', function () {
                 'name'  => 'member_role',
                 'type'  => 'text',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_member_title',
@@ -373,6 +374,7 @@ add_action('acf/init', function () {
                 'name'  => 'member_title',
                 'type'  => 'text',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_member_linkedin_url',
@@ -380,6 +382,7 @@ add_action('acf/init', function () {
                 'name'  => 'member_linkedin_url',
                 'type'  => 'url',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
             [
                 'key'   => 'field_member_github_url',
@@ -387,6 +390,7 @@ add_action('acf/init', function () {
                 'name'  => 'member_github_url',
                 'type'  => 'url',
                 'show_in_graphql' => true,
+                'show_in_rest' => true,
             ],
         ],
         'location' => [
