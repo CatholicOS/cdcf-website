@@ -43,6 +43,7 @@ export default function Header() {
         { href: '/about#technical-advisory-council', label: t('technicalAdvisoryCouncil') },
         { href: '/about/certificate-of-formation', label: t('certificateOfFormation') },
         { href: '/about/manifesto', label: t('manifesto') },
+        { href: '/about/logo-symbolism', label: t('logoSymbolism') },
       ],
     },
     { href: '/projects', label: t('projects') },
