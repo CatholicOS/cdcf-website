@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 
 const baseUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://catholicdigitalcommons.org'
+  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://staging.catholicdigitalcommons.org'
 
 export default function robots(): MetadataRoute.Robots {
   return {

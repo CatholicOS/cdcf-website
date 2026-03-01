@@ -5,7 +5,7 @@ import { getAllPages, getPosts, getProjects } from '@/lib/wordpress/api'
 export const revalidate = 3600
 
 const baseUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://catholicdigitalcommons.org'
+  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://staging.catholicdigitalcommons.org'
 
 function localePrefix(locale: string): string {
   return locale === defaultLocale ? '' : `/${locale}`
