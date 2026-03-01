@@ -6,6 +6,23 @@
  * CORS for GraphQL, and preview URL hooks.
  */
 
+// ─── SVG Upload Support ─────────────────────────────────────────────
+
+add_filter('upload_mimes', function (array $mimes): array {
+    $mimes['svg']  = 'image/svg+xml';
+    $mimes['svgz'] = 'image/svg+xml';
+    return $mimes;
+});
+
+add_filter('wp_check_filetype_and_ext', function ($data, $file, $filename, $mimes) {
+    $ext = pathinfo($filename, PATHINFO_EXTENSION);
+    if ($ext === 'svg' || $ext === 'svgz') {
+        $data['type'] = 'image/svg+xml';
+        $data['ext']  = $ext;
+    }
+    return $data;
+}, 10, 4);
+
 // ─── Custom Post Types ───────────────────────────────────────────────
 
 add_action('init', function () {
