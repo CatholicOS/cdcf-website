@@ -86,6 +86,7 @@ function renderAbout(page: WPPage, t: (key: string) => string) {
 
       {about?.teamMembers?.nodes && about.teamMembers.nodes.length > 0 && (
         <GovernanceSection
+          id="board-of-directors"
           title={t('boardOfDirectors')}
           members={about.teamMembers.nodes}
           columns={Number(about.governanceColumns?.[0]) || 3}
@@ -94,6 +95,7 @@ function renderAbout(page: WPPage, t: (key: string) => string) {
 
       {about?.ecclesialCouncil?.nodes && about.ecclesialCouncil.nodes.length > 0 && (
         <GovernanceSection
+          id="ecclesial-advisory-council"
           title={t('ecclesialAdvisoryCouncil')}
           members={about.ecclesialCouncil.nodes}
           columns={Number(about.governanceColumns?.[0]) || 3}
@@ -102,6 +104,7 @@ function renderAbout(page: WPPage, t: (key: string) => string) {
 
       {about?.technicalCouncil?.nodes && about.technicalCouncil.nodes.length > 0 && (
         <GovernanceSection
+          id="technical-advisory-council"
           title={t('technicalAdvisoryCouncil')}
           members={about.technicalCouncil.nodes}
           columns={Number(about.governanceColumns?.[0]) || 3}

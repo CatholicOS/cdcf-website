@@ -7,6 +7,7 @@ interface GovernanceSectionProps {
   title?: string
   description?: string
   columns?: number
+  id?: string
 }
 
 export default function GovernanceSection({
@@ -14,6 +15,7 @@ export default function GovernanceSection({
   title,
   description,
   columns = 3,
+  id,
 }: GovernanceSectionProps) {
   const gridCols = {
     2: 'sm:grid-cols-2',
@@ -22,12 +24,19 @@ export default function GovernanceSection({
   }[columns] || 'sm:grid-cols-2 lg:grid-cols-3'
 
   return (
-    <section className="bg-gray-50 py-16 sm:py-20">
+    <section id={id} className={clsx('bg-gray-50 py-16 sm:py-20', id && 'scroll-mt-16')}>
       <div className="cdcf-section">
         {(title || description) && (
           <div className="text-center">
             {title && (
-              <h2 className="cdcf-heading text-3xl sm:text-4xl">{title}</h2>
+              <h2 className="cdcf-heading text-3xl sm:text-4xl">
+                {id ? (
+                  <a href={`#${id}`} className="group">
+                    <span className="mr-2 text-cdcf-gold/0 transition-colors group-hover:text-cdcf-gold" aria-hidden="true">§</span>
+                    {title}
+                  </a>
+                ) : title}
+              </h2>
             )}
             {description && (
               <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
