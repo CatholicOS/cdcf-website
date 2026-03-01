@@ -1,0 +1,904 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CDCF CMS API",
+    "description": "REST API for the Catholic Digital Commons Foundation headless CMS. Includes WordPress custom endpoints (cdcf/v1) for content management and translation, plus Next.js API routes for preview, cache revalidation, and sitemaps.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Catholic Digital Commons Foundation",
+      "url": "https://catholicdigitalcommons.org"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000/wp-json",
+      "description": "Local WordPress (Docker)"
+    },
+    {
+      "url": "https://cms.catholicdigitalcommons.org/wp-json",
+      "description": "Production WordPress"
+    },
+    {
+      "url": "http://localhost:3000/api",
+      "description": "Local Next.js"
+    },
+    {
+      "url": "https://staging.catholicdigitalcommons.org/api",
+      "description": "Production Next.js"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Relationship",
+      "description": "Read and update ACF relationship fields"
+    },
+    {
+      "name": "Team Member",
+      "description": "Create team members with auto-translation"
+    },
+    {
+      "name": "Community Channel",
+      "description": "Create community channels with auto-translation"
+    },
+    {
+      "name": "Translation",
+      "description": "AI-powered post translation via OpenAI"
+    },
+    {
+      "name": "Preview",
+      "description": "Next.js draft mode preview"
+    },
+    {
+      "name": "Revalidation",
+      "description": "Next.js ISR cache revalidation"
+    },
+    {
+      "name": "Sitemap",
+      "description": "XML sitemaps for SEO"
+    }
+  ],
+  "paths": {
+    "/cdcf/v1/relationship": {
+      "get": {
+        "tags": ["Relationship"],
+        "summary": "Read an ACF relationship field",
+        "description": "Returns the raw post IDs stored in an ACF relationship field for a given post.",
+        "operationId": "getRelationship",
+        "security": [{ "basicAuth": [] }],
+        "parameters": [
+          {
+            "name": "post_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "The post ID that owns the relationship field"
+          },
+          {
+            "name": "field",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The ACF relationship field name (e.g. \"team_members\", \"channels\")"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Relationship field values",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "post_id": { "type": "integer" },
+                    "field": { "type": "string" },
+                    "value": {
+                      "type": "array",
+                      "items": { "type": "integer" }
+                    }
+                  }
+                },
+                "example": {
+                  "post_id": 5,
+                  "field": "team_members",
+                  "value": [255, 256, 257]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidField"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/AcfMissing"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Relationship"],
+        "summary": "Update an ACF relationship field",
+        "description": "Replaces the entire value of an ACF relationship field with the provided array of post IDs.",
+        "operationId": "updateRelationship",
+        "security": [{ "basicAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["post_id", "field", "value"],
+                "properties": {
+                  "post_id": {
+                    "type": "integer",
+                    "description": "The post ID that owns the relationship field"
+                  },
+                  "field": {
+                    "type": "string",
+                    "description": "The ACF relationship field name"
+                  },
+                  "value": {
+                    "type": "array",
+                    "items": { "type": "integer" },
+                    "description": "Array of post IDs to set as the field value"
+                  }
+                }
+              },
+              "example": {
+                "post_id": 5,
+                "field": "technical_council",
+                "value": [255, 256]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Relationship field updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "post_id": { "type": "integer" },
+                    "field": { "type": "string" },
+                    "value": {
+                      "type": "array",
+                      "items": { "type": "integer" }
+                    },
+                    "updated": { "type": "boolean" }
+                  }
+                },
+                "example": {
+                  "post_id": 5,
+                  "field": "technical_council",
+                  "value": [255, 256],
+                  "updated": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidField"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/AcfMissing"
+          }
+        }
+      }
+    },
+    "/cdcf/v1/team-member": {
+      "post": {
+        "tags": ["Team Member"],
+        "summary": "Create a team member with auto-translation",
+        "description": "Creates an English `team_member` post, translates it to all 5 target languages (it, es, fr, pt, de) via OpenAI, and appends each translation to the matching language version of the About page's council relationship field.",
+        "operationId": "createTeamMember",
+        "security": [{ "basicAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "content", "council"],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "Team member's name"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Biography or description (HTML allowed)"
+                  },
+                  "council": {
+                    "type": "string",
+                    "enum": ["team_members", "ecclesial_council", "technical_council"],
+                    "description": "Which council relationship field to append the member to on the About page"
+                  },
+                  "member_title": {
+                    "type": "string",
+                    "description": "Professional title (e.g. \"Software Engineer\")"
+                  },
+                  "member_role": {
+                    "type": "string",
+                    "description": "Role within the organization (e.g. \"Lead Developer\")"
+                  },
+                  "member_linkedin_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "LinkedIn profile URL"
+                  },
+                  "member_github_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "GitHub profile URL"
+                  },
+                  "featured_image_id": {
+                    "type": "integer",
+                    "description": "WordPress media attachment ID for the member's photo"
+                  }
+                }
+              },
+              "example": {
+                "title": "John Doe",
+                "content": "<p>John is a software engineer with 10 years of experience in web development.</p>",
+                "council": "technical_council",
+                "member_title": "Software Engineer",
+                "member_role": "Lead Developer",
+                "member_linkedin_url": "https://linkedin.com/in/johndoe",
+                "member_github_url": "https://github.com/johndoe",
+                "featured_image_id": 42
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Team member created and translated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamMemberResponse"
+                },
+                "example": {
+                  "success": true,
+                  "en_post_id": 301,
+                  "translations": {
+                    "en": 301,
+                    "it": 302,
+                    "es": 303,
+                    "fr": 304,
+                    "pt": 305,
+                    "de": 306
+                  },
+                  "council": "technical_council",
+                  "errors": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid council value",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "description": "Server error (Polylang missing, ACF missing, no API key, or insert failed)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cdcf/v1/community-channel": {
+      "post": {
+        "tags": ["Community Channel"],
+        "summary": "Create a community channel with auto-translation",
+        "description": "Creates an English `community_channel` post, translates it to all 5 target languages (it, es, fr, pt, de) via OpenAI, and appends each translation to the matching language version of the Community page's `channels` relationship field.",
+        "operationId": "createCommunityChannel",
+        "security": [{ "basicAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "channel_description", "channel_url"],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "Channel name (e.g. \"Discord\", \"Vinly\")"
+                  },
+                  "channel_description": {
+                    "type": "string",
+                    "description": "Translatable description of the channel"
+                  },
+                  "channel_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URL to the channel (not translated)"
+                  },
+                  "channel_icon": {
+                    "type": "string",
+                    "description": "Icon key (e.g. \"discord\", \"slack\", \"vinly\") — not translated"
+                  }
+                }
+              },
+              "example": {
+                "title": "Vinly",
+                "channel_description": "Join our professional networking space on Vinly to connect with fellow Catholic developers and technologists.",
+                "channel_url": "https://vinly.co/o/catholic-os",
+                "channel_icon": "vinly"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Community channel created and translated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityChannelResponse"
+                },
+                "example": {
+                  "success": true,
+                  "en_post_id": 401,
+                  "translations": {
+                    "en": 401,
+                    "it": 402,
+                    "es": 403,
+                    "fr": 404,
+                    "pt": 405,
+                    "de": 406
+                  },
+                  "errors": []
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "description": "Server error (Polylang missing, ACF missing, no API key, or insert failed)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cdcf/v1/translate": {
+      "post": {
+        "tags": ["Translation"],
+        "summary": "Translate a post to a target language via OpenAI",
+        "description": "Translates all translatable content (title, content, excerpt, ACF text fields) from a source post into the target language using OpenAI. If `post_id` is 0 or omitted, a new translation post is auto-created and linked via Polylang. Non-translatable ACF fields are copied from the source. The translation post is auto-published if the source is published.",
+        "operationId": "translatePost",
+        "security": [{ "basicAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["source_id", "target_lang"],
+                "properties": {
+                  "source_id": {
+                    "type": "integer",
+                    "description": "The post ID of the source (English) post to translate from"
+                  },
+                  "target_lang": {
+                    "type": "string",
+                    "enum": ["it", "es", "fr", "pt", "de"],
+                    "description": "Polylang language slug for the target language"
+                  },
+                  "post_id": {
+                    "type": "integer",
+                    "default": 0,
+                    "description": "Existing translation post ID to update. If 0, a new post is created."
+                  }
+                }
+              },
+              "example": {
+                "source_id": 255,
+                "target_lang": "it",
+                "post_id": 0
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Translation complete",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "post_id": {
+                      "type": "integer",
+                      "description": "The ID of the translated post"
+                    },
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "post_id": 260,
+                  "message": "Translation complete."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing parameters or no translatable content found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Source post not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error (Polylang missing, no API key, insert failed, or OpenAI error)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cdcf/v1/deploy-translation": {
+      "post": {
+        "tags": ["Translation"],
+        "summary": "Deploy a pre-translated post",
+        "description": "Creates or updates a translation post with externally provided translated content. If a translation already exists for the target language, it is updated; otherwise a new post is created and linked via Polylang. The translation post inherits the source post's status and type.",
+        "operationId": "deployTranslation",
+        "security": [{ "basicAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["source_id", "target_lang", "content"],
+                "properties": {
+                  "source_id": {
+                    "type": "integer",
+                    "description": "The source post ID to create a translation for"
+                  },
+                  "target_lang": {
+                    "type": "string",
+                    "enum": ["it", "es", "fr", "pt", "de"],
+                    "description": "Polylang language slug for the target language"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "Translated title. Falls back to the source post's title if omitted."
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Translated HTML content"
+                  }
+                }
+              },
+              "example": {
+                "source_id": 255,
+                "target_lang": "it",
+                "title": "Membro del Consiglio",
+                "content": "<p>Biografia tradotta in italiano.</p>"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Translation deployed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "post_id": {
+                      "type": "integer",
+                      "description": "The ID of the created or updated translation post"
+                    },
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "post_id": 260,
+                  "message": "Translation deployed."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required parameters",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Source post not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error (Polylang missing or insert failed)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/preview": {
+      "get": {
+        "tags": ["Preview"],
+        "summary": "Enable draft mode and redirect to preview",
+        "description": "Enables Next.js draft mode and redirects to the given slug. Used by WordPress to preview unpublished content on the Next.js frontend.",
+        "operationId": "preview",
+        "security": [{ "previewSecret": [] }],
+        "servers": [
+          { "url": "http://localhost:3000/api", "description": "Local Next.js" },
+          { "url": "https://staging.catholicdigitalcommons.org/api", "description": "Production Next.js" }
+        ],
+        "parameters": [
+          {
+            "name": "secret",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Must match WORDPRESS_PREVIEW_SECRET environment variable"
+          },
+          {
+            "name": "slug",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The page/post slug to redirect to for preview"
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Redirects to the preview page with draft mode enabled"
+          },
+          "400": {
+            "description": "No slug provided",
+            "content": {
+              "text/plain": {
+                "schema": { "type": "string" },
+                "example": "No slug provided"
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid preview secret",
+            "content": {
+              "text/plain": {
+                "schema": { "type": "string" },
+                "example": "Invalid token"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/revalidate": {
+      "post": {
+        "tags": ["Revalidation"],
+        "summary": "Revalidate Next.js ISR cache",
+        "description": "Triggers on-demand revalidation of Next.js cached pages by path and/or cache tags. Called by WordPress after content updates to keep the frontend in sync.",
+        "operationId": "revalidate",
+        "security": [{ "previewSecret": [] }],
+        "servers": [
+          { "url": "http://localhost:3000/api", "description": "Local Next.js" },
+          { "url": "https://staging.catholicdigitalcommons.org/api", "description": "Production Next.js" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "secret": {
+                    "type": "string",
+                    "description": "Must match WORDPRESS_PREVIEW_SECRET. Can also be sent via x-revalidate-secret header."
+                  },
+                  "path": {
+                    "type": "string",
+                    "description": "Page path to revalidate (e.g. \"/about\")"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Cache tags to revalidate (e.g. [\"sitemap\", \"posts\"])"
+                  }
+                }
+              },
+              "example": {
+                "secret": "your-preview-secret",
+                "path": "/about",
+                "tags": ["sitemap"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Revalidation successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "revalidated": { "type": "boolean" },
+                    "paths": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    }
+                  }
+                },
+                "example": {
+                  "revalidated": true,
+                  "paths": ["/about"],
+                  "tags": ["sitemap"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid revalidation secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "message": "Invalid token"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sitemap": {
+      "get": {
+        "tags": ["Sitemap"],
+        "summary": "Sitemap index",
+        "description": "Returns an XML sitemap index listing per-language sitemaps for all configured locales (en, it, es, fr, pt, de).",
+        "operationId": "sitemapIndex",
+        "security": [],
+        "servers": [
+          { "url": "http://localhost:3000", "description": "Local Next.js" },
+          { "url": "https://staging.catholicdigitalcommons.org", "description": "Production Next.js" }
+        ],
+        "responses": {
+          "200": {
+            "description": "XML sitemap index",
+            "content": {
+              "application/xml": {
+                "schema": { "type": "string" },
+                "example": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n  <sitemap>\n    <loc>https://staging.catholicdigitalcommons.org/sitemap-en.xml</loc>\n  </sitemap>\n</sitemapindex>"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sitemap-{lang}.xml": {
+      "get": {
+        "tags": ["Sitemap"],
+        "summary": "Per-language sitemap",
+        "description": "Returns an XML sitemap for a specific locale, including all pages, blog posts, and projects with hreflang alternate links for all languages. Revalidates every hour (3600s).",
+        "operationId": "sitemapByLanguage",
+        "security": [],
+        "servers": [
+          { "url": "http://localhost:3000", "description": "Local Next.js" },
+          { "url": "https://staging.catholicdigitalcommons.org", "description": "Production Next.js" }
+        ],
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["en", "it", "es", "fr", "pt", "de"]
+            },
+            "description": "Locale code"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "XML sitemap with URLs and hreflang alternates",
+            "content": {
+              "application/xml": {
+                "schema": { "type": "string" }
+              }
+            }
+          },
+          "404": {
+            "description": "Invalid language code",
+            "content": {
+              "text/plain": {
+                "schema": { "type": "string" },
+                "example": "Not Found"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "basicAuth": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "WordPress Application Password. Username is the WordPress username; password is the application password (spaces are normal)."
+      },
+      "previewSecret": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "secret",
+        "description": "Shared secret matching the WORDPRESS_PREVIEW_SECRET environment variable."
+      }
+    },
+    "schemas": {
+      "WpError": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "integer" }
+            }
+          }
+        }
+      },
+      "TranslationsMap": {
+        "type": "object",
+        "description": "Map of locale codes to post IDs",
+        "properties": {
+          "en": { "type": "integer" },
+          "it": { "type": "integer" },
+          "es": { "type": "integer" },
+          "fr": { "type": "integer" },
+          "pt": { "type": "integer" },
+          "de": { "type": "integer" }
+        }
+      },
+      "TeamMemberResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "en_post_id": {
+            "type": "integer",
+            "description": "Post ID of the English team member"
+          },
+          "translations": {
+            "$ref": "#/components/schemas/TranslationsMap"
+          },
+          "council": {
+            "type": "string",
+            "enum": ["team_members", "ecclesial_council", "technical_council"]
+          },
+          "errors": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Non-fatal errors encountered during translation or page linking"
+          }
+        }
+      },
+      "CommunityChannelResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "en_post_id": {
+            "type": "integer",
+            "description": "Post ID of the English community channel"
+          },
+          "translations": {
+            "$ref": "#/components/schemas/TranslationsMap"
+          },
+          "errors": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Non-fatal errors encountered during translation or page linking"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Authentication required (missing or invalid Application Password)",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/WpError" },
+            "example": {
+              "code": "rest_forbidden",
+              "message": "Sorry, you are not allowed to do that.",
+              "data": { "status": 401 }
+            }
+          }
+        }
+      },
+      "InvalidField": {
+        "description": "Field is not a valid ACF relationship field",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/WpError" },
+            "example": {
+              "code": "invalid_field",
+              "message": "Field is not a relationship field.",
+              "data": { "status": 400 }
+            }
+          }
+        }
+      },
+      "AcfMissing": {
+        "description": "ACF plugin is not active",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/WpError" },
+            "example": {
+              "code": "acf_missing",
+              "message": "ACF is not active.",
+              "data": { "status": 500 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

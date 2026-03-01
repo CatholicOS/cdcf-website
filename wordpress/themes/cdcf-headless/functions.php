@@ -465,6 +465,201 @@ function cdcf_rest_create_team_member(WP_REST_Request $request) {
     ]);
 }
 
+// ─── REST endpoint for creating a community channel with translations ─
+//
+// Creates an English community_channel post, translates it to all configured
+// languages via OpenAI, and appends each translation to the correct
+// language version of the Community page's channels relationship field.
+//
+// POST /wp-json/cdcf/v1/community-channel (Application Password auth)
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/community-channel', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_create_community_channel',
+        'permission_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        'args' => [
+            'title'               => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
+            'channel_description' => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_textarea_field'],
+            'channel_url'         => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'esc_url_raw'],
+            'channel_icon'        => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+        ],
+    ]);
+});
+
+function cdcf_rest_create_community_channel(WP_REST_Request $request) {
+    if (!function_exists('pll_set_post_language') || !function_exists('pll_save_post_translations')) {
+        return new WP_Error('polylang_missing', 'Polylang is not active.', ['status' => 500]);
+    }
+    if (!function_exists('update_field') || !function_exists('get_field')) {
+        return new WP_Error('acf_missing', 'ACF is not active.', ['status' => 500]);
+    }
+
+    $api_key = get_option('cdcf_openai_api_key');
+    if (!$api_key) {
+        return new WP_Error('no_api_key', 'OpenAI API key not configured.', ['status' => 500]);
+    }
+
+    set_time_limit(300);
+
+    $errors = [];
+
+    // ── 1. Create the English post ──
+
+    $en_post_id = wp_insert_post([
+        'post_type'   => 'community_channel',
+        'post_status' => 'publish',
+        'post_title'  => $request['title'],
+    ]);
+
+    if (is_wp_error($en_post_id) || !$en_post_id) {
+        return new WP_Error('insert_failed', 'Failed to create English community channel post.', ['status' => 500]);
+    }
+
+    pll_set_post_language($en_post_id, 'en');
+
+    // Set ACF fields on English post.
+    update_field('channel_description', $request['channel_description'], $en_post_id);
+    update_field('channel_url', $request['channel_url'], $en_post_id);
+    if ($request['channel_icon']) {
+        update_field('channel_icon', $request['channel_icon'], $en_post_id);
+    }
+
+    // ── 2. Translate to other languages ──
+
+    $target_langs = ['it', 'es', 'fr', 'pt', 'de'];
+    $translations = ['en' => $en_post_id];
+
+    foreach ($target_langs as $lang) {
+        try {
+            // Create draft translation post.
+            $trans_id = wp_insert_post([
+                'post_type'   => 'community_channel',
+                'post_status' => 'draft',
+                'post_title'  => $request['title'],
+            ]);
+
+            if (is_wp_error($trans_id) || !$trans_id) {
+                $errors[] = "{$lang}: Failed to create translation post.";
+                continue;
+            }
+
+            pll_set_post_language($trans_id, $lang);
+
+            // Link all translations together.
+            $translations[$lang] = $trans_id;
+            pll_save_post_translations($translations);
+
+            // Collect translatable strings.
+            $strings = [
+                'post_title'            => $request['title'],
+                'acf_channel_description' => $request['channel_description'],
+            ];
+
+            // Call OpenAI translation.
+            $target_name = CDCF_LOCALE_NAMES[$lang] ?? $lang;
+            $result = cdcf_openai_translate($strings, 'English', $target_name, $api_key);
+
+            if (is_wp_error($result)) {
+                $errors[] = "{$lang}: " . $result->get_error_message();
+                // Still publish with untranslated content.
+                wp_update_post(['ID' => $trans_id, 'post_status' => 'publish']);
+                // Copy non-translatable fields.
+                update_field('channel_url', $request['channel_url'], $trans_id);
+                if ($request['channel_icon']) {
+                    update_field('channel_icon', $request['channel_icon'], $trans_id);
+                }
+                continue;
+            }
+
+            // Write translated core fields.
+            $update = ['ID' => $trans_id, 'post_status' => 'publish'];
+            if (isset($result['post_title'])) {
+                $update['post_title'] = sanitize_text_field($result['post_title']);
+            }
+            wp_update_post($update);
+
+            // Write translated ACF fields.
+            if (isset($result['acf_channel_description'])) {
+                update_field('channel_description', $result['acf_channel_description'], $trans_id);
+            } else {
+                update_field('channel_description', $request['channel_description'], $trans_id);
+            }
+
+            // Copy non-translatable fields.
+            update_field('channel_url', $request['channel_url'], $trans_id);
+            if ($request['channel_icon']) {
+                update_field('channel_icon', $request['channel_icon'], $trans_id);
+            }
+        } catch (Exception $e) {
+            $errors[] = "{$lang}: " . $e->getMessage();
+        }
+    }
+
+    // ── 3. Update Community page relationships ──
+
+    // Find the Community page by its template.
+    $community_pages = get_pages([
+        'meta_key'   => '_wp_page_template',
+        'meta_value' => 'templates/community.php',
+        'number'     => 1,
+    ]);
+
+    if (!empty($community_pages)) {
+        $en_community_id = null;
+
+        // Find the English version of the Community page.
+        foreach ($community_pages as $page) {
+            $page_lang = pll_get_post_language($page->ID, 'slug');
+            if ($page_lang === 'en') {
+                $en_community_id = $page->ID;
+                break;
+            }
+        }
+
+        // If the first result wasn't English, get the English translation.
+        if (!$en_community_id && !empty($community_pages)) {
+            $en_community_id = pll_get_post($community_pages[0]->ID, 'en');
+        }
+
+        if ($en_community_id) {
+            $community_translations = pll_get_post_translations($en_community_id);
+
+            foreach ($translations as $lang => $channel_id) {
+                $community_page_id = $community_translations[$lang] ?? null;
+                if (!$community_page_id) {
+                    $errors[] = "{$lang}: No Community page translation found.";
+                    continue;
+                }
+
+                $current = get_field('channels', $community_page_id, false);
+                if (!is_array($current)) {
+                    $current = [];
+                }
+
+                // Append the new channel ID if not already present.
+                if (!in_array($channel_id, $current)) {
+                    $current[] = $channel_id;
+                    update_field('channels', $current, $community_page_id);
+                }
+            }
+        } else {
+            $errors[] = 'Could not find the English Community page.';
+        }
+    } else {
+        $errors[] = 'No Community page found with templates/community.php template.';
+    }
+
+    return rest_ensure_response([
+        'success'      => true,
+        'en_post_id'   => $en_post_id,
+        'translations' => $translations,
+        'errors'       => $errors,
+    ]);
+}
+
 // ─── ACF Field Groups (registered programmatically) ──────────────────
 
 add_action('acf/init', function () {
@@ -2244,3 +2439,54 @@ add_action('transition_post_status', function ($new_status, $old_status, $post) 
         ]),
     ]);
 }, 10, 3);
+
+// ─── API Documentation (wp-admin page with Redoc) ────────────────────
+
+add_action('admin_menu', function () {
+    add_menu_page(
+        'API Docs',
+        'API Docs',
+        'edit_posts',
+        'cdcf-api-docs',
+        'cdcf_api_docs_page',
+        'dashicons-rest-api',
+        90
+    );
+});
+
+function cdcf_api_docs_page() {
+    $spec_file = get_template_directory() . '/openapi.json';
+    if (!file_exists($spec_file)) {
+        echo '<div class="wrap"><h1>API Documentation</h1>';
+        echo '<div class="notice notice-error"><p>OpenAPI spec not found at <code>openapi.json</code> in theme directory.</p></div></div>';
+        return;
+    }
+
+    $spec_json = file_get_contents($spec_file);
+    ?>
+    <style>
+        #cdcf-api-docs { margin: 0 -20px -10px 0; }
+        #cdcf-api-docs .redoc-wrap { min-height: calc(100vh - 32px); }
+        #cdcf-api-docs [role="search"] { position: relative; display: flex; align-items: center; }
+        #cdcf-api-docs [role="search"] svg { flex-shrink: 0; margin-left: 8px; margin-right: -26px; z-index: 1; }
+        #cdcf-api-docs [role="search"] input { padding-left: 28px !important; }
+    </style>
+    <div id="cdcf-api-docs"></div>
+    <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+    <script>
+        Redoc.init(<?php echo $spec_json; ?>, {
+            scrollYOffset: 32,
+            hideDownloadButton: false,
+            theme: {
+                colors: {
+                    primary: { main: '#213463' },
+                },
+                typography: {
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif',
+                    headings: { fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif' },
+                },
+            },
+        }, document.getElementById('cdcf-api-docs'));
+    </script>
+    <?php
+}

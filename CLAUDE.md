@@ -82,6 +82,7 @@ All endpoints require Application Password authentication (`edit_posts` capabili
 | `POST` | `/relationship` | Update an ACF relationship field (`post_id`, `field`, `value[]`) |
 | `POST` | `/translate` | Translate a post to a target language via OpenAI (`source_id`, `target_lang`, optional `post_id`) |
 | `POST` | `/team-member` | Create a team member with auto-translation and About page linking (see below) |
+| `POST` | `/community-channel` | Create a community channel with auto-translation and Community page linking (see below) |
 
 ### `POST /team-member`
 
@@ -90,6 +91,14 @@ Creates an English `team_member` post, translates it to all 5 languages via Open
 **Parameters:** `title` (required), `content` (required), `council` (required — one of `team_members`, `ecclesial_council`, `technical_council`), `member_title`, `member_role`, `member_linkedin_url`, `member_github_url`, `featured_image_id`
 
 **Returns:** `{ success, en_post_id, translations: { en, it, es, fr, pt, de }, council, errors[] }`
+
+### `POST /community-channel`
+
+Creates an English `community_channel` post, translates it to all 5 languages via OpenAI, and appends each translation to the matching language version of the Community page's `channels` relationship field.
+
+**Parameters:** `title` (required), `channel_description` (required), `channel_url` (required), `channel_icon` (optional — e.g. "discord", "slack", "vinly")
+
+**Returns:** `{ success, en_post_id, translations: { en, it, es, fr, pt, de }, errors[] }`
 
 ## Adding a New Language
 

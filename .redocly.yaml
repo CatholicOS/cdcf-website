@@ -1,0 +1,19 @@
+apis:
+  cdcf:
+    root: wordpress/themes/cdcf-headless/openapi.json
+
+rules:
+  info-contact: warn
+  info-license: off
+  no-unused-components: warn
+  operation-operationId: error
+  operation-summary: error
+  operation-2xx-response: off
+  operation-4xx-response: off
+  path-declaration-must-exist: error
+  path-not-include-query: error
+  tag-description: off
+  no-ambiguous-paths: warn
+  no-path-trailing-slash: error
+  no-identical-paths: error
+  no-server-example.com: off
