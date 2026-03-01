@@ -1,5 +1,6 @@
 import { wpQuery } from './client'
 import {
+  GET_ALL_PAGES,
   GET_PAGE_BY_SLUG,
   GET_POSTS,
   GET_PROJECTS,
@@ -7,6 +8,10 @@ import {
   GET_SPONSORS,
 } from './queries'
 import type { WPPage, WPPost, WPProject, WPSponsor } from './types'
+
+interface FetchOptions {
+  tags?: string[]
+}
 
 // Map next-intl locale codes to Polylang language codes
 const LOCALE_MAP: Record<string, string> = {
@@ -53,12 +58,13 @@ export async function getPage(
 
 export async function getPosts(
   locale: string,
-  count: number = 10
+  count: number = 10,
+  options?: FetchOptions
 ): Promise<WPPost[]> {
   try {
     const data = await wpQuery<{
       posts: { nodes: WPPost[] }
-    }>(GET_POSTS, { language: langCode(locale), first: count })
+    }>(GET_POSTS, { language: langCode(locale), first: count }, options)
 
     return data.posts.nodes
   } catch (error) {
@@ -67,11 +73,14 @@ export async function getPosts(
   }
 }
 
-export async function getProjects(locale: string): Promise<WPProject[]> {
+export async function getProjects(
+  locale: string,
+  options?: FetchOptions
+): Promise<WPProject[]> {
   try {
     const data = await wpQuery<{
       projects: { nodes: WPProject[] }
-    }>(GET_PROJECTS, { language: langCode(locale) })
+    }>(GET_PROJECTS, { language: langCode(locale) }, options)
 
     return data.projects.nodes
   } catch (error) {
@@ -93,6 +102,22 @@ export async function getProject(
   } catch (error) {
     console.error('Failed to fetch project:', error)
     return null
+  }
+}
+
+export async function getAllPages(
+  locale: string,
+  options?: FetchOptions
+): Promise<{ slug: string; uri: string; modified: string }[]> {
+  try {
+    const data = await wpQuery<{
+      pages: { nodes: { slug: string; uri: string; modified: string }[] }
+    }>(GET_ALL_PAGES, { language: langCode(locale) }, options)
+
+    return data.pages.nodes
+  } catch (error) {
+    console.error('Failed to fetch all pages:', error)
+    return []
   }
 }
 

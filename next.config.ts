@@ -21,6 +21,18 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/sitemap.xml',
+        destination: '/api/sitemap',
+      },
+      {
+        source: '/sitemap-:lang.xml',
+        destination: '/api/sitemap/:lang',
+      },
+    ]
+  },
 }
 
 export default withNextIntl(nextConfig)

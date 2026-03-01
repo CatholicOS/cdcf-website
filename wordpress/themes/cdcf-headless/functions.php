@@ -2191,3 +2191,56 @@ function cdcf_bulk_translate_page() {
     </script>
     <?php
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Next.js on-demand revalidation when post status changes
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Notify the Next.js frontend to revalidate cached data (e.g. sitemap)
+ * whenever a page, post, or project is published, unpublished, or trashed.
+ *
+ * Requires two constants in wp-config.php:
+ *   define('CDCF_FRONTEND_URL',       'https://staging.catholicdigitalcommons.org');
+ *   define('CDCF_PREVIEW_SECRET',     'your-shared-secret');
+ */
+add_action('transition_post_status', function ($new_status, $old_status, $post) {
+    if ($new_status === $old_status) {
+        return;
+    }
+
+    $revalidatable_types    = ['page', 'post', 'project'];
+    $revalidatable_statuses = ['publish', 'trash'];
+
+    if (!in_array($post->post_type, $revalidatable_types, true)) {
+        return;
+    }
+
+    if (
+        !in_array($new_status, $revalidatable_statuses, true) &&
+        !in_array($old_status, $revalidatable_statuses, true)
+    ) {
+        return;
+    }
+
+    $frontend_url = defined('CDCF_FRONTEND_URL')
+        ? CDCF_FRONTEND_URL
+        : 'http://localhost:3000';
+
+    $secret = defined('CDCF_PREVIEW_SECRET')
+        ? CDCF_PREVIEW_SECRET
+        : '';
+
+    if (empty($secret)) {
+        return;
+    }
+
+    wp_remote_post($frontend_url . '/api/revalidate', [
+        'blocking' => false,
+        'headers'  => ['Content-Type' => 'application/json'],
+        'body'     => wp_json_encode([
+            'secret' => $secret,
+            'tags'   => ['sitemap'],
+        ]),
+    ]);
+}, 10, 3);

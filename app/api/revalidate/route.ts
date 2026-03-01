@@ -1,4 +1,4 @@
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { NextRequest } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -9,9 +9,26 @@ export async function POST(request: NextRequest) {
     return Response.json({ message: 'Invalid token' }, { status: 401 })
   }
 
-  const path = body.path || '/'
+  const revalidated: { paths: string[]; tags: string[] } = {
+    paths: [],
+    tags: [],
+  }
 
-  revalidatePath(path, 'page')
+  // Revalidate by path (existing behavior)
+  if (body.path) {
+    revalidatePath(body.path, 'page')
+    revalidated.paths.push(body.path)
+  }
 
-  return Response.json({ revalidated: true, path })
+  // Revalidate by cache tags
+  if (Array.isArray(body.tags)) {
+    for (const tag of body.tags) {
+      if (typeof tag === 'string') {
+        revalidateTag(tag)
+        revalidated.tags.push(tag)
+      }
+    }
+  }
+
+  return Response.json({ revalidated: true, ...revalidated })
 }

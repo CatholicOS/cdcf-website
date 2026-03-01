@@ -5,6 +5,7 @@ interface WPQueryOptions {
   revalidate?: number
   draft?: boolean
   token?: string
+  tags?: string[]
 }
 
 export async function wpQuery<T = unknown>(
@@ -12,7 +13,7 @@ export async function wpQuery<T = unknown>(
   variables: Record<string, unknown> = {},
   options: WPQueryOptions = {}
 ): Promise<T> {
-  const { revalidate = 60, draft = false, token } = options
+  const { revalidate = 60, draft = false, token, tags } = options
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -26,7 +27,10 @@ export async function wpQuery<T = unknown>(
     method: 'POST',
     headers,
     body: JSON.stringify({ query, variables }),
-    next: { revalidate: draft ? 0 : revalidate },
+    next: {
+      revalidate: draft ? 0 : revalidate,
+      ...(tags?.length ? { tags } : {}),
+    },
   })
 
   if (!res.ok) {

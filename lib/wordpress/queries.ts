@@ -264,6 +264,20 @@ export const GET_SPONSORS = `
   }
 `
 
+// ─── All pages query (sitemap) ──────────────────────────────────────
+
+export const GET_ALL_PAGES = `
+  query GetAllPages($language: LanguageCodeFilterEnum) {
+    pages(where: { language: $language }, first: 100) {
+      nodes {
+        slug
+        uri
+        modified
+      }
+    }
+  }
+`
+
 // ─── Stat Items query ────────────────────────────────────────────────
 
 export const GET_STAT_ITEMS = `
