@@ -257,7 +257,15 @@ if [ "$WITH_UPLOADS" = true ]; then
   echo "Phase 8: Syncing uploads from production..."
 
   PROD_WP_PATH="${PROD_WP_PATH:-/cms.catholicdigitalcommons.org}"
-  WP_CONTENT_DIR=$(docker exec "$WP_CONTAINER" bash -c 'echo $WORDPRESS_DATA_DIR' 2>/dev/null || echo "/var/www/html")
+
+  # Re-fetch container ID since wpcli runs may have recreated it
+  WP_CONTAINER=$(docker compose -f "$PROJECT_DIR/docker-compose.yml" ps -q wordpress 2>/dev/null || true)
+  if [ -z "$WP_CONTAINER" ]; then
+    echo "ERROR: WordPress container is not running."
+    exit 1
+  fi
+
+  WP_CONTENT_DIR=$(docker exec "$WP_CONTAINER" bash -c 'echo ${WORDPRESS_DATA_DIR:-/var/www/html}' 2>/dev/null)
 
   # Create a temp directory for the download
   UPLOADS_TMP="$(mktemp -d /tmp/cdcf-uploads.XXXXXX)"
@@ -279,6 +287,17 @@ else
   echo ""
   echo "Skipping uploads sync (pass --with-uploads to include media files)"
 fi
+
+# ── Phase 9: Restore container port mappings ──
+
+echo ""
+echo "Phase 9: Restoring container port mappings..."
+
+# wpcli runs can recreate the wordpress container without its port mappings
+# from docker-compose.override.yml, so re-up it to restore them.
+docker compose -f "$PROJECT_DIR/docker-compose.yml" up -d wordpress 2>&1 | grep -v "^$"
+
+echo "  Port mappings restored"
 
 # ── Done ──
 
