@@ -77,3 +77,77 @@ h1, h2, h3, h4, h5, h6 {
   background-repeat: repeat;
   background-size: 180px auto;
 }
+
+/* Table styling for logo symbolism page */
+[data-page-slug="logo-symbolism"] .prose table {
+  border-collapse: separate;
+  border-spacing: 0;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(4px);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+[data-page-slug="logo-symbolism"] .prose thead th {
+  background: rgba(33, 52, 99, 0.9);
+  color: #fff;
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  border-bottom: 2px solid #9a8432;
+}
+
+[data-page-slug="logo-symbolism"] .prose tbody td {
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid rgba(33, 52, 99, 0.1);
+}
+
+[data-page-slug="logo-symbolism"] .prose tbody tr:nth-child(even) {
+  background: rgba(154, 132, 50, 0.06);
+}
+
+[data-page-slug="logo-symbolism"] .prose tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+[data-page-slug="logo-symbolism"] .prose tbody tr:hover {
+  background: rgba(154, 132, 50, 0.12);
+}
+
+[data-page-slug="logo-symbolism"] .prose tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Same styles for tables inside the easter egg dialog */
+dialog .prose table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+dialog .prose thead th {
+  background: rgba(33, 52, 99, 0.9);
+  color: #fff;
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  border-bottom: 2px solid #9a8432;
+}
+
+dialog .prose tbody td {
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid rgba(33, 52, 99, 0.1);
+}
+
+dialog .prose tbody tr:nth-child(even) {
+  background: rgba(154, 132, 50, 0.06);
+}
+
+dialog .prose tbody tr:hover {
+  background: rgba(154, 132, 50, 0.12);
+}
+
+dialog .prose tbody tr:last-child td {
+  border-bottom: none;
+}
