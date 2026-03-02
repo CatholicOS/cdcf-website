@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 
 const CORRECT_ANSWER = 24
@@ -36,10 +36,6 @@ export default function FishEasterEgg({ explanationHtml }: FishEasterEggProps) {
     dialogRef.current?.close()
     setShowDialog(false)
   }, [])
-
-  useEffect(() => {
-    if (solved) openDialog()
-  }, [solved, openDialog])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

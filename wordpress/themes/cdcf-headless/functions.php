@@ -1880,6 +1880,109 @@ add_action('wp_ajax_cdcf_ai_translate', function () {
     ]);
 });
 
+// ─── Background translation processor (WP Cron) ─────────────────────
+
+function cdcf_process_translation($post_id, $source_id, $target_lang) {
+    $source = get_post($source_id);
+    if (!$source) {
+        error_log("cdcf_process_translation: Source post {$source_id} not found.");
+        return;
+    }
+
+    // Collect translatable strings.
+    $strings = [];
+    if ($source->post_title)   $strings['post_title']   = $source->post_title;
+    if ($source->post_content) $strings['post_content'] = $source->post_content;
+    if ($source->post_excerpt) $strings['post_excerpt'] = $source->post_excerpt;
+
+    if ($source->post_type === 'attachment') {
+        $alt = get_post_meta($source_id, '_wp_attachment_image_alt', true);
+        if ($alt) $strings['alt_text'] = $alt;
+    }
+
+    if (function_exists('get_field_objects')) {
+        $field_objects = get_field_objects($source_id);
+        if ($field_objects) {
+            foreach ($field_objects as $field) {
+                if (
+                    in_array($field['type'], CDCF_TRANSLATABLE_ACF_TYPES, true)
+                    && !empty($field['value'])
+                    && is_string($field['value'])
+                ) {
+                    $strings['acf_' . $field['name']] = $field['value'];
+                }
+            }
+        }
+    }
+
+    if (empty($strings)) {
+        error_log("cdcf_process_translation: No translatable content for post {$source_id}.");
+        return;
+    }
+
+    // Call OpenAI.
+    $api_key = get_option('cdcf_openai_api_key');
+    if (!$api_key) {
+        error_log('cdcf_process_translation: OpenAI API key not configured.');
+        return;
+    }
+
+    $target_name = CDCF_LOCALE_NAMES[$target_lang] ?? $target_lang;
+    $source_lang = pll_default_language('slug');
+    $source_name = CDCF_LOCALE_NAMES[$source_lang] ?? $source_lang;
+
+    $result = cdcf_openai_translate($strings, $source_name, $target_name, $api_key);
+    if (is_wp_error($result)) {
+        error_log('cdcf_process_translation: OpenAI error – ' . $result->get_error_message());
+        return;
+    }
+
+    // Write translations.
+    $update = [];
+    if (isset($result['post_title']))   $update['post_title']   = sanitize_text_field($result['post_title']);
+    if (isset($result['post_content'])) $update['post_content'] = wp_kses_post($result['post_content']);
+    if (isset($result['post_excerpt'])) $update['post_excerpt'] = sanitize_textarea_field($result['post_excerpt']);
+
+    if (!empty($update)) {
+        $update['ID'] = $post_id;
+        wp_update_post($update);
+    }
+
+    if (isset($result['alt_text'])) {
+        update_post_meta($post_id, '_wp_attachment_image_alt', sanitize_text_field($result['alt_text']));
+    }
+
+    if (function_exists('update_field')) {
+        foreach ($result as $key => $value) {
+            if (strpos($key, 'acf_') === 0) {
+                update_field(substr($key, 4), $value, $post_id);
+            }
+        }
+    }
+
+    // Copy non-translatable ACF fields from source.
+    if (function_exists('get_field_objects') && function_exists('update_field')) {
+        $field_objects = get_field_objects($source_id);
+        if ($field_objects) {
+            foreach ($field_objects as $field) {
+                if (in_array($field['type'], CDCF_TRANSLATABLE_ACF_TYPES, true)) continue;
+                $existing = get_field($field['name'], $post_id);
+                if (empty($existing) && !empty($field['value'])) {
+                    update_field($field['name'], $field['value'], $post_id);
+                }
+            }
+        }
+    }
+
+    // Auto-publish if source is published.
+    if ($source->post_type !== 'attachment' && $source->post_status === 'publish' && get_post_status($post_id) !== 'publish') {
+        wp_update_post(['ID' => $post_id, 'post_status' => 'publish']);
+    }
+
+    error_log("cdcf_process_translation: Translation complete for post {$post_id} ({$target_lang}).");
+}
+add_action('cdcf_async_translate', 'cdcf_process_translation', 10, 3);
+
 // ─── REST endpoint for AI translation ────────────────────────────────
 //
 // Mirrors the admin-ajax cdcf_ai_translate handler but uses REST API
@@ -1946,105 +2049,14 @@ add_action('rest_api_init', function () {
                 pll_save_post_translations($translations);
             }
 
-            $source = get_post($source_id);
-            if (!$source) {
-                return new WP_Error('not_found', 'Source post not found.', ['status' => 404]);
-            }
+            // Schedule async translation via WP Cron.
+            wp_schedule_single_event(time(), 'cdcf_async_translate', [$post_id, $source_id, $target_lang]);
+            spawn_cron();
 
-            // Collect translatable strings.
-            $strings = [];
-            if ($source->post_title)   $strings['post_title']   = $source->post_title;
-            if ($source->post_content) $strings['post_content'] = $source->post_content;
-            if ($source->post_excerpt) $strings['post_excerpt'] = $source->post_excerpt;
-
-            if ($source->post_type === 'attachment') {
-                $alt = get_post_meta($source_id, '_wp_attachment_image_alt', true);
-                if ($alt) $strings['alt_text'] = $alt;
-            }
-
-            if (function_exists('get_field_objects')) {
-                $field_objects = get_field_objects($source_id);
-                if ($field_objects) {
-                    foreach ($field_objects as $field) {
-                        if (
-                            in_array($field['type'], CDCF_TRANSLATABLE_ACF_TYPES, true)
-                            && !empty($field['value'])
-                            && is_string($field['value'])
-                        ) {
-                            $strings['acf_' . $field['name']] = $field['value'];
-                        }
-                    }
-                }
-            }
-
-            if (empty($strings)) {
-                if ($source->post_type === 'attachment') {
-                    return rest_ensure_response(['post_id' => $post_id, 'message' => 'Media duplicated (no translatable text found).']);
-                }
-                return new WP_Error('no_content', 'No translatable content found.', ['status' => 400]);
-            }
-
-            // Call OpenAI.
-            $api_key = get_option('cdcf_openai_api_key');
-            if (!$api_key) {
-                return new WP_Error('no_api_key', 'OpenAI API key not configured.', ['status' => 500]);
-            }
-
-            $target_name = CDCF_LOCALE_NAMES[$target_lang] ?? $target_lang;
-            $source_lang = pll_default_language('slug');
-            $source_name = CDCF_LOCALE_NAMES[$source_lang] ?? $source_lang;
-
-            $result = cdcf_openai_translate($strings, $source_name, $target_name, $api_key);
-            if (is_wp_error($result)) {
-                return $result;
-            }
-
-            // Write translations.
-            $update = [];
-            if (isset($result['post_title']))   $update['post_title']   = sanitize_text_field($result['post_title']);
-            if (isset($result['post_content'])) $update['post_content'] = wp_kses_post($result['post_content']);
-            if (isset($result['post_excerpt'])) $update['post_excerpt'] = sanitize_textarea_field($result['post_excerpt']);
-
-            if (!empty($update)) {
-                $update['ID'] = $post_id;
-                wp_update_post($update);
-            }
-
-            if (isset($result['alt_text'])) {
-                update_post_meta($post_id, '_wp_attachment_image_alt', sanitize_text_field($result['alt_text']));
-            }
-
-            if (function_exists('update_field')) {
-                foreach ($result as $key => $value) {
-                    if (strpos($key, 'acf_') === 0) {
-                        update_field(substr($key, 4), $value, $post_id);
-                    }
-                }
-            }
-
-            // Copy non-translatable ACF fields from source.
-            if (function_exists('get_field_objects') && function_exists('update_field')) {
-                $field_objects = get_field_objects($source_id);
-                if ($field_objects) {
-                    foreach ($field_objects as $field) {
-                        if (in_array($field['type'], CDCF_TRANSLATABLE_ACF_TYPES, true)) continue;
-                        $existing = get_field($field['name'], $post_id);
-                        if (empty($existing) && !empty($field['value'])) {
-                            update_field($field['name'], $field['value'], $post_id);
-                        }
-                    }
-                }
-            }
-
-            // Auto-publish if source is published.
-            if ($source->post_type !== 'attachment' && $source->post_status === 'publish' && get_post_status($post_id) !== 'publish') {
-                wp_update_post(['ID' => $post_id, 'post_status' => 'publish']);
-            }
-
-            return rest_ensure_response([
+            return new WP_REST_Response([
                 'post_id' => $post_id,
-                'message' => 'Translation complete.',
-            ]);
+                'message' => 'Translation queued.',
+            ], 202);
         },
         'args' => [
             'source_id'   => ['required' => true,  'type' => 'integer', 'sanitize_callback' => 'absint'],
