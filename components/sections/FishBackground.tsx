@@ -60,14 +60,34 @@ export default function FishBackground({ count = 5 }: { count?: number }) {
   const [fish, setFish] = useState<PlacedFish[]>([])
 
   useEffect(() => {
-    const placed: PlacedFish[] = Array.from({ length: count }, () => ({
-      pathIndex: Math.floor(Math.random() * fishPaths.length),
-      x: randomBetween(5, 90),
-      y: randomBetween(5, 90),
-      rotation: randomBetween(-35, 35),
-      size: randomBetween(80, 140),
-      opacity: randomBetween(0.04, 0.09),
-    }))
+    const placed: PlacedFish[] = []
+    const minDistance = 8 // minimum % distance between fish centers
+
+    for (let i = 0; i < count; i++) {
+      let candidate: PlacedFish | null = null
+      for (let attempt = 0; attempt < 50; attempt++) {
+        const x = randomBetween(5, 90)
+        const y = randomBetween(5, 90)
+        const tooClose = placed.some((p) => {
+          const dx = p.x - x
+          const dy = p.y - y
+          return Math.sqrt(dx * dx + dy * dy) < minDistance
+        })
+        if (!tooClose) {
+          candidate = {
+            pathIndex: Math.floor(Math.random() * fishPaths.length),
+            x,
+            y,
+            rotation: randomBetween(-35, 35),
+            size: randomBetween(80, 140),
+            opacity: randomBetween(0.04, 0.09),
+          }
+          break
+        }
+      }
+      if (candidate) placed.push(candidate)
+    }
+
     setFish(placed)
   }, [count])
 
