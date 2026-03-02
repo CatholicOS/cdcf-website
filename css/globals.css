@@ -90,7 +90,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 [data-page-slug="logo-symbolism"] .prose thead th {
-  background: rgba(33, 52, 99, 0.9);
+  background: rgba(33, 52, 99, 0.4);
   color: #fff;
   font-weight: 600;
   padding: 0.75rem 1rem;
@@ -128,7 +128,7 @@ dialog .prose table {
 }
 
 dialog .prose thead th {
-  background: rgba(33, 52, 99, 0.9);
+  background: rgba(33, 52, 99, 0.4);
   color: #fff;
   font-weight: 600;
   padding: 0.75rem 1rem;
