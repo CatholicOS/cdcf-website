@@ -69,8 +69,8 @@ jobs:
              mkdir -p ${{ secrets.WP_THEME_DIR }} && \
              tar -xzf /tmp/wp-theme.tar.gz -C ${{ secrets.WP_THEME_DIR }} && \
              rm /tmp/wp-theme.tar.gz && \
-             sudo -u ${{ secrets.WP_FILE_OWNER }} mkdir -p ${{ secrets.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
-             sudo -u ${{ secrets.WP_FILE_OWNER }} tar -xzf /tmp/wp-plugin-redis-translations.tar.gz -C ${{ secrets.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
+             mkdir -p ${{ secrets.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
+             tar -xzf /tmp/wp-plugin-redis-translations.tar.gz -C ${{ secrets.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
              rm /tmp/wp-plugin-redis-translations.tar.gz && \
              mkdir -p ${{ secrets.VPS_APP_DIR }}/tmp && \
              touch ${{ secrets.VPS_APP_DIR }}/tmp/restart.txt"
@@ -80,4 +80,4 @@ jobs:
           ssh -i ~/.ssh/deploy_key \
             ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
             "cd ${{ secrets.WP_ROOT_DIR }} && \
-             sudo -u ${{ secrets.WP_FILE_OWNER }} wp plugin activate redis-queue cdcf-redis-translations 2>/dev/null || true"
+             wp plugin activate redis-queue cdcf-redis-translations 2>/dev/null || true"
