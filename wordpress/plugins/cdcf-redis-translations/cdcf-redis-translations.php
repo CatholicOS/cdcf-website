@@ -29,8 +29,9 @@ add_action('rest_api_init', function () {
             if (!function_exists('redis_queue')) {
                 return new WP_REST_Response(['processed' => 0, 'error' => 'redis_queue not available'], 200);
             }
-            redis_queue()->process_jobs();
-            return new WP_REST_Response(['processed' => true], 200);
+            $processor = redis_queue()->get_job_processor();
+            $result = $processor->process_jobs(['default'], 10);
+            return new WP_REST_Response(['processed' => $result], 200);
         },
     ]);
 });
