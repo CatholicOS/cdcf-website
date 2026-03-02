@@ -24,17 +24,14 @@ export default function FishEasterEgg({ explanationHtml }: FishEasterEggProps) {
   const [guess, setGuess] = useState('')
   const [hint, setHint] = useState<{ key: string; color: string } | null>(null)
   const [solved, setSolved] = useState(false)
-  const [showDialog, setShowDialog] = useState(false)
   const dialogRef = useRef<HTMLDialogElement>(null)
 
   const openDialog = useCallback(() => {
-    setShowDialog(true)
     dialogRef.current?.showModal()
   }, [])
 
   const closeDialog = useCallback(() => {
     dialogRef.current?.close()
-    setShowDialog(false)
   }, [])
 
   function handleSubmit(e: React.FormEvent) {
@@ -95,11 +92,10 @@ export default function FishEasterEgg({ explanationHtml }: FishEasterEggProps) {
       </div>
 
       {/* Explanation dialog */}
-      {explanationHtml && showDialog && (
+      {explanationHtml && (
         <dialog
           ref={dialogRef}
           className="mx-auto flex max-h-[80vh] w-full max-w-3xl flex-col rounded-xl border-0 p-0 shadow-2xl backdrop:bg-black/50"
-          onClose={() => setShowDialog(false)}
         >
           <div className="flex shrink-0 items-center justify-between border-b bg-cdcf-navy px-6 py-4">
             <h2 className="font-serif text-xl font-bold text-white">
