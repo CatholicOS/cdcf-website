@@ -15,6 +15,8 @@ interface PageRendererProps {
   posts?: WPPost[]
   projects?: WPProject[]
   sponsors?: WPSponsor[]
+  isLogoSymbolism?: boolean
+  fishExplanationHtml?: string
 }
 
 export default async function PageRenderer({
@@ -22,6 +24,8 @@ export default async function PageRenderer({
   posts = [],
   projects = [],
   sponsors = [],
+  isLogoSymbolism,
+  fishExplanationHtml,
 }: PageRendererProps) {
   const template = page.template?.templateName || 'Default'
   const t = await getTranslations('about')
@@ -42,7 +46,7 @@ export default async function PageRenderer({
       {template === 'Community' && renderCommunity(page)}
       {template === 'Blog' && renderBlog(page, posts)}
       {template === 'Contact' && renderContact(page)}
-      {template === 'Default' && renderDefault(page)}
+      {template === 'Default' && renderDefault(page, isLogoSymbolism, fishExplanationHtml)}
 
       {/* CTA — shared across templates that use it */}
       {page.cta?.ctaHeading && <CallToAction cta={page.cta} />}
@@ -157,7 +161,15 @@ function renderContact(page: WPPage) {
   )
 }
 
-function renderDefault(page: WPPage) {
+function renderDefault(page: WPPage, isLogoSymbolism?: boolean, fishExplanationHtml?: string) {
   if (!page.content) return null
-  return <TextSection heading="" body={page.content} width="full" />
+  return (
+    <TextSection
+      heading=""
+      body={page.content}
+      width="full"
+      isLogoSymbolism={isLogoSymbolism}
+      fishExplanationHtml={fishExplanationHtml}
+    />
+  )
 }

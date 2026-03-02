@@ -70,5 +70,18 @@
       "graduated": "Graduated"
     },
     "filterAll": "All Projects"
+  },
+  "fishEasterEgg": {
+    "prompt": "Did you notice the fish in the net? Guess how many there are.",
+    "placeholder": "Enter a number",
+    "guess": "Guess",
+    "freezing": "Freezing!",
+    "cold": "Cold\u2026",
+    "lukewarm": "Lukewarm.",
+    "warm": "Getting warm\u2026",
+    "hot": "You\u2019re burning hot!",
+    "correct": "Correct! The number is {count}.",
+    "discoverWhy": "Discover why this number is significant",
+    "dialogTitle": "The Symbolism of 24"
   }
 }

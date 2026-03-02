@@ -264,6 +264,20 @@ export const GET_SPONSORS = `
   }
 `
 
+// ─── Single post by slug ────────────────────────────────────────────
+
+export const GET_POST_BY_SLUG = `
+  query GetPostBySlug($slug: ID!, $language: LanguageCodeEnum!) {
+    post(id: $slug, idType: SLUG) {
+      translation(language: $language) {
+        title
+        slug
+        content
+      }
+    }
+  }
+`
+
 // ─── All pages query (sitemap) ──────────────────────────────────────
 
 export const GET_ALL_PAGES = `

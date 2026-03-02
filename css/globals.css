@@ -70,3 +70,10 @@ h1, h2, h3, h4, h5, h6 {
 .prose a:hover {
   color: #9a8432;
 }
+
+/* Fish net background for logo symbolism page */
+[data-page-slug="logo-symbolism"] {
+  background-image: url('/fishnet-bg.svg');
+  background-repeat: repeat;
+  background-size: 180px auto;
+}

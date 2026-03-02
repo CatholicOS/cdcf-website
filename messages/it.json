@@ -70,5 +70,18 @@
       "graduated": "Consolidato"
     },
     "filterAll": "Tutti i progetti"
+  },
+  "fishEasterEgg": {
+    "prompt": "Hai notato i pesci nella rete? Indovina quanti sono.",
+    "placeholder": "Inserisci un numero",
+    "guess": "Indovina",
+    "freezing": "Gelo!",
+    "cold": "Freddo\u2026",
+    "lukewarm": "Tiepido.",
+    "warm": "Ti stai scaldando\u2026",
+    "hot": "Sei bollente!",
+    "correct": "Corretto! Il numero \u00e8 {count}.",
+    "discoverWhy": "Scopri perch\u00e9 questo numero \u00e8 significativo",
+    "dialogTitle": "Il simbolismo del 24"
   }
 }

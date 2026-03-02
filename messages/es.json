@@ -70,5 +70,18 @@
       "graduated": "Consolidado"
     },
     "filterAll": "Todos los proyectos"
+  },
+  "fishEasterEgg": {
+    "prompt": "\u00bfHas notado los peces en la red? Adivina cu\u00e1ntos hay.",
+    "placeholder": "Introduce un n\u00famero",
+    "guess": "Adivinar",
+    "freezing": "\u00a1Helado!",
+    "cold": "Fr\u00edo\u2026",
+    "lukewarm": "Tibio.",
+    "warm": "Te est\u00e1s acercando\u2026",
+    "hot": "\u00a1Est\u00e1s que quemas!",
+    "correct": "\u00a1Correcto! El n\u00famero es {count}.",
+    "discoverWhy": "Descubre por qu\u00e9 este n\u00famero es significativo",
+    "dialogTitle": "El simbolismo del 24"
   }
 }

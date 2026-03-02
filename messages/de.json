@@ -70,5 +70,18 @@
       "graduated": "Ausgereift"
     },
     "filterAll": "Alle Projekte"
+  },
+  "fishEasterEgg": {
+    "prompt": "Haben Sie die Fische im Netz bemerkt? Raten Sie, wie viele es sind.",
+    "placeholder": "Zahl eingeben",
+    "guess": "Raten",
+    "freezing": "Eiskalt!",
+    "cold": "Kalt\u2026",
+    "lukewarm": "Lauwarm.",
+    "warm": "Wird w\u00e4rmer\u2026",
+    "hot": "Sie kochen!",
+    "correct": "Richtig! Die Zahl ist {count}.",
+    "discoverWhy": "Erfahren Sie, warum diese Zahl bedeutsam ist",
+    "dialogTitle": "Die Symbolik der 24"
   }
 }

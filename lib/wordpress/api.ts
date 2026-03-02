@@ -2,6 +2,7 @@ import { wpQuery } from './client'
 import {
   GET_ALL_PAGES,
   GET_PAGE_BY_SLUG,
+  GET_POST_BY_SLUG,
   GET_POSTS,
   GET_PROJECTS,
   GET_PROJECT_BY_SLUG,
@@ -52,6 +53,22 @@ export async function getPage(
     return null
   } catch (error) {
     console.error('Failed to fetch page:', error)
+    return null
+  }
+}
+
+export async function getPostBySlug(
+  slug: string,
+  locale: string
+): Promise<{ title: string; content: string } | null> {
+  try {
+    const data = await wpQuery<{
+      post: { translation: { title: string; slug: string; content: string } | null } | null
+    }>(GET_POST_BY_SLUG, { slug, language: langCode(locale) })
+
+    return data.post?.translation ?? null
+  } catch (error) {
+    console.error('Failed to fetch post:', error)
     return null
   }
 }
