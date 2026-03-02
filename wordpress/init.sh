@@ -69,6 +69,16 @@ wp plugin install \
   --activate --allow-root 2>&1 \
   || echo "  NOTE: WPGraphQL Polylang auto-install failed — install manually from GitHub."
 
+echo "Installing Redis Queue..."
+wp plugin install \
+  "https://github.com/soderlind/redis-queue/releases/latest/download/redis-queue.zip" \
+  --activate --allow-root 2>&1 \
+  || echo "  NOTE: Redis Queue auto-install failed — Redis translations will fall back to WP Cron."
+
+echo "Activating CDCF Redis Translations..."
+wp plugin activate cdcf-redis-translations --allow-root 2>&1 \
+  || echo "  NOTE: cdcf-redis-translations activation failed."
+
 # ── Activate Theme ──
 
 echo "Activating theme..."

@@ -2049,12 +2049,18 @@ add_action('rest_api_init', function () {
                 pll_save_post_translations($translations);
             }
 
-            // Schedule async translation via WP Cron.
-            wp_schedule_single_event(time(), 'cdcf_async_translate', [$post_id, $source_id, $target_lang]);
-            spawn_cron();
+            // Enqueue translation: Redis Queue if available, WP Cron fallback.
+            if (function_exists('cdcf_enqueue_translation')) {
+                $queue = cdcf_enqueue_translation($post_id, $source_id, $target_lang);
+            } else {
+                wp_schedule_single_event(time(), 'cdcf_async_translate', [$post_id, $source_id, $target_lang]);
+                spawn_cron();
+                $queue = 'wp-cron';
+            }
 
             return new WP_REST_Response([
                 'post_id' => $post_id,
+                'queue'   => $queue,
                 'message' => 'Translation queued.',
             ], 202);
         },

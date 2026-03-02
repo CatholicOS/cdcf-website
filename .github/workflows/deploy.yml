@@ -43,6 +43,7 @@ jobs:
           cp -r public .next/standalone/public
           tar -czf /tmp/nextjs-bundle.tar.gz -C .next/standalone .
           tar -czf /tmp/wp-theme.tar.gz -C wordpress/themes/cdcf-headless .
+          tar -czf /tmp/wp-plugin-redis-translations.tar.gz -C wordpress/plugins/cdcf-redis-translations .
 
       - name: Setup SSH key
         run: |
@@ -54,7 +55,7 @@ jobs:
       - name: Upload bundles
         run: |
           scp -i ~/.ssh/deploy_key \
-            /tmp/nextjs-bundle.tar.gz /tmp/wp-theme.tar.gz \
+            /tmp/nextjs-bundle.tar.gz /tmp/wp-theme.tar.gz /tmp/wp-plugin-redis-translations.tar.gz \
             ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/tmp/
 
       - name: Extract and restart
@@ -68,5 +69,15 @@ jobs:
              mkdir -p ${{ secrets.WP_THEME_DIR }} && \
              tar -xzf /tmp/wp-theme.tar.gz -C ${{ secrets.WP_THEME_DIR }} && \
              rm /tmp/wp-theme.tar.gz && \
+             mkdir -p ${{ secrets.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
+             tar -xzf /tmp/wp-plugin-redis-translations.tar.gz -C ${{ secrets.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
+             rm /tmp/wp-plugin-redis-translations.tar.gz && \
              mkdir -p ${{ secrets.VPS_APP_DIR }}/tmp && \
              touch ${{ secrets.VPS_APP_DIR }}/tmp/restart.txt"
+
+      - name: Activate plugins
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
+            "cd ${{ secrets.WP_ROOT_DIR }} && \
+             wp plugin activate redis-queue cdcf-redis-translations 2>/dev/null || true"

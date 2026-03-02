@@ -10,20 +10,31 @@ services:
     volumes:
       - db_data:/var/lib/mysql
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
   wordpress:
     image: wordpress:6-php8.4-apache
     restart: unless-stopped
     depends_on:
       - db
+      - redis
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_NAME: ${WP_DB_NAME:-wordpress}
       WORDPRESS_DB_USER: ${WP_DB_USER:-wordpress}
       WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
-      WORDPRESS_CONFIG_EXTRA: "define('FS_METHOD', 'direct');"
+      WORDPRESS_CONFIG_EXTRA: |
+        define('FS_METHOD', 'direct');
+        define('REDIS_QUEUE_HOST', 'redis');
+        define('REDIS_QUEUE_PORT', 6379);
     volumes:
       - wordpress_data:/var/www/html
       - ./wordpress/themes/cdcf-headless:/var/www/html/wp-content/themes/cdcf-headless
+      - ./wordpress/plugins/cdcf-redis-translations:/var/www/html/wp-content/plugins/cdcf-redis-translations
 
   wp-init:
     image: wordpress:cli
@@ -31,9 +42,11 @@ services:
     depends_on:
       - db
       - wordpress
+      - redis
     volumes:
       - wordpress_data:/var/www/html
       - ./wordpress/themes/cdcf-headless:/var/www/html/wp-content/themes/cdcf-headless
+      - ./wordpress/plugins/cdcf-redis-translations:/var/www/html/wp-content/plugins/cdcf-redis-translations
       - ./wordpress/init.sh:/usr/local/bin/init.sh:ro
       - ./wordpress/translate-all.php:/usr/local/bin/translate-all.php:ro
     environment:
@@ -50,6 +63,25 @@ services:
     entrypoint: ["sh", "/usr/local/bin/init.sh"]
     restart: "no"
 
+  redis-worker:
+    image: wordpress:cli
+    user: "0:0"
+    depends_on:
+      - db
+      - wordpress
+      - redis
+    volumes:
+      - wordpress_data:/var/www/html
+      - ./wordpress/themes/cdcf-headless:/var/www/html/wp-content/themes/cdcf-headless
+      - ./wordpress/plugins/cdcf-redis-translations:/var/www/html/wp-content/plugins/cdcf-redis-translations
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: ${WP_DB_NAME:-wordpress}
+      WORDPRESS_DB_USER: ${WP_DB_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
+    entrypoint: ["sh", "-c", "while true; do wp eval 'if(function_exists(\"redis_queue\")){redis_queue()->process_jobs();}' --allow-root 2>&1; sleep 10; done"]
+    restart: unless-stopped
+
   wpcli:
     image: wordpress:cli
     user: "0:0"
@@ -59,6 +91,7 @@ services:
     volumes:
       - wordpress_data:/var/www/html
       - ./wordpress/themes/cdcf-headless:/var/www/html/wp-content/themes/cdcf-headless
+      - ./wordpress/plugins/cdcf-redis-translations:/var/www/html/wp-content/plugins/cdcf-redis-translations
       - ./wordpress/translate-all.php:/usr/local/bin/translate-all.php:ro
     environment:
       WORDPRESS_DB_HOST: db
@@ -100,4 +133,5 @@ services:
 
 volumes:
   db_data:
+  redis_data:
   wordpress_data:
