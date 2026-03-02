@@ -77,7 +77,14 @@ jobs:
 
       - name: Activate plugins
         run: |
-          ssh -i ~/.ssh/deploy_key \
-            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
-            "cd ${{ secrets.WP_ROOT_DIR }} && \
-             wp plugin activate redis-queue cdcf-redis-translations 2>/dev/null || true"
+          WP_URL="https://cms.${{ secrets.VPS_HOST }}/wp-json/wp/v2/plugins"
+          AUTH=$(echo -n "${{ secrets.WP_APP_USERNAME }}:${{ secrets.WP_APP_PASSWORD }}" | base64)
+          for PLUGIN in redis-queue/redis-queue cdcf-redis-translations/cdcf-redis-translations; do
+            SLUG=$(echo "$PLUGIN" | tr '/' '%2F')
+            STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
+              -X POST "$WP_URL/$SLUG" \
+              -H "Authorization: Basic $AUTH" \
+              -H "Content-Type: application/json" \
+              -d '{"status":"active"}')
+            echo "Activate $PLUGIN: HTTP $STATUS"
+          done
