@@ -95,7 +95,7 @@ export default function FishEasterEgg({ explanationHtml }: FishEasterEggProps) {
       {explanationHtml && (
         <dialog
           ref={dialogRef}
-          className="mx-auto flex max-h-[80vh] w-full max-w-3xl flex-col rounded-xl border-0 p-0 shadow-2xl backdrop:bg-black/50"
+          className="mx-auto max-h-[80vh] w-full max-w-3xl rounded-xl border-0 p-0 shadow-2xl backdrop:bg-black/50 open:flex open:flex-col"
         >
           <div className="flex shrink-0 items-center justify-between border-b bg-cdcf-navy px-6 py-4">
             <h2 className="font-serif text-xl font-bold text-white">
