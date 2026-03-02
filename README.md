@@ -24,8 +24,8 @@ The official website for the **Catholic Digital Commons Foundation (CDCF)**, bui
 
 ```bash
 # Clone the repository
-git clone https://github.com/CatholicOS-org/cdcf-cms.git
-cd cdcf-cms
+git clone https://github.com/CatholicOS-org/cdcf-website.git
+cd cdcf-website
 
 # Install frontend dependencies
 npm install
@@ -117,7 +117,7 @@ npm start
 ## Project Structure
 
 ```
-cdcf-cms/
+cdcf-website/
 ├── app/
 │   ├── [lang]/                    # i18n dynamic segment
 │   │   ├── layout.tsx             # Root layout with providers

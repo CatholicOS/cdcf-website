@@ -106,7 +106,7 @@ services:
       context: .
       args:
         WORDPRESS_GRAPHQL_URL: ${WORDPRESS_GRAPHQL_URL}
-    image: cdcf-cms:latest
+    image: cdcf-website:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
