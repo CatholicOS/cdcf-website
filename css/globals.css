@@ -107,7 +107,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 [data-page-slug="logo-symbolism"] .prose tbody tr:nth-child(odd) {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0);
 }
 
 [data-page-slug="logo-symbolism"] .prose tbody tr:hover {
