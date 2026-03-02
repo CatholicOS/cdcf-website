@@ -77,7 +77,7 @@ jobs:
 
       - name: Activate plugins
         run: |
-          WP_URL="https://cms.${{ secrets.VPS_HOST }}/wp-json/wp/v2/plugins"
+          WP_URL="${{ secrets.WP_REST_URL }}/wp/v2/plugins"
           AUTH=$(echo -n "${{ secrets.WP_APP_USERNAME }}:${{ secrets.WP_APP_PASSWORD }}" | base64)
           for PLUGIN in redis-queue/redis-queue cdcf-redis-translations/cdcf-redis-translations; do
             SLUG=$(echo "$PLUGIN" | tr '/' '%2F')
