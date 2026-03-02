@@ -295,7 +295,7 @@ echo "Phase 9: Restoring container port mappings..."
 
 # wpcli runs can recreate the wordpress container without its port mappings
 # from docker-compose.override.yml, so re-up it to restore them.
-docker compose -f "$PROJECT_DIR/docker-compose.yml" up -d wordpress 2>&1 | grep -v "^$"
+docker compose --project-directory "$PROJECT_DIR" up -d wordpress 2>&1 | grep -v "^$"
 
 echo "  Port mappings restored"
 
