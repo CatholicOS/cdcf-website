@@ -80,7 +80,7 @@ export default function FishBackground({ count = 5 }: { count?: number }) {
             y,
             rotation: randomBetween(-35, 35),
             size: randomBetween(80, 140),
-            opacity: randomBetween(0.04, 0.09),
+            opacity: randomBetween(0.1, 0.18),
           }
           break
         }
