@@ -88,6 +88,15 @@ export interface WPCommunityChannel {
   }
 }
 
+export interface WPLocalGroup {
+  title: string
+  localGroupFields: {
+    groupLocation: string | null
+    groupUrl: string | null
+    groupDescription: string | null
+  }
+}
+
 export interface WPStatItem {
   title: string
   statFields: {
@@ -142,6 +151,7 @@ export interface WPPage {
   } | null
   communityFields: {
     channels: { nodes: WPCommunityChannel[] } | null
+    localGroups: { nodes: WPLocalGroup[] } | null
     members: { nodes: WPTeamMember[] } | null
   } | null
   blogFields: {

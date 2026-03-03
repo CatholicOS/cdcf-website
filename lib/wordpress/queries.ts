@@ -94,6 +94,15 @@ const CHANNEL_FIELDS = `
   }
 `
 
+const LOCAL_GROUP_FIELDS = `
+  title
+  localGroupFields {
+    groupLocation
+    groupUrl
+    groupDescription
+  }
+`
+
 const SPONSOR_FIELDS = `
   title
   featuredImage {
@@ -177,6 +186,13 @@ export const GET_PAGE_BY_SLUG = `
             nodes {
               ... on CommunityChannel {
                 ${CHANNEL_FIELDS}
+              }
+            }
+          }
+          localGroups {
+            nodes {
+              ... on LocalGroup {
+                ${LOCAL_GROUP_FIELDS}
               }
             }
           }

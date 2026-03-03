@@ -46,7 +46,7 @@ Headless CMS: Next.js 15 (App Router) frontend fetches content from WordPress vi
 ### WordPress Theme (`wordpress/themes/cdcf-headless/`)
 
 `functions.php` registers everything programmatically:
-- **CPTs:** project, team_member, sponsor, community_channel, stat_item (all with `show_in_graphql: true`, `has_archive: false`)
+- **CPTs:** project, team_member, sponsor, community_channel, local_group, stat_item (all with `show_in_graphql: true`, `has_archive: false`)
 - **ACF field groups:** Shared (hero, cta) + per-template (homeFields, aboutFields, etc.) + per-CPT
 - **Page templates:** Home, About, Projects, Community, Blog, Contact
 - **CORS headers** for GraphQL, **preview URL rewriting** to Next.js draft mode, **AI translation** via OpenAI
@@ -83,6 +83,7 @@ All endpoints require Application Password authentication (`edit_posts` capabili
 | `POST` | `/translate` | Translate a post to a target language via OpenAI (`source_id`, `target_lang`, optional `post_id`) |
 | `POST` | `/team-member` | Create a team member with auto-translation and About page linking (see below) |
 | `POST` | `/community-channel` | Create a community channel with auto-translation and Community page linking (see below) |
+| `POST` | `/local-group` | Create a local group with auto-translation and Community page linking (see below) |
 
 ### `POST /team-member`
 
@@ -97,6 +98,14 @@ Creates an English `team_member` post, translates it to all 5 languages via Open
 Creates an English `community_channel` post, translates it to all 5 languages via OpenAI, and appends each translation to the matching language version of the Community page's `channels` relationship field.
 
 **Parameters:** `title` (required), `channel_description` (required), `channel_url` (required), `channel_icon` (optional — e.g. "discord", "slack", "vinly")
+
+**Returns:** `{ success, en_post_id, translations: { en, it, es, fr, pt, de }, errors[] }`
+
+### `POST /local-group`
+
+Creates an English `local_group` post, translates it to all 5 languages via OpenAI, and appends each translation to the matching language version of the Community page's `local_groups` relationship field.
+
+**Parameters:** `title` (required), `group_description` (required), `group_url` (required), `group_location` (optional — city/region name)
 
 **Returns:** `{ success, en_post_id, translations: { en, it, es, fr, pt, de }, errors[] }`
 

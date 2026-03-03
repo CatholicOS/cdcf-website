@@ -6,6 +6,7 @@ import ProjectGrid from './ProjectGrid'
 import BlogFeed from './BlogFeed'
 import SponsorGrid from './SponsorGrid'
 import CommunitySection from './CommunitySection'
+import LocalGroupsSection from './LocalGroupsSection'
 import GovernanceSection from './GovernanceSection'
 import CallToAction from './CallToAction'
 import TextSection from './TextSection'
@@ -134,6 +135,10 @@ function renderCommunity(page: WPPage) {
     <>
       {community?.channels?.nodes && community.channels.nodes.length > 0 && (
         <CommunitySection channels={community.channels.nodes} />
+      )}
+
+      {community?.localGroups?.nodes && community.localGroups.nodes.length > 0 && (
+        <LocalGroupsSection groups={community.localGroups.nodes} />
       )}
 
       {community?.members?.nodes && community.members.nodes.length > 0 && (
