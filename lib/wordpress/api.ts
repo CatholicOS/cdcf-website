@@ -83,7 +83,7 @@ export async function getPosts(
       posts: { nodes: WPPost[] }
     }>(GET_POSTS, { language: langCode(locale), first: count }, options)
 
-    return data.posts.nodes
+    return data.posts.nodes.filter(p => !p.postSettings?.hideFromBlog)
   } catch (error) {
     console.error('Failed to fetch posts:', error)
     return []

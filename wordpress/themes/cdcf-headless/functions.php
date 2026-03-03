@@ -1812,6 +1812,32 @@ add_action('acf/init', function () {
         'menu_order' => 10,
     ]);
 
+    // ── Post Settings (applies to all blog posts) ──
+
+    acf_add_local_field_group([
+        'key'   => 'group_post_settings',
+        'title' => 'Post Settings',
+        'fields' => [
+            [
+                'key'           => 'field_hide_from_blog',
+                'label'         => 'Hide from Blog',
+                'name'          => 'hide_from_blog',
+                'type'          => 'true_false',
+                'instructions'  => 'Enable this to hide the post from the blog listing. The post will still be accessible via direct link.',
+                'default_value' => 0,
+                'show_in_graphql' => true,
+                'show_in_rest' => true,
+            ],
+        ],
+        'location' => [
+            [['param' => 'post_type', 'operator' => '==', 'value' => 'post']],
+        ],
+        'show_in_graphql' => true,
+        'graphql_field_name' => 'postSettings',
+        'graphql_types' => ['Post'],
+        'menu_order' => 0,
+    ]);
+
     // ── Contact Page Specific Fields ──
 
     acf_add_local_field_group([

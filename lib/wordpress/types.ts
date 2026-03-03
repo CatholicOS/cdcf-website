@@ -123,6 +123,9 @@ export interface WPPost {
   tags: {
     nodes: { name: string }[]
   }
+  postSettings: {
+    hideFromBlog: boolean | null
+  } | null
 }
 
 export interface WPPage {

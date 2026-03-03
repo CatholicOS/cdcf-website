@@ -241,6 +241,9 @@ export const GET_POSTS = `
             name
           }
         }
+        postSettings {
+          hideFromBlog
+        }
       }
     }
   }
