@@ -79,7 +79,7 @@ services:
       WORDPRESS_DB_NAME: ${WP_DB_NAME:-wordpress}
       WORDPRESS_DB_USER: ${WP_DB_USER:-wordpress}
       WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
-    entrypoint: ["sh", "-c", "while true; do wp eval 'if(function_exists(\"redis_queue\")){redis_queue()->process_jobs();}' --allow-root 2>&1; sleep 10; done"]
+    entrypoint: ["sh", "-c", "echo 'Waiting for database...'; until wp db check --allow-root >/dev/null 2>&1; do sleep 2; done; echo 'Database ready — starting worker loop'; while true; do wp eval 'if(function_exists(\"redis_queue\")){redis_queue()->process_jobs();}' --allow-root 2>&1; sleep 10; done"]
     restart: unless-stopped
 
   wpcli:

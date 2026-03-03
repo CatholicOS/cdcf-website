@@ -896,6 +896,103 @@ function cdcf_rest_create_local_group(WP_REST_Request $request) {
     ]);
 }
 
+// ─── Public Referral Endpoint ────────────────────────────────────────
+//
+// Allows visitors to submit a local group referral for admin review.
+// Creates a pending local_group post and sends an admin notification email.
+//
+// POST /wp-json/cdcf/v1/refer-local-group (public — no auth required)
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/refer-local-group', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_refer_local_group',
+        'permission_callback' => '__return_true',
+        'args' => [
+            'group_name'      => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'description'     => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
+            'url'             => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'esc_url_raw'],
+            'location'        => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'submitter_name'  => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'submitter_email' => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
+        ],
+    ]);
+});
+
+function cdcf_rest_refer_local_group(WP_REST_Request $request) {
+    // Rate limiting via transients: 3 submissions per hour per IP (defense-in-depth).
+    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    $transient_key = 'cdcf_refer_' . md5($ip);
+    $count = (int) get_transient($transient_key);
+
+    if ($count >= 3) {
+        return new WP_Error(
+            'rate_limited',
+            'Too many submissions. Please try again later.',
+            ['status' => 429]
+        );
+    }
+
+    set_transient($transient_key, $count + 1, HOUR_IN_SECONDS);
+
+    // Validate email format.
+    if (!is_email($request['submitter_email'])) {
+        return new WP_Error('invalid_email', 'Please provide a valid email address.', ['status' => 400]);
+    }
+
+    // Create a pending local_group post.
+    $post_id = wp_insert_post([
+        'post_type'   => 'local_group',
+        'post_status' => 'pending',
+        'post_title'  => $request['group_name'],
+    ]);
+
+    if (is_wp_error($post_id) || !$post_id) {
+        return new WP_Error('insert_failed', 'Failed to create referral.', ['status' => 500]);
+    }
+
+    // Set ACF fields if ACF is active.
+    if (function_exists('update_field')) {
+        update_field('group_description', $request['description'], $post_id);
+        update_field('group_url', $request['url'], $post_id);
+        if ($request['location']) {
+            update_field('group_location', $request['location'], $post_id);
+        }
+    }
+
+    // Store submitter info as private post meta.
+    update_post_meta($post_id, '_referral_submitter_name', $request['submitter_name']);
+    update_post_meta($post_id, '_referral_submitter_email', $request['submitter_email']);
+
+    // Send admin notification email.
+    $admin_email = get_option('admin_email');
+    $edit_link   = admin_url("post.php?post={$post_id}&action=edit");
+    $subject     = sprintf('[CDCF] New Local Group Referral: %s', $request['group_name']);
+    $body        = sprintf(
+        "A new local group referral has been submitted for review.\n\n" .
+        "Group Name: %s\n" .
+        "Location: %s\n" .
+        "URL: %s\n" .
+        "Description:\n%s\n\n" .
+        "Submitted by: %s (%s)\n\n" .
+        "Review and approve it here:\n%s",
+        $request['group_name'],
+        $request['location'] ?: '(not provided)',
+        $request['url'],
+        $request['description'],
+        $request['submitter_name'],
+        $request['submitter_email'],
+        $edit_link
+    );
+
+    wp_mail($admin_email, $subject, $body);
+
+    return rest_ensure_response([
+        'success' => true,
+        'post_id' => $post_id,
+    ]);
+}
+
 // ─── ACF Field Groups (registered programmatically) ──────────────────
 
 add_action('acf/init', function () {

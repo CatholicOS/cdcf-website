@@ -1,15 +1,18 @@
 import type { WPLocalGroup } from '@/lib/wordpress/types'
+import ReferLocalGroupModal from './ReferLocalGroupModal'
 
 interface LocalGroupsSectionProps {
   groups: WPLocalGroup[]
   heading?: string
   intro?: string
+  referButtonLabel?: string
 }
 
 export default function LocalGroupsSection({
   groups,
   heading,
   intro,
+  referButtonLabel,
 }: LocalGroupsSectionProps) {
   return (
     <section className="py-16 sm:py-20">
@@ -74,6 +77,12 @@ export default function LocalGroupsSection({
             </a>
           ))}
         </div>
+
+        {referButtonLabel && (
+          <div className="mt-10 text-center">
+            <ReferLocalGroupModal buttonLabel={referButtonLabel} />
+          </div>
+        )}
       </div>
     </section>
   )

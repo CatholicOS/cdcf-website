@@ -41,6 +41,14 @@
       "description": "Create community channels with auto-translation"
     },
     {
+      "name": "Local Group",
+      "description": "Create local groups with auto-translation"
+    },
+    {
+      "name": "Referral",
+      "description": "Public local group referral submissions"
+    },
+    {
       "name": "Translation",
       "description": "AI-powered post translation via OpenAI"
     },
@@ -384,6 +392,195 @@
         }
       }
     },
+    "/cdcf/v1/local-group": {
+      "post": {
+        "tags": ["Local Group"],
+        "summary": "Create a local group with auto-translation",
+        "description": "Creates an English `local_group` post, translates it to all 5 target languages (it, es, fr, pt, de) via OpenAI, and appends each translation to the matching language version of the Community page's `local_groups` relationship field.",
+        "operationId": "createLocalGroup",
+        "security": [{ "basicAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "group_description", "group_url"],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "Local group name"
+                  },
+                  "group_description": {
+                    "type": "string",
+                    "description": "Translatable description of the local group"
+                  },
+                  "group_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URL to the group (not translated)"
+                  },
+                  "group_location": {
+                    "type": "string",
+                    "description": "City/region name (translatable)"
+                  }
+                }
+              },
+              "example": {
+                "title": "Catholic Devs NYC",
+                "group_description": "A community of Catholic software developers in the New York City area.",
+                "group_url": "https://example.com/catholic-devs-nyc",
+                "group_location": "New York, NY"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Local group created and translated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalGroupResponse"
+                },
+                "example": {
+                  "success": true,
+                  "en_post_id": 501,
+                  "translations": {
+                    "en": 501,
+                    "it": 502,
+                    "es": 503,
+                    "fr": 504,
+                    "pt": 505,
+                    "de": 506
+                  },
+                  "errors": []
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "description": "Server error (Polylang missing, ACF missing, no API key, or insert failed)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cdcf/v1/refer-local-group": {
+      "post": {
+        "tags": ["Referral"],
+        "summary": "Submit a local group referral (public)",
+        "description": "Allows visitors to submit a local group for admin review. Creates a `local_group` post with `pending` status, stores submitter info as private post meta, and sends an admin notification email. Rate-limited to 3 submissions per hour per IP via WordPress transients.",
+        "operationId": "referLocalGroup",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["group_name", "description", "url", "submitter_name", "submitter_email"],
+                "properties": {
+                  "group_name": {
+                    "type": "string",
+                    "description": "Name of the local group"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description of the group and its activities"
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URL to the group's website or page"
+                  },
+                  "location": {
+                    "type": "string",
+                    "description": "City/region where the group is based"
+                  },
+                  "submitter_name": {
+                    "type": "string",
+                    "description": "Full name of the person submitting the referral"
+                  },
+                  "submitter_email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Email address of the submitter"
+                  }
+                }
+              },
+              "example": {
+                "group_name": "Catholic Devs NYC",
+                "description": "A community of Catholic software developers in the New York City area.",
+                "url": "https://example.com/catholic-devs-nyc",
+                "location": "New York, NY",
+                "submitter_name": "Jane Doe",
+                "submitter_email": "jane@example.com"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Referral submitted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "post_id": {
+                      "type": "integer",
+                      "description": "ID of the pending local_group post"
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "post_id": 510
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid email address",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited (3 submissions per hour per IP)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" },
+                "example": {
+                  "code": "rate_limited",
+                  "message": "Too many submissions. Please try again later.",
+                  "data": { "status": 429 }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error (insert failed)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cdcf/v1/translate": {
       "post": {
         "tags": ["Translation"],
@@ -566,6 +763,67 @@
                 "schema": { "$ref": "#/components/schemas/WpError" }
               }
             }
+          }
+        }
+      }
+    },
+    "/refer-local-group": {
+      "post": {
+        "tags": ["Referral"],
+        "summary": "Proxy local group referral to WordPress (Next.js)",
+        "description": "Next.js API route that validates a honeypot field, applies in-memory rate limiting (3/hour/IP), and proxies the submission to the WordPress `cdcf/v1/refer-local-group` endpoint.",
+        "operationId": "referLocalGroupProxy",
+        "security": [],
+        "servers": [
+          { "url": "http://localhost:3000/api", "description": "Local Next.js" },
+          { "url": "https://staging.catholicdigitalcommons.org/api", "description": "Production Next.js" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["group_name", "description", "url", "submitter_name", "submitter_email"],
+                "properties": {
+                  "group_name": { "type": "string" },
+                  "description": { "type": "string" },
+                  "url": { "type": "string", "format": "uri" },
+                  "location": { "type": "string" },
+                  "submitter_name": { "type": "string" },
+                  "submitter_email": { "type": "string", "format": "email" },
+                  "website": {
+                    "type": "string",
+                    "description": "Honeypot field — if filled, request silently succeeds without creating a post"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Referral submitted (or honeypot triggered)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "post_id": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields or invalid body"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "502": {
+            "description": "Could not reach WordPress backend"
           }
         }
       }
@@ -847,6 +1105,24 @@
           "en_post_id": {
             "type": "integer",
             "description": "Post ID of the English community channel"
+          },
+          "translations": {
+            "$ref": "#/components/schemas/TranslationsMap"
+          },
+          "errors": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Non-fatal errors encountered during translation or page linking"
+          }
+        }
+      },
+      "LocalGroupResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "en_post_id": {
+            "type": "integer",
+            "description": "Post ID of the English local group"
           },
           "translations": {
             "$ref": "#/components/schemas/TranslationsMap"

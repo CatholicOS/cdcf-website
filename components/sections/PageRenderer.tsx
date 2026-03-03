@@ -44,7 +44,7 @@ export default async function PageRenderer({
       {template === 'Home' && renderHome(page, projects, sponsors)}
       {template === 'About' && renderAbout(page, t)}
       {template === 'Projects' && renderProjects(page, projects)}
-      {template === 'Community' && renderCommunity(page)}
+      {template === 'Community' && renderCommunity(page, await getTranslations('community'))}
       {template === 'Blog' && renderBlog(page, posts)}
       {template === 'Contact' && renderContact(page)}
       {template === 'Default' && renderDefault(page, isLogoSymbolism, fishExplanationHtml)}
@@ -129,16 +129,25 @@ function renderProjects(page: WPPage, projects: WPProject[]) {
   )
 }
 
-function renderCommunity(page: WPPage) {
+function renderCommunity(page: WPPage, t: (key: string) => string) {
   const community = page.communityFields
   return (
     <>
       {community?.channels?.nodes && community.channels.nodes.length > 0 && (
-        <CommunitySection channels={community.channels.nodes} />
+        <CommunitySection
+          channels={community.channels.nodes}
+          heading={t('onlineHeading')}
+          intro={t('onlineIntro')}
+        />
       )}
 
       {community?.localGroups?.nodes && community.localGroups.nodes.length > 0 && (
-        <LocalGroupsSection groups={community.localGroups.nodes} />
+        <LocalGroupsSection
+          groups={community.localGroups.nodes}
+          heading={t('localGroupsHeading')}
+          intro={t('localGroupsIntro')}
+          referButtonLabel={t('referButton')}
+        />
       )}
 
       {community?.members?.nodes && community.members.nodes.length > 0 && (
