@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Proxy to WordPress
-  const wpUrl = process.env.WORDPRESS_GRAPHQL_URL
+  const wpUrl = process.env.WP_GRAPHQL_URL
   if (!wpUrl) {
     return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 })
   }

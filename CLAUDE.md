@@ -120,8 +120,8 @@ Creates an English `local_group` post, translates it to all 5 languages via Open
 ## Environment Variables
 
 Required in `.env.local` (Next.js) or `.env` (Docker Compose):
-- `WORDPRESS_GRAPHQL_URL` — GraphQL endpoint (e.g. `http://wordpress/graphql`)
-- `WORDPRESS_PREVIEW_SECRET` — Shared secret for preview + revalidation
+- `WP_GRAPHQL_URL` — GraphQL endpoint (e.g. `http://wordpress/graphql`)
+- `WP_PREVIEW_SECRET` — Shared secret for preview + revalidation
 - `WP_DB_ROOT_PASSWORD`, `WP_DB_NAME`, `WP_DB_USER`, `WP_DB_PASSWORD` — Database config
 - Docker Compose reads `.env` not `.env.local` for variable substitution
 

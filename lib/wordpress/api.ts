@@ -60,13 +60,23 @@ export async function getPage(
 export async function getPostBySlug(
   slug: string,
   locale: string
-): Promise<{ title: string; content: string } | null> {
+): Promise<WPPost | null> {
   try {
     const data = await wpQuery<{
-      post: { translation: { title: string; slug: string; content: string } | null } | null
+      post: { translation: WPPost | null } | null
     }>(GET_POST_BY_SLUG, { slug, language: langCode(locale) })
 
-    return data.post?.translation ?? null
+    const translated = data.post?.translation ?? null
+    if (translated) return translated
+
+    if (locale !== 'en') {
+      const fallback = await wpQuery<{
+        post: { translation: WPPost | null } | null
+      }>(GET_POST_BY_SLUG, { slug, language: 'EN' })
+      return fallback.post?.translation ?? null
+    }
+
+    return null
   } catch (error) {
     console.error('Failed to fetch post:', error)
     return null

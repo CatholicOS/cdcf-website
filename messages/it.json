@@ -101,6 +101,13 @@
     "errorMessage": "Riprova più tardi o contattaci direttamente.",
     "required": "Obbligatorio"
   },
+  "blog": {
+    "backToBlog": "Back to Blog",
+    "share": "Share this post",
+    "shareNative": "Share",
+    "comments": "Comments",
+    "commentsComingSoon": "Comments are coming soon."
+  },
   "fishEasterEgg": {
     "prompt": "Hai notato i pesci nella rete? Indovina quanti sono.",
     "placeholder": "Inserisci un numero",

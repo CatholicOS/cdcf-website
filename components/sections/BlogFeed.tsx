@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import { Link } from '@/src/i18n/navigation'
 import type { WPPost } from '@/lib/wordpress/types'
 
 interface BlogFeedProps {
@@ -27,7 +28,7 @@ export default function BlogFeed({ posts, title }: BlogFeedProps) {
               : null
 
             return (
-              <article key={post.slug} className="cdcf-card group flex flex-col overflow-hidden p-0">
+              <article key={post.slug} className="cdcf-card group relative flex flex-col overflow-hidden p-0 cursor-pointer">
                 {post.featuredImage?.node && (
                   <div className="aspect-video overflow-hidden">
                     <Image
@@ -52,7 +53,9 @@ export default function BlogFeed({ posts, title }: BlogFeedProps) {
                   </div>
 
                   <h3 className="mt-2 font-serif text-lg font-bold text-cdcf-navy transition-colors group-hover:text-cdcf-gold">
-                    {post.title}
+                    <Link href={`/blog/${post.slug}`} className="after:absolute after:inset-0">
+                      {post.title}
+                    </Link>
                   </h3>
 
                   {post.excerpt && (

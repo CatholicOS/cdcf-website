@@ -58,7 +58,7 @@ export default async function CatchAllPage({ params }: PageProps) {
       projects={projects}
       sponsors={sponsors}
       isLogoSymbolism={isLogoSymbolism}
-      fishExplanationHtml={fishExplanation?.content}
+      fishExplanationHtml={fishExplanation?.content ?? undefined}
     />
   )
 }

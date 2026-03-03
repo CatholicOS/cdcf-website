@@ -105,15 +105,15 @@ services:
     build:
       context: .
       args:
-        WORDPRESS_GRAPHQL_URL: ${WORDPRESS_GRAPHQL_URL}
+        WP_GRAPHQL_URL: ${WP_GRAPHQL_URL}
     image: cdcf-website:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - WORDPRESS_GRAPHQL_URL=${WORDPRESS_GRAPHQL_URL}
-      - WORDPRESS_PREVIEW_SECRET=${WORDPRESS_PREVIEW_SECRET}
+      - WP_GRAPHQL_URL=${WP_GRAPHQL_URL}
+      - WP_PREVIEW_SECRET=${WP_PREVIEW_SECRET}
     profiles:
       - production
 

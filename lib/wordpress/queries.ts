@@ -291,7 +291,24 @@ export const GET_POST_BY_SLUG = `
       translation(language: $language) {
         title
         slug
+        date
         content
+        excerpt
+        featuredImage {
+          node {
+            ${IMAGE_FRAGMENT}
+          }
+        }
+        author {
+          node {
+            name
+          }
+        }
+        tags {
+          nodes {
+            name
+          }
+        }
       }
     }
   }

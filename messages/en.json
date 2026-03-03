@@ -101,6 +101,13 @@
     "errorMessage": "Please try again later or contact us directly.",
     "required": "Required"
   },
+  "blog": {
+    "backToBlog": "Back to Blog",
+    "share": "Share this post",
+    "shareNative": "Share",
+    "comments": "Comments",
+    "commentsComingSoon": "Comments are coming soon."
+  },
   "fishEasterEgg": {
     "prompt": "Did you notice the fish in the net? Guess how many there are.",
     "placeholder": "Enter a number",

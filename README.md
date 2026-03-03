@@ -40,8 +40,8 @@ Edit `.env.local`:
 
 | Variable | Description |
 |----------|-------------|
-| `WORDPRESS_GRAPHQL_URL` | WordPress GraphQL endpoint (e.g. `http://localhost/graphql` or `http://wordpress/graphql` in Docker) |
-| `WORDPRESS_PREVIEW_SECRET` | Shared secret for Next.js draft mode preview |
+| `WP_GRAPHQL_URL` | WordPress GraphQL endpoint (e.g. `http://localhost/graphql` or `http://wordpress/graphql` in Docker) |
+| `WP_PREVIEW_SECRET` | Shared secret for Next.js draft mode preview |
 | `WP_DB_ROOT_PASSWORD` | MariaDB root password |
 | `WP_DB_NAME` | WordPress database name (default: `wordpress`) |
 | `WP_DB_USER` | WordPress database user (default: `wordpress`) |
@@ -66,7 +66,7 @@ docker compose up --build
 If WordPress is already running elsewhere (e.g. a staging server), you can run just the Next.js frontend:
 
 ```bash
-# Set WORDPRESS_GRAPHQL_URL in .env.local to point at your WordPress instance
+# Set WP_GRAPHQL_URL in .env.local to point at your WordPress instance
 npm run dev
 ```
 
@@ -298,7 +298,7 @@ Production runs natively on a Plesk-managed server (no Docker) with two subdomai
 
 WordPress and Next.js share the same MariaDB instance already running on the server. Plesk manages Nginx, SSL certificates, and PHP-FPM.
 
-The Next.js app fetches content from WordPress via `WORDPRESS_GRAPHQL_URL=https://cms.catholicdigitalcommons.org/graphql`. The WordPress theme's CORS headers (registered in `functions.php`) allow cross-origin GraphQL requests from the frontend subdomain.
+The Next.js app fetches content from WordPress via `WP_GRAPHQL_URL=https://cms.catholicdigitalcommons.org/graphql`. The WordPress theme's CORS headers (registered in `functions.php`) allow cross-origin GraphQL requests from the frontend subdomain.
 
 ### GitHub Actions CI/CD
 
@@ -308,8 +308,8 @@ The deploy workflow (`.github/workflows/deploy.yml`) triggers when a GitHub rele
 
 | Secret | Description |
 |--------|-------------|
-| `WORDPRESS_GRAPHQL_URL` | WordPress GraphQL endpoint (e.g. `https://cms.catholicdigitalcommons.org/graphql`) |
-| `WORDPRESS_PREVIEW_SECRET` | Shared secret for preview/revalidation |
+| `WP_GRAPHQL_URL` | WordPress GraphQL endpoint (e.g. `https://cms.catholicdigitalcommons.org/graphql`) |
+| `WP_PREVIEW_SECRET` | Shared secret for preview/revalidation |
 | `VPS_HOST` | VPS IP address or hostname |
 | `VPS_USERNAME` | SSH username |
 | `VPS_SSH_KEY` | SSH private key for deployment |

@@ -862,7 +862,7 @@
             "in": "query",
             "required": true,
             "schema": { "type": "string" },
-            "description": "Must match WORDPRESS_PREVIEW_SECRET environment variable"
+            "description": "Must match WP_PREVIEW_SECRET environment variable"
           },
           {
             "name": "slug",
@@ -917,7 +917,7 @@
                 "properties": {
                   "secret": {
                     "type": "string",
-                    "description": "Must match WORDPRESS_PREVIEW_SECRET. Can also be sent via x-revalidate-secret header."
+                    "description": "Must match WP_PREVIEW_SECRET. Can also be sent via x-revalidate-secret header."
                   },
                   "path": {
                     "type": "string",
@@ -1064,7 +1064,7 @@
         "type": "apiKey",
         "in": "query",
         "name": "secret",
-        "description": "Shared secret matching the WORDPRESS_PREVIEW_SECRET environment variable."
+        "description": "Shared secret matching the WP_PREVIEW_SECRET environment variable."
       }
     },
     "schemas": {

@@ -1,5 +1,5 @@
 const GRAPHQL_URL =
-  process.env.WORDPRESS_GRAPHQL_URL || 'http://localhost/graphql'
+  process.env.WP_GRAPHQL_URL || 'http://localhost/graphql'
 
 interface WPQueryOptions {
   revalidate?: number

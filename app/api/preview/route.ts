@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   const secret = searchParams.get('secret')
   const slug = searchParams.get('slug')
 
-  if (secret !== process.env.WORDPRESS_PREVIEW_SECRET) {
+  if (secret !== process.env.WP_PREVIEW_SECRET) {
     return new Response('Invalid token', { status: 401 })
   }
 
