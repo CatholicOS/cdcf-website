@@ -47,7 +47,14 @@ export default function Header() {
       ],
     },
     { href: '/projects', label: t('projects') },
-    { href: '/community', label: t('community') },
+    {
+      href: '/community',
+      label: t('community'),
+      children: [
+        { href: '/community#online-communities', label: t('onlineCommunities') },
+        { href: '/community#local-groups', label: t('localGroups') },
+      ],
+    },
     { href: '/blog', label: t('news') },
     { href: '/contact', label: t('contact') },
   ]

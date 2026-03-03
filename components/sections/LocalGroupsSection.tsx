@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import type { WPLocalGroup } from '@/lib/wordpress/types'
 import ReferLocalGroupModal from './ReferLocalGroupModal'
 
@@ -6,6 +7,7 @@ interface LocalGroupsSectionProps {
   heading?: string
   intro?: string
   referButtonLabel?: string
+  id?: string
 }
 
 export default function LocalGroupsSection({
@@ -13,9 +15,10 @@ export default function LocalGroupsSection({
   heading,
   intro,
   referButtonLabel,
+  id,
 }: LocalGroupsSectionProps) {
   return (
-    <section className="py-16 sm:py-20">
+    <section id={id} className={clsx('py-16 sm:py-20', id && 'scroll-mt-16')}>
       <div className="cdcf-section">
         {(heading || intro) && (
           <div className="text-center">

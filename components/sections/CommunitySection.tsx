@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import type { WPCommunityChannel } from '@/lib/wordpress/types'
 
 const brandIcons: Record<string, React.ReactNode> = {
@@ -35,15 +36,17 @@ interface CommunitySectionProps {
   channels: WPCommunityChannel[]
   heading?: string
   intro?: string
+  id?: string
 }
 
 export default function CommunitySection({
   channels,
   heading,
   intro,
+  id,
 }: CommunitySectionProps) {
   return (
-    <section className="py-16 sm:py-20">
+    <section id={id} className={clsx('py-16 sm:py-20', id && 'scroll-mt-16')}>
       <div className="cdcf-section">
         {(heading || intro) && (
           <div className="text-center">

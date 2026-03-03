@@ -135,6 +135,7 @@ function renderCommunity(page: WPPage, t: (key: string) => string) {
     <>
       {community?.channels?.nodes && community.channels.nodes.length > 0 && (
         <CommunitySection
+          id="online-communities"
           channels={community.channels.nodes}
           heading={t('onlineHeading')}
           intro={t('onlineIntro')}
@@ -143,6 +144,7 @@ function renderCommunity(page: WPPage, t: (key: string) => string) {
 
       {community?.localGroups?.nodes && community.localGroups.nodes.length > 0 && (
         <LocalGroupsSection
+          id="local-groups"
           groups={community.localGroups.nodes}
           heading={t('localGroupsHeading')}
           intro={t('localGroupsIntro')}
