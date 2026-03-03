@@ -23,6 +23,47 @@ add_filter('wp_check_filetype_and_ext', function ($data, $file, $filename, $mime
     return $data;
 }, 10, 4);
 
+// ─── SMTP Mail Configuration ────────────────────────────────────────
+//
+// Sends all wp_mail() through an authenticated SMTP server instead of
+// PHP's mail(). Define these constants in wp-config.php:
+//
+//   define('SMTP_HOST', 'mail.catholicdigitalcommons.org');
+//   define('SMTP_PORT', 465);
+//   define('SMTP_SECURE', 'ssl');          // 'ssl' for 465, 'tls' for 587
+//   define('SMTP_USER', 'webmaster@catholicdigitalcommons.org');
+//   define('SMTP_PASS', '...');
+//   define('SMTP_FROM', 'webmaster@catholicdigitalcommons.org');
+//   define('SMTP_FROM_NAME', 'Catholic Digital Commons Foundation');
+
+add_action('phpmailer_init', function (PHPMailer\PHPMailer\PHPMailer $phpmailer) {
+    if (!defined('SMTP_HOST') || !SMTP_HOST) {
+        return; // No SMTP configured — fall back to PHP mail().
+    }
+
+    $phpmailer->isSMTP();
+    $phpmailer->Host       = SMTP_HOST;
+    $phpmailer->Port       = defined('SMTP_PORT') ? (int) SMTP_PORT : 465;
+    $phpmailer->SMTPSecure = defined('SMTP_SECURE') ? SMTP_SECURE : 'ssl';
+    $phpmailer->SMTPAuth   = true;
+    $phpmailer->Username   = defined('SMTP_USER') ? SMTP_USER : '';
+    $phpmailer->Password   = defined('SMTP_PASS') ? SMTP_PASS : '';
+});
+
+add_filter('wp_mail_from', function (string $from): string {
+    if (defined('SMTP_FROM') && SMTP_FROM) {
+        return SMTP_FROM;
+    }
+    return $from;
+});
+
+add_filter('wp_mail_from_name', function (string $name): string {
+    if (defined('SMTP_FROM_NAME') && SMTP_FROM_NAME) {
+        return SMTP_FROM_NAME;
+    }
+    return $name;
+});
+
 // ─── Custom Post Types ───────────────────────────────────────────────
 
 add_action('init', function () {
@@ -909,12 +950,29 @@ add_action('rest_api_init', function () {
         'callback'            => 'cdcf_rest_refer_local_group',
         'permission_callback' => '__return_true',
         'args' => [
+            'group_name'        => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'description'       => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
+            'url'               => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'esc_url_raw'],
+            'location'          => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'submitter_name'    => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'submitter_email'   => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
+            'verification_code' => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+        ],
+    ]);
+
+    register_rest_route('cdcf/v1', '/refer-local-group/send-code', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_send_verification_code',
+        'permission_callback' => '__return_true',
+        'args' => [
             'group_name'      => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
             'description'     => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
             'url'             => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'esc_url_raw'],
             'location'        => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
             'submitter_name'  => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
             'submitter_email' => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
+            'honeypot'        => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'elapsed_ms'      => ['required' => false, 'type' => 'number', 'default' => 0],
         ],
     ]);
 });
@@ -1021,6 +1079,80 @@ function cdcf_is_spam_content(string $text): bool {
     return $score >= 5;
 }
 
+function cdcf_rest_send_verification_code(WP_REST_Request $request) {
+    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+
+    // IP rate limit: max 5 code requests per hour.
+    $ip_key   = 'cdcf_verify_' . md5($ip);
+    $ip_count = (int) get_transient($ip_key);
+    if ($ip_count >= 5) {
+        return new WP_Error('rate_limited', 'Too many requests. Please try again later.', ['status' => 429]);
+    }
+    set_transient($ip_key, $ip_count + 1, HOUR_IN_SECONDS);
+
+    // Honeypot — silent success so bots don't adapt.
+    if (!empty($request['honeypot'])) {
+        return rest_ensure_response(['success' => true]);
+    }
+
+    // Timing check — too fast means bot.
+    $elapsed = (int) $request['elapsed_ms'];
+    if ($elapsed > 0 && $elapsed < 3000) {
+        return rest_ensure_response(['success' => true]);
+    }
+
+    // DNSBL check.
+    if (cdcf_check_ip_rbl($ip)) {
+        return new WP_Error('forbidden', 'Request blocked.', ['status' => 403]);
+    }
+
+    // Validate email format.
+    if (!is_email($request['submitter_email'])) {
+        return new WP_Error('invalid_email', 'Please provide a valid email address.', ['status' => 400]);
+    }
+
+    // Disposable email check.
+    if (cdcf_is_disposable_email($request['submitter_email'])) {
+        return new WP_Error('disposable_email', 'Please use a permanent email address.', ['status' => 400]);
+    }
+
+    // Content spam scoring — silent success so bots don't adapt.
+    if (cdcf_is_spam_content($request['description'] . ' ' . $request['group_name'])) {
+        return rest_ensure_response(['success' => true]);
+    }
+
+    // Email send rate limit: max 3 codes per hour per email.
+    $email       = $request['submitter_email'];
+    $sends_key   = 'cdcf_code_sends_' . md5($email);
+    $sends_count = (int) get_transient($sends_key);
+    if ($sends_count >= 3) {
+        return new WP_Error('rate_limited', 'Too many code requests for this email. Please try again later.', ['status' => 429]);
+    }
+    set_transient($sends_key, $sends_count + 1, HOUR_IN_SECONDS);
+
+    // Generate 6-digit code and store in transient (10 min TTL).
+    $code         = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    $code_key     = 'cdcf_email_code_' . md5($email);
+    set_transient($code_key, ['code' => $code, 'attempts' => 0], 600);
+
+    // Send the code via email.
+    $subject = '[CDCF] Your verification code';
+    $body    = sprintf(
+        "Your verification code is: %s\n\n" .
+        "Enter this code in the referral form to complete your submission.\n" .
+        "This code expires in 10 minutes.\n\n" .
+        "If you did not request this code, you can safely ignore this email.",
+        $code
+    );
+
+    $sent = wp_mail($email, $subject, $body);
+    if (!$sent) {
+        return new WP_Error('mail_failed', 'Failed to send verification email. Please try again.', ['status' => 500]);
+    }
+
+    return rest_ensure_response(['success' => true]);
+}
+
 function cdcf_rest_refer_local_group(WP_REST_Request $request) {
     // Rate limiting via transients: 3 submissions per hour per IP (defense-in-depth).
     $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
@@ -1056,6 +1188,29 @@ function cdcf_rest_refer_local_group(WP_REST_Request $request) {
     if (cdcf_is_spam_content($request['description'] . ' ' . $request['group_name'])) {
         return rest_ensure_response(['success' => true, 'post_id' => 0]);
     }
+
+    // Verify email verification code.
+    $email    = $request['submitter_email'];
+    $code_key = 'cdcf_email_code_' . md5($email);
+    $stored   = get_transient($code_key);
+
+    if (!$stored) {
+        return new WP_Error('code_expired', 'Verification code has expired. Please request a new one.', ['status' => 400]);
+    }
+
+    if ($stored['attempts'] >= 5) {
+        delete_transient($code_key);
+        return new WP_Error('too_many_attempts', 'Too many incorrect attempts. Please request a new code.', ['status' => 429]);
+    }
+
+    if ($request['verification_code'] !== $stored['code']) {
+        $stored['attempts']++;
+        set_transient($code_key, $stored, 600);
+        return new WP_Error('invalid_code', 'Invalid verification code. Please check and try again.', ['status' => 400]);
+    }
+
+    // Code is valid — delete it (single use).
+    delete_transient($code_key);
 
     // Create a pending local_group post.
     $post_id = wp_insert_post([

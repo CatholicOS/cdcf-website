@@ -31,6 +31,13 @@ services:
         define('FS_METHOD', 'direct');
         define('REDIS_QUEUE_HOST', 'redis');
         define('REDIS_QUEUE_PORT', 6379);
+        define('SMTP_HOST', '${SMTP_HOST:-}');
+        define('SMTP_PORT', '${SMTP_PORT:-465}');
+        define('SMTP_SECURE', '${SMTP_SECURE:-ssl}');
+        define('SMTP_USER', '${SMTP_USER:-}');
+        define('SMTP_PASS', '${SMTP_PASS:-}');
+        define('SMTP_FROM', '${SMTP_FROM:-webmaster@catholicdigitalcommons.org}');
+        define('SMTP_FROM_NAME', '${SMTP_FROM_NAME:-Catholic Digital Commons Foundation}');
     volumes:
       - wordpress_data:/var/www/html
       - ./wordpress/themes/cdcf-headless:/var/www/html/wp-content/themes/cdcf-headless

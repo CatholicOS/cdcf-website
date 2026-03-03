@@ -7,14 +7,21 @@ interface ReferLocalGroupModalProps {
   buttonLabel: string
 }
 
+type Status = 'idle' | 'sending_code' | 'awaiting_code' | 'submitting' | 'success' | 'error'
+
 export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupModalProps) {
   const t = useTranslations('community')
   const dialogRef = useRef<HTMLDialogElement>(null)
   const openedAtRef = useRef<number>(0)
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle')
+  const formDataRef = useRef<Record<string, string>>({})
+  const [status, setStatus] = useState<Status>('idle')
+  const [verificationCode, setVerificationCode] = useState('')
+  const [codeError, setCodeError] = useState('')
 
   const openDialog = useCallback(() => {
     setStatus('idle')
+    setVerificationCode('')
+    setCodeError('')
     openedAtRef.current = Date.now()
     dialogRef.current?.showModal()
   }, [])
@@ -23,32 +30,45 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
     dialogRef.current?.close()
   }, [])
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSendCode(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setStatus('submitting')
+    setStatus('sending_code')
 
     const form = e.currentTarget
     const data = new FormData(form)
 
+    const payload = {
+      group_name: data.get('group_name') as string,
+      location: data.get('location') as string,
+      url: data.get('url') as string,
+      description: data.get('description') as string,
+      submitter_name: data.get('submitter_name') as string,
+      submitter_email: data.get('submitter_email') as string,
+      website: data.get('website') as string,
+      elapsed_ms: Date.now() - openedAtRef.current,
+    }
+
+    // Store form data for the final submission
+    formDataRef.current = {
+      group_name: payload.group_name,
+      location: payload.location,
+      url: payload.url,
+      description: payload.description,
+      submitter_name: payload.submitter_name,
+      submitter_email: payload.submitter_email,
+      website: payload.website,
+    }
+
     try {
-      const res = await fetch('/api/refer-local-group', {
+      const res = await fetch('/api/refer-local-group/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          group_name: data.get('group_name'),
-          location: data.get('location'),
-          url: data.get('url'),
-          description: data.get('description'),
-          submitter_name: data.get('submitter_name'),
-          submitter_email: data.get('submitter_email'),
-          website: data.get('website'),
-          elapsed_ms: Date.now() - openedAtRef.current,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (res.ok) {
-        setStatus('success')
-        form.reset()
+        setStatus('awaiting_code')
+        setCodeError('')
       } else {
         setStatus('error')
       }
@@ -56,6 +76,76 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
       setStatus('error')
     }
   }
+
+  async function handleVerifyAndSubmit() {
+    setStatus('submitting')
+    setCodeError('')
+
+    try {
+      const res = await fetch('/api/refer-local-group', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formDataRef.current,
+          verification_code: verificationCode,
+          elapsed_ms: Date.now() - openedAtRef.current,
+        }),
+      })
+
+      if (res.ok) {
+        setStatus('success')
+      } else {
+        const err = await res.json().catch(() => ({}))
+        const msg = err.error || ''
+        if (msg.includes('expired')) {
+          setCodeError(t('codeExpired'))
+        } else if (msg.includes('many')) {
+          setCodeError(t('tooManyAttempts'))
+        } else if (msg.includes('Invalid') || msg.includes('invalid')) {
+          setCodeError(t('invalidCode'))
+        } else {
+          setCodeError(msg || t('errorMessage'))
+        }
+        setStatus('awaiting_code')
+      }
+    } catch {
+      setCodeError(t('errorMessage'))
+      setStatus('awaiting_code')
+    }
+  }
+
+  async function handleResendCode() {
+    setStatus('sending_code')
+    setCodeError('')
+    setVerificationCode('')
+
+    try {
+      const res = await fetch('/api/refer-local-group/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formDataRef.current,
+          elapsed_ms: Date.now() - openedAtRef.current,
+        }),
+      })
+
+      if (res.ok) {
+        setStatus('awaiting_code')
+      } else {
+        setStatus('error')
+      }
+    } catch {
+      setStatus('error')
+    }
+  }
+
+  function handleBackToForm() {
+    setStatus('idle')
+    setVerificationCode('')
+    setCodeError('')
+  }
+
+  const isCodeView = status === 'awaiting_code' || status === 'submitting'
 
   return (
     <>
@@ -105,6 +195,69 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                 OK
               </button>
             </div>
+          ) : isCodeView ? (
+            <div className="py-4">
+              <div className="mb-6 text-center">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+                  <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-cdcf-navy">{t('checkEmailTitle')}</h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  {t('checkEmailMessage', { email: formDataRef.current.submitter_email })}
+                </p>
+              </div>
+
+              {codeError && (
+                <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {codeError}
+                </div>
+              )}
+
+              <div className="mb-4">
+                <label htmlFor="verification_code" className="block text-sm font-medium text-gray-700">
+                  {t('codeLabel')}
+                </label>
+                <input
+                  type="text"
+                  id="verification_code"
+                  inputMode="numeric"
+                  maxLength={6}
+                  autoComplete="one-time-code"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder={t('codePlaceholder')}
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-center text-lg tracking-widest focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
+                />
+                <p className="mt-1 text-xs text-gray-500">{t('codeExpiry')}</p>
+              </div>
+
+              <button
+                onClick={handleVerifyAndSubmit}
+                disabled={status === 'submitting' || verificationCode.length !== 6}
+                className="cdcf-btn-primary w-full rounded-lg px-6 py-3 text-sm font-medium disabled:opacity-60"
+              >
+                {status === 'submitting' ? t('submitting') : t('verifyAndSubmit')}
+              </button>
+
+              <div className="mt-4 flex justify-between text-sm">
+                <button
+                  type="button"
+                  onClick={handleBackToForm}
+                  className="text-gray-500 hover:text-gray-700 underline"
+                >
+                  {t('backToForm')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  className="text-cdcf-navy hover:text-cdcf-gold underline"
+                >
+                  {t('resendCode')}
+                </button>
+              </div>
+            </div>
           ) : (
             <>
               <p className="mb-6 text-sm text-gray-600">{t('referDescription')}</p>
@@ -115,7 +268,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSendCode} className="space-y-4">
                 {/* Honeypot — hidden from real users */}
                 <div className="absolute -left-[9999px]" aria-hidden="true">
                   <label htmlFor="website">Website</label>
@@ -137,6 +290,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                     id="group_name"
                     name="group_name"
                     required
+                    defaultValue={formDataRef.current.group_name}
                     placeholder={t('fieldGroupNamePlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -150,6 +304,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                     type="text"
                     id="location"
                     name="location"
+                    defaultValue={formDataRef.current.location}
                     placeholder={t('fieldLocationPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -164,6 +319,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                     id="url"
                     name="url"
                     required
+                    defaultValue={formDataRef.current.url}
                     placeholder={t('fieldUrlPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -178,6 +334,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                     name="description"
                     required
                     rows={3}
+                    defaultValue={formDataRef.current.description}
                     placeholder={t('fieldDescriptionPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -194,6 +351,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                     id="submitter_name"
                     name="submitter_name"
                     required
+                    defaultValue={formDataRef.current.submitter_name}
                     placeholder={t('fieldYourNamePlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -208,6 +366,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                     id="submitter_email"
                     name="submitter_email"
                     required
+                    defaultValue={formDataRef.current.submitter_email}
                     placeholder={t('fieldYourEmailPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -215,10 +374,10 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
 
                 <button
                   type="submit"
-                  disabled={status === 'submitting'}
+                  disabled={status === 'sending_code'}
                   className="cdcf-btn-primary w-full rounded-lg px-6 py-3 text-sm font-medium disabled:opacity-60"
                 >
-                  {status === 'submitting' ? t('submitting') : t('submit')}
+                  {status === 'sending_code' ? t('sendingCode') : t('sendCode')}
                 </button>
               </form>
             </>

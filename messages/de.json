@@ -99,7 +99,20 @@
     "successMessage": "Ihre Empfehlung wurde zur Überprüfung eingereicht. Wir werden sie in Kürze prüfen.",
     "errorTitle": "Etwas ist schiefgelaufen",
     "errorMessage": "Bitte versuchen Sie es später erneut oder kontaktieren Sie uns direkt.",
-    "required": "Pflichtfeld"
+    "required": "Pflichtfeld",
+    "sendCode": "Bestätigungscode senden",
+    "sendingCode": "Code wird gesendet…",
+    "resendCode": "Code erneut senden",
+    "backToForm": "Zurück",
+    "checkEmailTitle": "Überprüfen Sie Ihre E-Mail",
+    "checkEmailMessage": "Wir haben einen 6-stelligen Bestätigungscode an {email} gesendet. Geben Sie ihn unten ein, um Ihre Empfehlung abzuschließen.",
+    "codeLabel": "Bestätigungscode",
+    "codePlaceholder": "000000",
+    "codeExpiry": "Der Code läuft in 10 Minuten ab.",
+    "verifyAndSubmit": "Bestätigen und absenden",
+    "invalidCode": "Ungültiger Code. Bitte überprüfen und erneut versuchen.",
+    "codeExpired": "Der Code ist abgelaufen. Bitte fordern Sie einen neuen an.",
+    "tooManyAttempts": "Zu viele falsche Versuche. Bitte fordern Sie einen neuen Code an."
   },
   "blog": {
     "backToBlog": "Back to Blog",

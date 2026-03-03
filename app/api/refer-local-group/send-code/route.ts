@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// In-memory rate limiting: 3 submissions per hour per IP
-const rateMap = new Map<string, number[]>()
-const RATE_LIMIT = 3
+// In-memory rate limiting: 5 code requests per hour per IP
+const codeRateMap = new Map<string, number[]>()
+const CODE_RATE_LIMIT = 5
 const RATE_WINDOW = 60 * 60 * 1000 // 1 hour in ms
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now()
-  const timestamps = rateMap.get(ip) ?? []
+  const timestamps = codeRateMap.get(ip) ?? []
   const recent = timestamps.filter((t) => now - t < RATE_WINDOW)
-  rateMap.set(ip, recent)
-  if (recent.length >= RATE_LIMIT) return true
+  codeRateMap.set(ip, recent)
+  if (recent.length >= CODE_RATE_LIMIT) return true
   recent.push(now)
-  rateMap.set(ip, recent)
+  codeRateMap.set(ip, recent)
   return false
 }
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
   if (isRateLimited(ip)) {
     return NextResponse.json(
-      { error: 'Too many submissions. Please try again later.' },
+      { error: 'Too many requests. Please try again later.' },
       { status: 429 }
     )
   }
@@ -47,9 +47,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true })
   }
 
-  // Validate required fields
-  const { group_name, url, description, submitter_name, submitter_email, verification_code } = body
-  if (!group_name || !url || !description || !submitter_name || !submitter_email || !verification_code) {
+  // Validate required field
+  if (!body.submitter_email) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
   }
 
@@ -59,28 +58,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 })
   }
 
-  // Derive the WordPress base URL from the GraphQL endpoint
   const wpBase = wpUrl.replace(/\/graphql$/, '')
 
   try {
-    const wpRes = await fetch(`${wpBase}/wp-json/cdcf/v1/refer-local-group`, {
+    const wpRes = await fetch(`${wpBase}/wp-json/cdcf/v1/refer-local-group/send-code`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        group_name: body.group_name,
+        group_name: body.group_name || '',
         location: body.location || '',
-        url: body.url,
-        description: body.description,
-        submitter_name: body.submitter_name,
+        url: body.url || '',
+        description: body.description || '',
+        submitter_name: body.submitter_name || '',
         submitter_email: body.submitter_email,
-        verification_code: body.verification_code || '',
+        honeypot: body.website || '',
+        elapsed_ms: body.elapsed_ms || 0,
       }),
     })
 
     if (!wpRes.ok) {
       const err = await wpRes.json().catch(() => ({}))
       return NextResponse.json(
-        { error: err.message || 'Submission failed.' },
+        { error: err.message || 'Failed to send verification code.' },
         { status: wpRes.status }
       )
     }

@@ -99,7 +99,20 @@
     "successMessage": "Sua indicação foi enviada para análise. Vamos avaliá-la em breve.",
     "errorTitle": "Algo deu errado",
     "errorMessage": "Tente novamente mais tarde ou entre em contato conosco diretamente.",
-    "required": "Obrigatório"
+    "required": "Obrigatório",
+    "sendCode": "Enviar código de verificação",
+    "sendingCode": "Enviando código…",
+    "resendCode": "Reenviar código",
+    "backToForm": "Voltar",
+    "checkEmailTitle": "Verifique seu email",
+    "checkEmailMessage": "Enviamos um código de verificação de 6 dígitos para {email}. Digite-o abaixo para concluir sua indicação.",
+    "codeLabel": "Código de verificação",
+    "codePlaceholder": "000000",
+    "codeExpiry": "O código expira em 10 minutos.",
+    "verifyAndSubmit": "Verificar e enviar",
+    "invalidCode": "Código inválido. Verifique e tente novamente.",
+    "codeExpired": "O código expirou. Solicite um novo.",
+    "tooManyAttempts": "Muitas tentativas incorretas. Solicite um novo código."
   },
   "blog": {
     "backToBlog": "Back to Blog",

@@ -99,7 +99,20 @@
     "successMessage": "La tua segnalazione è stata inviata per la revisione. La esamineremo a breve.",
     "errorTitle": "Qualcosa è andato storto",
     "errorMessage": "Riprova più tardi o contattaci direttamente.",
-    "required": "Obbligatorio"
+    "required": "Obbligatorio",
+    "sendCode": "Invia codice di verifica",
+    "sendingCode": "Invio codice…",
+    "resendCode": "Invia di nuovo",
+    "backToForm": "Indietro",
+    "checkEmailTitle": "Controlla la tua email",
+    "checkEmailMessage": "Abbiamo inviato un codice di verifica a 6 cifre a {email}. Inseriscilo qui sotto per completare la segnalazione.",
+    "codeLabel": "Codice di verifica",
+    "codePlaceholder": "000000",
+    "codeExpiry": "Il codice scade tra 10 minuti.",
+    "verifyAndSubmit": "Verifica e invia",
+    "invalidCode": "Codice non valido. Controlla e riprova.",
+    "codeExpired": "Il codice è scaduto. Richiedine uno nuovo.",
+    "tooManyAttempts": "Troppi tentativi errati. Richiedi un nuovo codice."
   },
   "blog": {
     "backToBlog": "Back to Blog",

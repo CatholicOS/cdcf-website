@@ -99,7 +99,20 @@
     "successMessage": "Your referral has been submitted for review. We'll take a look shortly.",
     "errorTitle": "Something went wrong",
     "errorMessage": "Please try again later or contact us directly.",
-    "required": "Required"
+    "required": "Required",
+    "sendCode": "Send Verification Code",
+    "sendingCode": "Sending code…",
+    "resendCode": "Resend code",
+    "backToForm": "Back",
+    "checkEmailTitle": "Check your email",
+    "checkEmailMessage": "We sent a 6-digit verification code to {email}. Enter it below to complete your referral.",
+    "codeLabel": "Verification Code",
+    "codePlaceholder": "000000",
+    "codeExpiry": "Code expires in 10 minutes.",
+    "verifyAndSubmit": "Verify & Submit",
+    "invalidCode": "Invalid code. Please check and try again.",
+    "codeExpired": "Code has expired. Please request a new one.",
+    "tooManyAttempts": "Too many incorrect attempts. Please request a new code."
   },
   "blog": {
     "backToBlog": "Back to Blog",
