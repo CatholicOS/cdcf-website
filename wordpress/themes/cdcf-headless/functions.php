@@ -3035,3 +3035,93 @@ function cdcf_api_docs_page() {
     </script>
     <?php
 }
+
+// ─── Pending Local Groups: Menu Bubble + Dashboard Widget ───────────
+
+/**
+ * Add a pending-count bubble to the Local Groups menu item.
+ */
+add_action('admin_menu', function () {
+    global $menu;
+
+    $count = wp_count_posts('local_group')->pending ?? 0;
+    if ($count < 1) {
+        return;
+    }
+
+    $bubble = sprintf(
+        ' <span class="awaiting-mod update-plugins count-%1$d"><span class="pending-count">%1$d</span></span>',
+        $count
+    );
+
+    foreach ($menu as &$item) {
+        // $item[2] is the menu slug; for CPTs it's "edit.php?post_type=<slug>"
+        if ($item[2] === 'edit.php?post_type=local_group') {
+            $item[0] .= $bubble;
+            break;
+        }
+    }
+});
+
+/**
+ * Dashboard widget showing pending local group referrals.
+ */
+add_action('wp_dashboard_setup', function () {
+    $count = wp_count_posts('local_group')->pending ?? 0;
+    if ($count < 1) {
+        return;
+    }
+
+    wp_add_dashboard_widget(
+        'cdcf_pending_local_groups',
+        sprintf('Pending Local Group Referrals (%d)', $count),
+        'cdcf_render_pending_local_groups_widget'
+    );
+});
+
+function cdcf_render_pending_local_groups_widget(): void {
+    $posts = get_posts([
+        'post_type'   => 'local_group',
+        'post_status' => 'pending',
+        'numberposts' => 10,
+        'orderby'     => 'date',
+        'order'       => 'DESC',
+    ]);
+
+    if (empty($posts)) {
+        echo '<p>No pending referrals.</p>';
+        return;
+    }
+
+    echo '<table class="widefat striped"><thead><tr>'
+       . '<th>Group</th><th>Submitted by</th><th>Date</th><th></th>'
+       . '</tr></thead><tbody>';
+
+    foreach ($posts as $post) {
+        $name  = esc_html(get_post_meta($post->ID, '_referral_submitter_name', true));
+        $email = esc_html(get_post_meta($post->ID, '_referral_submitter_email', true));
+        $date  = get_the_date('M j, Y', $post);
+        $edit  = get_edit_post_link($post->ID);
+        $title = esc_html($post->post_title);
+
+        $submitter = $name;
+        if ($email) {
+            $submitter .= $name ? " ({$email})" : $email;
+        }
+
+        echo "<tr>"
+           . "<td><strong>{$title}</strong></td>"
+           . "<td>{$submitter}</td>"
+           . "<td>{$date}</td>"
+           . "<td><a href=\"{$edit}\" class=\"button button-small\">Review</a></td>"
+           . "</tr>";
+    }
+
+    echo '</tbody></table>';
+
+    $total = wp_count_posts('local_group')->pending ?? 0;
+    if ($total > 10) {
+        $url = admin_url('edit.php?post_type=local_group&post_status=pending');
+        printf('<p><a href="%s">View all %d pending referrals &rarr;</a></p>', $url, $total);
+    }
+}
