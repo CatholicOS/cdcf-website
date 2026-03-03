@@ -43,7 +43,7 @@ export default async function PageRenderer({
       {/* Template-specific sections */}
       {template === 'Home' && renderHome(page, projects, sponsors)}
       {template === 'About' && renderAbout(page, t)}
-      {template === 'Projects' && renderProjects(page, projects)}
+      {template === 'Projects' && renderProjects(page, projects, await getTranslations('projects'))}
       {template === 'Community' && renderCommunity(page, await getTranslations('community'))}
       {template === 'Blog' && renderBlog(page, posts)}
       {template === 'Contact' && renderContact(page)}
@@ -119,12 +119,13 @@ function renderAbout(page: WPPage, t: (key: string) => string) {
   )
 }
 
-function renderProjects(page: WPPage, projects: WPProject[]) {
+function renderProjects(page: WPPage, projects: WPProject[], t: (key: string) => string) {
   const settings = page.projectsPageFields
   return (
     <ProjectGrid
       projects={projects}
       columns={Number(settings?.gridColumns?.[0]) || 3}
+      submitButtonLabel={t('submitButton')}
     />
   )
 }

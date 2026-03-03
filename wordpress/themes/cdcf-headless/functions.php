@@ -1265,6 +1265,238 @@ function cdcf_rest_refer_local_group(WP_REST_Request $request) {
     ]);
 }
 
+// ─── Public Project Submission Endpoint ───────────────────────────────
+//
+// Allows visitors to submit an open-source project for admin review.
+// Creates a pending project post and sends an admin notification email.
+//
+// POST /wp-json/cdcf/v1/submit-project (public — no auth required)
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/submit-project', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_submit_project',
+        'permission_callback' => '__return_true',
+        'args' => [
+            'project_name'      => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'description'       => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
+            'url'               => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'esc_url_raw'],
+            'repo_urls'         => ['required' => false, 'type' => 'array',  'default' => []],
+            'submitter_name'    => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'submitter_email'   => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
+            'verification_code' => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+        ],
+    ]);
+
+    register_rest_route('cdcf/v1', '/submit-project/send-code', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_submit_project_send_code',
+        'permission_callback' => '__return_true',
+        'args' => [
+            'project_name'    => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'description'     => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
+            'url'             => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'esc_url_raw'],
+            'repo_urls'       => ['required' => false, 'type' => 'array',  'default' => []],
+            'submitter_name'  => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'submitter_email' => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
+            'honeypot'        => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'elapsed_ms'      => ['required' => false, 'type' => 'number', 'default' => 0],
+        ],
+    ]);
+});
+
+function cdcf_rest_submit_project_send_code(WP_REST_Request $request) {
+    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+
+    // IP rate limit: max 5 code requests per hour.
+    $ip_key   = 'cdcf_projv_' . md5($ip);
+    $ip_count = (int) get_transient($ip_key);
+    if ($ip_count >= 5) {
+        return new WP_Error('rate_limited', 'Too many requests. Please try again later.', ['status' => 429]);
+    }
+    set_transient($ip_key, $ip_count + 1, HOUR_IN_SECONDS);
+
+    // Honeypot — silent success so bots don't adapt.
+    if (!empty($request['honeypot'])) {
+        return rest_ensure_response(['success' => true]);
+    }
+
+    // Timing check — too fast means bot.
+    $elapsed = (int) $request['elapsed_ms'];
+    if ($elapsed > 0 && $elapsed < 3000) {
+        return rest_ensure_response(['success' => true]);
+    }
+
+    // DNSBL check.
+    if (cdcf_check_ip_rbl($ip)) {
+        return new WP_Error('forbidden', 'Request blocked.', ['status' => 403]);
+    }
+
+    // Validate email format.
+    if (!is_email($request['submitter_email'])) {
+        return new WP_Error('invalid_email', 'Please provide a valid email address.', ['status' => 400]);
+    }
+
+    // Disposable email check.
+    if (cdcf_is_disposable_email($request['submitter_email'])) {
+        return new WP_Error('disposable_email', 'Please use a permanent email address.', ['status' => 400]);
+    }
+
+    // Content spam scoring — silent success so bots don't adapt.
+    if (cdcf_is_spam_content($request['description'] . ' ' . $request['project_name'])) {
+        return rest_ensure_response(['success' => true]);
+    }
+
+    // Email send rate limit: max 3 codes per hour per email.
+    $email       = $request['submitter_email'];
+    $sends_key   = 'cdcf_code_sends_' . md5($email);
+    $sends_count = (int) get_transient($sends_key);
+    if ($sends_count >= 3) {
+        return new WP_Error('rate_limited', 'Too many code requests for this email. Please try again later.', ['status' => 429]);
+    }
+    set_transient($sends_key, $sends_count + 1, HOUR_IN_SECONDS);
+
+    // Generate 6-digit code and store in transient (10 min TTL).
+    $code     = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    $code_key = 'cdcf_email_code_' . md5($email);
+    set_transient($code_key, ['code' => $code, 'attempts' => 0], 600);
+
+    // Send the code via email.
+    $subject = '[CDCF] Your verification code';
+    $body    = sprintf(
+        "Your verification code is: %s\n\n" .
+        "Enter this code in the project submission form to complete your submission.\n" .
+        "This code expires in 10 minutes.\n\n" .
+        "If you did not request this code, you can safely ignore this email.",
+        $code
+    );
+
+    $sent = wp_mail($email, $subject, $body);
+    if (!$sent) {
+        return new WP_Error('mail_failed', 'Failed to send verification email. Please try again.', ['status' => 500]);
+    }
+
+    return rest_ensure_response(['success' => true]);
+}
+
+function cdcf_rest_submit_project(WP_REST_Request $request) {
+    // Rate limiting via transients: 3 submissions per hour per IP (defense-in-depth).
+    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    $transient_key = 'cdcf_projsub_' . md5($ip);
+    $count = (int) get_transient($transient_key);
+
+    if ($count >= 3) {
+        return new WP_Error(
+            'rate_limited',
+            'Too many submissions. Please try again later.',
+            ['status' => 429]
+        );
+    }
+
+    set_transient($transient_key, $count + 1, HOUR_IN_SECONDS);
+
+    // IP DNSBL check.
+    if (cdcf_check_ip_rbl($ip)) {
+        return new WP_Error('forbidden', 'Request blocked.', ['status' => 403]);
+    }
+
+    // Validate email format.
+    if (!is_email($request['submitter_email'])) {
+        return new WP_Error('invalid_email', 'Please provide a valid email address.', ['status' => 400]);
+    }
+
+    // Disposable email check.
+    if (cdcf_is_disposable_email($request['submitter_email'])) {
+        return new WP_Error('disposable_email', 'Please use a permanent email address.', ['status' => 400]);
+    }
+
+    // Content spam scoring — silent success so bots don't adapt.
+    if (cdcf_is_spam_content($request['description'] . ' ' . $request['project_name'])) {
+        return rest_ensure_response(['success' => true, 'post_id' => 0]);
+    }
+
+    // Verify email verification code.
+    $email    = $request['submitter_email'];
+    $code_key = 'cdcf_email_code_' . md5($email);
+    $stored   = get_transient($code_key);
+
+    if (!$stored) {
+        return new WP_Error('code_expired', 'Verification code has expired. Please request a new one.', ['status' => 400]);
+    }
+
+    if ($stored['attempts'] >= 5) {
+        delete_transient($code_key);
+        return new WP_Error('too_many_attempts', 'Too many incorrect attempts. Please request a new code.', ['status' => 429]);
+    }
+
+    if ($request['verification_code'] !== $stored['code']) {
+        $stored['attempts']++;
+        set_transient($code_key, $stored, 600);
+        return new WP_Error('invalid_code', 'Invalid verification code. Please check and try again.', ['status' => 400]);
+    }
+
+    // Code is valid — delete it (single use).
+    delete_transient($code_key);
+
+    // Create a pending project post.
+    $post_id = wp_insert_post([
+        'post_type'    => 'project',
+        'post_status'  => 'pending',
+        'post_title'   => $request['project_name'],
+        'post_content' => $request['description'],
+    ]);
+
+    if (is_wp_error($post_id) || !$post_id) {
+        return new WP_Error('insert_failed', 'Failed to create project submission.', ['status' => 500]);
+    }
+
+    // Set ACF fields if ACF is active.
+    if (function_exists('update_field')) {
+        update_field('project_url', $request['url'], $post_id);
+        update_field('project_status', 'incubating', $post_id);
+    }
+
+    // Store repo URLs as private meta (JSON-encoded array).
+    $repo_urls = array_filter(array_map('esc_url_raw', (array) $request['repo_urls']));
+    if (!empty($repo_urls)) {
+        update_post_meta($post_id, '_submission_repo_urls', wp_json_encode(array_values($repo_urls)));
+    }
+
+    // Store submitter info as private post meta.
+    update_post_meta($post_id, '_submission_submitter_name', $request['submitter_name']);
+    update_post_meta($post_id, '_submission_submitter_email', $request['submitter_email']);
+
+    // Send admin notification email.
+    $admin_email = get_option('admin_email');
+    $edit_link   = admin_url("post.php?post={$post_id}&action=edit");
+    $subject     = sprintf('[CDCF] New Project Submission: %s', $request['project_name']);
+
+    $repo_list = !empty($repo_urls) ? implode("\n  ", $repo_urls) : '(none provided)';
+    $body = sprintf(
+        "A new project has been submitted for review.\n\n" .
+        "Project Name: %s\n" .
+        "Website: %s\n" .
+        "Repositories:\n  %s\n" .
+        "Description:\n%s\n\n" .
+        "Submitted by: %s (%s)\n\n" .
+        "Review and approve it here:\n%s",
+        $request['project_name'],
+        $request['url'],
+        $repo_list,
+        $request['description'],
+        $request['submitter_name'],
+        $request['submitter_email'],
+        $edit_link
+    );
+
+    wp_mail($admin_email, $subject, $body);
+
+    return rest_ensure_response([
+        'success' => true,
+        'post_id' => $post_id,
+    ]);
+}
+
 // ─── ACF Field Groups (registered programmatically) ──────────────────
 
 add_action('acf/init', function () {
@@ -3318,5 +3550,143 @@ function cdcf_render_pending_local_groups_widget(): void {
     if ($total > 10) {
         $url = admin_url('edit.php?post_type=local_group&post_status=pending');
         printf('<p><a href="%s">View all %d pending referrals &rarr;</a></p>', $url, $total);
+    }
+}
+
+// ─── Project Submission: Meta Box ────────────────────────────────────
+
+/**
+ * Show submitter info + repo URLs on the project edit screen.
+ */
+add_action('add_meta_boxes_project', function () {
+    $post_id = get_the_ID();
+    $name  = get_post_meta($post_id, '_submission_submitter_name', true);
+    $email = get_post_meta($post_id, '_submission_submitter_email', true);
+
+    // Only show the meta box if this post was submitted via the public form.
+    if (!$name && !$email) {
+        return;
+    }
+
+    add_meta_box(
+        'cdcf_project_submitter',
+        'Submitted by',
+        'cdcf_render_project_submitter_meta_box',
+        'project',
+        'side',
+        'high'
+    );
+});
+
+function cdcf_render_project_submitter_meta_box(WP_Post $post): void {
+    $name      = esc_html(get_post_meta($post->ID, '_submission_submitter_name', true));
+    $email     = esc_html(get_post_meta($post->ID, '_submission_submitter_email', true));
+    $repo_json = get_post_meta($post->ID, '_submission_repo_urls', true);
+
+    if ($name) {
+        echo "<p><strong>{$name}</strong></p>";
+    }
+    if ($email) {
+        printf('<p><a href="mailto:%1$s">%1$s</a></p>', $email);
+    }
+    if ($repo_json) {
+        $repos = json_decode($repo_json, true);
+        if (is_array($repos) && !empty($repos)) {
+            echo '<p style="margin-top:8px"><strong>Repository URLs:</strong></p><ul style="margin:4px 0 0 16px;list-style:disc">';
+            foreach ($repos as $repo) {
+                $safe = esc_url($repo);
+                printf('<li><a href="%1$s" target="_blank" rel="noopener">%1$s</a></li>', $safe);
+            }
+            echo '</ul>';
+        }
+    }
+}
+
+// ─── Pending Projects: Menu Bubble + Dashboard Widget ────────────────
+
+/**
+ * Add a pending-count bubble to the Projects menu item.
+ */
+add_action('admin_menu', function () {
+    global $menu;
+
+    $count = wp_count_posts('project')->pending ?? 0;
+    if ($count < 1) {
+        return;
+    }
+
+    $bubble = sprintf(
+        ' <span class="awaiting-mod update-plugins count-%1$d"><span class="pending-count">%1$d</span></span>',
+        $count
+    );
+
+    foreach ($menu as &$item) {
+        if ($item[2] === 'edit.php?post_type=project') {
+            $item[0] .= $bubble;
+            break;
+        }
+    }
+});
+
+/**
+ * Dashboard widget showing pending project submissions.
+ */
+add_action('wp_dashboard_setup', function () {
+    $count = wp_count_posts('project')->pending ?? 0;
+    if ($count < 1) {
+        return;
+    }
+
+    wp_add_dashboard_widget(
+        'cdcf_pending_projects',
+        sprintf('Pending Project Submissions (%d)', $count),
+        'cdcf_render_pending_projects_widget'
+    );
+});
+
+function cdcf_render_pending_projects_widget(): void {
+    $posts = get_posts([
+        'post_type'   => 'project',
+        'post_status' => 'pending',
+        'numberposts' => 10,
+        'orderby'     => 'date',
+        'order'       => 'DESC',
+    ]);
+
+    if (empty($posts)) {
+        echo '<p>No pending project submissions.</p>';
+        return;
+    }
+
+    echo '<table class="widefat striped"><thead><tr>'
+       . '<th>Project</th><th>Submitted by</th><th>Date</th><th></th>'
+       . '</tr></thead><tbody>';
+
+    foreach ($posts as $post) {
+        $name  = esc_html(get_post_meta($post->ID, '_submission_submitter_name', true));
+        $email = esc_html(get_post_meta($post->ID, '_submission_submitter_email', true));
+        $date  = get_the_date('M j, Y', $post);
+        $edit  = get_edit_post_link($post->ID);
+        $title = esc_html($post->post_title);
+
+        $submitter = $name;
+        if ($email) {
+            $submitter .= $name ? " ({$email})" : $email;
+        }
+
+        echo "<tr>"
+           . "<td><strong>{$title}</strong></td>"
+           . "<td>{$submitter}</td>"
+           . "<td>{$date}</td>"
+           . "<td><a href=\"{$edit}\" class=\"button button-small\">Review</a></td>"
+           . "</tr>";
+    }
+
+    echo '</tbody></table>';
+
+    $total = wp_count_posts('project')->pending ?? 0;
+    if ($total > 10) {
+        $url = admin_url('edit.php?post_type=project&post_status=pending');
+        printf('<p><a href="%s">View all %d pending submissions &rarr;</a></p>', $url, $total);
     }
 }

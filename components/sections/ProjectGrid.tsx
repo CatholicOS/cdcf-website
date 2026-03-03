@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import clsx from 'clsx'
 import type { WPProject } from '@/lib/wordpress/types'
+import SubmitProjectModal from './SubmitProjectModal'
 
 type ProjectStatus = 'incubating' | 'active' | 'graduated'
 
@@ -15,6 +16,7 @@ interface ProjectGridProps {
   title?: string
   intro?: string
   columns?: number
+  submitButtonLabel?: string
 }
 
 export default function ProjectGrid({
@@ -22,6 +24,7 @@ export default function ProjectGrid({
   title,
   intro,
   columns = 3,
+  submitButtonLabel,
 }: ProjectGridProps) {
   const gridCols = {
     2: 'sm:grid-cols-2',
@@ -118,6 +121,12 @@ export default function ProjectGrid({
             )
           })}
         </div>
+
+        {submitButtonLabel && (
+          <div className="mt-10 text-center">
+            <SubmitProjectModal buttonLabel={submitButtonLabel} />
+          </div>
+        )}
       </div>
     </section>
   )
