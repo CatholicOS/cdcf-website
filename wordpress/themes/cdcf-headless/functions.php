@@ -1450,16 +1450,21 @@ function cdcf_rest_submit_project(WP_REST_Request $request) {
         return new WP_Error('insert_failed', 'Failed to create project submission.', ['status' => 500]);
     }
 
+    // Sanitise repo URLs.
+    $repo_urls = array_values(array_filter(array_map('esc_url_raw', (array) $request['repo_urls'])));
+
     // Set ACF fields if ACF is active.
     if (function_exists('update_field')) {
         update_field('project_url', $request['url'], $post_id);
         update_field('project_status', 'incubating', $post_id);
+        if (!empty($repo_urls)) {
+            update_field('project_repo_url', $repo_urls[0], $post_id);
+        }
     }
 
-    // Store repo URLs as private meta (JSON-encoded array).
-    $repo_urls = array_filter(array_map('esc_url_raw', (array) $request['repo_urls']));
+    // Store all repo URLs as private meta (JSON-encoded array) for the meta box.
     if (!empty($repo_urls)) {
-        update_post_meta($post_id, '_submission_repo_urls', wp_json_encode(array_values($repo_urls)));
+        update_post_meta($post_id, '_submission_repo_urls', wp_json_encode($repo_urls));
     }
 
     // Store submitter info as private post meta.
@@ -3591,9 +3596,10 @@ function cdcf_render_project_submitter_meta_box(WP_Post $post): void {
     }
     if ($repo_json) {
         $repos = json_decode($repo_json, true);
-        if (is_array($repos) && !empty($repos)) {
-            echo '<p style="margin-top:8px"><strong>Repository URLs:</strong></p><ul style="margin:4px 0 0 16px;list-style:disc">';
-            foreach ($repos as $repo) {
+        if (is_array($repos) && count($repos) > 1) {
+            echo '<p style="margin-top:8px"><strong>Additional Repository URLs:</strong></p><ul style="margin:4px 0 0 16px;list-style:disc">';
+            // Skip the first URL since it's already in the ACF project_repo_url field.
+            foreach (array_slice($repos, 1) as $repo) {
                 $safe = esc_url($repo);
                 printf('<li><a href="%1$s" target="_blank" rel="noopener">%1$s</a></li>', $safe);
             }
