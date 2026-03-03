@@ -3558,6 +3558,34 @@ function cdcf_render_pending_local_groups_widget(): void {
     }
 }
 
+// ─── Restore Public Submissions to Pending on Untrash ────────────────
+
+/**
+ * When a publicly submitted post (project or local_group) is restored
+ * from trash, WordPress sets it to "draft". This hook re-sets it to
+ * "pending" so it reappears in the admin dashboard widget and menu bubble.
+ */
+add_action('transition_post_status', function ($new_status, $old_status, $post) {
+    if ($new_status !== 'draft' || $old_status !== 'trash') {
+        return;
+    }
+
+    if (!in_array($post->post_type, ['project', 'local_group'], true)) {
+        return;
+    }
+
+    // Only re-pend posts that came from the public submission form.
+    $has_submitter = get_post_meta($post->ID, '_submission_submitter_email', true)
+                  || get_post_meta($post->ID, '_referral_submitter_email', true);
+    if (!$has_submitter) {
+        return;
+    }
+
+    // Unhook to avoid recursion, then update.
+    remove_action('transition_post_status', __FUNCTION__);
+    wp_update_post(['ID' => $post->ID, 'post_status' => 'pending']);
+}, 10, 3);
+
 // ─── Project Submission: Meta Box ────────────────────────────────────
 
 /**
