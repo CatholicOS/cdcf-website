@@ -3428,17 +3428,35 @@ function cdcf_api_docs_page() {
     <?php
 }
 
+// ─── Submission Meta Helper ──────────────────────────────────────────
+
+/**
+ * Resolve the source (English) post ID for a given post.
+ * If Polylang is active and this post is a translation, return the
+ * English original's ID so we can read submission meta from it.
+ * Falls back to the given post ID if Polylang is absent or the post
+ * is already the source language version.
+ */
+function cdcf_get_source_post_id(int $post_id): int {
+    if (!function_exists('pll_get_post')) {
+        return $post_id;
+    }
+    $source_id = pll_get_post($post_id, 'en');
+    return $source_id ? (int) $source_id : $post_id;
+}
+
 // ─── Referral Submitter Meta Box ─────────────────────────────────────
 
 /**
  * Show referral submitter info on the local_group edit screen.
  */
 add_action('add_meta_boxes_local_group', function () {
-    $post_id = get_the_ID();
-    $name  = get_post_meta($post_id, '_referral_submitter_name', true);
-    $email = get_post_meta($post_id, '_referral_submitter_email', true);
+    $post_id   = get_the_ID();
+    $source_id = cdcf_get_source_post_id($post_id);
+    $name  = get_post_meta($source_id, '_referral_submitter_name', true);
+    $email = get_post_meta($source_id, '_referral_submitter_email', true);
 
-    // Only show the meta box if this post was submitted via the referral form.
+    // Only show the meta box if the source post was submitted via the referral form.
     if (!$name && !$email) {
         return;
     }
@@ -3454,8 +3472,9 @@ add_action('add_meta_boxes_local_group', function () {
 });
 
 function cdcf_render_referral_submitter_meta_box(WP_Post $post): void {
-    $name  = esc_html(get_post_meta($post->ID, '_referral_submitter_name', true));
-    $email = esc_html(get_post_meta($post->ID, '_referral_submitter_email', true));
+    $source_id = cdcf_get_source_post_id($post->ID);
+    $name  = esc_html(get_post_meta($source_id, '_referral_submitter_name', true));
+    $email = esc_html(get_post_meta($source_id, '_referral_submitter_email', true));
 
     if ($name) {
         echo "<p><strong>{$name}</strong></p>";
@@ -3575,8 +3594,10 @@ add_action('transition_post_status', function ($new_status, $old_status, $post) 
     }
 
     // Only re-pend posts that came from the public submission form.
-    $has_submitter = get_post_meta($post->ID, '_submission_submitter_email', true)
-                  || get_post_meta($post->ID, '_referral_submitter_email', true);
+    // Check the source (English) post's meta for translations.
+    $source_id = cdcf_get_source_post_id($post->ID);
+    $has_submitter = get_post_meta($source_id, '_submission_submitter_email', true)
+                  || get_post_meta($source_id, '_referral_submitter_email', true);
     if (!$has_submitter) {
         return;
     }
@@ -3592,11 +3613,12 @@ add_action('transition_post_status', function ($new_status, $old_status, $post) 
  * Show submitter info + repo URLs on the project edit screen.
  */
 add_action('add_meta_boxes_project', function () {
-    $post_id = get_the_ID();
-    $name  = get_post_meta($post_id, '_submission_submitter_name', true);
-    $email = get_post_meta($post_id, '_submission_submitter_email', true);
+    $post_id   = get_the_ID();
+    $source_id = cdcf_get_source_post_id($post_id);
+    $name  = get_post_meta($source_id, '_submission_submitter_name', true);
+    $email = get_post_meta($source_id, '_submission_submitter_email', true);
 
-    // Only show the meta box if this post was submitted via the public form.
+    // Only show the meta box if the source post was submitted via the public form.
     if (!$name && !$email) {
         return;
     }
@@ -3612,9 +3634,10 @@ add_action('add_meta_boxes_project', function () {
 });
 
 function cdcf_render_project_submitter_meta_box(WP_Post $post): void {
-    $name      = esc_html(get_post_meta($post->ID, '_submission_submitter_name', true));
-    $email     = esc_html(get_post_meta($post->ID, '_submission_submitter_email', true));
-    $repo_json = get_post_meta($post->ID, '_submission_repo_urls', true);
+    $source_id = cdcf_get_source_post_id($post->ID);
+    $name      = esc_html(get_post_meta($source_id, '_submission_submitter_name', true));
+    $email     = esc_html(get_post_meta($source_id, '_submission_submitter_email', true));
+    $repo_json = get_post_meta($source_id, '_submission_repo_urls', true);
 
     if ($name) {
         echo "<p><strong>{$name}</strong></p>";
