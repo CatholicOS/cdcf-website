@@ -41,6 +41,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true })
   }
 
+  // Timing check — bots that POST directly without opening the modal fill too fast
+  const elapsed = typeof body.elapsed_ms === 'number' ? body.elapsed_ms : 0
+  if (elapsed > 0 && elapsed < 3000) {
+    return NextResponse.json({ success: true })
+  }
+
   // Validate required fields
   const { group_name, url, description, submitter_name, submitter_email } = body
   if (!group_name || !url || !description || !submitter_name || !submitter_email) {

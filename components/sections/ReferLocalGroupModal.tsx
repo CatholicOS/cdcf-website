@@ -10,10 +10,12 @@ interface ReferLocalGroupModalProps {
 export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupModalProps) {
   const t = useTranslations('community')
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const openedAtRef = useRef<number>(0)
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle')
 
   const openDialog = useCallback(() => {
     setStatus('idle')
+    openedAtRef.current = Date.now()
     dialogRef.current?.showModal()
   }, [])
 
@@ -40,6 +42,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
           submitter_name: data.get('submitter_name'),
           submitter_email: data.get('submitter_email'),
           website: data.get('website'),
+          elapsed_ms: Date.now() - openedAtRef.current,
         }),
       })
 

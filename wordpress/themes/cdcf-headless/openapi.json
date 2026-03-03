@@ -550,10 +550,23 @@
             }
           },
           "400": {
-            "description": "Invalid email address",
+            "description": "Invalid email address or disposable email domain",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "403": {
+            "description": "IP address is blacklisted (DNSBL)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" },
+                "example": {
+                  "code": "forbidden",
+                  "message": "Request blocked.",
+                  "data": { "status": 403 }
+                }
               }
             }
           },
@@ -795,6 +808,10 @@
                   "website": {
                     "type": "string",
                     "description": "Honeypot field — if filled, request silently succeeds without creating a post"
+                  },
+                  "elapsed_ms": {
+                    "type": "number",
+                    "description": "Milliseconds since the modal was opened. Submissions under 3000ms are silently discarded (bot detection)."
                   }
                 }
               }
