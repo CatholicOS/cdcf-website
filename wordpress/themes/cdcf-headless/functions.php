@@ -3036,6 +3036,46 @@ function cdcf_api_docs_page() {
     <?php
 }
 
+// ─── Referral Submitter Meta Box ─────────────────────────────────────
+
+/**
+ * Show referral submitter info on the local_group edit screen.
+ */
+add_action('add_meta_boxes_local_group', function () {
+    $post_id = get_the_ID();
+    $name  = get_post_meta($post_id, '_referral_submitter_name', true);
+    $email = get_post_meta($post_id, '_referral_submitter_email', true);
+
+    // Only show the meta box if this post was submitted via the referral form.
+    if (!$name && !$email) {
+        return;
+    }
+
+    add_meta_box(
+        'cdcf_referral_submitter',
+        'Referred by',
+        'cdcf_render_referral_submitter_meta_box',
+        'local_group',
+        'side',
+        'high'
+    );
+});
+
+function cdcf_render_referral_submitter_meta_box(WP_Post $post): void {
+    $name  = esc_html(get_post_meta($post->ID, '_referral_submitter_name', true));
+    $email = esc_html(get_post_meta($post->ID, '_referral_submitter_email', true));
+
+    if ($name) {
+        echo "<p><strong>{$name}</strong></p>";
+    }
+    if ($email) {
+        printf(
+            '<p><a href="mailto:%1$s">%1$s</a></p>',
+            $email
+        );
+    }
+}
+
 // ─── Pending Local Groups: Menu Bubble + Dashboard Widget ───────────
 
 /**
