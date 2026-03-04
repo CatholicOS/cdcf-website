@@ -69,9 +69,11 @@
     "status": {
       "incubating": "In incubazione",
       "active": "Attivo",
-      "graduated": "Consolidato"
+      "archived": "Archiviato"
     },
     "filterAll": "Tutti i progetti",
+    "filterAllCategories": "Tutte le categorie",
+    "noResults": "Nessun progetto corrisponde ai filtri selezionati.",
     "submitButton": "Submit a Project",
     "submitTitle": "Submit a Project",
     "submitDescription": "Have an open-source project that serves the Catholic community? Submit it for review.",

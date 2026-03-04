@@ -376,7 +376,7 @@ function cdcf_rest_update_project_status(WP_REST_Request $request) {
     $post_id = $request['post_id'];
     $status  = $request['status'];
 
-    $allowed = ['incubating', 'active', 'graduated'];
+    $allowed = ['incubating', 'active', 'archived'];
     if (!in_array($status, $allowed, true)) {
         return new WP_Error('invalid_status', 'status must be one of: ' . implode(', ', $allowed), ['status' => 400]);
     }
@@ -1871,7 +1871,7 @@ add_action('acf/init', function () {
                 'choices' => [
                     'incubating' => 'Incubating',
                     'active'     => 'Active',
-                    'graduated'  => 'Graduated',
+                    'archived'   => 'Archived',
                 ],
                 'default_value' => 'incubating',
                 'show_in_graphql' => true,
