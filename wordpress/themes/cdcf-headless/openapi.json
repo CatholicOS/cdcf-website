@@ -49,6 +49,18 @@
       "description": "Public local group referral submissions"
     },
     {
+      "name": "Project Submission",
+      "description": "Public project submissions with email verification"
+    },
+    {
+      "name": "Polylang",
+      "description": "Polylang translation linking and management"
+    },
+    {
+      "name": "Project Status",
+      "description": "Update project status across all translations"
+    },
+    {
       "name": "Translation",
       "description": "AI-powered post translation via OpenAI"
     },
@@ -585,6 +597,406 @@
           },
           "500": {
             "description": "Server error (insert failed)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cdcf/v1/submit-project/send-code": {
+      "post": {
+        "tags": ["Project Submission"],
+        "summary": "Send verification code for project submission (public)",
+        "description": "Sends a 6-digit email verification code to the submitter. Applies IP rate limiting (5 codes/hour), DNSBL checks, disposable email detection, honeypot and timing-based bot detection, and content spam scoring. Code expires in 10 minutes.",
+        "operationId": "submitProjectSendCode",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["project_name", "description", "url", "submitter_name", "submitter_email"],
+                "properties": {
+                  "project_name": {
+                    "type": "string",
+                    "description": "Name of the project"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description of the project"
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Project website URL"
+                  },
+                  "repo_urls": {
+                    "type": "array",
+                    "items": { "type": "string", "format": "uri" },
+                    "description": "Repository URLs (e.g. GitHub)"
+                  },
+                  "submitter_name": {
+                    "type": "string",
+                    "description": "Full name of the submitter"
+                  },
+                  "submitter_email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Email address to send the verification code to"
+                  },
+                  "honeypot": {
+                    "type": "string",
+                    "description": "Honeypot field — if filled, request silently succeeds"
+                  },
+                  "elapsed_ms": {
+                    "type": "number",
+                    "description": "Milliseconds since modal opened. Under 3000ms silently discarded."
+                  }
+                }
+              },
+              "example": {
+                "project_name": "Catholic Lectionary API",
+                "description": "An API for accessing Catholic lectionary readings.",
+                "url": "https://example.com/lectionary-api",
+                "repo_urls": ["https://github.com/example/lectionary-api"],
+                "submitter_name": "Jane Doe",
+                "submitter_email": "jane@example.com",
+                "honeypot": "",
+                "elapsed_ms": 15000
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification code sent (or honeypot/timing triggered)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" }
+                  }
+                },
+                "example": { "success": true }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or disposable email address",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "403": {
+            "description": "IP address is blacklisted (DNSBL)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited (5 codes/hour/IP or 3 codes/hour/email)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to send verification email",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cdcf/v1/submit-project": {
+      "post": {
+        "tags": ["Project Submission"],
+        "summary": "Submit a project for review (public)",
+        "description": "Allows visitors to submit an open-source project for admin review. Verifies the email verification code, creates a `project` post with `pending` status and `incubating` project_status, stores submitter info and repo URLs as private post meta, and sends an admin notification email. Rate-limited to 3 submissions per hour per IP.",
+        "operationId": "submitProject",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["project_name", "description", "url", "submitter_name", "submitter_email", "verification_code"],
+                "properties": {
+                  "project_name": {
+                    "type": "string",
+                    "description": "Name of the project"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description of the project"
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Project website URL"
+                  },
+                  "repo_urls": {
+                    "type": "array",
+                    "items": { "type": "string", "format": "uri" },
+                    "description": "Repository URLs. The first URL populates the ACF project_repo_url field; all are stored as private meta."
+                  },
+                  "submitter_name": {
+                    "type": "string",
+                    "description": "Full name of the submitter"
+                  },
+                  "submitter_email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Email address of the submitter"
+                  },
+                  "verification_code": {
+                    "type": "string",
+                    "description": "6-digit verification code sent to submitter_email"
+                  }
+                }
+              },
+              "example": {
+                "project_name": "Catholic Lectionary API",
+                "description": "An API for accessing Catholic lectionary readings.",
+                "url": "https://example.com/lectionary-api",
+                "repo_urls": ["https://github.com/example/lectionary-api", "https://github.com/example/lectionary-frontend"],
+                "submitter_name": "Jane Doe",
+                "submitter_email": "jane@example.com",
+                "verification_code": "123456"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project submitted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "post_id": {
+                      "type": "integer",
+                      "description": "ID of the pending project post"
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "post_id": 544
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid/expired verification code, invalid email, or disposable email",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "403": {
+            "description": "IP address is blacklisted (DNSBL)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited (3 submissions/hour/IP or too many code attempts)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error (insert failed)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cdcf/v1/link-translations": {
+      "post": {
+        "tags": ["Polylang"],
+        "summary": "Link existing posts as Polylang translations",
+        "description": "Sets the Polylang language on each post and links them together as translations of each other. Useful for fixing orphaned translations or manually connecting posts that were created without proper Polylang linking.",
+        "operationId": "linkTranslations",
+        "security": [{ "basicAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["translations"],
+                "properties": {
+                  "translations": {
+                    "$ref": "#/components/schemas/TranslationsMap",
+                    "description": "Map of language codes to post IDs (at least 2 required)"
+                  }
+                }
+              },
+              "example": {
+                "translations": {
+                  "en": 544,
+                  "it": 546,
+                  "es": 547,
+                  "fr": 548,
+                  "pt": 549,
+                  "de": 550
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Translations linked successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "translations": {
+                      "$ref": "#/components/schemas/TranslationsMap"
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "translations": { "en": 544, "it": 546, "es": 547, "fr": 548, "pt": 549, "de": 550 }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid post ID or fewer than 2 translations provided",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "description": "Polylang is not active",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cdcf/v1/project-status": {
+      "post": {
+        "tags": ["Project Status"],
+        "summary": "Update project status across all translations",
+        "description": "Sets the `project_status` ACF field on a project and all its Polylang translations in a single call. Accepts any project post ID (source or translation) and resolves all linked translations automatically.",
+        "operationId": "updateProjectStatus",
+        "security": [{ "basicAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["post_id", "status"],
+                "properties": {
+                  "post_id": {
+                    "type": "integer",
+                    "description": "Any post ID in the project's translation group"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": ["incubating", "active", "graduated"],
+                    "description": "The new project status"
+                  }
+                }
+              },
+              "example": {
+                "post_id": 13,
+                "status": "incubating"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status updated on all translations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "status": {
+                      "type": "string",
+                      "enum": ["incubating", "active", "graduated"]
+                    },
+                    "updated_posts": {
+                      "type": "array",
+                      "items": { "type": "integer" },
+                      "description": "Post IDs that were updated"
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "status": "incubating",
+                  "updated_posts": [13, 41, 42, 43, 44, 45]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid status value",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Post not found or is not a project",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WpError" }
+              }
+            }
+          },
+          "500": {
+            "description": "ACF is not active",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/WpError" }
