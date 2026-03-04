@@ -13,7 +13,7 @@ type ProjectStatus = 'incubating' | 'active' | 'archived'
 const statusStyles: Record<ProjectStatus, { bg: string; text: string }> = {
   incubating: { bg: 'bg-amber-100', text: 'text-amber-800' },
   active: { bg: 'bg-green-100', text: 'text-green-800' },
-  archived: { bg: 'bg-gray-100', text: 'text-gray-500' },
+  archived: { bg: 'bg-red-100', text: 'text-red-800' },
 }
 
 interface ProjectGridProps {
