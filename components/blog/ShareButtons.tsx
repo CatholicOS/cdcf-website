@@ -6,12 +6,13 @@ import { useTranslations } from 'next-intl'
 
 interface ShareButtonsProps {
   title: string
+  namespace?: 'blog' | 'projects'
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://catholicdigitalcommons.org'
 
-export default function ShareButtons({ title }: ShareButtonsProps) {
-  const t = useTranslations('blog')
+export default function ShareButtons({ title, namespace = 'blog' }: ShareButtonsProps) {
+  const t = useTranslations(namespace)
   const pathname = usePathname()
   const [canShare, setCanShare] = useState(false)
   const [url, setUrl] = useState('')

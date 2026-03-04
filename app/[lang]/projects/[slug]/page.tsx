@@ -5,6 +5,7 @@ import { setRequestLocale, getTranslations } from 'next-intl/server'
 import { getProject } from '@/lib/wordpress/api'
 import { Link } from '@/src/i18n/navigation'
 import RepoLanguages from '@/components/projects/RepoLanguages'
+import ShareButtons from '@/components/blog/ShareButtons'
 
 interface ProjectPageProps {
   params: Promise<{ lang: string; slug: string }>
@@ -226,6 +227,9 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             <RepoLanguages repos={repoUrls} label={t('languages')} />
           )}
         </div>
+
+        {/* Share buttons */}
+        <ShareButtons title={project.title} namespace="projects" />
       </div>
     </article>
   )

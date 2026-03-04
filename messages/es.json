@@ -116,7 +116,9 @@
     "repositories": "Repositorios",
     "website": "Sitio web",
     "license": "Licencia",
-    "languages": "Lenguajes"
+    "languages": "Lenguajes",
+    "share": "Compartir este proyecto",
+    "shareNative": "Compartir"
   },
   "community": {
     "onlineHeading": "Comunidades en línea",
