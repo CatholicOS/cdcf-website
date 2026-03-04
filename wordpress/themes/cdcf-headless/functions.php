@@ -1223,6 +1223,11 @@ function cdcf_rest_refer_local_group(WP_REST_Request $request) {
         return new WP_Error('insert_failed', 'Failed to create referral.', ['status' => 500]);
     }
 
+    // Assign English language so Polylang can link translations later.
+    if (function_exists('pll_set_post_language')) {
+        pll_set_post_language($post_id, 'en');
+    }
+
     // Set ACF fields if ACF is active.
     if (function_exists('update_field')) {
         update_field('group_description', $request['description'], $post_id);
@@ -1448,6 +1453,11 @@ function cdcf_rest_submit_project(WP_REST_Request $request) {
 
     if (is_wp_error($post_id) || !$post_id) {
         return new WP_Error('insert_failed', 'Failed to create project submission.', ['status' => 500]);
+    }
+
+    // Assign English language so Polylang can link translations later.
+    if (function_exists('pll_set_post_language')) {
+        pll_set_post_language($post_id, 'en');
     }
 
     // Sanitise repo URLs.
