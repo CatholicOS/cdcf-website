@@ -156,7 +156,7 @@ export default function ProjectGrid({
                   )}
                   <span
                     className={clsx(
-                      'rounded-full px-2.5 py-0.5 text-xs font-medium',
+                      'ml-auto rounded-full px-2.5 py-0.5 text-xs font-medium',
                       style.bg,
                       style.text
                     )}
