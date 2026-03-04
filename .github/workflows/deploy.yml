@@ -54,26 +54,45 @@ jobs:
 
       - name: Upload bundles
         run: |
-          scp -i ~/.ssh/deploy_key \
-            /tmp/nextjs-bundle.tar.gz /tmp/wp-theme.tar.gz /tmp/wp-plugin-redis-translations.tar.gz \
-            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/tmp/
+          for attempt in 1 2 3; do
+            echo "Upload attempt $attempt..."
+            if scp -i ~/.ssh/deploy_key \
+              /tmp/nextjs-bundle.tar.gz /tmp/wp-theme.tar.gz /tmp/wp-plugin-redis-translations.tar.gz \
+              ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/tmp/; then
+              echo "Upload succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "Upload failed on attempt $attempt"
+            [ "$attempt" -lt 3 ] && echo "Waiting 15 seconds before retry..." && sleep 15
+          done
+          echo "All upload attempts failed"
+          exit 1
 
       - name: Extract and restart
         run: |
-          sleep 5
-          ssh -i ~/.ssh/deploy_key \
-            ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
-            "mkdir -p ${{ secrets.VPS_APP_DIR }} && \
-             tar -xzf /tmp/nextjs-bundle.tar.gz -C ${{ secrets.VPS_APP_DIR }} && \
-             rm /tmp/nextjs-bundle.tar.gz && \
-             mkdir -p ${{ vars.WP_THEME_DIR }} && \
-             tar -xzf /tmp/wp-theme.tar.gz -C ${{ vars.WP_THEME_DIR }} && \
-             rm /tmp/wp-theme.tar.gz && \
-             mkdir -p ${{ vars.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
-             tar -xzf /tmp/wp-plugin-redis-translations.tar.gz -C ${{ vars.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
-             rm /tmp/wp-plugin-redis-translations.tar.gz && \
-             mkdir -p ${{ secrets.VPS_APP_DIR }}/tmp && \
-             touch ${{ secrets.VPS_APP_DIR }}/tmp/restart.txt"
+          for attempt in 1 2 3; do
+            echo "SSH attempt $attempt..."
+            if ssh -i ~/.ssh/deploy_key \
+              ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
+              "mkdir -p ${{ secrets.VPS_APP_DIR }} && \
+               tar -xzf /tmp/nextjs-bundle.tar.gz -C ${{ secrets.VPS_APP_DIR }} && \
+               rm /tmp/nextjs-bundle.tar.gz && \
+               mkdir -p ${{ vars.WP_THEME_DIR }} && \
+               tar -xzf /tmp/wp-theme.tar.gz -C ${{ vars.WP_THEME_DIR }} && \
+               rm /tmp/wp-theme.tar.gz && \
+               mkdir -p ${{ vars.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
+               tar -xzf /tmp/wp-plugin-redis-translations.tar.gz -C ${{ vars.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
+               rm /tmp/wp-plugin-redis-translations.tar.gz && \
+               mkdir -p ${{ secrets.VPS_APP_DIR }}/tmp && \
+               touch ${{ secrets.VPS_APP_DIR }}/tmp/restart.txt"; then
+              echo "SSH succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "SSH failed on attempt $attempt"
+            [ "$attempt" -lt 3 ] && echo "Waiting 15 seconds before retry..." && sleep 15
+          done
+          echo "All SSH attempts failed"
+          exit 1
 
       - name: Activate plugins
         run: |
