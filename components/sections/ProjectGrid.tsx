@@ -45,15 +45,6 @@ export default function ProjectGrid({
     return Array.from(cats).sort()
   }, [projects])
 
-  // Derive unique statuses from projects
-  const statuses = useMemo(() => {
-    const s = new Set<string>()
-    for (const p of projects) {
-      s.add(p.projectFields.projectStatus?.[0] || 'incubating')
-    }
-    return Array.from(s)
-  }, [projects])
-
   const filtered = useMemo(() => {
     return projects.filter((p) => {
       const status = p.projectFields.projectStatus?.[0] || 'incubating'
@@ -69,7 +60,8 @@ export default function ProjectGrid({
     4: 'sm:grid-cols-2 lg:grid-cols-4',
   }[columns] || 'sm:grid-cols-2 lg:grid-cols-3'
 
-  const hasFilters = statuses.length > 1 || categories.length > 1
+  // All possible statuses for filter pills (always shown)
+  const allStatuses: ProjectStatus[] = ['incubating', 'active', 'archived']
 
   return (
     <section className="py-16 sm:py-20">
@@ -87,7 +79,7 @@ export default function ProjectGrid({
           </div>
         )}
 
-        {hasFilters && (
+        {projects.length > 0 && (
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             {/* Status filter pills */}
             <button
@@ -101,8 +93,8 @@ export default function ProjectGrid({
             >
               {t('filterAll')}
             </button>
-            {statuses.map((s) => {
-              const style = statusStyles[s as ProjectStatus] || statusStyles.incubating
+            {allStatuses.map((s) => {
+              const style = statusStyles[s]
               return (
                 <button
                   key={s}
