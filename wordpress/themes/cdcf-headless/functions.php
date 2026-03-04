@@ -295,6 +295,57 @@ function cdcf_rest_update_relationship(WP_REST_Request $request) {
     return rest_ensure_response(['post_id' => $post_id, 'field' => $field, 'value' => $value, 'updated' => true]);
 }
 
+// ─── REST endpoint for linking Polylang translations ─────────────────
+//
+// Links existing posts as Polylang translations of each other.
+//
+// POST /wp-json/cdcf/v1/link-translations (Application Password auth)
+// Body: { "translations": { "en": 544, "it": 546, "es": 547, ... } }
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/link-translations', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_link_translations',
+        'permission_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        'args' => [
+            'translations' => ['required' => true, 'type' => 'object'],
+        ],
+    ]);
+});
+
+function cdcf_rest_link_translations(WP_REST_Request $request) {
+    if (!function_exists('pll_set_post_language') || !function_exists('pll_save_post_translations')) {
+        return new WP_Error('polylang_missing', 'Polylang is not active.', ['status' => 500]);
+    }
+
+    $translations = $request['translations'];
+    if (!is_array($translations) || count($translations) < 2) {
+        return new WP_Error('invalid_translations', 'Provide at least 2 language => post_id pairs.', ['status' => 400]);
+    }
+
+    // Validate all posts exist.
+    foreach ($translations as $lang => $post_id) {
+        $post_id = (int) $post_id;
+        if (!get_post($post_id)) {
+            return new WP_Error('invalid_post', "Post {$post_id} does not exist.", ['status' => 400]);
+        }
+        $translations[$lang] = $post_id;
+    }
+
+    // Set language on each post and link them.
+    foreach ($translations as $lang => $post_id) {
+        pll_set_post_language($post_id, $lang);
+    }
+    pll_save_post_translations($translations);
+
+    return rest_ensure_response([
+        'success'      => true,
+        'translations' => $translations,
+    ]);
+}
+
 // ─── REST endpoint for creating a team member with translations ──────
 //
 // Creates an English team_member post, translates it to all configured
