@@ -56,6 +56,7 @@ export interface WPProject {
     projectLicense: string | null
     projectCategory: string | null
   }
+  projectRepoUrls: string[] | null
 }
 
 export interface WPTeamMember {

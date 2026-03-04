@@ -2409,6 +2409,35 @@ add_filter('pll_get_post_types', function ($post_types) {
     return $post_types;
 }, 10, 2);
 
+// ─── Custom GraphQL fields ──────────────────────────────────────────
+
+add_action('graphql_register_types', function () {
+    register_graphql_field('Project', 'projectRepoUrls', [
+        'type'        => ['list_of' => 'String'],
+        'description' => 'All repository URLs for the project',
+        'resolve'     => function ($project) {
+            $post_id = $project->databaseId;
+
+            // Try private meta first (JSON array from submission form).
+            $json = get_post_meta($post_id, '_submission_repo_urls', true);
+            if ($json) {
+                $urls = json_decode($json, true);
+                if (is_array($urls) && !empty($urls)) {
+                    return $urls;
+                }
+            }
+
+            // Fall back to the single ACF repo URL field.
+            $single = get_field('project_repo_url', $post_id);
+            if ($single) {
+                return [$single];
+            }
+
+            return null;
+        },
+    ]);
+});
+
 // ─── CORS for GraphQL endpoint ───────────────────────────────────────
 
 add_action('graphql_response_headers_to_send', function ($headers) {

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import Image from 'next/image'
 import clsx from 'clsx'
 import { useTranslations } from 'next-intl'
+import { Link } from '@/src/i18n/navigation'
 import type { WPProject } from '@/lib/wordpress/types'
 import SubmitProjectModal from './SubmitProjectModal'
 
@@ -136,7 +137,11 @@ export default function ProjectGrid({
             const style = statusStyles[status] || statusStyles.incubating
 
             return (
-              <div key={project.slug} className="cdcf-card flex flex-col">
+              <Link
+                key={project.slug}
+                href={`/projects/${project.slug}`}
+                className="cdcf-card flex flex-col transition-shadow transition-transform duration-200 hover:shadow-lg hover:-translate-y-0.5"
+              >
                 <div className="flex items-start justify-between">
                   {project.featuredImage?.node && (
                     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg">
@@ -176,30 +181,7 @@ export default function ProjectGrid({
                     dangerouslySetInnerHTML={{ __html: project.excerpt }}
                   />
                 )}
-
-                <div className="mt-4 flex gap-3 border-t border-gray-100 pt-4">
-                  {project.projectFields.projectUrl && (
-                    <a
-                      href={project.projectFields.projectUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-medium text-cdcf-navy transition-colors hover:text-cdcf-gold"
-                    >
-                      Website
-                    </a>
-                  )}
-                  {project.projectFields.projectRepoUrl && (
-                    <a
-                      href={project.projectFields.projectRepoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-medium text-cdcf-navy transition-colors hover:text-cdcf-gold"
-                    >
-                      Repository
-                    </a>
-                  )}
-                </div>
-              </div>
+              </Link>
             )
           })}
         </div>

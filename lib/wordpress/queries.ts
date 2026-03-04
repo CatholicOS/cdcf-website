@@ -58,6 +58,7 @@ const PROJECT_FIELDS = `
     projectLicense
     projectCategory
   }
+  projectRepoUrls
 `
 
 const TEAM_MEMBER_FIELDS = `

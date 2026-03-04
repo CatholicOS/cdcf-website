@@ -111,7 +111,12 @@
     "verifyAndSubmit": "Verify & Submit",
     "invalidCode": "Invalid code. Please check and try again.",
     "codeExpired": "Code has expired. Please request a new one.",
-    "tooManyAttempts": "Too many incorrect attempts. Please request a new code."
+    "tooManyAttempts": "Too many incorrect attempts. Please request a new code.",
+    "backToProjects": "Zurück zu Projekten",
+    "repositories": "Repositories",
+    "website": "Webseite",
+    "license": "Lizenz",
+    "languages": "Sprachen"
   },
   "community": {
     "onlineHeading": "Online-Gemeinschaften",
