@@ -2792,7 +2792,9 @@ add_action('wp_ajax_cdcf_ai_translate', function () {
         }
 
         pll_set_post_language($post_id, $target_lang);
+        $source_lang = pll_get_post_language($source_id);
         $translations = pll_get_post_translations($source_id);
+        $translations[$source_lang] = $source_id;
         $translations[$target_lang] = $post_id;
         pll_save_post_translations($translations);
     }
@@ -3179,6 +3181,8 @@ add_action('rest_api_init', function () {
                 }
 
                 pll_set_post_language($post_id, $target_lang);
+                $source_lang = pll_get_post_language($source_id);
+                $translations[$source_lang] = $source_id;
                 $translations[$target_lang] = $post_id;
                 pll_save_post_translations($translations);
             }
