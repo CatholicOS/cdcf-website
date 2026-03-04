@@ -57,6 +57,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
 
     const fields = {
       project_name: data.get('project_name') as string,
+      category: data.get('category') as string,
       description: data.get('description') as string,
       url: data.get('url') as string,
       submitter_name: data.get('submitter_name') as string,
@@ -309,6 +310,26 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
                     placeholder={t('fieldProjectNamePlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
+                </div>
+
+                <div>
+                  <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+                    {t('fieldCategory')}
+                  </label>
+                  <input
+                    type="text"
+                    id="category"
+                    name="category"
+                    list="project-categories"
+                    defaultValue={formDataRef.current.fields.category}
+                    placeholder={t('fieldCategoryPlaceholder')}
+                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
+                  />
+                  <datalist id="project-categories">
+                    {['API', 'App', 'Web', 'AI', 'Library', 'Data', 'Plugin', 'DevOps'].map((cat) => (
+                      <option key={cat} value={cat} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div>

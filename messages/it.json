@@ -77,6 +77,8 @@
     "submitDescription": "Have an open-source project that serves the Catholic community? Submit it for review.",
     "fieldProjectName": "Project Name",
     "fieldProjectNamePlaceholder": "e.g. Catholic Lectionary API",
+    "fieldCategory": "Category",
+    "fieldCategoryPlaceholder": "e.g. API, App, Web, AI",
     "fieldProjectUrl": "Project Website URL",
     "fieldProjectUrlPlaceholder": "https://",
     "fieldRepoUrl": "Repository URL",

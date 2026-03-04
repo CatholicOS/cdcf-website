@@ -1398,6 +1398,7 @@ add_action('rest_api_init', function () {
         'permission_callback' => '__return_true',
         'args' => [
             'project_name'      => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'category'          => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
             'description'       => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
             'url'               => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'esc_url_raw'],
             'repo_urls'         => ['required' => false, 'type' => 'array',  'default' => []],
@@ -1413,6 +1414,7 @@ add_action('rest_api_init', function () {
         'permission_callback' => '__return_true',
         'args' => [
             'project_name'    => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'category'        => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
             'description'     => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
             'url'             => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'esc_url_raw'],
             'repo_urls'       => ['required' => false, 'type' => 'array',  'default' => []],
@@ -1581,6 +1583,9 @@ function cdcf_rest_submit_project(WP_REST_Request $request) {
     if (function_exists('update_field')) {
         update_field('project_url', $request['url'], $post_id);
         update_field('project_status', 'incubating', $post_id);
+        if (!empty($request['category'])) {
+            update_field('project_category', $request['category'], $post_id);
+        }
         if (!empty($repo_urls)) {
             update_field('project_repo_url', $repo_urls[0], $post_id);
         }

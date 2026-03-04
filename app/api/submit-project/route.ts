@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         project_name: body.project_name,
+        category: (body.category as string) || '',
         description: body.description,
         url: body.url,
         repo_urls: Array.isArray(body.repo_urls) ? body.repo_urls : [],
