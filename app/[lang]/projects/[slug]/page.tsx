@@ -6,6 +6,7 @@ import { getProject } from '@/lib/wordpress/api'
 import { Link } from '@/src/i18n/navigation'
 import RepoLanguages from '@/components/projects/RepoLanguages'
 import ShareButtons from '@/components/blog/ShareButtons'
+import GovernanceSection from '@/components/sections/GovernanceSection'
 
 interface ProjectPageProps {
   params: Promise<{ lang: string; slug: string }>
@@ -227,6 +228,16 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             <RepoLanguages repos={repoUrls} label={t('languages')} />
           )}
         </div>
+
+        {/* Project leads */}
+        {project.projectFields.projectLeads?.nodes &&
+          project.projectFields.projectLeads.nodes.length > 0 && (
+            <GovernanceSection
+              members={project.projectFields.projectLeads.nodes}
+              title={t('projectLeads')}
+              columns={project.projectFields.projectLeads.nodes.length === 1 ? 2 : 3}
+            />
+          )}
 
         {/* Share buttons */}
         <ShareButtons title={project.title} namespace="projects" />

@@ -118,7 +118,8 @@
     "license": "Licence",
     "languages": "Langages",
     "share": "Partager ce projet",
-    "shareNative": "Partager"
+    "shareNative": "Partager",
+    "projectLeads": "Responsables du Projet"
   },
   "community": {
     "onlineHeading": "Communautés en ligne",
@@ -127,7 +128,7 @@
     "localGroupsIntro": "Trouvez un groupe local près de chez vous ou créez le vôtre pour bâtir une communauté en personne.",
     "referButton": "Recommander un groupe local",
     "referTitle": "Recommander un groupe local",
-    "referDescription": "Vous connaissez un groupe tech catholique qui devrait figurer ici\u00a0? Faites-le nous savoir et nous l'examinerons.",
+    "referDescription": "Vous connaissez un groupe tech catholique qui devrait figurer ici ? Faites-le nous savoir et nous l'examinerons.",
     "fieldGroupName": "Nom du groupe",
     "fieldGroupNamePlaceholder": "ex. Catholic Devs Paris",
     "fieldLocation": "Localisation",
@@ -142,7 +143,7 @@
     "fieldYourEmailPlaceholder": "vous@exemple.com",
     "submit": "Envoyer la recommandation",
     "submitting": "Envoi en cours…",
-    "successTitle": "Merci\u00a0!",
+    "successTitle": "Merci !",
     "successMessage": "Votre recommandation a été soumise pour examen. Nous y jetterons un œil prochainement.",
     "errorTitle": "Une erreur est survenue",
     "errorMessage": "Veuillez réessayer plus tard ou nous contacter directement.",
@@ -169,16 +170,16 @@
     "commentsComingSoon": "Comments are coming soon."
   },
   "fishEasterEgg": {
-    "prompt": "Avez-vous remarqu\u00e9 les poissons dans le filet\u00a0? Devinez combien il y en a.",
+    "prompt": "Avez-vous remarqué les poissons dans le filet ? Devinez combien il y en a.",
     "placeholder": "Entrez un nombre",
     "guess": "Deviner",
-    "freezing": "Gel\u00e9\u00a0!",
-    "cold": "Froid\u2026",
-    "lukewarm": "Ti\u00e8de.",
-    "warm": "Vous chauffez\u2026",
-    "hot": "Vous br\u00fblez\u00a0!",
-    "correct": "Correct\u00a0! Le nombre est {count}.",
-    "discoverWhy": "D\u00e9couvrez pourquoi ce nombre est significatif",
+    "freezing": "Gelé !",
+    "cold": "Froid…",
+    "lukewarm": "Tiède.",
+    "warm": "Vous chauffez…",
+    "hot": "Vous brûlez !",
+    "correct": "Correct ! Le nombre est {count}.",
+    "discoverWhy": "Découvrez pourquoi ce nombre est significatif",
     "dialogTitle": "Le symbolisme du 24"
   }
 }

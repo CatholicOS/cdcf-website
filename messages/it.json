@@ -118,7 +118,8 @@
     "license": "Licenza",
     "languages": "Linguaggi",
     "share": "Condividi questo progetto",
-    "shareNative": "Condividi"
+    "shareNative": "Condividi",
+    "projectLeads": "Responsabili del Progetto"
   },
   "community": {
     "onlineHeading": "Comunità online",
@@ -173,12 +174,12 @@
     "placeholder": "Inserisci un numero",
     "guess": "Indovina",
     "freezing": "Gelo!",
-    "cold": "Freddo\u2026",
+    "cold": "Freddo…",
     "lukewarm": "Tiepido.",
-    "warm": "Ti stai scaldando\u2026",
+    "warm": "Ti stai scaldando…",
     "hot": "Sei bollente!",
-    "correct": "Corretto! Il numero \u00e8 {count}.",
-    "discoverWhy": "Scopri perch\u00e9 questo numero \u00e8 significativo",
+    "correct": "Corretto! Il numero è {count}.",
+    "discoverWhy": "Scopri perché questo numero è significativo",
     "dialogTitle": "Il simbolismo del 24"
   }
 }

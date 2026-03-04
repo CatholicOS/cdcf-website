@@ -118,7 +118,8 @@
     "license": "Licencia",
     "languages": "Lenguajes",
     "share": "Compartir este proyecto",
-    "shareNative": "Compartir"
+    "shareNative": "Compartir",
+    "projectLeads": "Líderes del Proyecto"
   },
   "community": {
     "onlineHeading": "Comunidades en línea",
@@ -169,16 +170,16 @@
     "commentsComingSoon": "Comments are coming soon."
   },
   "fishEasterEgg": {
-    "prompt": "\u00bfHas notado los peces en la red? Adivina cu\u00e1ntos hay.",
-    "placeholder": "Introduce un n\u00famero",
+    "prompt": "¿Has notado los peces en la red? Adivina cuántos hay.",
+    "placeholder": "Introduce un número",
     "guess": "Adivinar",
-    "freezing": "\u00a1Helado!",
-    "cold": "Fr\u00edo\u2026",
+    "freezing": "¡Helado!",
+    "cold": "Frío…",
     "lukewarm": "Tibio.",
-    "warm": "Te est\u00e1s acercando\u2026",
-    "hot": "\u00a1Est\u00e1s que quemas!",
-    "correct": "\u00a1Correcto! El n\u00famero es {count}.",
-    "discoverWhy": "Descubre por qu\u00e9 este n\u00famero es significativo",
+    "warm": "Te estás acercando…",
+    "hot": "¡Estás que quemas!",
+    "correct": "¡Correcto! El número es {count}.",
+    "discoverWhy": "Descubre por qué este número es significativo",
     "dialogTitle": "El simbolismo del 24"
   }
 }

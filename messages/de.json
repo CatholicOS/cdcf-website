@@ -118,7 +118,8 @@
     "license": "Lizenz",
     "languages": "Sprachen",
     "share": "Dieses Projekt teilen",
-    "shareNative": "Teilen"
+    "shareNative": "Teilen",
+    "projectLeads": "Projektleitung"
   },
   "community": {
     "onlineHeading": "Online-Gemeinschaften",
@@ -129,9 +130,9 @@
     "referTitle": "Lokale Gruppe empfehlen",
     "referDescription": "Kennen Sie eine katholische Tech-Gruppe, die hier aufgeführt werden sollte? Lassen Sie es uns wissen und wir prüfen sie.",
     "fieldGroupName": "Gruppenname",
-    "fieldGroupNamePlaceholder": "z.\u00a0B. Catholic Devs Berlin",
+    "fieldGroupNamePlaceholder": "z. B. Catholic Devs Berlin",
     "fieldLocation": "Standort",
-    "fieldLocationPlaceholder": "z.\u00a0B. Berlin, Deutschland",
+    "fieldLocationPlaceholder": "z. B. Berlin, Deutschland",
     "fieldUrl": "Gruppen-URL",
     "fieldUrlPlaceholder": "https://",
     "fieldDescription": "Beschreibung",
@@ -173,9 +174,9 @@
     "placeholder": "Zahl eingeben",
     "guess": "Raten",
     "freezing": "Eiskalt!",
-    "cold": "Kalt\u2026",
+    "cold": "Kalt…",
     "lukewarm": "Lauwarm.",
-    "warm": "Wird w\u00e4rmer\u2026",
+    "warm": "Wird wärmer…",
     "hot": "Sie kochen!",
     "correct": "Richtig! Die Zahl ist {count}.",
     "discoverWhy": "Erfahren Sie, warum diese Zahl bedeutsam ist",

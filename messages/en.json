@@ -118,7 +118,8 @@
     "license": "License",
     "languages": "Languages",
     "share": "Share this project",
-    "shareNative": "Share"
+    "shareNative": "Share",
+    "projectLeads": "Project Leads"
   },
   "community": {
     "onlineHeading": "Online Communities",

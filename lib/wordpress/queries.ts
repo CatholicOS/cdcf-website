@@ -41,6 +41,22 @@ const CTA_FRAGMENT = `
   }
 `
 
+const TEAM_MEMBER_FIELDS = `
+  title
+  content
+  featuredImage {
+    node {
+      ${IMAGE_FRAGMENT}
+    }
+  }
+  teamMemberFields {
+    memberRole
+    memberTitle
+    memberLinkedinUrl
+    memberGithubUrl
+  }
+`
+
 const PROJECT_FIELDS = `
   title
   slug
@@ -57,24 +73,15 @@ const PROJECT_FIELDS = `
     projectUrl
     projectLicense
     projectCategory
-  }
-  projectRepoUrls
-`
-
-const TEAM_MEMBER_FIELDS = `
-  title
-  content
-  featuredImage {
-    node {
-      ${IMAGE_FRAGMENT}
+    projectLeads {
+      nodes {
+        ... on TeamMember {
+          ${TEAM_MEMBER_FIELDS}
+        }
+      }
     }
   }
-  teamMemberFields {
-    memberRole
-    memberTitle
-    memberLinkedinUrl
-    memberGithubUrl
-  }
+  projectRepoUrls
 `
 
 const STAT_ITEM_FIELDS = `

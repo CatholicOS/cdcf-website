@@ -1909,6 +1909,16 @@ add_action('acf/init', function () {
                 'show_in_graphql' => true,
                 'show_in_rest' => true,
             ],
+            [
+                'key'   => 'field_project_leads',
+                'label' => 'Project Leads',
+                'name'  => 'project_leads',
+                'type'  => 'relationship',
+                'post_type' => ['team_member'],
+                'return_format' => 'object',
+                'show_in_graphql' => true,
+                'show_in_rest' => true,
+            ],
         ],
         'location' => [
             [['param' => 'post_type', 'operator' => '==', 'value' => 'project']],
