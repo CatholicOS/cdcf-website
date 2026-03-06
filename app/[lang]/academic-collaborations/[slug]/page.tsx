@@ -92,7 +92,7 @@ export default async function AcademicCollaborationPage({
               alt={image.altText || collab.title}
               width={image.mediaDetails?.width || 200}
               height={image.mediaDetails?.height || 200}
-              className="max-h-28 w-auto object-contain"
+              className="max-h-28 object-contain"
               priority
             />
           </div>
