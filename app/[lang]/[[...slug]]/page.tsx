@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { setRequestLocale } from 'next-intl/server'
-import { getPage, getPostBySlug, getPosts, getProjects, getSponsors } from '@/lib/wordpress/api'
+import { getAcademicCollaborations, getPage, getPostBySlug, getPosts, getProjects, getSponsors } from '@/lib/wordpress/api'
 import PageRenderer from '@/components/sections/PageRenderer'
 
 interface PageProps {
@@ -36,7 +36,7 @@ export default async function CatchAllPage({ params }: PageProps) {
   const isLogoSymbolism = slug?.at(-1) === 'logo-symbolism'
 
   // Fetch additional data based on template
-  const [posts, projects, sponsors, fishExplanation] = await Promise.all([
+  const [posts, projects, sponsors, academicCollaborations, fishExplanation] = await Promise.all([
     template === 'Blog' || template === 'Home'
       ? getPosts(lang, page.blogFields?.maxPosts || 6)
       : Promise.resolve([]),
@@ -45,6 +45,9 @@ export default async function CatchAllPage({ params }: PageProps) {
       : Promise.resolve([]),
     template === 'Home'
       ? getSponsors(lang)
+      : Promise.resolve([]),
+    template === 'Community'
+      ? getAcademicCollaborations(lang)
       : Promise.resolve([]),
     isLogoSymbolism
       ? getPostBySlug('symbolism-of-24', lang)
@@ -57,6 +60,7 @@ export default async function CatchAllPage({ params }: PageProps) {
       posts={posts}
       projects={projects}
       sponsors={sponsors}
+      academicCollaborations={academicCollaborations}
       isLogoSymbolism={isLogoSymbolism}
       fishExplanationHtml={fishExplanation?.content ?? undefined}
     />
