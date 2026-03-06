@@ -452,13 +452,6 @@ function cdcf_rest_create_team_member(WP_REST_Request $request) {
         return new WP_Error('acf_missing', 'ACF is not active.', ['status' => 500]);
     }
 
-    $api_key = get_option('cdcf_openai_api_key');
-    if (!$api_key) {
-        return new WP_Error('no_api_key', 'OpenAI API key not configured.', ['status' => 500]);
-    }
-
-    set_time_limit(300);
-
     $errors = [];
 
     // ── 1. Create the English post ──
@@ -495,98 +488,38 @@ function cdcf_rest_create_team_member(WP_REST_Request $request) {
         set_post_thumbnail($en_post_id, $request['featured_image_id']);
     }
 
-    // ── 2. Translate to other languages ──
+    // ── 2. Create translation drafts and enqueue background translations ──
 
     $target_langs = ['it', 'es', 'fr', 'pt', 'de'];
     $translations = ['en' => $en_post_id];
+    $queue = null;
 
     foreach ($target_langs as $lang) {
-        try {
-            // Create draft translation post.
-            $trans_id = wp_insert_post([
-                'post_type'    => 'team_member',
-                'post_status'  => 'draft',
-                'post_title'   => $request['title'],
-                'post_content' => wp_kses_post($request['content']),
-            ]);
+        // Create draft translation post (content will be filled by the queue worker).
+        $trans_id = wp_insert_post([
+            'post_type'   => 'team_member',
+            'post_status' => 'draft',
+            'post_title'  => $request['title'],
+        ]);
 
-            if (is_wp_error($trans_id) || !$trans_id) {
-                $errors[] = "{$lang}: Failed to create translation post.";
-                continue;
-            }
+        if (is_wp_error($trans_id) || !$trans_id) {
+            $errors[] = "{$lang}: Failed to create translation post.";
+            continue;
+        }
 
-            pll_set_post_language($trans_id, $lang);
+        pll_set_post_language($trans_id, $lang);
 
-            // Link all translations together.
-            $translations[$lang] = $trans_id;
-            pll_save_post_translations($translations);
+        // Link all translations together.
+        $translations[$lang] = $trans_id;
+        pll_save_post_translations($translations);
 
-            // Collect translatable strings.
-            $strings = ['post_title' => $request['title']];
-            if ($request['content']) {
-                $strings['post_content'] = $request['content'];
-            }
-            if ($request['member_title']) {
-                $strings['acf_member_title'] = $request['member_title'];
-            }
-            if ($request['member_role']) {
-                $strings['acf_member_role'] = $request['member_role'];
-            }
-
-            // Call OpenAI translation.
-            $target_name = CDCF_LOCALE_NAMES[$lang] ?? $lang;
-            $result = cdcf_openai_translate($strings, 'English', $target_name, $api_key);
-
-            if (is_wp_error($result)) {
-                $errors[] = "{$lang}: " . $result->get_error_message();
-                // Still publish with untranslated content.
-                wp_update_post(['ID' => $trans_id, 'post_status' => 'publish']);
-                // Copy non-translatable fields.
-                if ($request['member_linkedin_url']) {
-                    update_field('member_linkedin_url', $request['member_linkedin_url'], $trans_id);
-                }
-                if ($request['member_github_url']) {
-                    update_field('member_github_url', $request['member_github_url'], $trans_id);
-                }
-                if ($request['featured_image_id']) {
-                    set_post_thumbnail($trans_id, $request['featured_image_id']);
-                }
-                continue;
-            }
-
-            // Write translated core fields.
-            $update = ['ID' => $trans_id];
-            if (isset($result['post_title'])) {
-                $update['post_title'] = sanitize_text_field($result['post_title']);
-            }
-            if (isset($result['post_content'])) {
-                $update['post_content'] = wp_kses_post($result['post_content']);
-            }
-            $update['post_status'] = 'publish';
-            wp_update_post($update);
-
-            // Write translated ACF fields.
-            if (isset($result['acf_member_title'])) {
-                update_field('member_title', $result['acf_member_title'], $trans_id);
-            }
-            if (isset($result['acf_member_role'])) {
-                update_field('member_role', $result['acf_member_role'], $trans_id);
-            }
-
-            // Copy non-translatable fields (URLs).
-            if ($request['member_linkedin_url']) {
-                update_field('member_linkedin_url', $request['member_linkedin_url'], $trans_id);
-            }
-            if ($request['member_github_url']) {
-                update_field('member_github_url', $request['member_github_url'], $trans_id);
-            }
-
-            // Copy featured image.
-            if ($request['featured_image_id']) {
-                set_post_thumbnail($trans_id, $request['featured_image_id']);
-            }
-        } catch (Exception $e) {
-            $errors[] = "{$lang}: " . $e->getMessage();
+        // Enqueue background translation.
+        if (function_exists('cdcf_enqueue_translation')) {
+            $queue = cdcf_enqueue_translation($trans_id, $en_post_id, $lang);
+        } else {
+            wp_schedule_single_event(time(), 'cdcf_async_translate', [$trans_id, $en_post_id, $lang]);
+            spawn_cron();
+            $queue = 'wp-cron';
         }
     }
 
@@ -644,13 +577,14 @@ function cdcf_rest_create_team_member(WP_REST_Request $request) {
         $errors[] = 'No About page found with templates/about.php template.';
     }
 
-    return rest_ensure_response([
+    return new WP_REST_Response([
         'success'      => true,
         'en_post_id'   => $en_post_id,
         'translations' => $translations,
         'council'      => $council,
+        'queue'        => $queue,
         'errors'       => $errors,
-    ]);
+    ], 202);
 }
 
 // ─── REST endpoint for creating a community channel with translations ─
@@ -685,13 +619,6 @@ function cdcf_rest_create_community_channel(WP_REST_Request $request) {
         return new WP_Error('acf_missing', 'ACF is not active.', ['status' => 500]);
     }
 
-    $api_key = get_option('cdcf_openai_api_key');
-    if (!$api_key) {
-        return new WP_Error('no_api_key', 'OpenAI API key not configured.', ['status' => 500]);
-    }
-
-    set_time_limit(300);
-
     $errors = [];
 
     // ── 1. Create the English post ──
@@ -715,74 +642,38 @@ function cdcf_rest_create_community_channel(WP_REST_Request $request) {
         update_field('channel_icon', $request['channel_icon'], $en_post_id);
     }
 
-    // ── 2. Translate to other languages ──
+    // ── 2. Create translation drafts and enqueue background translations ──
 
     $target_langs = ['it', 'es', 'fr', 'pt', 'de'];
     $translations = ['en' => $en_post_id];
+    $queue = null;
 
     foreach ($target_langs as $lang) {
-        try {
-            // Create draft translation post.
-            $trans_id = wp_insert_post([
-                'post_type'   => 'community_channel',
-                'post_status' => 'draft',
-                'post_title'  => $request['title'],
-            ]);
+        // Create draft translation post (content will be filled by the queue worker).
+        $trans_id = wp_insert_post([
+            'post_type'   => 'community_channel',
+            'post_status' => 'draft',
+            'post_title'  => $request['title'],
+        ]);
 
-            if (is_wp_error($trans_id) || !$trans_id) {
-                $errors[] = "{$lang}: Failed to create translation post.";
-                continue;
-            }
+        if (is_wp_error($trans_id) || !$trans_id) {
+            $errors[] = "{$lang}: Failed to create translation post.";
+            continue;
+        }
 
-            pll_set_post_language($trans_id, $lang);
+        pll_set_post_language($trans_id, $lang);
 
-            // Link all translations together.
-            $translations[$lang] = $trans_id;
-            pll_save_post_translations($translations);
+        // Link all translations together.
+        $translations[$lang] = $trans_id;
+        pll_save_post_translations($translations);
 
-            // Collect translatable strings.
-            $strings = [
-                'post_title'            => $request['title'],
-                'acf_channel_description' => $request['channel_description'],
-            ];
-
-            // Call OpenAI translation.
-            $target_name = CDCF_LOCALE_NAMES[$lang] ?? $lang;
-            $result = cdcf_openai_translate($strings, 'English', $target_name, $api_key);
-
-            if (is_wp_error($result)) {
-                $errors[] = "{$lang}: " . $result->get_error_message();
-                // Still publish with untranslated content.
-                wp_update_post(['ID' => $trans_id, 'post_status' => 'publish']);
-                // Copy non-translatable fields.
-                update_field('channel_url', $request['channel_url'], $trans_id);
-                if ($request['channel_icon']) {
-                    update_field('channel_icon', $request['channel_icon'], $trans_id);
-                }
-                continue;
-            }
-
-            // Write translated core fields.
-            $update = ['ID' => $trans_id, 'post_status' => 'publish'];
-            if (isset($result['post_title'])) {
-                $update['post_title'] = sanitize_text_field($result['post_title']);
-            }
-            wp_update_post($update);
-
-            // Write translated ACF fields.
-            if (isset($result['acf_channel_description'])) {
-                update_field('channel_description', $result['acf_channel_description'], $trans_id);
-            } else {
-                update_field('channel_description', $request['channel_description'], $trans_id);
-            }
-
-            // Copy non-translatable fields.
-            update_field('channel_url', $request['channel_url'], $trans_id);
-            if ($request['channel_icon']) {
-                update_field('channel_icon', $request['channel_icon'], $trans_id);
-            }
-        } catch (Exception $e) {
-            $errors[] = "{$lang}: " . $e->getMessage();
+        // Enqueue background translation.
+        if (function_exists('cdcf_enqueue_translation')) {
+            $queue = cdcf_enqueue_translation($trans_id, $en_post_id, $lang);
+        } else {
+            wp_schedule_single_event(time(), 'cdcf_async_translate', [$trans_id, $en_post_id, $lang]);
+            spawn_cron();
+            $queue = 'wp-cron';
         }
     }
 
@@ -840,12 +731,13 @@ function cdcf_rest_create_community_channel(WP_REST_Request $request) {
         $errors[] = 'No Community page found with templates/community.php template.';
     }
 
-    return rest_ensure_response([
+    return new WP_REST_Response([
         'success'      => true,
         'en_post_id'   => $en_post_id,
         'translations' => $translations,
+        'queue'        => $queue,
         'errors'       => $errors,
-    ]);
+    ], 202);
 }
 
 // ─── REST endpoint for creating a local group with translations ──────
@@ -880,13 +772,6 @@ function cdcf_rest_create_local_group(WP_REST_Request $request) {
         return new WP_Error('acf_missing', 'ACF is not active.', ['status' => 500]);
     }
 
-    $api_key = get_option('cdcf_openai_api_key');
-    if (!$api_key) {
-        return new WP_Error('no_api_key', 'OpenAI API key not configured.', ['status' => 500]);
-    }
-
-    set_time_limit(300);
-
     $errors = [];
 
     // ── 1. Create the English post ──
@@ -910,82 +795,38 @@ function cdcf_rest_create_local_group(WP_REST_Request $request) {
         update_field('group_location', $request['group_location'], $en_post_id);
     }
 
-    // ── 2. Translate to other languages ──
+    // ── 2. Create translation drafts and enqueue background translations ──
 
     $target_langs = ['it', 'es', 'fr', 'pt', 'de'];
     $translations = ['en' => $en_post_id];
+    $queue = null;
 
     foreach ($target_langs as $lang) {
-        try {
-            // Create draft translation post.
-            $trans_id = wp_insert_post([
-                'post_type'   => 'local_group',
-                'post_status' => 'draft',
-                'post_title'  => $request['title'],
-            ]);
+        // Create draft translation post (content will be filled by the queue worker).
+        $trans_id = wp_insert_post([
+            'post_type'   => 'local_group',
+            'post_status' => 'draft',
+            'post_title'  => $request['title'],
+        ]);
 
-            if (is_wp_error($trans_id) || !$trans_id) {
-                $errors[] = "{$lang}: Failed to create translation post.";
-                continue;
-            }
+        if (is_wp_error($trans_id) || !$trans_id) {
+            $errors[] = "{$lang}: Failed to create translation post.";
+            continue;
+        }
 
-            pll_set_post_language($trans_id, $lang);
+        pll_set_post_language($trans_id, $lang);
 
-            // Link all translations together.
-            $translations[$lang] = $trans_id;
-            pll_save_post_translations($translations);
+        // Link all translations together.
+        $translations[$lang] = $trans_id;
+        pll_save_post_translations($translations);
 
-            // Collect translatable strings.
-            $strings = [
-                'post_title'           => $request['title'],
-                'acf_group_description' => $request['group_description'],
-            ];
-
-            if ($request['group_location']) {
-                $strings['acf_group_location'] = $request['group_location'];
-            }
-
-            // Call OpenAI translation.
-            $target_name = CDCF_LOCALE_NAMES[$lang] ?? $lang;
-            $result = cdcf_openai_translate($strings, 'English', $target_name, $api_key);
-
-            if (is_wp_error($result)) {
-                $errors[] = "{$lang}: " . $result->get_error_message();
-                // Still publish with untranslated content.
-                wp_update_post(['ID' => $trans_id, 'post_status' => 'publish']);
-                // Copy fields as-is.
-                update_field('group_url', $request['group_url'], $trans_id);
-                update_field('group_description', $request['group_description'], $trans_id);
-                if ($request['group_location']) {
-                    update_field('group_location', $request['group_location'], $trans_id);
-                }
-                continue;
-            }
-
-            // Write translated core fields.
-            $update = ['ID' => $trans_id, 'post_status' => 'publish'];
-            if (isset($result['post_title'])) {
-                $update['post_title'] = sanitize_text_field($result['post_title']);
-            }
-            wp_update_post($update);
-
-            // Write translated ACF fields.
-            if (isset($result['acf_group_description'])) {
-                update_field('group_description', $result['acf_group_description'], $trans_id);
-            } else {
-                update_field('group_description', $request['group_description'], $trans_id);
-            }
-
-            if (isset($result['acf_group_location'])) {
-                update_field('group_location', $result['acf_group_location'], $trans_id);
-            } elseif ($request['group_location']) {
-                update_field('group_location', $request['group_location'], $trans_id);
-            }
-
-            // Copy non-translatable fields.
-            update_field('group_url', $request['group_url'], $trans_id);
-        } catch (Exception $e) {
-            $errors[] = "{$lang}: " . $e->getMessage();
+        // Enqueue background translation.
+        if (function_exists('cdcf_enqueue_translation')) {
+            $queue = cdcf_enqueue_translation($trans_id, $en_post_id, $lang);
+        } else {
+            wp_schedule_single_event(time(), 'cdcf_async_translate', [$trans_id, $en_post_id, $lang]);
+            spawn_cron();
+            $queue = 'wp-cron';
         }
     }
 
@@ -1043,12 +884,13 @@ function cdcf_rest_create_local_group(WP_REST_Request $request) {
         $errors[] = 'No Community page found with templates/community.php template.';
     }
 
-    return rest_ensure_response([
+    return new WP_REST_Response([
         'success'      => true,
         'en_post_id'   => $en_post_id,
         'translations' => $translations,
+        'queue'        => $queue,
         'errors'       => $errors,
-    ]);
+    ], 202);
 }
 
 // ─── Public Referral Endpoint ────────────────────────────────────────
@@ -3042,6 +2884,13 @@ function cdcf_process_translation($post_id, $source_id, $target_lang) {
                 }
             }
         }
+    }
+
+    // Copy featured image, using the translated media ID for this language.
+    $source_thumbnail_id = get_post_thumbnail_id($source_id);
+    if ($source_thumbnail_id && !get_post_thumbnail_id($post_id)) {
+        $lang_image_id = function_exists('pll_get_post') ? pll_get_post($source_thumbnail_id, $target_lang) : 0;
+        set_post_thumbnail($post_id, $lang_image_id ?: $source_thumbnail_id);
     }
 
     // Auto-publish if source is published.
