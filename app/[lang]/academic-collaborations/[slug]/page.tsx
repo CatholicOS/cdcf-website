@@ -83,21 +83,21 @@ export default async function AcademicCollaborationPage({
 
   return (
     <article>
-      {/* Featured image hero */}
-      {image && (
-        <div className="relative h-64 w-full sm:h-80 lg:h-96">
-          <Image
-            src={image.sourceUrl}
-            alt={image.altText || collab.title}
-            fill
-            className="object-cover"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-        </div>
-      )}
-
       <div className="cdcf-section mx-auto max-w-3xl">
+        {/* University logo */}
+        {image && (
+          <div className="mt-8 flex justify-center">
+            <Image
+              src={image.sourceUrl}
+              alt={image.altText || collab.title}
+              width={image.mediaDetails?.width || 200}
+              height={image.mediaDetails?.height || 200}
+              className="max-h-28 w-auto object-contain"
+              priority
+            />
+          </div>
+        )}
+
         {/* Back link */}
         <Link
           href="/community#academic-collaborations"

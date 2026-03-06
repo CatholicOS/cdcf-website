@@ -40,13 +40,13 @@ export default function AcademicCollaborationsSection({
               className="cdcf-card group flex flex-col items-center text-center"
             >
               {collab.featuredImage?.node && (
-                <div className="mb-4 h-20 w-20 overflow-hidden rounded-full border-4 border-cdcf-gold/20">
+                <div className="mb-4 flex h-20 items-center">
                   <Image
                     src={collab.featuredImage.node.sourceUrl}
                     alt={collab.featuredImage.node.altText || collab.title}
-                    width={160}
-                    height={160}
-                    className="h-full w-full object-cover"
+                    width={collab.featuredImage.node.mediaDetails?.width || 160}
+                    height={collab.featuredImage.node.mediaDetails?.height || 160}
+                    className="max-h-20 w-auto object-contain"
                   />
                 </div>
               )}
