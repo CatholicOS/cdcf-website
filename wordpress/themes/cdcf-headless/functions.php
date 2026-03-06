@@ -178,7 +178,7 @@ add_action('init', function () {
     ]);
 
     // Academic Collaboration
-    register_post_type('academic_collaboration', [
+    register_post_type('acad_collab', [
         'labels' => [
             'name'          => __('Academic Collaborations', 'cdcf-headless'),
             'singular_name' => __('Academic Collaboration', 'cdcf-headless'),
@@ -977,7 +977,7 @@ function cdcf_rest_create_academic_collaboration(WP_REST_Request $request) {
     // ── 1. Create the English post ──
 
     $en_post_id = wp_insert_post([
-        'post_type'   => 'academic_collaboration',
+        'post_type'   => 'acad_collab',
         'post_status' => 'publish',
         'post_title'  => $request['title'],
     ]);
@@ -1006,7 +1006,7 @@ function cdcf_rest_create_academic_collaboration(WP_REST_Request $request) {
 
     foreach ($target_langs as $lang) {
         $trans_id = wp_insert_post([
-            'post_type'   => 'academic_collaboration',
+            'post_type'   => 'acad_collab',
             'post_status' => 'draft',
             'post_title'  => $request['title'],
         ]);
@@ -2184,7 +2184,7 @@ add_action('acf/init', function () {
             ],
         ],
         'location' => [
-            [['param' => 'post_type', 'operator' => '==', 'value' => 'academic_collaboration']],
+            [['param' => 'post_type', 'operator' => '==', 'value' => 'acad_collab']],
         ],
         'show_in_graphql' => true,
         'graphql_field_name' => 'collaborationFields',
@@ -2407,7 +2407,7 @@ add_action('acf/init', function () {
                 'label' => 'Academic Collaborations',
                 'name'  => 'academic_collaborations',
                 'type'  => 'relationship',
-                'post_type' => ['academic_collaboration'],
+                'post_type' => ['acad_collab'],
                 'return_format' => 'object',
                 'show_in_graphql' => true,
                 'show_in_rest' => true,
@@ -2530,7 +2530,7 @@ add_filter('pll_get_post_types', function ($post_types) {
     $post_types['community_channel'] = 'community_channel';
     $post_types['local_group']       = 'local_group';
     $post_types['stat_item']         = 'stat_item';
-    $post_types['academic_collaboration'] = 'academic_collaboration';
+    $post_types['acad_collab'] = 'acad_collab';
     return $post_types;
 }, 10, 2);
 
