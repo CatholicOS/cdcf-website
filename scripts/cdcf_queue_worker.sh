@@ -12,6 +12,7 @@
 #   POLL_INTERVAL     - Seconds between polling cycles (default: 15)
 #   MAX_TIME          - Max curl request timeout in seconds (default: 300)
 #   CONCURRENCY       - Number of parallel workers per cycle (default: 1)
+#   BATCH_SIZE        - Jobs per worker per cycle (default: 10, or 1 when CONCURRENCY > 1)
 #
 # ─── Deployment ───────────────────────────────────────────────────────
 #
@@ -62,6 +63,12 @@
 POLL_INTERVAL=${POLL_INTERVAL:-15}
 MAX_TIME=${MAX_TIME:-300}
 CONCURRENCY=${CONCURRENCY:-1}
+# Default batch_size: 10 for single worker, 1 for parallel workers.
+if [ "$CONCURRENCY" -gt 1 ]; then
+    BATCH_SIZE=${BATCH_SIZE:-1}
+else
+    BATCH_SIZE=${BATCH_SIZE:-10}
+fi
 
 if [ -z "$WP_REST_URL" ] || [ -z "$WP_APP_USERNAME" ] || [ -z "$WP_APP_PASSWORD" ]; then
     echo "ERROR: WP_REST_URL, WP_APP_USERNAME, and WP_APP_PASSWORD must be set."
@@ -76,6 +83,7 @@ echo "  Endpoint: ${ENDPOINT}"
 echo "  Poll interval: ${POLL_INTERVAL}s"
 echo "  Max request time: ${MAX_TIME}s"
 echo "  Concurrency: ${CONCURRENCY}"
+echo "  Batch size: ${BATCH_SIZE}"
 
 # Wait a bit after service start to let WordPress finish booting.
 sleep 10
@@ -87,7 +95,7 @@ process_one() {
         -X POST "${ENDPOINT}" \
         -H "Authorization: Basic ${AUTH}" \
         -H "Content-Type: application/json" \
-        -d '{}' 2>&1)
+        -d "{\"batch_size\":${BATCH_SIZE}}" 2>&1)
 
     local PROCESSED
     PROCESSED=$(echo "$RESPONSE" | python3 -c "
