@@ -90,13 +90,35 @@ sleep 10
 
 # process_one fires a single REST call and logs the result.
 process_one() {
-    local RESPONSE
-    RESPONSE=$(curl -s --max-time "${MAX_TIME}" \
+    local RESPONSE HTTP_CODE
+
+    # Capture HTTP status code separately from response body.
+    RESPONSE=$(curl -s -w "\n%{http_code}" --max-time "${MAX_TIME}" \
         -X POST "${ENDPOINT}" \
         -H "Authorization: Basic ${AUTH}" \
         -H "Content-Type: application/json" \
         -d "{\"batch_size\":${BATCH_SIZE}}" 2>&1)
 
+    # Split response body from HTTP status code (last line).
+    HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+    RESPONSE=$(echo "$RESPONSE" | sed '$d')
+
+    # Handle curl-level failures (empty response, connection refused, timeout).
+    if [ -z "$HTTP_CODE" ] || [ "$HTTP_CODE" = "000" ]; then
+        echo "$(date -Iseconds) WARNING: request failed (connection error or timeout)"
+        return
+    fi
+
+    # Handle non-200 HTTP responses with a concise single-line message.
+    if [ "$HTTP_CODE" != "200" ]; then
+        # Strip HTML tags for cleaner log output.
+        local PLAIN
+        PLAIN=$(echo "$RESPONSE" | sed 's/<[^>]*>//g' | tr -s '[:space:]' ' ' | head -c 200)
+        echo "$(date -Iseconds) WARNING: HTTP ${HTTP_CODE}: ${PLAIN}"
+        return
+    fi
+
+    # Parse JSON response.
     local PROCESSED
     PROCESSED=$(echo "$RESPONSE" | python3 -c "
 import json, sys
@@ -112,7 +134,7 @@ except:
 " 2>/dev/null)
 
     if [ "$PROCESSED" = "error" ]; then
-        echo "$(date -Iseconds) WARNING: unexpected response: ${RESPONSE:0:200}"
+        echo "$(date -Iseconds) WARNING: invalid JSON response: ${RESPONSE:0:200}"
     elif [ "$PROCESSED" != "0" ] && [ -n "$PROCESSED" ]; then
         echo "$(date -Iseconds) Processed ${PROCESSED} job(s)"
     fi
