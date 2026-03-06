@@ -6,6 +6,35 @@
  * CORS for GraphQL, and preview URL hooks.
  */
 
+// ─── OPcache Invalidation Endpoint ──────────────────────────────────
+//
+// POST /wp-json/cdcf/v1/flush-opcache (Application Password auth)
+// Invalidates OPcache for this file so new CPT registrations take effect
+// after deploy without waiting for the OPcache TTL.
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/flush-opcache', [
+        'methods'             => 'POST',
+        'callback'            => function () {
+            $flushed = [];
+            if (function_exists('opcache_invalidate')) {
+                opcache_invalidate(__FILE__, true);
+                $flushed[] = 'functions.php';
+            }
+            if (function_exists('opcache_reset')) {
+                opcache_reset();
+                $flushed[] = 'full-reset';
+            }
+            flush_rewrite_rules();
+            $flushed[] = 'rewrite-rules';
+            return rest_ensure_response(['flushed' => $flushed]);
+        },
+        'permission_callback' => function () {
+            return current_user_can('manage_options');
+        },
+    ]);
+});
+
 // ─── SVG Upload Support ─────────────────────────────────────────────
 
 add_filter('upload_mimes', function (array $mimes): array {
