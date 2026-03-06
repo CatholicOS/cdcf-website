@@ -40,7 +40,7 @@ export default async function CatchAllPage({ params }: PageProps) {
     template === 'Blog' || template === 'Home'
       ? getPosts(lang, page.blogFields?.maxPosts || 6)
       : Promise.resolve([]),
-    template === 'Projects' || template === 'Home'
+    template === 'Projects'
       ? getProjects(lang)
       : Promise.resolve([]),
     template === 'Home'

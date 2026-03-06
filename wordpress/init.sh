@@ -56,12 +56,10 @@ wp plugin install wp-graphql --activate --allow-root
 wp plugin install advanced-custom-fields --activate --allow-root
 wp plugin install polylang --activate --allow-root
 
+# WPGraphQL for ACF (now distributed via WordPress.org since monorepo migration)
+wp plugin install wpgraphql-acf --activate --allow-root
+
 # GitHub-hosted plugins
-echo "Installing WPGraphQL for ACF..."
-wp plugin install \
-  "https://github.com/wp-graphql/wpgraphql-acf/releases/latest/download/wpgraphql-acf.zip" \
-  --activate --allow-root 2>&1 \
-  || echo "  NOTE: WPGraphQL for ACF auto-install failed — install manually from GitHub releases."
 
 echo "Installing WPGraphQL Polylang..."
 wp plugin install \

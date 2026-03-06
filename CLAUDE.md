@@ -117,10 +117,46 @@ Creates an English `local_group` post, translates it to all 5 languages via Open
 4. Add mapping in `lib/wordpress/api.ts` → `LOCALE_MAP`
 5. Add language in WordPress Polylang settings
 
+## Python API Client (`scripts/cdcf_api.py`)
+
+A Python client library and CLI that wraps all `cdcf/v1` REST endpoints and WPGraphQL queries. It reads credentials from `.env.local` and `.env` internally so secrets are never exposed.
+
+**IMPORTANT: NEVER read, cat, or access `.env.local` directly.** This file contains secrets (API keys, passwords). Always use the Python client instead, which loads credentials internally.
+
+### Setup
+
+```bash
+uv venv scripts/.venv
+uv pip install -r scripts/requirements.txt --python scripts/.venv/bin/python
+```
+
+### CLI Usage
+
+```bash
+# REST API calls
+scripts/.venv/bin/python scripts/cdcf_api.py get-relationship --post-id 5 --field team_members
+scripts/.venv/bin/python scripts/cdcf_api.py create-team-member --title "Name" --content "<p>Bio</p>" --council technical_council
+scripts/.venv/bin/python scripts/cdcf_api.py translate-post --source-id 255 --target-lang it
+
+# GraphQL queries
+scripts/.venv/bin/python scripts/cdcf_api.py get-translation-ids --post-id 5
+scripts/.venv/bin/python scripts/cdcf_api.py get-post-language --post-id 12 --post-type project
+scripts/.venv/bin/python scripts/cdcf_api.py graphql --query '{ pages(first: 5) { nodes { databaseId title } } }'
+
+# Cache revalidation
+scripts/.venv/bin/python scripts/cdcf_api.py revalidate --path /about
+```
+
+See `scripts/README.md` for full documentation of all commands and library usage.
+
 ## Environment Variables
+
+**NEVER read `.env.local` directly — it contains secrets.** Use the Python API client (`scripts/cdcf_api.py`) to interact with the CMS, which loads credentials internally.
 
 Required in `.env.local` (Next.js) or `.env` (Docker Compose):
 - `WP_GRAPHQL_URL` — GraphQL endpoint (e.g. `http://wordpress/graphql`)
+- `WP_REST_URL` — WordPress REST base URL (used by the Python client)
+- `WP_APP_USERNAME`, `WP_APP_PASSWORD` — WordPress Application Password (used by the Python client)
 - `WP_PREVIEW_SECRET` — Shared secret for preview + revalidation
 - `WP_DB_ROOT_PASSWORD`, `WP_DB_NAME`, `WP_DB_USER`, `WP_DB_PASSWORD` — Database config
 - Docker Compose reads `.env` not `.env.local` for variable substitution
