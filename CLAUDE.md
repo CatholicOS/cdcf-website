@@ -84,6 +84,7 @@ All endpoints require Application Password authentication (`edit_posts` capabili
 | `POST` | `/team-member` | Create a team member with auto-translation and About page linking (see below) |
 | `POST` | `/community-channel` | Create a community channel with auto-translation and Community page linking (see below) |
 | `POST` | `/local-group` | Create a local group with auto-translation and Community page linking (see below) |
+| `POST` | `/academic-collaboration` | Create an academic collaboration with auto-translation and Community page linking (see below) |
 
 ### `POST /team-member`
 
@@ -106,6 +107,14 @@ Creates an English `community_channel` post, translates it to all 5 languages vi
 Creates an English `local_group` post, translates it to all 5 languages via OpenAI, and appends each translation to the matching language version of the Community page's `local_groups` relationship field.
 
 **Parameters:** `title` (required), `group_description` (required), `group_url` (required), `group_location` (optional — city/region name)
+
+**Returns:** `{ success, en_post_id, translations: { en, it, es, fr, pt, de }, errors[] }`
+
+### `POST /academic-collaboration`
+
+Creates an English `academic_collaboration` post, translates it to all 5 languages via OpenAI, and appends each translation to the matching language version of the Community page's `academic_collaborations` relationship field.
+
+**Parameters:** `title` (required), `collab_description` (required), `collab_university` (required), `collab_department` (optional), `collab_website_url` (optional)
 
 **Returns:** `{ success, en_post_id, translations: { en, it, es, fr, pt, de }, errors[] }`
 
@@ -136,6 +145,7 @@ uv pip install -r scripts/requirements.txt --python scripts/.venv/bin/python
 # REST API calls
 scripts/.venv/bin/python scripts/cdcf_api.py get-relationship --post-id 5 --field team_members
 scripts/.venv/bin/python scripts/cdcf_api.py create-team-member --title "Name" --content "<p>Bio</p>" --council technical_council
+scripts/.venv/bin/python scripts/cdcf_api.py create-academic-collaboration --title "University Name" --collab-description "Description" --collab-university "University"
 scripts/.venv/bin/python scripts/cdcf_api.py translate-post --source-id 255 --target-lang it
 
 # GraphQL queries

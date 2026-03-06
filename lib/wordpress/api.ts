@@ -1,5 +1,6 @@
 import { wpQuery } from './client'
 import {
+  GET_ACADEMIC_COLLABORATION_BY_SLUG,
   GET_ALL_PAGES,
   GET_PAGE_BY_SLUG,
   GET_POST_BY_SLUG,
@@ -8,7 +9,7 @@ import {
   GET_PROJECT_BY_SLUG,
   GET_SPONSORS,
 } from './queries'
-import type { WPPage, WPPost, WPProject, WPSponsor } from './types'
+import type { WPAcademicCollaboration, WPPage, WPPost, WPProject, WPSponsor } from './types'
 
 interface FetchOptions {
   tags?: string[]
@@ -128,6 +129,22 @@ export async function getProject(
     return data.project?.translation ?? null
   } catch (error) {
     console.error('Failed to fetch project:', error)
+    return null
+  }
+}
+
+export async function getAcademicCollaboration(
+  slug: string,
+  locale: string
+): Promise<WPAcademicCollaboration | null> {
+  try {
+    const data = await wpQuery<{
+      academicCollaboration: { translation: WPAcademicCollaboration | null } | null
+    }>(GET_ACADEMIC_COLLABORATION_BY_SLUG, { slug, language: langCode(locale) })
+
+    return data.academicCollaboration?.translation ?? null
+  } catch (error) {
+    console.error('Failed to fetch academic collaboration:', error)
     return null
   }
 }

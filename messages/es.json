@@ -14,7 +14,8 @@
     "manifesto": "Manifiesto",
     "logoSymbolism": "Simbología del logo",
     "onlineCommunities": "Comunidades en línea",
-    "localGroups": "Grupos locales"
+    "localGroups": "Grupos locales",
+    "academicCollaborations": "Academic Collaborations"
   },
   "footer": {
     "about": {
@@ -126,6 +127,8 @@
     "onlineIntro": "Únete a nuestras comunidades en línea para conectar con desarrolladores y colaboradores católicos.",
     "localGroupsHeading": "Grupos locales",
     "localGroupsIntro": "Encuentra un grupo local cerca de ti o crea el tuyo para construir comunidad en persona.",
+    "academicCollaborationsHeading": "Academic Collaborations",
+    "academicCollaborationsIntro": "Catholic universities and computer science departments collaborating with the CDCF.",
     "referButton": "Recomendar un grupo local",
     "referTitle": "Recomendar un grupo local",
     "referDescription": "¿Conoces un grupo tech católico que debería aparecer aquí? Cuéntanos y lo revisaremos.",
@@ -161,6 +164,12 @@
     "invalidCode": "Código inválido. Verifica e intenta de nuevo.",
     "codeExpired": "El código ha expirado. Solicita uno nuevo.",
     "tooManyAttempts": "Demasiados intentos incorrectos. Solicita un nuevo código."
+  },
+  "academicCollaborations": {
+    "backToCommunity": "Back to Community",
+    "website": "Website",
+    "governanceContacts": "Governance Contacts",
+    "relatedProjects": "Related Projects"
   },
   "blog": {
     "backToBlog": "Back to Blog",

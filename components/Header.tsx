@@ -53,6 +53,7 @@ export default function Header() {
       children: [
         { href: '/community#online-communities', label: t('onlineCommunities') },
         { href: '/community#local-groups', label: t('localGroups') },
+        { href: '/community#academic-collaborations', label: t('academicCollaborations') },
       ],
     },
     { href: '/blog', label: t('news') },

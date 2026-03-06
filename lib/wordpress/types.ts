@@ -99,6 +99,21 @@ export interface WPLocalGroup {
   }
 }
 
+export interface WPAcademicCollaboration {
+  title: string
+  slug: string
+  content: string | null
+  featuredImage: WPFeaturedImage | null
+  collaborationFields: {
+    collabUniversity: string | null
+    collabDepartment: string | null
+    collabDescription: string | null
+    collabWebsiteUrl: string | null
+    collabProjects: { nodes: WPProject[] } | null
+    collabGovernance: { nodes: WPTeamMember[] } | null
+  }
+}
+
 // ─── Page types ──────────────────────────────────────────────────────
 
 export interface WPPost {
@@ -143,6 +158,7 @@ export interface WPPage {
   communityFields: {
     channels: { nodes: WPCommunityChannel[] } | null
     localGroups: { nodes: WPLocalGroup[] } | null
+    academicCollaborations: { nodes: WPAcademicCollaboration[] } | null
     members: { nodes: WPTeamMember[] } | null
   } | null
   blogFields: {

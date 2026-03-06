@@ -196,6 +196,20 @@ class CdcfClient:
         }
         return self._wp_post("cdcf/v1/local-group", data)
 
+    # -- Academic Collaboration --
+
+    def create_academic_collaboration(self, title: str, collab_description: str,
+                                       collab_university: str, **kwargs) -> dict:
+        """POST /cdcf/v1/academic-collaboration
+
+        Optional kwargs: collab_department, collab_website_url
+        """
+        data = {
+            "title": title, "collab_description": collab_description,
+            "collab_university": collab_university, **kwargs,
+        }
+        return self._wp_post("cdcf/v1/academic-collaboration", data)
+
     # -- Refer Local Group (public) --
 
     def refer_local_group(self, group_name: str, description: str, url: str,
@@ -334,6 +348,14 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--group-url", required=True)
     p.add_argument("--group-location")
 
+    # create-academic-collaboration
+    p = sub.add_parser("create-academic-collaboration", help="Create academic collaboration with auto-translation")
+    p.add_argument("--title", required=True)
+    p.add_argument("--collab-description", required=True)
+    p.add_argument("--collab-university", required=True)
+    p.add_argument("--collab-department")
+    p.add_argument("--collab-website-url")
+
     # refer-local-group
     p = sub.add_parser("refer-local-group", help="Submit a local group referral")
     p.add_argument("--group-name", required=True)
@@ -446,6 +468,15 @@ def _run_cli(args: argparse.Namespace, client: CdcfClient) -> dict:
             kwargs["group_location"] = args.group_location
         return client.create_local_group(
             args.title, args.group_description, args.group_url, **kwargs)
+
+    if cmd == "create-academic-collaboration":
+        kwargs = {}
+        if args.collab_department:
+            kwargs["collab_department"] = args.collab_department
+        if args.collab_website_url:
+            kwargs["collab_website_url"] = args.collab_website_url
+        return client.create_academic_collaboration(
+            args.title, args.collab_description, args.collab_university, **kwargs)
 
     if cmd == "refer-local-group":
         kwargs = {}

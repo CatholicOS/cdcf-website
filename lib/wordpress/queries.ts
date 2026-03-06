@@ -102,6 +102,52 @@ const LOCAL_GROUP_FIELDS = `
   }
 `
 
+const ACADEMIC_COLLABORATION_CARD_FIELDS = `
+  title
+  slug
+  featuredImage {
+    node {
+      ${IMAGE_FRAGMENT}
+    }
+  }
+  collaborationFields {
+    collabUniversity
+    collabDepartment
+    collabDescription
+  }
+`
+
+const ACADEMIC_COLLABORATION_FIELDS = `
+  title
+  slug
+  content
+  featuredImage {
+    node {
+      ${IMAGE_FRAGMENT}
+    }
+  }
+  collaborationFields {
+    collabUniversity
+    collabDepartment
+    collabDescription
+    collabWebsiteUrl
+    collabProjects {
+      nodes {
+        ... on Project {
+          ${PROJECT_FIELDS}
+        }
+      }
+    }
+    collabGovernance {
+      nodes {
+        ... on TeamMember {
+          ${TEAM_MEMBER_FIELDS}
+        }
+      }
+    }
+  }
+`
+
 const SPONSOR_FIELDS = `
   title
   featuredImage {
@@ -175,6 +221,13 @@ export const GET_PAGE_BY_SLUG = `
             nodes {
               ... on LocalGroup {
                 ${LOCAL_GROUP_FIELDS}
+              }
+            }
+          }
+          academicCollaborations {
+            nodes {
+              ... on AcademicCollaboration {
+                ${ACADEMIC_COLLABORATION_CARD_FIELDS}
               }
             }
           }
@@ -291,6 +344,18 @@ export const GET_POST_BY_SLUG = `
             name
           }
         }
+      }
+    }
+  }
+`
+
+// ─── Academic Collaboration detail query ────────────────────────────
+
+export const GET_ACADEMIC_COLLABORATION_BY_SLUG = `
+  query GetAcademicCollaboration($slug: ID!, $language: LanguageCodeEnum!) {
+    academicCollaboration(id: $slug, idType: SLUG) {
+      translation(language: $language) {
+        ${ACADEMIC_COLLABORATION_FIELDS}
       }
     }
   }

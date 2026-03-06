@@ -8,6 +8,7 @@ import BlogFeed from './BlogFeed'
 import SponsorGrid from './SponsorGrid'
 import CommunitySection from './CommunitySection'
 import LocalGroupsSection from './LocalGroupsSection'
+import AcademicCollaborationsSection from './AcademicCollaborationsSection'
 import GovernanceSection from './GovernanceSection'
 import CallToAction from './CallToAction'
 import TextSection from './TextSection'
@@ -138,6 +139,15 @@ function renderCommunity(page: WPPage, t: (key: string) => string) {
           heading={t('localGroupsHeading')}
           intro={t('localGroupsIntro')}
           referButtonLabel={t('referButton')}
+        />
+      )}
+
+      {community?.academicCollaborations?.nodes && community.academicCollaborations.nodes.length > 0 && (
+        <AcademicCollaborationsSection
+          id="academic-collaborations"
+          collaborations={community.academicCollaborations.nodes}
+          heading={t('academicCollaborationsHeading')}
+          intro={t('academicCollaborationsIntro')}
         />
       )}
 
