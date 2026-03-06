@@ -84,15 +84,6 @@ const PROJECT_FIELDS = `
   projectRepoUrls
 `
 
-const STAT_ITEM_FIELDS = `
-  title
-  statFields {
-    statIcon
-    statNumber
-    statLabel
-  }
-`
-
 const CHANNEL_FIELDS = `
   title
   channelFields {
@@ -144,23 +135,6 @@ export const GET_PAGE_BY_SLUG = `
         }
         ${HERO_FRAGMENT}
         ${CTA_FRAGMENT}
-        homeFields {
-          featuredProjects {
-            nodes {
-              ... on Project {
-                ${PROJECT_FIELDS}
-              }
-            }
-          }
-          stats {
-            nodes {
-              ... on StatItem {
-                ${STAT_ITEM_FIELDS}
-              }
-            }
-          }
-          statsBgColor
-        }
         aboutFields {
           teamMembers {
             nodes {
@@ -336,14 +310,3 @@ export const GET_ALL_PAGES = `
   }
 `
 
-// ─── Stat Items query ────────────────────────────────────────────────
-
-export const GET_STAT_ITEMS = `
-  query GetStatItems($language: LanguageCodeFilterEnum) {
-    statItems(where: { language: $language }, first: 20) {
-      nodes {
-        ${STAT_ITEM_FIELDS}
-      }
-    }
-  }
-`

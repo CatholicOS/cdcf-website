@@ -1,30 +1,32 @@
-import clsx from 'clsx'
-import type { WPStatItem } from '@/lib/wordpress/types'
+import { getTranslations } from 'next-intl/server'
+import type { SiteStats } from '@/lib/stats'
 
 interface StatsBarProps {
-  stats: WPStatItem[]
-  bgColor?: string
+  stats: SiteStats
 }
 
-export default function StatsBar({ stats, bgColor = 'navy' }: StatsBarProps) {
+export default async function StatsBar({ stats }: StatsBarProps) {
+  const t = await getTranslations('stats')
+
+  const items = [
+    { icon: '🚀', value: stats.projects, label: t('openSourceProjects') },
+    ...(stats.contributors !== null
+      ? [{ icon: '👥', value: stats.contributors, label: t('contributors') }]
+      : []),
+    { icon: '🌍', value: stats.languages, label: t('languages') },
+  ]
+
   return (
-    <section
-      className={clsx(
-        'py-16 sm:py-20',
-        (!bgColor || bgColor === 'navy') && 'bg-cdcf-navy'
-      )}
-    >
+    <section className="bg-cdcf-navy py-16 sm:py-20">
       <div className="cdcf-section grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-4">
-        {stats.map((stat, i) => (
+        {items.map((item, i) => (
           <div key={i} className="flex flex-col items-center">
-            {stat.statFields.statIcon && (
-              <span className="mb-2 text-3xl">{stat.statFields.statIcon}</span>
-            )}
+            <span className="mb-2 text-3xl">{item.icon}</span>
             <span className="text-4xl font-bold text-cdcf-gold sm:text-5xl">
-              {stat.statFields.statNumber}
+              {item.value}+
             </span>
             <span className="mt-2 text-sm font-medium uppercase tracking-wider text-gray-300">
-              {stat.statFields.statLabel}
+              {item.label}
             </span>
           </div>
         ))}

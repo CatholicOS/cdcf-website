@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server'
 import type { WPPage, WPPost, WPProject, WPSponsor } from '@/lib/wordpress/types'
+import { getStats } from '@/lib/stats'
 import HeroBanner from './HeroBanner'
 import StatsBar from './StatsBar'
 import ProjectGrid from './ProjectGrid'
@@ -41,7 +42,7 @@ export default async function PageRenderer({
           page.hero.heroSecondaryBtnLabel) && <HeroBanner hero={page.hero} />}
 
       {/* Template-specific sections */}
-      {template === 'Home' && renderHome(page, projects, sponsors)}
+      {template === 'Home' && (await renderHome(page, sponsors))}
       {template === 'About' && renderAbout(page, t)}
       {template === 'Projects' && renderProjects(page, projects, await getTranslations('projects'))}
       {template === 'Community' && renderCommunity(page, await getTranslations('community'))}
@@ -55,24 +56,11 @@ export default async function PageRenderer({
   )
 }
 
-function renderHome(page: WPPage, projects: WPProject[], sponsors: WPSponsor[]) {
-  const home = page.homeFields
+async function renderHome(_page: WPPage, sponsors: WPSponsor[]) {
+  const stats = await getStats()
   return (
     <>
-      {home?.stats?.nodes && home.stats.nodes.length > 0 && (
-        <StatsBar
-          stats={home.stats.nodes}
-          bgColor={home.statsBgColor?.[0] || 'navy'}
-        />
-      )}
-
-      {home?.featuredProjects?.nodes && home.featuredProjects.nodes.length > 0 && (
-        <ProjectGrid projects={home.featuredProjects.nodes} />
-      )}
-
-      {projects.length === 0 && sponsors.length > 0 && (
-        <SponsorGrid sponsors={sponsors} />
-      )}
+      <StatsBar stats={stats} />
 
       {sponsors.length > 0 && (
         <SponsorGrid sponsors={sponsors} />

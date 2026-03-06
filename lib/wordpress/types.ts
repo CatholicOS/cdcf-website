@@ -99,15 +99,6 @@ export interface WPLocalGroup {
   }
 }
 
-export interface WPStatItem {
-  title: string
-  statFields: {
-    statIcon: string | null
-    statNumber: string | null
-    statLabel: string | null
-  }
-}
-
 // ─── Page types ──────────────────────────────────────────────────────
 
 export interface WPPost {
@@ -139,11 +130,6 @@ export interface WPPage {
   }
   hero: HeroFields | null
   cta: CTAFields | null
-  homeFields: {
-    featuredProjects: { nodes: WPProject[] } | null
-    stats: { nodes: WPStatItem[] } | null
-    statsBgColor: string[] | null
-  } | null
   aboutFields: {
     teamMembers: { nodes: WPTeamMember[] } | null
     ecclesialCouncil: { nodes: WPTeamMember[] } | null

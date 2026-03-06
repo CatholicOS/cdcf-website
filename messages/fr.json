@@ -181,5 +181,10 @@
     "correct": "Correct ! Le nombre est {count}.",
     "discoverWhy": "Découvrez pourquoi ce nombre est significatif",
     "dialogTitle": "Le symbolisme du 24"
+  },
+  "stats": {
+    "openSourceProjects": "Projets Open Source",
+    "contributors": "Contributeurs",
+    "languages": "Langues"
   }
 }
