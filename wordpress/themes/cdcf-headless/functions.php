@@ -1507,6 +1507,7 @@ add_action('rest_api_init', function () {
             'category'          => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
             'project_url'       => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => ''],
             'github_url'        => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => ''],
+            'tags'              => ['required' => false, 'type' => 'array',  'default' => []],
             'submitter_name'    => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
             'submitter_email'   => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
             'verification_code' => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
@@ -1523,6 +1524,7 @@ add_action('rest_api_init', function () {
             'category'        => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
             'project_url'     => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => ''],
             'github_url'      => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => ''],
+            'tags'            => ['required' => false, 'type' => 'array',  'default' => []],
             'submitter_name'  => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
             'submitter_email' => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
             'honeypot'        => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
@@ -1620,6 +1622,12 @@ function cdcf_rest_refer_community_project(WP_REST_Request $request) {
         }
     }
 
+    // Assign project tags.
+    $tags = array_filter(array_map('sanitize_text_field', (array) $request['tags']));
+    if (!empty($tags)) {
+        wp_set_object_terms($post_id, $tags, 'project_tag');
+    }
+
     // Store submitter info as private post meta.
     update_post_meta($post_id, '_referral_submitter_name', $request['submitter_name']);
     update_post_meta($post_id, '_referral_submitter_email', $request['submitter_email']);
@@ -1673,6 +1681,7 @@ add_action('rest_api_init', function () {
             'description'       => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
             'url'               => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => ''],
             'repo_urls'         => ['required' => false, 'type' => 'array',  'default' => []],
+            'tags'              => ['required' => false, 'type' => 'array',  'default' => []],
             'submitter_name'    => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
             'submitter_email'   => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
             'verification_code' => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
@@ -1689,6 +1698,7 @@ add_action('rest_api_init', function () {
             'description'     => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
             'url'             => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => ''],
             'repo_urls'       => ['required' => false, 'type' => 'array',  'default' => []],
+            'tags'            => ['required' => false, 'type' => 'array',  'default' => []],
             'submitter_name'  => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
             'submitter_email' => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
             'honeypot'        => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
@@ -1865,6 +1875,12 @@ function cdcf_rest_submit_project(WP_REST_Request $request) {
     // Store all repo URLs as private meta (JSON-encoded array) for the meta box.
     if (!empty($repo_urls)) {
         update_post_meta($post_id, '_submission_repo_urls', wp_json_encode($repo_urls));
+    }
+
+    // Assign project tags.
+    $tags = array_filter(array_map('sanitize_text_field', (array) $request['tags']));
+    if (!empty($tags)) {
+        wp_set_object_terms($post_id, $tags, 'project_tag');
     }
 
     // Store submitter info as private post meta.

@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  let body: Record<string, string>
+  let body: Record<string, unknown>
   try {
     body = await request.json()
   } catch {
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Validate required fields
-  const { project_name, description, submitter_name, submitter_email, verification_code } = body
+  const { project_name, description, submitter_name, submitter_email, verification_code } = body as Record<string, string>
   if (!project_name || !description || !submitter_name || !submitter_email || !verification_code) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
   }
@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
         description: body.description,
         project_url: body.project_url || '',
         github_url: body.github_url || '',
+        tags: Array.isArray(body.tags) ? body.tags : [],
         submitter_name: body.submitter_name,
         submitter_email: body.submitter_email,
         verification_code: body.verification_code || '',

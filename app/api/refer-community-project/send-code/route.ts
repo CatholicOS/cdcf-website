@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  let body: Record<string, string>
+  let body: Record<string, unknown>
   try {
     body = await request.json()
   } catch {
@@ -65,14 +65,15 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        project_name: body.project_name || '',
-        category: body.category || '',
-        description: body.description || '',
-        project_url: body.project_url || '',
-        github_url: body.github_url || '',
-        submitter_name: body.submitter_name || '',
-        submitter_email: body.submitter_email,
-        honeypot: body.website || '',
+        project_name: (body.project_name as string) || '',
+        category: (body.category as string) || '',
+        description: (body.description as string) || '',
+        project_url: (body.project_url as string) || '',
+        github_url: (body.github_url as string) || '',
+        tags: Array.isArray(body.tags) ? body.tags : [],
+        submitter_name: (body.submitter_name as string) || '',
+        submitter_email: body.submitter_email as string,
+        honeypot: (body.website as string) || '',
         elapsed_ms: body.elapsed_ms || 0,
       }),
     })

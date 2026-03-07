@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
         description: (body.description as string) || '',
         url: (body.url as string) || '',
         repo_urls: Array.isArray(body.repo_urls) ? body.repo_urls : [],
+        tags: Array.isArray(body.tags) ? body.tags : [],
         submitter_name: (body.submitter_name as string) || '',
         submitter_email: body.submitter_email as string,
         honeypot: (body.website as string) || '',

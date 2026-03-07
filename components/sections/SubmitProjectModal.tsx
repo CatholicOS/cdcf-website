@@ -13,22 +13,27 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
   const t = useTranslations('projects')
   const dialogRef = useRef<HTMLDialogElement>(null)
   const openedAtRef = useRef<number>(0)
-  const formDataRef = useRef<{ fields: Record<string, string>; repoUrls: string[] }>({
+  const formDataRef = useRef<{ fields: Record<string, string>; repoUrls: string[]; tags: string[] }>({
     fields: {},
     repoUrls: [''],
+    tags: [],
   })
   const [status, setStatus] = useState<Status>('idle')
   const [verificationCode, setVerificationCode] = useState('')
   const [codeError, setCodeError] = useState('')
   const [repoUrls, setRepoUrls] = useState<string[]>([''])
+  const [tags, setTags] = useState<string[]>([])
+  const [tagInput, setTagInput] = useState('')
 
   const openDialog = useCallback(() => {
     setStatus('idle')
     setVerificationCode('')
     setCodeError('')
     setRepoUrls([''])
+    setTags([])
+    setTagInput('')
     openedAtRef.current = Date.now()
-    formDataRef.current = { fields: {}, repoUrls: [''] }
+    formDataRef.current = { fields: {}, repoUrls: [''], tags: [] }
     dialogRef.current?.showModal()
   }, [])
 
@@ -67,7 +72,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
 
     const filteredRepoUrls = repoUrls.filter((u) => u.trim() !== '')
 
-    formDataRef.current = { fields, repoUrls: filteredRepoUrls }
+    formDataRef.current = { fields, repoUrls: filteredRepoUrls, tags }
 
     try {
       const res = await fetch('/api/submit-project/send-code', {
@@ -76,6 +81,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
         body: JSON.stringify({
           ...fields,
           repo_urls: filteredRepoUrls,
+          tags,
           elapsed_ms: Date.now() - openedAtRef.current,
         }),
       })
@@ -102,6 +108,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
         body: JSON.stringify({
           ...formDataRef.current.fields,
           repo_urls: formDataRef.current.repoUrls,
+          tags: formDataRef.current.tags,
           verification_code: verificationCode,
           elapsed_ms: Date.now() - openedAtRef.current,
         }),
@@ -141,6 +148,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
         body: JSON.stringify({
           ...formDataRef.current.fields,
           repo_urls: formDataRef.current.repoUrls,
+          tags: formDataRef.current.tags,
           elapsed_ms: Date.now() - openedAtRef.current,
         }),
       })
@@ -330,6 +338,50 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
                       <option key={cat} value={cat} />
                     ))}
                   </datalist>
+                </div>
+
+                <div>
+                  <label htmlFor="tags" className="block text-sm font-medium text-gray-700">
+                    {t('fieldTags')}
+                  </label>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 rounded-md border border-gray-300 px-2 py-1.5 focus-within:border-cdcf-gold focus-within:ring-1 focus-within:ring-cdcf-gold">
+                    {tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => setTags((prev) => prev.filter((t) => t !== tag))}
+                          className="ml-0.5 text-gray-400 hover:text-gray-600"
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      type="text"
+                      id="tags"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+                          e.preventDefault()
+                          const newTag = tagInput.trim().replace(/,+$/, '')
+                          if (newTag && !tags.includes(newTag)) {
+                            setTags((prev) => [...prev, newTag])
+                          }
+                          setTagInput('')
+                        } else if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+                          setTags((prev) => prev.slice(0, -1))
+                        }
+                      }}
+                      placeholder={tags.length === 0 ? t('fieldTagsPlaceholder') : ''}
+                      className="min-w-[120px] flex-1 border-0 bg-transparent px-1 py-0.5 text-sm focus:ring-0 focus:outline-none"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">{t('fieldTagsHint')}</p>
                 </div>
 
                 <div>

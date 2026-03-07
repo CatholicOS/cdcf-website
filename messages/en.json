@@ -127,6 +127,9 @@
     "communityProjectsIntro": "Interesting Catholic software projects from the wider community.",
     "viewWebsite": "Website",
     "viewGitHub": "GitHub",
+    "fieldTags": "Tags",
+    "fieldTagsPlaceholder": "e.g. liturgy, prayer, API",
+    "fieldTagsHint": "Press Enter or comma to add a tag.",
     "referButton": "Refer a Community Project",
     "tags": "Tags"
   },
@@ -176,6 +179,9 @@
   "communityProjects": {
     "referTitle": "Refer a Community Project",
     "referDescription": "Know a Catholic software project that should be showcased here? Let us know and we'll review it.",
+    "fieldTags": "Tags",
+    "fieldTagsPlaceholder": "e.g. liturgy, prayer, API",
+    "fieldTagsHint": "Press Enter or comma to add a tag.",
     "fieldProjectName": "Project Name",
     "fieldProjectNamePlaceholder": "e.g. Catholic Lectionary App",
     "fieldCategory": "Category",

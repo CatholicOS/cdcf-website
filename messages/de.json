@@ -127,12 +127,18 @@
     "communityProjectsIntro": "Interessante katholische Softwareprojekte aus der breiteren Gemeinschaft.",
     "viewWebsite": "Webseite",
     "viewGitHub": "GitHub",
+    "fieldTags": "Tags",
+    "fieldTagsPlaceholder": "z.B. Liturgie, Gebet, API",
+    "fieldTagsHint": "Enter oder Komma drücken, um ein Tag hinzuzufügen.",
     "referButton": "Projekt empfehlen",
     "tags": "Tags"
   },
   "communityProjects": {
     "referTitle": "Gemeinschaftsprojekt empfehlen",
     "referDescription": "Kennen Sie ein katholisches Softwareprojekt, das hier vorgestellt werden sollte? Lassen Sie es uns wissen und wir prüfen es.",
+    "fieldTags": "Tags",
+    "fieldTagsPlaceholder": "z.B. Liturgie, Gebet, API",
+    "fieldTagsHint": "Enter oder Komma drücken, um ein Tag hinzuzufügen.",
     "fieldProjectName": "Projektname",
     "fieldProjectNamePlaceholder": "z.B. Katholische Lektionar-App",
     "fieldCategory": "Kategorie",
