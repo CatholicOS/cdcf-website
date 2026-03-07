@@ -127,7 +127,8 @@
     "communityProjectsIntro": "Interessante katholische Softwareprojekte aus der breiteren Gemeinschaft.",
     "viewWebsite": "Webseite",
     "viewGitHub": "GitHub",
-    "referButton": "Projekt empfehlen"
+    "referButton": "Projekt empfehlen",
+    "tags": "Tags"
   },
   "communityProjects": {
     "referTitle": "Gemeinschaftsprojekt empfehlen",

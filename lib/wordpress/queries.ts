@@ -82,6 +82,11 @@ const PROJECT_FIELDS = `
     }
   }
   projectRepoUrls
+  projectTags {
+    nodes {
+      name
+    }
+  }
 `
 
 const CHANNEL_FIELDS = `
@@ -164,6 +169,11 @@ const COMMUNITY_PROJECT_FIELDS = `
     projectCategory
     projectUrl
     projectGithubUrl
+  }
+  projectTags {
+    nodes {
+      name
+    }
   }
 `
 

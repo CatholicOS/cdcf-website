@@ -177,6 +177,19 @@ export default function ProjectGrid({
                   </span>
                 )}
 
+                {project.projectTags?.nodes?.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {project.projectTags.nodes.map((tag) => (
+                      <span
+                        key={tag.name}
+                        className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 {project.excerpt && (
                   <div
                     className="cdcf-content mt-3 flex-1 text-sm leading-relaxed text-gray-600"

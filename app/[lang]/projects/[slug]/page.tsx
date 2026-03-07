@@ -138,6 +138,22 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           </span>
         )}
 
+        {project.projectTags?.nodes?.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+              {t('tags')}
+            </span>
+            {project.projectTags.nodes.map((tag) => (
+              <span
+                key={tag.name}
+                className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600"
+              >
+                {tag.name}
+              </span>
+            ))}
+          </div>
+        )}
+
         <div className="cdcf-divider" />
 
         {/* Project content */}

@@ -224,6 +224,20 @@ add_action('init', function () {
         'menu_icon'    => 'dashicons-chart-bar',
         'has_archive'  => false,
     ]);
+
+    // Project Tag taxonomy (shared by project and community_project)
+    register_taxonomy('project_tag', ['project', 'community_project'], [
+        'labels' => [
+            'name'          => __('Project Tags', 'cdcf-headless'),
+            'singular_name' => __('Project Tag', 'cdcf-headless'),
+        ],
+        'public'              => true,
+        'show_in_rest'        => true,
+        'show_in_graphql'     => true,
+        'graphql_single_name' => 'projectTag',
+        'graphql_plural_name' => 'projectTags',
+        'hierarchical'        => false,
+    ]);
 });
 
 // ─── Register ACF fields as REST-writable post meta ─────────────────
@@ -2808,6 +2822,11 @@ add_filter('pll_get_post_types', function ($post_types) {
     $post_types['acad_collab'] = 'acad_collab';
     $post_types['community_project'] = 'community_project';
     return $post_types;
+}, 10, 2);
+
+add_filter('pll_get_taxonomies', function ($taxonomies) {
+    $taxonomies['project_tag'] = 'project_tag';
+    return $taxonomies;
 }, 10, 2);
 
 // ─── Custom GraphQL fields ──────────────────────────────────────────

@@ -58,6 +58,7 @@ export interface WPProject {
     projectLeads: { nodes: WPTeamMember[] } | null
   }
   projectRepoUrls: string[] | null
+  projectTags: { nodes: { name: string }[] }
 }
 
 export interface WPTeamMember {
@@ -126,6 +127,7 @@ export interface WPCommunityProject {
     projectUrl: string | null
     projectGithubUrl: string | null
   }
+  projectTags: { nodes: { name: string }[] }
 }
 
 // ─── Page types ──────────────────────────────────────────────────────
