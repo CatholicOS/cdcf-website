@@ -193,6 +193,22 @@ add_action('init', function () {
         'has_archive'  => false,
     ]);
 
+    // Community Project
+    register_post_type('community_project', [
+        'labels' => [
+            'name'          => __('Community Projects', 'cdcf-headless'),
+            'singular_name' => __('Community Project', 'cdcf-headless'),
+        ],
+        'public'       => true,
+        'show_in_rest'  => true,
+        'show_in_graphql' => true,
+        'graphql_single_name' => 'communityProject',
+        'graphql_plural_name' => 'communityProjects',
+        'supports'     => ['title', 'editor', 'thumbnail', 'excerpt', 'custom-fields'],
+        'menu_icon'    => 'dashicons-portfolio',
+        'has_archive'  => false,
+    ]);
+
     // Stat Item
     register_post_type('stat_item', [
         'labels' => [
@@ -1459,6 +1475,172 @@ function cdcf_rest_refer_local_group(WP_REST_Request $request) {
     ]);
 }
 
+// ─── Public Community Project Referral Endpoint ──────────────────────
+//
+// Allows visitors to refer a community project for admin review.
+// Creates a pending community_project post and sends an admin notification email.
+//
+// POST /wp-json/cdcf/v1/refer-community-project (public — no auth required)
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/refer-community-project', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_refer_community_project',
+        'permission_callback' => '__return_true',
+        'args' => [
+            'project_name'      => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'description'       => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
+            'category'          => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'project_url'       => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => ''],
+            'github_url'        => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => ''],
+            'submitter_name'    => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'submitter_email'   => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
+            'verification_code' => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+        ],
+    ]);
+
+    register_rest_route('cdcf/v1', '/refer-community-project/send-code', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_send_verification_code',
+        'permission_callback' => '__return_true',
+        'args' => [
+            'project_name'    => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'description'     => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
+            'category'        => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'project_url'     => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => ''],
+            'github_url'      => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => ''],
+            'submitter_name'  => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'submitter_email' => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
+            'honeypot'        => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'elapsed_ms'      => ['required' => false, 'type' => 'number', 'default' => 0],
+        ],
+    ]);
+});
+
+function cdcf_rest_refer_community_project(WP_REST_Request $request) {
+    // Rate limiting via transients: 3 submissions per hour per IP (defense-in-depth).
+    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    $transient_key = 'cdcf_refer_cp_' . md5($ip);
+    $count = (int) get_transient($transient_key);
+
+    if ($count >= 3) {
+        return new WP_Error(
+            'rate_limited',
+            'Too many submissions. Please try again later.',
+            ['status' => 429]
+        );
+    }
+
+    set_transient($transient_key, $count + 1, HOUR_IN_SECONDS);
+
+    // IP DNSBL check.
+    if (cdcf_check_ip_rbl($ip)) {
+        return new WP_Error('forbidden', 'Request blocked.', ['status' => 403]);
+    }
+
+    // Validate email format.
+    if (!is_email($request['submitter_email'])) {
+        return new WP_Error('invalid_email', 'Please provide a valid email address.', ['status' => 400]);
+    }
+
+    // Disposable email check.
+    if (cdcf_is_disposable_email($request['submitter_email'])) {
+        return new WP_Error('disposable_email', 'Please use a permanent email address.', ['status' => 400]);
+    }
+
+    // Content spam scoring — silent success so bots don't adapt.
+    if (cdcf_is_spam_content($request['description'] . ' ' . $request['project_name'])) {
+        return rest_ensure_response(['success' => true, 'post_id' => 0]);
+    }
+
+    // Verify email verification code.
+    $email    = $request['submitter_email'];
+    $code_key = 'cdcf_email_code_' . md5($email);
+    $stored   = get_transient($code_key);
+
+    if (!$stored) {
+        return new WP_Error('code_expired', 'Verification code has expired. Please request a new one.', ['status' => 400]);
+    }
+
+    if ($stored['attempts'] >= 5) {
+        delete_transient($code_key);
+        return new WP_Error('too_many_attempts', 'Too many incorrect attempts. Please request a new code.', ['status' => 429]);
+    }
+
+    if ($request['verification_code'] !== $stored['code']) {
+        $stored['attempts']++;
+        set_transient($code_key, $stored, 600);
+        return new WP_Error('invalid_code', 'Invalid verification code. Please check and try again.', ['status' => 400]);
+    }
+
+    // Code is valid — delete it (single use).
+    delete_transient($code_key);
+
+    // Create a pending community_project post.
+    $post_id = wp_insert_post([
+        'post_type'    => 'community_project',
+        'post_status'  => 'pending',
+        'post_title'   => $request['project_name'],
+        'post_content' => $request['description'],
+    ]);
+
+    if (is_wp_error($post_id) || !$post_id) {
+        return new WP_Error('insert_failed', 'Failed to create referral.', ['status' => 500]);
+    }
+
+    // Assign English language so Polylang can link translations later.
+    if (function_exists('pll_set_post_language')) {
+        pll_set_post_language($post_id, 'en');
+    }
+
+    // Set ACF fields if ACF is active.
+    if (function_exists('update_field')) {
+        if ($request['category']) {
+            update_field('project_category', $request['category'], $post_id);
+        }
+        if ($request['project_url']) {
+            update_field('project_url', $request['project_url'], $post_id);
+        }
+        if ($request['github_url']) {
+            update_field('project_github_url', $request['github_url'], $post_id);
+        }
+    }
+
+    // Store submitter info as private post meta.
+    update_post_meta($post_id, '_referral_submitter_name', $request['submitter_name']);
+    update_post_meta($post_id, '_referral_submitter_email', $request['submitter_email']);
+
+    // Send admin notification email.
+    $admin_email = get_option('admin_email');
+    $edit_link   = admin_url("post.php?post={$post_id}&action=edit");
+    $subject     = sprintf('[CDCF] New Community Project Referral: %s', $request['project_name']);
+    $body        = sprintf(
+        "A new community project referral has been submitted for review.\n\n" .
+        "Project Name: %s\n" .
+        "Category: %s\n" .
+        "Project URL: %s\n" .
+        "GitHub URL: %s\n" .
+        "Description:\n%s\n\n" .
+        "Submitted by: %s (%s)\n\n" .
+        "Review and approve it here:\n%s",
+        $request['project_name'],
+        $request['category'] ?: '(not provided)',
+        $request['project_url'] ?: '(not provided)',
+        $request['github_url'] ?: '(not provided)',
+        $request['description'],
+        $request['submitter_name'],
+        $request['submitter_email'],
+        $edit_link
+    );
+
+    wp_mail($admin_email, $subject, $body);
+
+    return rest_ensure_response([
+        'success' => true,
+        'post_id' => $post_id,
+    ]);
+}
+
 // ─── Public Project Submission Endpoint ───────────────────────────────
 //
 // Allows visitors to submit an open-source project for admin review.
@@ -2235,6 +2417,44 @@ add_action('acf/init', function () {
         'graphql_field_name' => 'collaborationFields',
     ]);
 
+    // ── Community Project CPT Fields ──
+
+    acf_add_local_field_group([
+        'key'   => 'group_community_project',
+        'title' => 'Community Project Details',
+        'fields' => [
+            [
+                'key'   => 'field_community_project_category',
+                'label' => 'Category',
+                'name'  => 'project_category',
+                'type'  => 'text',
+                'show_in_graphql' => true,
+                'show_in_rest' => true,
+            ],
+            [
+                'key'   => 'field_community_project_url',
+                'label' => 'Project URL',
+                'name'  => 'project_url',
+                'type'  => 'url',
+                'show_in_graphql' => true,
+                'show_in_rest' => true,
+            ],
+            [
+                'key'   => 'field_community_project_github_url',
+                'label' => 'GitHub URL',
+                'name'  => 'project_github_url',
+                'type'  => 'url',
+                'show_in_graphql' => true,
+                'show_in_rest' => true,
+            ],
+        ],
+        'location' => [
+            [['param' => 'post_type', 'operator' => '==', 'value' => 'community_project']],
+        ],
+        'show_in_graphql' => true,
+        'graphql_field_name' => 'communityProjectFields',
+    ]);
+
     // ── Stat Item CPT Fields ──
 
     acf_add_local_field_group([
@@ -2411,6 +2631,16 @@ add_action('acf/init', function () {
                 'show_in_graphql' => true,
                 'show_in_rest' => true,
             ],
+            [
+                'key'   => 'field_projects_community_projects',
+                'label' => 'Community Projects',
+                'name'  => 'community_projects',
+                'type'  => 'relationship',
+                'post_type' => ['community_project'],
+                'return_format' => 'object',
+                'show_in_graphql' => true,
+                'show_in_rest' => true,
+            ],
         ],
         'location' => [
             [['param' => 'page_template', 'operator' => '==', 'value' => 'templates/projects.php']],
@@ -2576,6 +2806,7 @@ add_filter('pll_get_post_types', function ($post_types) {
     $post_types['local_group']       = 'local_group';
     $post_types['stat_item']         = 'stat_item';
     $post_types['acad_collab'] = 'acad_collab';
+    $post_types['community_project'] = 'community_project';
     return $post_types;
 }, 10, 2);
 

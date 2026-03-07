@@ -10,6 +10,7 @@ import CommunitySection from './CommunitySection'
 import LocalGroupsSection from './LocalGroupsSection'
 import AcademicCollaborationsSection from './AcademicCollaborationsSection'
 import GovernanceSection from './GovernanceSection'
+import CommunityProjectsSection from './CommunityProjectsSection'
 import CallToAction from './CallToAction'
 import TextSection from './TextSection'
 
@@ -110,12 +111,26 @@ function renderAbout(page: WPPage, t: (key: string) => string) {
 
 function renderProjects(page: WPPage, projects: WPProject[], t: (key: string) => string) {
   const settings = page.projectsPageFields
+  const communityProjects = settings?.communityProjects?.nodes ?? []
   return (
-    <ProjectGrid
-      projects={projects}
-      columns={Number(settings?.gridColumns?.[0]) || 3}
-      submitButtonLabel={t('submitButton')}
-    />
+    <>
+      <ProjectGrid
+        id="cdcf-projects"
+        projects={projects}
+        columns={Number(settings?.gridColumns?.[0]) || 3}
+        submitButtonLabel={t('submitButton')}
+      />
+      {communityProjects.length > 0 && (
+        <CommunityProjectsSection
+          id="community-projects"
+          projects={communityProjects}
+          heading={t('communityProjectsHeading')}
+          intro={t('communityProjectsIntro')}
+          columns={Number(settings?.gridColumns?.[0]) || 3}
+          referButtonLabel={t('referButton')}
+        />
+      )}
+    </>
   )
 }
 

@@ -46,7 +46,14 @@ export default function Header() {
         { href: '/about/logo-symbolism', label: t('logoSymbolism') },
       ],
     },
-    { href: '/projects', label: t('projects') },
+    {
+      href: '/projects',
+      label: t('projects'),
+      children: [
+        { href: '/projects#cdcf-projects', label: t('cdcfProjects') },
+        { href: '/projects#community-projects', label: t('communityProjects') },
+      ],
+    },
     {
       href: '/community',
       label: t('community'),

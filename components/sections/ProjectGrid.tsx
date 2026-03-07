@@ -22,6 +22,7 @@ interface ProjectGridProps {
   intro?: string
   columns?: number
   submitButtonLabel?: string
+  id?: string
 }
 
 export default function ProjectGrid({
@@ -30,6 +31,7 @@ export default function ProjectGrid({
   intro,
   columns = 3,
   submitButtonLabel,
+  id,
 }: ProjectGridProps) {
   const t = useTranslations('projects')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -65,7 +67,7 @@ export default function ProjectGrid({
   const allStatuses: ProjectStatus[] = ['incubating', 'active', 'archived']
 
   return (
-    <section className="py-16 sm:py-20">
+    <section id={id} className={clsx('py-16 sm:py-20', id && 'scroll-mt-16')}>
       <div className="cdcf-section">
         {(title || intro) && (
           <div className="text-center">

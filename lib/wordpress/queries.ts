@@ -150,6 +150,23 @@ const ACADEMIC_COLLABORATION_FIELDS = `
   }
 `
 
+const COMMUNITY_PROJECT_FIELDS = `
+  title
+  slug
+  content
+  excerpt
+  featuredImage {
+    node {
+      ${IMAGE_FRAGMENT}
+    }
+  }
+  communityProjectFields {
+    projectCategory
+    projectUrl
+    projectGithubUrl
+  }
+`
+
 const SPONSOR_FIELDS = `
   title
   featuredImage {
@@ -210,6 +227,13 @@ export const GET_PAGE_BY_SLUG = `
         projectsPageFields {
           showFilters
           gridColumns
+          communityProjects {
+            nodes {
+              ... on CommunityProject {
+                ${COMMUNITY_PROJECT_FIELDS}
+              }
+            }
+          }
         }
         communityFields {
           channels {

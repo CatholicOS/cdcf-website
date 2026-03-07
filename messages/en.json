@@ -15,7 +15,9 @@
     "logoSymbolism": "Logo Symbolism",
     "onlineCommunities": "Online Communities",
     "localGroups": "Local Groups",
-    "academicCollaborations": "Academic Collaborations"
+    "academicCollaborations": "Academic Collaborations",
+    "cdcfProjects": "CDCF Projects",
+    "communityProjects": "Community Projects"
   },
   "footer": {
     "about": {
@@ -120,7 +122,12 @@
     "languages": "Languages",
     "share": "Share this project",
     "shareNative": "Share",
-    "projectLeads": "Project Leads"
+    "projectLeads": "Project Leads",
+    "communityProjectsHeading": "Community Projects",
+    "communityProjectsIntro": "Interesting Catholic software projects from the wider community.",
+    "viewWebsite": "Website",
+    "viewGitHub": "GitHub",
+    "referButton": "Refer a Community Project"
   },
   "community": {
     "onlineHeading": "Online Communities",
@@ -161,6 +168,42 @@
     "codePlaceholder": "000000",
     "codeExpiry": "Code expires in 10 minutes.",
     "verifyAndSubmit": "Verify & Submit",
+    "invalidCode": "Invalid code. Please check and try again.",
+    "codeExpired": "Code has expired. Please request a new one.",
+    "tooManyAttempts": "Too many incorrect attempts. Please request a new code."
+  },
+  "communityProjects": {
+    "referTitle": "Refer a Community Project",
+    "referDescription": "Know a Catholic software project that should be showcased here? Let us know and we'll review it.",
+    "fieldProjectName": "Project Name",
+    "fieldProjectNamePlaceholder": "e.g. Catholic Lectionary App",
+    "fieldCategory": "Category",
+    "fieldCategoryPlaceholder": "e.g. API, App, Web, AI",
+    "fieldDescription": "Description",
+    "fieldDescriptionPlaceholder": "Brief description of the project and its purpose",
+    "fieldProjectUrl": "Project Website URL",
+    "fieldProjectUrlPlaceholder": "https://",
+    "fieldGithubUrl": "GitHub URL",
+    "fieldGithubUrlPlaceholder": "https://github.com/...",
+    "fieldYourName": "Your Name",
+    "fieldYourNamePlaceholder": "Your full name",
+    "fieldYourEmail": "Your Email",
+    "fieldYourEmailPlaceholder": "you@example.com",
+    "sendCode": "Send Verification Code",
+    "sendingCode": "Sending code…",
+    "resendCode": "Resend code",
+    "backToForm": "Back",
+    "checkEmailTitle": "Check your email",
+    "checkEmailMessage": "We sent a 6-digit verification code to {email}. Enter it below to complete your referral.",
+    "codeLabel": "Verification Code",
+    "codePlaceholder": "000000",
+    "codeExpiry": "Code expires in 10 minutes.",
+    "verifyAndSubmit": "Verify & Submit",
+    "submitting": "Submitting…",
+    "successTitle": "Thank you!",
+    "successMessage": "Your referral has been submitted for review. We'll take a look shortly.",
+    "errorTitle": "Something went wrong",
+    "errorMessage": "Please try again later or contact us directly.",
     "invalidCode": "Invalid code. Please check and try again.",
     "codeExpired": "Code has expired. Please request a new one.",
     "tooManyAttempts": "Too many incorrect attempts. Please request a new code."

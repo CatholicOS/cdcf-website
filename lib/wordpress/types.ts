@@ -115,6 +115,19 @@ export interface WPAcademicCollaboration {
   }
 }
 
+export interface WPCommunityProject {
+  title: string
+  slug: string
+  content: string | null
+  excerpt: string | null
+  featuredImage: WPFeaturedImage | null
+  communityProjectFields: {
+    projectCategory: string | null
+    projectUrl: string | null
+    projectGithubUrl: string | null
+  }
+}
+
 // ─── Page types ──────────────────────────────────────────────────────
 
 export interface WPPost {
@@ -155,6 +168,7 @@ export interface WPPage {
   projectsPageFields: {
     showFilters: boolean | null
     gridColumns: string[] | null
+    communityProjects: { nodes: WPCommunityProject[] } | null
   } | null
   communityFields: {
     channels: { nodes: WPCommunityChannel[] } | null
