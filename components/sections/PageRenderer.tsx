@@ -120,16 +120,14 @@ function renderProjects(page: WPPage, projects: WPProject[], t: (key: string) =>
         columns={Number(settings?.gridColumns?.[0]) || 3}
         submitButtonLabel={t('submitButton')}
       />
-      {communityProjects.length > 0 && (
-        <CommunityProjectsSection
-          id="community-projects"
-          projects={communityProjects}
-          heading={t('communityProjectsHeading')}
-          intro={t('communityProjectsIntro')}
-          columns={Number(settings?.gridColumns?.[0]) || 3}
-          referButtonLabel={t('referButton')}
-        />
-      )}
+      <CommunityProjectsSection
+        id="community-projects"
+        projects={communityProjects}
+        heading={t('communityProjectsHeading')}
+        intro={t('communityProjectsIntro')}
+        columns={Number(settings?.gridColumns?.[0]) || 3}
+        referButtonLabel={t('referButton')}
+      />
     </>
   )
 }

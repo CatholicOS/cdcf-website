@@ -67,7 +67,7 @@ export default function CommunityProjectsSection({
           </div>
         )}
 
-        {categories.length > 0 && (
+        {projects.length > 0 && categories.length > 0 && (
           <div className="mt-8 flex justify-center">
             <select
               value={categoryFilter}
@@ -82,7 +82,7 @@ export default function CommunityProjectsSection({
           </div>
         )}
 
-        <div className={clsx('mt-12 grid gap-6', gridCols)}>
+        {projects.length > 0 && <div className={clsx('mt-12 grid gap-6', gridCols)}>
           {filtered.map((project) => (
             <div
               key={project.slug}
@@ -148,9 +148,9 @@ export default function CommunityProjectsSection({
               )}
             </div>
           ))}
-        </div>
+        </div>}
 
-        {filtered.length === 0 && (
+        {projects.length > 0 && filtered.length === 0 && (
           <p className="mt-12 text-center text-gray-500">{t('noResults')}</p>
         )}
 
