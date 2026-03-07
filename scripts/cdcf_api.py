@@ -356,6 +356,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--collab-university", required=True)
     p.add_argument("--collab-department")
     p.add_argument("--collab-website-url")
+    p.add_argument("--featured-image-id", type=int)
 
     # refer-local-group
     p = sub.add_parser("refer-local-group", help="Submit a local group referral")
@@ -476,6 +477,8 @@ def _run_cli(args: argparse.Namespace, client: CdcfClient) -> dict:
             kwargs["collab_department"] = args.collab_department
         if args.collab_website_url:
             kwargs["collab_website_url"] = args.collab_website_url
+        if args.featured_image_id:
+            kwargs["featured_image_id"] = args.featured_image_id
         return client.create_academic_collaboration(
             args.title, args.collab_description, args.collab_university, **kwargs)
 

@@ -987,6 +987,7 @@ add_action('rest_api_init', function () {
             'collab_university'  => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
             'collab_department'  => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
             'collab_website_url' => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'esc_url_raw', 'default' => ''],
+            'featured_image_id'  => ['required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint', 'default' => 0],
         ],
     ]);
 });
@@ -1023,6 +1024,11 @@ function cdcf_rest_create_academic_collaboration(WP_REST_Request $request) {
     }
     if ($request['collab_website_url']) {
         update_field('collab_website_url', $request['collab_website_url'], $en_post_id);
+    }
+
+    // Set featured image.
+    if ($request['featured_image_id']) {
+        set_post_thumbnail($en_post_id, $request['featured_image_id']);
     }
 
     // ── 2. Create translation drafts and enqueue background translations ──
