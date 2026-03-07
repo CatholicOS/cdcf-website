@@ -159,7 +159,7 @@ scripts/.venv/bin/python scripts/cdcf_api.py graphql --query '{ pages(first: 5) 
 scripts/.venv/bin/python scripts/cdcf_api.py revalidate --path /about
 ```
 
-See `scripts/README.md` for full documentation of all commands and library usage.
+See `docs/python-api-client.md` for full documentation of all commands and library usage.
 
 ## Environment Variables
 
