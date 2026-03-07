@@ -1,7 +1,6 @@
 import { wpQuery } from './client'
 import {
   GET_ACADEMIC_COLLABORATION_BY_SLUG,
-  GET_ACADEMIC_COLLABORATIONS,
   GET_ALL_PAGES,
   GET_PAGE_BY_SLUG,
   GET_POST_BY_SLUG,
@@ -134,20 +133,6 @@ export async function getProject(
   }
 }
 
-export async function getAcademicCollaborations(
-  locale: string
-): Promise<WPAcademicCollaboration[]> {
-  try {
-    const data = await wpQuery<{
-      academicCollaborations: { nodes: WPAcademicCollaboration[] }
-    }>(GET_ACADEMIC_COLLABORATIONS, { language: langCode(locale) })
-
-    return data.academicCollaborations.nodes
-  } catch (error) {
-    console.error('Failed to fetch academic collaborations:', error)
-    return []
-  }
-}
 
 export async function getAcademicCollaboration(
   slug: string,

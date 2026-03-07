@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server'
-import type { WPAcademicCollaboration, WPPage, WPPost, WPProject, WPSponsor } from '@/lib/wordpress/types'
+import type { WPPage, WPPost, WPProject, WPSponsor } from '@/lib/wordpress/types'
 import { getStats } from '@/lib/stats'
 import HeroBanner from './HeroBanner'
 import StatsBar from './StatsBar'
@@ -18,7 +18,6 @@ interface PageRendererProps {
   posts?: WPPost[]
   projects?: WPProject[]
   sponsors?: WPSponsor[]
-  academicCollaborations?: WPAcademicCollaboration[]
   isLogoSymbolism?: boolean
   fishExplanationHtml?: string
 }
@@ -28,7 +27,6 @@ export default async function PageRenderer({
   posts = [],
   projects = [],
   sponsors = [],
-  academicCollaborations = [],
   isLogoSymbolism,
   fishExplanationHtml,
 }: PageRendererProps) {
@@ -48,7 +46,7 @@ export default async function PageRenderer({
       {template === 'Home' && (await renderHome(page, sponsors))}
       {template === 'About' && renderAbout(page, t)}
       {template === 'Projects' && renderProjects(page, projects, await getTranslations('projects'))}
-      {template === 'Community' && renderCommunity(page, academicCollaborations, await getTranslations('community'))}
+      {template === 'Community' && renderCommunity(page, await getTranslations('community'))}
       {template === 'Blog' && renderBlog(page, posts)}
       {template === 'Contact' && renderContact(page)}
       {template === 'Default' && renderDefault(page, isLogoSymbolism, fishExplanationHtml)}
@@ -121,8 +119,9 @@ function renderProjects(page: WPPage, projects: WPProject[], t: (key: string) =>
   )
 }
 
-function renderCommunity(page: WPPage, academicCollaborations: WPAcademicCollaboration[], t: (key: string) => string) {
+function renderCommunity(page: WPPage, t: (key: string) => string) {
   const community = page.communityFields
+  const academicCollaborations = community?.academicCollaborations?.nodes ?? []
   return (
     <>
       {community?.channels?.nodes && community.channels.nodes.length > 0 && (

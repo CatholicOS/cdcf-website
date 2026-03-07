@@ -159,6 +159,7 @@ export interface WPPage {
     channels: { nodes: WPCommunityChannel[] } | null
     localGroups: { nodes: WPLocalGroup[] } | null
     members: { nodes: WPTeamMember[] } | null
+    academicCollaborations: { nodes: WPAcademicCollaboration[] } | null
   } | null
   blogFields: {
     maxPosts: number | null

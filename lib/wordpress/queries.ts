@@ -231,6 +231,13 @@ export const GET_PAGE_BY_SLUG = `
               }
             }
           }
+          academicCollaborations {
+            nodes {
+              ... on AcademicCollaboration {
+                ${ACADEMIC_COLLABORATION_CARD_FIELDS}
+              }
+            }
+          }
         }
         blogFields {
           maxPosts
@@ -337,18 +344,6 @@ export const GET_POST_BY_SLUG = `
             name
           }
         }
-      }
-    }
-  }
-`
-
-// ─── Academic Collaborations list query ─────────────────────────────
-
-export const GET_ACADEMIC_COLLABORATIONS = `
-  query GetAcademicCollaborations($language: LanguageCodeFilterEnum) {
-    academicCollaborations(where: { language: $language }, first: 100) {
-      nodes {
-        ${ACADEMIC_COLLABORATION_CARD_FIELDS}
       }
     }
   }
