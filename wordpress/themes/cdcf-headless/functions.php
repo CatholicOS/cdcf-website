@@ -2842,19 +2842,16 @@ function cdcf_ai_translate_meta_box($post) {
             });
         });
 
-        // "Translate All" button — sequential to avoid rate limits
+        // "Translate All" button — concurrent via Promise.all
         var allBtn = document.getElementById('cdcf-ai-translate-all');
         if (allBtn) {
             allBtn.addEventListener('click', function() {
                 if (!confirm('This will create/overwrite translations for ALL languages. Continue?')) return;
                 allBtn.disabled = true;
                 var buttons = Array.from(document.querySelectorAll('.cdcf-ai-translate-btn'));
-                var chain = Promise.resolve();
-                buttons.forEach(function(btn) {
-                    chain = chain.then(function() { return translateOne(btn); })
-                                 .catch(function() { return Promise.resolve(); }); // continue on error
-                });
-                chain.then(function() { allBtn.textContent = 'All done!'; });
+                Promise.all(buttons.map(function(btn) {
+                    return translateOne(btn).catch(function() {}); // continue on error
+                })).then(function() { allBtn.textContent = 'All done!'; });
             });
         }
     })();
@@ -3564,18 +3561,14 @@ function cdcf_bulk_translate_page() {
                 overallStatus.textContent = done + '/' + total + ' done' + (failed ? ', ' + failed + ' failed' : '');
             }
 
-            function runNext(i) {
-                if (i >= total) {
-                    overallStatus.textContent = 'Complete! ' + done + ' translated' + (failed ? ', ' + failed + ' failed' : '') + '.';
-                    startBtn.textContent = 'Done';
-                    return;
-                }
-
-                var task = tasks[i];
+            // Mark all tasks as in-progress
+            tasks.forEach(function(task) {
                 task.cell.textContent = '…';
                 task.cell.style.color = '#0073aa';
-                updateOverall();
+            });
+            updateOverall();
 
+            Promise.all(tasks.map(function(task) {
                 var data = new FormData();
                 data.append('action', 'cdcf_ai_translate');
                 data.append('source_id', task.sourceId);
@@ -3583,7 +3576,7 @@ function cdcf_bulk_translate_page() {
                 data.append('post_id', task.postId);
                 data.append('_wpnonce', nonce);
 
-                fetch(ajaxurl, { method: 'POST', body: data })
+                return fetch(ajaxurl, { method: 'POST', body: data })
                     .then(function(r) { return r.json(); })
                     .then(function(resp) {
                         if (resp.success) {
@@ -3607,11 +3600,11 @@ function cdcf_bulk_translate_page() {
                     })
                     .then(function() {
                         updateOverall();
-                        runNext(i + 1);
                     });
-            }
-
-            runNext(0);
+            })).then(function() {
+                overallStatus.textContent = 'Complete! ' + done + ' translated' + (failed ? ', ' + failed + ' failed' : '') + '.';
+                startBtn.textContent = 'Done';
+            });
         });
     })();
     </script>
