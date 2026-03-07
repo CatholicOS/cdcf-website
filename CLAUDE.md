@@ -132,6 +132,8 @@ A Python client library and CLI that wraps all `cdcf/v1` REST endpoints and WPGr
 
 **IMPORTANT: NEVER read, cat, or access `.env.local` directly.** This file contains secrets (API keys, passwords). Always use the Python client instead, which loads credentials internally.
 
+**Always use the CLI interface** (`scripts/.venv/bin/python scripts/cdcf_api.py <command>`) — never try to import `cdcf_api` directly in inline Python (`python -c`), as the module is not on `PYTHONPATH` and will fail with `ModuleNotFoundError`. If you need programmatic access beyond what the CLI offers, run: `scripts/.venv/bin/python -c "import sys; sys.path.insert(0, 'scripts'); from cdcf_api import CdcfClient; ..."`
+
 ### Setup
 
 ```bash
