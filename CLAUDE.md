@@ -114,7 +114,7 @@ Creates an English `local_group` post, translates it to all 5 languages via Open
 
 Creates an English `academic_collaboration` post, translates it to all 5 languages via OpenAI, and appends each translation to the matching language version of the Community page's `academic_collaborations` relationship field.
 
-**Parameters:** `title` (required), `collab_description` (required), `collab_university` (required), `collab_department` (optional), `collab_website_url` (optional)
+**Parameters:** `title` (required), `collab_description` (required), `collab_university` (required), `collab_department` (optional), `collab_location` (optional — e.g. "Washington D.C., USA"), `collab_website_url` (optional)
 
 **Returns:** `{ success, en_post_id, translations: { en, it, es, fr, pt, de }, errors[] }`
 

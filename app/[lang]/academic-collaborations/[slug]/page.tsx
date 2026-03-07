@@ -117,6 +117,12 @@ export default async function AcademicCollaborationPage({
               {fields.collabDepartment}
             </span>
           )}
+
+          {fields.collabLocation && (
+            <p className="mt-2 text-sm text-gray-500">
+              {fields.collabLocation}
+            </p>
+          )}
         </div>
 
         <div className="cdcf-divider" />

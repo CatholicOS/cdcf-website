@@ -202,7 +202,7 @@ class CdcfClient:
                                        collab_university: str, **kwargs) -> dict:
         """POST /cdcf/v1/academic-collaboration
 
-        Optional kwargs: collab_department, collab_website_url
+        Optional kwargs: collab_department, collab_location, collab_website_url
         """
         data = {
             "title": title, "collab_description": collab_description,
@@ -355,6 +355,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--collab-description", required=True)
     p.add_argument("--collab-university", required=True)
     p.add_argument("--collab-department")
+    p.add_argument("--collab-location")
     p.add_argument("--collab-website-url")
     p.add_argument("--featured-image-id", type=int)
 
@@ -475,6 +476,8 @@ def _run_cli(args: argparse.Namespace, client: CdcfClient) -> dict:
         kwargs = {}
         if args.collab_department:
             kwargs["collab_department"] = args.collab_department
+        if args.collab_location:
+            kwargs["collab_location"] = args.collab_location
         if args.collab_website_url:
             kwargs["collab_website_url"] = args.collab_website_url
         if args.featured_image_id:

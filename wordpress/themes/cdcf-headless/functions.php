@@ -986,6 +986,7 @@ add_action('rest_api_init', function () {
             'collab_description' => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_textarea_field'],
             'collab_university'  => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
             'collab_department'  => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'collab_location'    => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
             'collab_website_url' => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'esc_url_raw', 'default' => ''],
             'featured_image_id'  => ['required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint', 'default' => 0],
         ],
@@ -1021,6 +1022,9 @@ function cdcf_rest_create_academic_collaboration(WP_REST_Request $request) {
     update_field('collab_university', $request['collab_university'], $en_post_id);
     if ($request['collab_department']) {
         update_field('collab_department', $request['collab_department'], $en_post_id);
+    }
+    if ($request['collab_location']) {
+        update_field('collab_location', $request['collab_location'], $en_post_id);
     }
     if ($request['collab_website_url']) {
         update_field('collab_website_url', $request['collab_website_url'], $en_post_id);
@@ -2184,6 +2188,14 @@ add_action('acf/init', function () {
                 'label' => 'Description',
                 'name'  => 'collab_description',
                 'type'  => 'textarea',
+                'show_in_graphql' => true,
+                'show_in_rest' => true,
+            ],
+            [
+                'key'   => 'field_collab_location',
+                'label' => 'Location',
+                'name'  => 'collab_location',
+                'type'  => 'text',
                 'show_in_graphql' => true,
                 'show_in_rest' => true,
             ],

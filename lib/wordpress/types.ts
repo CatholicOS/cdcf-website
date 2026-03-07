@@ -107,6 +107,7 @@ export interface WPAcademicCollaboration {
   collaborationFields: {
     collabUniversity: string | null
     collabDepartment: string | null
+    collabLocation: string | null
     collabDescription: string | null
     collabWebsiteUrl: string | null
     collabProjects: { nodes: WPProject[] } | null

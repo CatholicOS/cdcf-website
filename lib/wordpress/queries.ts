@@ -113,6 +113,7 @@ const ACADEMIC_COLLABORATION_CARD_FIELDS = `
   collaborationFields {
     collabUniversity
     collabDepartment
+    collabLocation
     collabDescription
   }
 `
@@ -129,6 +130,7 @@ const ACADEMIC_COLLABORATION_FIELDS = `
   collaborationFields {
     collabUniversity
     collabDepartment
+    collabLocation
     collabDescription
     collabWebsiteUrl
     collabProjects {

@@ -61,6 +61,12 @@ export default function AcademicCollaborationsSection({
                 </span>
               )}
 
+              {collab.collaborationFields.collabLocation && (
+                <span className="mt-1 text-xs text-gray-500">
+                  {collab.collaborationFields.collabLocation}
+                </span>
+              )}
+
               {collab.collaborationFields.collabDescription && (
                 <p className="mt-2 text-sm text-gray-600">
                   {collab.collaborationFields.collabDescription}
