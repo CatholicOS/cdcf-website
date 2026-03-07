@@ -172,7 +172,6 @@ export default async function AcademicCollaborationPage({
       {fields.collabGovernance?.nodes && fields.collabGovernance.nodes.length > 0 && (
         <GovernanceSection
           members={fields.collabGovernance.nodes}
-          title={t('governanceContacts')}
           columns={fields.collabGovernance.nodes.length === 1 ? 2 : 3}
         />
       )}
