@@ -327,12 +327,13 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--title", required=True)
     p.add_argument("--content", required=True)
     p.add_argument("--council", required=True,
-                   choices=["team_members", "ecclesial_council", "technical_council"])
+                   choices=["team_members", "ecclesial_council", "technical_council", "academic_council"])
     p.add_argument("--member-title")
     p.add_argument("--member-role")
     p.add_argument("--member-linkedin-url")
     p.add_argument("--member-github-url")
     p.add_argument("--featured-image-id", type=int)
+    p.add_argument("--collab-post-id", type=int, help="Academic collaboration post ID (required for academic_council)")
 
     # create-community-channel
     p = sub.add_parser("create-community-channel", help="Create community channel with auto-translation")
@@ -449,7 +450,7 @@ def _run_cli(args: argparse.Namespace, client: CdcfClient) -> dict:
     if cmd == "create-team-member":
         kwargs = {}
         for key in ("member_title", "member_role", "member_linkedin_url",
-                     "member_github_url", "featured_image_id"):
+                     "member_github_url", "featured_image_id", "collab_post_id"):
             val = getattr(args, key.replace("-", "_"), None)
             if val is not None:
                 kwargs[key] = val

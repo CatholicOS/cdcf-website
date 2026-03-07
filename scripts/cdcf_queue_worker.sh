@@ -26,7 +26,7 @@
 #      WP_REST_URL=https://cms.catholicdigitalcommons.org/wp-json
 #      WP_APP_USERNAME=your-username
 #      WP_APP_PASSWORD=xxxx xxxx xxxx xxxx xxxx xxxx
-#      CONCURRENCY=3
+#      CONCURRENCY=5
 #
 # 3. Create a systemd service at /etc/systemd/system/cdcf-queue-worker.service:
 #

@@ -478,12 +478,13 @@ add_action('rest_api_init', function () {
             'member_github_url'  => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'esc_url_raw', 'default' => ''],
             'council'            => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
             'featured_image_id'  => ['required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint', 'default' => 0],
+            'collab_post_id'     => ['required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint', 'default' => 0],
         ],
     ]);
 });
 
 function cdcf_rest_create_team_member(WP_REST_Request $request) {
-    $allowed_councils = ['team_members', 'ecclesial_council', 'technical_council'];
+    $allowed_councils = ['team_members', 'ecclesial_council', 'technical_council', 'academic_council'];
     $council = $request['council'];
 
     if (!in_array($council, $allowed_councils, true)) {
@@ -568,58 +569,84 @@ function cdcf_rest_create_team_member(WP_REST_Request $request) {
         }
     }
 
-    // ── 3. Update About page relationships ──
+    // ── 3. Update relationships ──
 
-    // Find the English About page by its template.
-    $about_pages = get_pages([
-        'meta_key'   => '_wp_page_template',
-        'meta_value' => 'templates/about.php',
-        'number'     => 1,
-    ]);
-
-    if (!empty($about_pages)) {
-        $en_about_id = null;
-
-        // Find the English version of the About page.
-        foreach ($about_pages as $page) {
-            $page_lang = pll_get_post_language($page->ID, 'slug');
-            if ($page_lang === 'en') {
-                $en_about_id = $page->ID;
-                break;
-            }
-        }
-
-        // If the first result wasn't English, get the English translation.
-        if (!$en_about_id && !empty($about_pages)) {
-            $en_about_id = pll_get_post($about_pages[0]->ID, 'en');
-        }
-
-        if ($en_about_id) {
-            $about_translations = pll_get_post_translations($en_about_id);
+    if ($council === 'academic_council') {
+        // Academic council members link to an academic collaboration post's
+        // collab_governance field instead of the About page.
+        $collab_post_id = $request['collab_post_id'];
+        if (!$collab_post_id) {
+            $errors[] = 'academic_council requires collab_post_id parameter.';
+        } else {
+            $collab_translations = pll_get_post_translations($collab_post_id);
 
             foreach ($translations as $lang => $member_id) {
-                $about_page_id = $about_translations[$lang] ?? null;
-                if (!$about_page_id) {
-                    $errors[] = "{$lang}: No About page translation found.";
+                $collab_id = $collab_translations[$lang] ?? null;
+                if (!$collab_id) {
+                    $errors[] = "{$lang}: No academic collaboration translation found.";
                     continue;
                 }
 
-                $current = get_field($council, $about_page_id, false);
+                $current = get_field('collab_governance', $collab_id, false);
                 if (!is_array($current)) {
                     $current = [];
                 }
 
-                // Append the new team member ID if not already present.
                 if (!in_array($member_id, $current)) {
                     $current[] = $member_id;
-                    update_field($council, $current, $about_page_id);
+                    update_field('collab_governance', $current, $collab_id);
                 }
             }
-        } else {
-            $errors[] = 'Could not find the English About page.';
         }
     } else {
-        $errors[] = 'No About page found with templates/about.php template.';
+        // Other councils link to the About page.
+        $about_pages = get_pages([
+            'meta_key'   => '_wp_page_template',
+            'meta_value' => 'templates/about.php',
+            'number'     => 1,
+        ]);
+
+        if (!empty($about_pages)) {
+            $en_about_id = null;
+
+            foreach ($about_pages as $page) {
+                $page_lang = pll_get_post_language($page->ID, 'slug');
+                if ($page_lang === 'en') {
+                    $en_about_id = $page->ID;
+                    break;
+                }
+            }
+
+            if (!$en_about_id && !empty($about_pages)) {
+                $en_about_id = pll_get_post($about_pages[0]->ID, 'en');
+            }
+
+            if ($en_about_id) {
+                $about_translations = pll_get_post_translations($en_about_id);
+
+                foreach ($translations as $lang => $member_id) {
+                    $about_page_id = $about_translations[$lang] ?? null;
+                    if (!$about_page_id) {
+                        $errors[] = "{$lang}: No About page translation found.";
+                        continue;
+                    }
+
+                    $current = get_field($council, $about_page_id, false);
+                    if (!is_array($current)) {
+                        $current = [];
+                    }
+
+                    if (!in_array($member_id, $current)) {
+                        $current[] = $member_id;
+                        update_field($council, $current, $about_page_id);
+                    }
+                }
+            } else {
+                $errors[] = 'Could not find the English About page.';
+            }
+        } else {
+            $errors[] = 'No About page found with templates/about.php template.';
+        }
     }
 
     return new WP_REST_Response([

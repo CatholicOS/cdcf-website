@@ -88,9 +88,9 @@ All endpoints require Application Password authentication (`edit_posts` capabili
 
 ### `POST /team-member`
 
-Creates an English `team_member` post, translates it to all 5 languages via OpenAI, and appends each translation to the matching language version of the About page's council relationship field.
+Creates an English `team_member` post, translates it to all 5 languages via OpenAI, and appends each translation to the appropriate relationship field. For `team_members`, `ecclesial_council`, and `technical_council`, members are linked to the About page's council field. For `academic_council`, members are linked to the academic collaboration post's `collab_governance` field (requires `collab_post_id`).
 
-**Parameters:** `title` (required), `content` (required), `council` (required — one of `team_members`, `ecclesial_council`, `technical_council`), `member_title`, `member_role`, `member_linkedin_url`, `member_github_url`, `featured_image_id`
+**Parameters:** `title` (required), `content` (required), `council` (required — one of `team_members`, `ecclesial_council`, `technical_council`, `academic_council`), `member_title`, `member_role`, `member_linkedin_url`, `member_github_url`, `featured_image_id`, `collab_post_id` (required for `academic_council` — the English academic collaboration post ID)
 
 **Returns:** `{ success, en_post_id, translations: { en, it, es, fr, pt, de }, council, errors[] }`
 
