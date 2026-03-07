@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Validate required fields
-  const { project_name, url, description, submitter_name, submitter_email, verification_code } = body as Record<string, string>
-  if (!project_name || !url || !description || !submitter_name || !submitter_email || !verification_code) {
+  const { project_name, description, submitter_name, submitter_email, verification_code } = body as Record<string, string>
+  if (!project_name || !description || !submitter_name || !submitter_email || !verification_code) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
   }
 
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
         project_name: body.project_name,
         category: (body.category as string) || '',
         description: body.description,
-        url: body.url,
+        url: (body.url as string) || '',
         repo_urls: Array.isArray(body.repo_urls) ? body.repo_urls : [],
         submitter_name: body.submitter_name,
         submitter_email: body.submitter_email,

@@ -349,13 +349,12 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
 
                 <div>
                   <label htmlFor="url" className="block text-sm font-medium text-gray-700">
-                    {t('fieldProjectUrl')} <span className="text-red-500">*</span>
+                    {t('fieldProjectUrl')}
                   </label>
                   <input
                     type="url"
                     id="url"
                     name="url"
-                    required
                     defaultValue={formDataRef.current.fields.url}
                     placeholder={t('fieldProjectUrlPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
