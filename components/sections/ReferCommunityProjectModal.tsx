@@ -305,10 +305,16 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                     type="text"
                     id="cp_category"
                     name="category"
+                    list="cp-categories"
                     defaultValue={formDataRef.current.category}
                     placeholder={t('fieldCategoryPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
+                  <datalist id="cp-categories">
+                    {['API', 'App', 'Web', 'AI', 'Library', 'Data', 'Plugin', 'DevOps'].map((cat) => (
+                      <option key={cat} value={cat} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div>
