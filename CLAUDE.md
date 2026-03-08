@@ -144,6 +144,11 @@ uv pip install -r scripts/requirements.txt --python scripts/.venv/bin/python
 ### CLI Usage
 
 ```bash
+# Post meta / ACF fields
+scripts/.venv/bin/python scripts/cdcf_api.py get-post --post-id 702 --post-type team_member
+scripts/.venv/bin/python scripts/cdcf_api.py get-meta --post-id 702 --post-type team_member --field member_title
+scripts/.venv/bin/python scripts/cdcf_api.py update-meta --post-id 702 --post-type team_member --fields '{"member_title": "AI Specialist"}'
+
 # REST API calls
 scripts/.venv/bin/python scripts/cdcf_api.py get-relationship --post-id 5 --field team_members
 scripts/.venv/bin/python scripts/cdcf_api.py create-team-member --title "Name" --content "<p>Bio</p>" --council technical_council

@@ -64,6 +64,45 @@ class CdcfClient:
         resp.raise_for_status()
         return resp.json()
 
+    # -- Post Meta / ACF Fields --
+
+    def get_post(self, post_id: int, post_type: str = "posts") -> dict:
+        """GET a post via WP REST API. Returns full post object including meta.
+
+        post_type: REST API slug — "posts", "pages", "project", "team_member",
+                   "community_channel", "local_group", "acad_collab", "sponsor",
+                   "stat_item", "community_project"
+        """
+        return self._wp_get(f"wp/v2/{post_type}/{post_id}")
+
+    def get_meta(self, post_id: int, post_type: str = "posts", field: str | None = None) -> dict:
+        """Read meta/ACF fields for a post.
+
+        Returns the full meta dict, or a single field value if `field` is given.
+        """
+        data = self.get_post(post_id, post_type)
+        meta = data.get("meta", {})
+        if field:
+            return {"post_id": post_id, "field": field, "value": meta.get(field)}
+        return {"post_id": post_id, "meta": meta}
+
+    def update_meta(self, post_id: int, post_type: str = "posts", **fields) -> dict:
+        """Update one or more meta/ACF fields on a post.
+
+        post_type: REST API slug (see get_post).
+        fields: key=value pairs of meta fields to set.
+
+        Returns the updated meta dict.
+        """
+        resp = requests.post(
+            self._wp_url(f"wp/v2/{post_type}/{post_id}"),
+            json={"meta": fields},
+            auth=self.wp_auth,
+            timeout=120,
+        )
+        resp.raise_for_status()
+        return {"post_id": post_id, "meta": resp.json().get("meta", {})}
+
     # -- GraphQL --
 
     def graphql(self, query: str, variables: dict | None = None) -> dict:
@@ -415,6 +454,29 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--path", help="Path to revalidate")
     p.add_argument("--tags", nargs="*", help="Cache tags to revalidate")
 
+    # -- Post Meta / ACF Fields --
+
+    # get-post
+    p = sub.add_parser("get-post", help="Get a post via WP REST API (includes meta)")
+    p.add_argument("--post-id", type=int, required=True)
+    p.add_argument("--post-type", default="posts",
+                   help="REST API slug (posts, pages, project, team_member, etc.)")
+
+    # get-meta
+    p = sub.add_parser("get-meta", help="Read meta/ACF fields for a post")
+    p.add_argument("--post-id", type=int, required=True)
+    p.add_argument("--post-type", default="posts",
+                   help="REST API slug (posts, pages, project, team_member, etc.)")
+    p.add_argument("--field", help="Single field name to read (omit for all meta)")
+
+    # update-meta
+    p = sub.add_parser("update-meta", help="Update meta/ACF fields on a post")
+    p.add_argument("--post-id", type=int, required=True)
+    p.add_argument("--post-type", default="posts",
+                   help="REST API slug (posts, pages, project, team_member, etc.)")
+    p.add_argument("--fields", required=True,
+                   help='JSON object of fields to set, e.g. \'{"member_title": "Lead Dev"}\'')
+
     # -- GraphQL commands --
 
     # graphql
@@ -529,6 +591,16 @@ def _run_cli(args: argparse.Namespace, client: CdcfClient) -> dict:
 
     if cmd == "revalidate":
         return client.revalidate(path=args.path, tags=args.tags)
+
+    if cmd == "get-post":
+        return client.get_post(args.post_id, args.post_type)
+
+    if cmd == "get-meta":
+        return client.get_meta(args.post_id, args.post_type, field=args.field)
+
+    if cmd == "update-meta":
+        fields = json.loads(args.fields)
+        return client.update_meta(args.post_id, args.post_type, **fields)
 
     if cmd == "graphql":
         variables = json.loads(args.variables) if args.variables else None

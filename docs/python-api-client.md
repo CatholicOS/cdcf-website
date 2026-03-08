@@ -64,6 +64,25 @@ python scripts/cdcf_api.py get-relationship --post-id 5 --field team_members
 python scripts/cdcf_api.py update-relationship --post-id 5 --field team_members --value 10 12 14
 ```
 
+#### Post Meta / ACF Fields
+
+```bash
+# Get a full post object (includes meta)
+python scripts/cdcf_api.py get-post --post-id 702 --post-type team_member
+
+# Read all meta/ACF fields for a post
+python scripts/cdcf_api.py get-meta --post-id 702 --post-type team_member
+
+# Read a single meta field
+python scripts/cdcf_api.py get-meta --post-id 702 --post-type team_member --field member_title
+
+# Update one or more meta/ACF fields
+python scripts/cdcf_api.py update-meta --post-id 702 --post-type team_member \
+  --fields '{"member_title": "AI Governance Specialist"}'
+```
+
+**Supported `--post-type` values (REST API slugs):** `posts`, `pages`, `project`, `team_member`, `community_channel`, `local_group`, `acad_collab`, `sponsor`, `stat_item`, `community_project`
+
 #### Content Creation (with auto-translation)
 
 ```bash
@@ -227,6 +246,15 @@ For scripts inside the `scripts/` directory, import directly:
 from cdcf_api import CdcfClient
 
 client = CdcfClient()
+
+# Read all meta/ACF fields for a post
+meta = client.get_meta(post_id=702, post_type="team_member")
+
+# Read a single field
+title = client.get_meta(post_id=702, post_type="team_member", field="member_title")
+
+# Update meta/ACF fields
+client.update_meta(post_id=702, post_type="team_member", member_title="Lead Dev")
 
 # Read a relationship field
 members = client.get_relationship(post_id=5, field="team_members")
