@@ -166,7 +166,11 @@ function renderCommunity(page: WPPage, t: (key: string) => string) {
       )}
 
       {community?.members?.nodes && community.members.nodes.length > 0 && (
-        <GovernanceSection members={community.members.nodes} />
+        <GovernanceSection
+          id="community-liaisons"
+          title={t('communityLiaisonsHeading')}
+          members={community.members.nodes}
+        />
       )}
     </>
   )
