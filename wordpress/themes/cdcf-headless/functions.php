@@ -3509,46 +3509,52 @@ add_action('rest_api_init', function () {
                 return new WP_Error('polylang_missing', 'Polylang is not active.', ['status' => 500]);
             }
 
-            // Auto-create translation post if needed.
+            // Resolve or auto-create translation post.
             if (!$post_id) {
                 $source = get_post($source_id);
                 if (!$source) {
                     return new WP_Error('not_found', 'Source post not found.', ['status' => 404]);
                 }
 
-                $insert_args = [
-                    'post_type'   => $source->post_type,
-                    'post_status' => 'draft',
-                    'post_title'  => $source->post_title,
-                ];
+                // Check if a translation already exists for this language.
+                $existing_id = function_exists('pll_get_post') ? pll_get_post($source_id, $target_lang) : 0;
+                if ($existing_id) {
+                    $post_id = $existing_id;
+                } else {
+                    $insert_args = [
+                        'post_type'   => $source->post_type,
+                        'post_status' => 'draft',
+                        'post_title'  => $source->post_title,
+                    ];
 
-                if ($source->post_type === 'attachment') {
-                    $insert_args['post_status']    = 'inherit';
-                    $insert_args['post_mime_type'] = $source->post_mime_type;
-                }
-
-                $post_id = wp_insert_post($insert_args);
-                if (is_wp_error($post_id) || !$post_id) {
-                    return new WP_Error('insert_failed', 'Failed to create translation post.', ['status' => 500]);
-                }
-
-                if ($source->post_type === 'attachment') {
-                    $attached_file = get_post_meta($source_id, '_wp_attached_file', true);
-                    if ($attached_file) {
-                        update_post_meta($post_id, '_wp_attached_file', $attached_file);
+                    if ($source->post_type === 'attachment') {
+                        $insert_args['post_status']    = 'inherit';
+                        $insert_args['post_mime_type'] = $source->post_mime_type;
                     }
-                    $attachment_meta = get_post_meta($source_id, '_wp_attachment_metadata', true);
-                    if ($attachment_meta) {
-                        update_post_meta($post_id, '_wp_attachment_metadata', $attachment_meta);
-                    }
-                }
 
-                pll_set_post_language($post_id, $target_lang);
-                $source_lang = pll_get_post_language($source_id);
-                $translations = pll_get_post_translations($source_id);
-                $translations[$source_lang] = $source_id;
-                $translations[$target_lang] = $post_id;
-                pll_save_post_translations($translations);
+                    $post_id = wp_insert_post($insert_args);
+                    if (is_wp_error($post_id) || !$post_id) {
+                        return new WP_Error('insert_failed', 'Failed to create translation post.', ['status' => 500]);
+                    }
+
+                    if ($source->post_type === 'attachment') {
+                        $attached_file = get_post_meta($source_id, '_wp_attached_file', true);
+                        if ($attached_file) {
+                            update_post_meta($post_id, '_wp_attached_file', $attached_file);
+                        }
+                        $attachment_meta = get_post_meta($source_id, '_wp_attachment_metadata', true);
+                        if ($attachment_meta) {
+                            update_post_meta($post_id, '_wp_attachment_metadata', $attachment_meta);
+                        }
+                    }
+
+                    pll_set_post_language($post_id, $target_lang);
+                    $source_lang = pll_get_post_language($source_id);
+                    $translations = pll_get_post_translations($source_id);
+                    $translations[$source_lang] = $source_id;
+                    $translations[$target_lang] = $post_id;
+                    pll_save_post_translations($translations);
+                }
             }
 
             // Enqueue translation: Redis Queue if available, WP Cron fallback.
