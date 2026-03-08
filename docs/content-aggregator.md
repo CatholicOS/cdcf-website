@@ -12,7 +12,7 @@ An AI-powered system that daily scours Catholic media (RSS feeds, news sites, Va
 │                                                              │
 │  ┌─────────────┐    ┌──────────────────────────────────────┐ │
 │  │  PostgreSQL  │    │  Python Worker (aggregator)          │ │
-│  │  + AGE ext.  │◄───│  - Fetcher (RSS, scraper)           │ │
+│  │  + AGE ext.  │◄───│  - Fetcher (RSS + Crawl4AI)         │ │
 │  │              │    │  - AI Classifier (Claude / OpenAI)   │ │
 │  │  • articles  │    │  - Pipeline orchestrator             │ │
 │  │  • FTS index │    │  - Graph builder (AGE)               │ │
@@ -34,6 +34,7 @@ An AI-powered system that daily scours Catholic media (RSS feeds, news sites, Va
 - **PostgreSQL with Apache AGE** — single database for relational data, full-text search (tsvector), and property-graph queries (openCypher). No separate graph database needed.
 - **Python worker** — runs daily via cron (or a loop with sleep). Modular design with swappable AI providers.
 - **Next.js `/research` route** — a standalone section of the existing site. Fetches directly from PostgreSQL (not WordPress).
+- **[Crawl4AI](https://github.com/unclecode/crawl4ai)** — open-source web crawler purpose-built for LLM pipelines. Outputs clean Markdown from any web page (including JavaScript-rendered content via Playwright), eliminating the need for manual HTML-to-text extraction. RSS feeds are still parsed directly with `feedparser`.
 - **Decoupled from WordPress** — the aggregator is an independent subsystem. WordPress continues to serve CMS content; the research section queries PostgreSQL directly.
 
 ## Database Schema
@@ -215,8 +216,8 @@ aggregator/
 │   ├── __init__.py
 │   ├── base.py           # Abstract fetcher interface
 │   ├── rss.py            # RSS/Atom feed fetcher (feedparser)
-│   ├── web.py            # Generic web scraper (httpx + BeautifulSoup)
-│   └── vatican.py        # Vatican.va specific fetcher
+│   ├── crawl4ai.py       # Web fetcher using Crawl4AI (Markdown output)
+│   └── vatican.py        # Vatican.va specific fetcher (extends crawl4ai)
 ├── ai/
 │   ├── __init__.py
 │   ├── base.py           # Abstract AI provider interface
@@ -241,10 +242,10 @@ aggregator/
 ```
 1. Load active sources from `sources` table
 2. For each source due for refresh:
-   a. Fetch new items (RSS → feedparser, web → httpx + BS4)
+   a. Fetch new items (RSS → feedparser, web → Crawl4AI)
    b. Deduplicate against existing articles (by external_url)
    c. For each new article:
-      i.    Extract plain text from HTML
+      i.    For web sources: Crawl4AI returns clean Markdown directly; for RSS: extract text from HTML
       ii.   AI: Score relevance (0.0–1.0) — skip if < 0.3
       iii.  AI: Generate summary (1–2 sentences)
       iv.   AI: Assign tags from controlled vocabulary + suggest new ones
@@ -272,8 +273,8 @@ After the initial fetch-and-classify pass, the pipeline runs a **link-following 
            and extract the surrounding context text
       v.   Insert into discovered_links table with status='pending'
    b. For each pending discovered link (up to depth limit):
-      i.   Fetch the target URL (httpx, respecting robots.txt and rate limits)
-      ii.  Extract plain text from HTML
+      i.   Fetch the target URL via Crawl4AI (respecting robots.txt and rate limits)
+      ii.  Crawl4AI returns clean Markdown — ready for AI processing
       iii. AI: Score relevance (0.0–1.0) — mark as 'skipped' if < 0.3
       iv.  If relevant: insert as a new article, run full classification pipeline (summary, tags, entities)
       v.   Set discovered_links.target_article_id and status='fetched'
@@ -362,6 +363,46 @@ class AIProvider(ABC):
 
 Both Claude and OpenAI providers implement this interface. The pipeline selects the provider based on the `AI_PROVIDER` environment variable.
 
+### Web Fetching with Crawl4AI
+
+[Crawl4AI](https://github.com/unclecode/crawl4ai) is the web fetching layer for all non-RSS sources. It replaces the typical `httpx + BeautifulSoup` approach with a purpose-built crawler that outputs clean, LLM-ready Markdown.
+
+**Why Crawl4AI over raw HTTP + HTML parsing:**
+
+- **Markdown output** — pages are converted to clean Markdown automatically, removing boilerplate (nav, footer, ads, sidebars). This feeds directly into the AI classifier without a separate text-extraction step.
+- **JavaScript rendering** — built on Playwright, so it handles SPAs, lazy-loaded content, and infinite scroll (common on modern news sites).
+- **Structured extraction** — supports CSS/XPath selectors and LLM-powered extraction with custom schemas, useful for consistently structured pages like Vatican document indexes.
+- **Session management** — persistent browser sessions for sites that require cookies or authentication.
+- **Self-hosted** — runs entirely within the Docker stack, no external API dependencies or per-request costs.
+
+**Integration in the pipeline:**
+
+```python
+# aggregator/fetchers/crawl4ai.py
+from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, BrowserConfig
+
+class Crawl4AIFetcher(BaseFetcher):
+    async def fetch(self, url: str) -> FetchResult:
+        browser_config = BrowserConfig(headless=True)
+        run_config = CrawlerRunConfig(
+            word_count_threshold=50,       # skip pages with very little content
+            excluded_tags=["nav", "footer", "aside", "header"],
+            bypass_cache=False,
+        )
+        async with AsyncWebCrawler(config=browser_config) as crawler:
+            result = await crawler.arun(url=url, config=run_config)
+            return FetchResult(
+                markdown=result.markdown,          # clean Markdown for AI
+                raw_html=result.html,              # preserved for reference
+                links=result.links,                # extracted outbound links (for link-following)
+                metadata=result.metadata,          # title, description, author, etc.
+            )
+```
+
+Crawl4AI also extracts all outbound links from the page, which feeds directly into the link-following step — no separate link-extraction pass needed.
+
+**RSS feeds** are still handled by `feedparser` directly, since RSS provides structured data (title, content, date, author) without needing a browser. When an RSS entry links to a full article, Crawl4AI fetches the full page content if the RSS excerpt is truncated.
+
 ### Scheduling
 
 In Docker Compose, the worker runs as a long-lived container with a cron-like loop:
@@ -444,7 +485,7 @@ This is a client component (`'use client'`) using `useRef` for the D3 SVG contai
     ports:
       - "5432:5432"
 
-  # Python worker for content aggregation
+  # Python worker for content aggregation (includes Crawl4AI + Playwright)
   aggregator:
     build:
       context: ./aggregator
@@ -457,6 +498,8 @@ This is a client component (`'use client'`) using `useRef` for the D3 SVG contai
       AI_PROVIDER: ${AI_PROVIDER:-claude}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    # Crawl4AI uses Playwright which needs shared memory for Chromium
+    shm_size: '512m'
     profiles:
       - aggregator
 
@@ -502,7 +545,8 @@ For production (Plesk), `AGG_DATABASE_URL` points to a PostgreSQL instance on th
 - Set up PostgreSQL + Apache AGE in Docker Compose
 - Create SQL schema (`aggregator/sql/init.sql`)
 - Scaffold Python package with config, DB connection, models
-- Implement RSS fetcher with 3–5 seed Catholic media sources
+- Implement RSS fetcher (`feedparser`) with 3–5 seed Catholic media sources
+- Implement Crawl4AI web fetcher for non-RSS sources
 - Basic pipeline: fetch → deduplicate → store (no AI yet)
 - Verify articles land in the database
 
@@ -556,7 +600,7 @@ aggregator/
 │   ├── __init__.py
 │   ├── base.py
 │   ├── rss.py
-│   ├── web.py
+│   ├── crawl4ai.py
 │   └── vatican.py
 ├── ai/
 │   ├── __init__.py
