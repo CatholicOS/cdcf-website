@@ -117,6 +117,24 @@ CREATE TABLE article_entities (
     PRIMARY KEY (article_id, entity_id, COALESCE(role, ''))
 );
 
+-- Links discovered within article content (for link-following crawler)
+CREATE TABLE discovered_links (
+    id              SERIAL PRIMARY KEY,
+    source_article_id INT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+    target_url      TEXT NOT NULL,
+    target_article_id INT REFERENCES articles(id),  -- set once the target is fetched
+    link_type       TEXT,           -- AI-classified: 'cited_document', 'related_project', 'source_reference', 'press_release'
+    link_context    TEXT,           -- surrounding text where the link appeared
+    domain          TEXT NOT NULL,  -- extracted domain for allowlist filtering
+    crawl_depth     INT NOT NULL DEFAULT 1,
+    status          TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'fetched', 'skipped', 'error')),
+    discovered_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (source_article_id, target_url)
+);
+
+CREATE INDEX idx_discovered_links_status ON discovered_links (status) WHERE status = 'pending';
+CREATE INDEX idx_discovered_links_target ON discovered_links (target_url);
+
 -- Processing log (audit trail)
 CREATE TABLE processing_log (
     id           SERIAL PRIMARY KEY,
@@ -159,8 +177,9 @@ SELECT create_graph('catholic_tech');
 | `PUBLISHED_BY` | Article → Source | — |
 | `RELATED_TO` | Entity → Entity | `relation_type`, `weight` |
 | `CO_OCCURS_WITH` | Entity → Entity | `count`, `articles[]` |
+| `REFERENCES` | Article → Article | `link_type`, `context` |
 
-Entity-to-entity relationships (`RELATED_TO`, `CO_OCCURS_WITH`) are inferred by the AI classifier and co-occurrence analysis.
+Entity-to-entity relationships (`RELATED_TO`, `CO_OCCURS_WITH`) are inferred by the AI classifier and co-occurrence analysis. `REFERENCES` edges are created when an article links to another document that was also ingested — `link_type` indicates the nature of the reference (e.g. `cited_document`, `related_project`, `source_reference`, `press_release`) and `context` stores the surrounding text where the link appeared.
 
 ## Python Worker
 
@@ -187,7 +206,8 @@ aggregator/
 │   ├── __init__.py
 │   ├── classifier.py     # Relevance scoring + tag assignment
 │   ├── extractor.py      # Named entity extraction
-│   └── summarizer.py     # Article summarization
+│   ├── summarizer.py     # Article summarization
+│   └── link_follower.py  # Discover + crawl outbound links from articles
 ├── graph/
 │   ├── __init__.py
 │   └── builder.py        # Apache AGE graph builder
@@ -203,17 +223,61 @@ aggregator/
    a. Fetch new items (RSS → feedparser, web → httpx + BS4)
    b. Deduplicate against existing articles (by external_url)
    c. For each new article:
-      i.   Extract plain text from HTML
-      ii.  AI: Score relevance (0.0–1.0) — skip if < 0.3
-      iii. AI: Generate summary (1–2 sentences)
-      iv.  AI: Assign tags from controlled vocabulary + suggest new ones
-      v.   AI: Extract named entities (people, orgs, projects, documents)
-      vi.  Insert article + tags + entities into PostgreSQL
-      vii. Sync to Apache AGE graph (nodes + edges)
+      i.    Extract plain text from HTML
+      ii.   AI: Score relevance (0.0–1.0) — skip if < 0.3
+      iii.  AI: Generate summary (1–2 sentences)
+      iv.   AI: Assign tags from controlled vocabulary + suggest new ones
+      v.    AI: Extract named entities (people, orgs, projects, documents)
+      vi.   Insert article + tags + entities into PostgreSQL
+      vii.  Sync to Apache AGE graph (nodes + edges)
       viii. Log processing result
-3. Run co-occurrence analysis across recent articles
-4. Update graph edges for entity relationships
+3. Link-following pass (see below)
+4. Run co-occurrence analysis across recent articles
+5. Update graph edges for entity relationships
 ```
+
+### Link Following
+
+After the initial fetch-and-classify pass, the pipeline runs a **link-following step** that discovers and crawls outbound links found within article content.
+
+```
+3. Link-following pass:
+   a. For each newly ingested article:
+      i.   Extract all outbound URLs from content_html
+      ii.  Filter against domain allowlist (see below) — skip social media, ads, navigation links
+      iii. Deduplicate against articles.external_url and discovered_links.target_url
+      iv.  AI: Classify each link's type (cited_document, related_project, source_reference, press_release)
+           and extract the surrounding context text
+      v.   Insert into discovered_links table with status='pending'
+   b. For each pending discovered link (up to depth limit):
+      i.   Fetch the target URL (httpx, respecting robots.txt and rate limits)
+      ii.  Extract plain text from HTML
+      iii. AI: Score relevance (0.0–1.0) — mark as 'skipped' if < 0.3
+      iv.  If relevant: insert as a new article, run full classification pipeline (summary, tags, entities)
+      v.   Set discovered_links.target_article_id and status='fetched'
+      vi.  Create REFERENCES edge in the knowledge graph
+      vii. Recursively discover outbound links from the new article (if crawl_depth < max)
+```
+
+**Safeguards:**
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `AGG_LINK_MAX_DEPTH` | `2` | Maximum crawl depth from original source article |
+| `AGG_LINK_BATCH_SIZE` | `50` | Max discovered links to process per pipeline run |
+| `AGG_LINK_RATE_LIMIT` | `2` | Seconds between requests to the same domain |
+| `AGG_LINK_RELEVANCE_THRESHOLD` | `0.4` | Minimum relevance to ingest a discovered link (slightly higher than source threshold) |
+
+**Domain allowlist** — only links to these domain categories are followed:
+
+- Vatican domains (`vatican.va`, `vaticannews.va`)
+- Catholic news outlets (domains from the Initial Source List)
+- GitHub repositories and project pages (`github.com`, `gitlab.com`)
+- University/academic domains (`.edu`, `.ac.*`)
+- Church organization domains (`usccb.org`, national bishops' conferences)
+- Curated additions stored in a `link_domain_allowlist` config table
+
+Links to social media (Twitter/X, Facebook, Instagram), generic platforms (YouTube, Medium), and unrecognized domains are skipped by default. The allowlist can be extended at runtime without code changes via the `link_domain_allowlist` table or a `AGG_LINK_EXTRA_DOMAINS` environment variable.
 
 ### AI Provider Abstraction
 
@@ -357,6 +421,11 @@ docker compose --profile aggregator up -d
 | `OPENAI_API_KEY` | OpenAI API key (if using OpenAI) | — |
 | `AGG_FETCH_INTERVAL` | Default fetch interval | `24h` |
 | `AGG_RELEVANCE_THRESHOLD` | Minimum relevance score to store | `0.3` |
+| `AGG_LINK_MAX_DEPTH` | Maximum crawl depth for link following | `2` |
+| `AGG_LINK_BATCH_SIZE` | Max discovered links to process per run | `50` |
+| `AGG_LINK_RATE_LIMIT` | Seconds between requests to the same domain | `2` |
+| `AGG_LINK_RELEVANCE_THRESHOLD` | Minimum relevance to ingest a discovered link | `0.4` |
+| `AGG_LINK_EXTRA_DOMAINS` | Comma-separated extra domains to allow for link following | — |
 | `AGG_DATABASE_URL` | Full PostgreSQL connection string (overrides individual vars) | — |
 
 For production (Plesk), `AGG_DATABASE_URL` points to a PostgreSQL instance on the server. The Next.js app reads it to serve the `/research` API routes.
@@ -433,7 +502,8 @@ aggregator/
 │   ├── __init__.py
 │   ├── classifier.py
 │   ├── extractor.py
-│   └── summarizer.py
+│   ├── summarizer.py
+│   └── link_follower.py
 ├── graph/
 │   ├── __init__.py
 │   └── builder.py
