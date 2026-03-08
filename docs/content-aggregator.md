@@ -47,12 +47,32 @@ CREATE TABLE sources (
     name            TEXT NOT NULL,
     url             TEXT NOT NULL UNIQUE,
     source_type     TEXT NOT NULL CHECK (source_type IN ('rss', 'web', 'vatican', 'api')),
+    origin          TEXT NOT NULL DEFAULT 'manual' CHECK (origin IN ('manual', 'discovered')),
     fetch_interval  INTERVAL NOT NULL DEFAULT '1 day',
     last_fetched_at TIMESTAMPTZ,
     is_active       BOOLEAN NOT NULL DEFAULT true,
     config          JSONB DEFAULT '{}',  -- source-specific settings (selectors, auth, etc.)
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Candidate sources discovered by the aggregator, pending promotion
+CREATE TABLE candidate_sources (
+    id              SERIAL PRIMARY KEY,
+    name            TEXT NOT NULL,
+    url             TEXT NOT NULL UNIQUE,
+    source_type     TEXT NOT NULL CHECK (source_type IN ('rss', 'web')),
+    discovered_from INT REFERENCES articles(id),  -- article where this source was found
+    confidence      REAL NOT NULL DEFAULT 0.0,     -- AI confidence score 0.0–1.0
+    hit_count       INT NOT NULL DEFAULT 1,        -- how many times links from this domain appeared
+    avg_relevance   REAL NOT NULL DEFAULT 0.0,     -- average relevance of articles from this domain
+    status          TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'auto_promoted', 'approved', 'rejected')),
+    promoted_to     INT REFERENCES sources(id),    -- set when promoted to active source
+    reviewed_at     TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_candidate_sources_status ON candidate_sources (status) WHERE status = 'pending';
 
 -- Articles / documents discovered
 CREATE TABLE articles (
@@ -207,7 +227,8 @@ aggregator/
 │   ├── classifier.py     # Relevance scoring + tag assignment
 │   ├── extractor.py      # Named entity extraction
 │   ├── summarizer.py     # Article summarization
-│   └── link_follower.py  # Discover + crawl outbound links from articles
+│   ├── link_follower.py  # Discover + crawl outbound links from articles
+│   └── source_discoverer.py  # Auto-discover and promote new sources
 ├── graph/
 │   ├── __init__.py
 │   └── builder.py        # Apache AGE graph builder
@@ -232,8 +253,9 @@ aggregator/
       vii.  Sync to Apache AGE graph (nodes + edges)
       viii. Log processing result
 3. Link-following pass (see below)
-4. Run co-occurrence analysis across recent articles
-5. Update graph edges for entity relationships
+4. Source discovery pass (see below)
+5. Run co-occurrence analysis across recent articles
+6. Update graph edges for entity relationships
 ```
 
 ### Link Following
@@ -278,6 +300,45 @@ After the initial fetch-and-classify pass, the pipeline runs a **link-following 
 - Curated additions stored in a `link_domain_allowlist` config table
 
 Links to social media (Twitter/X, Facebook, Instagram), generic platforms (YouTube, Medium), and unrecognized domains are skipped by default. The allowlist can be extended at runtime without code changes via the `link_domain_allowlist` table or a `AGG_LINK_EXTRA_DOMAINS` environment variable.
+
+### Source Discovery
+
+As the aggregator follows links and ingests articles, it tracks which external domains consistently produce relevant content. When a domain crosses a confidence threshold, it is automatically promoted to a crawlable source — enabling the system to organically grow its source list over time.
+
+```
+4. Source discovery pass:
+   a. Aggregate stats from recently ingested articles by domain:
+      - Count of articles ingested from this domain
+      - Average relevance score across those articles
+      - Whether the domain offers an RSS feed (auto-detected via <link rel="alternate"> or /feed, /rss paths)
+   b. For each domain not already in sources or candidate_sources:
+      i.   AI: Evaluate the domain — is it a Catholic news outlet, blog, or institutional site?
+           Score confidence (0.0–1.0) based on domain name, article content patterns, and About page
+      ii.  Insert into candidate_sources with confidence score
+   c. For existing candidate_sources, update hit_count and avg_relevance with new data
+   d. Auto-promote candidates that meet ALL of these criteria:
+      - confidence >= AGG_SOURCE_AUTO_PROMOTE_CONFIDENCE (default 0.8)
+      - hit_count >= AGG_SOURCE_MIN_HITS (default 5)
+      - avg_relevance >= AGG_SOURCE_MIN_AVG_RELEVANCE (default 0.6)
+      i.   Insert into sources table (origin='discovered', is_active=true)
+      ii.  Set candidate_sources.status='auto_promoted', promoted_to=new source id
+      iii. Log the promotion in processing_log
+   e. Sources that don't meet auto-promote thresholds remain as 'pending' candidates
+      for manual review via the admin interface
+```
+
+**Safeguards:**
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `AGG_SOURCE_AUTO_PROMOTE_CONFIDENCE` | `0.8` | Minimum AI confidence to auto-promote a candidate source |
+| `AGG_SOURCE_MIN_HITS` | `5` | Minimum articles from this domain before promotion is considered |
+| `AGG_SOURCE_MIN_AVG_RELEVANCE` | `0.6` | Minimum average relevance score across articles from this domain |
+| `AGG_SOURCE_MAX_AUTO_PER_RUN` | `3` | Maximum sources to auto-promote per pipeline run (prevents runaway growth) |
+
+**Manual review:** Candidates below the auto-promote threshold are visible in the admin interface (and future `/research` admin panel) where a human can approve or reject them. Rejected candidates are not reconsidered unless explicitly reset.
+
+**RSS auto-detection:** When a candidate is promoted, the system attempts to find an RSS/Atom feed on the domain (checking `<link rel="alternate" type="application/rss+xml">`, common paths like `/feed`, `/rss`, `/rss.xml`). If found, the source is created with `source_type='rss'`; otherwise it falls back to `source_type='web'` for HTML scraping.
 
 ### AI Provider Abstraction
 
@@ -426,6 +487,10 @@ docker compose --profile aggregator up -d
 | `AGG_LINK_RATE_LIMIT` | Seconds between requests to the same domain | `2` |
 | `AGG_LINK_RELEVANCE_THRESHOLD` | Minimum relevance to ingest a discovered link | `0.4` |
 | `AGG_LINK_EXTRA_DOMAINS` | Comma-separated extra domains to allow for link following | — |
+| `AGG_SOURCE_AUTO_PROMOTE_CONFIDENCE` | Minimum AI confidence to auto-promote a discovered source | `0.8` |
+| `AGG_SOURCE_MIN_HITS` | Minimum articles from a domain before promotion is considered | `5` |
+| `AGG_SOURCE_MIN_AVG_RELEVANCE` | Minimum average relevance for auto-promotion | `0.6` |
+| `AGG_SOURCE_MAX_AUTO_PER_RUN` | Maximum sources to auto-promote per pipeline run | `3` |
 | `AGG_DATABASE_URL` | Full PostgreSQL connection string (overrides individual vars) | — |
 
 For production (Plesk), `AGG_DATABASE_URL` points to a PostgreSQL instance on the server. The Next.js app reads it to serve the `/research` API routes.
