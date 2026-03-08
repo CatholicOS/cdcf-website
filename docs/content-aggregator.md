@@ -478,14 +478,24 @@ CLAUDE.md                     # Document aggregator subsystem
 
 ## Initial Source List
 
-| Source | Type | URL |
-|--------|------|-----|
-| Vatican News | RSS | `https://www.vaticannews.va/en.rss.xml` |
-| Catholic News Agency | RSS | `https://www.catholicnewsagency.com/feed` |
-| America Magazine | RSS | `https://www.americamagazine.org/feed` |
-| National Catholic Reporter | RSS | `https://www.ncronline.org/rss.xml` |
-| The Pillar | RSS | `https://www.pillarcatholic.com/feed` |
-| Catholic Tech | Web | `https://catholic.tech` |
-| Holy See Documents | Vatican | `https://www.vatican.va/content/vatican/en.html` |
+| Source | Type | URL | Language |
+|--------|------|-----|----------|
+| Vatican News | RSS | `https://www.vaticannews.va/en.rss.xml` | EN |
+| Catholic News Agency (CNA) | RSS | `https://www.catholicnewsagency.com/feed` | EN |
+| EWTN / National Catholic Register | RSS | `https://ncregister.com/feeds/general-news.xml` | EN |
+| Our Sunday Visitor (OSV News) | RSS | `https://www.osv.com/RSS.aspx` | EN |
+| America Magazine | RSS | `https://www.americamagazine.org/feed` | EN |
+| National Catholic Reporter | RSS | `https://www.ncronline.org/rss.xml` | EN |
+| The Pillar | RSS | `https://www.pillarcatholic.com/feed` | EN |
+| Catholic World News | RSS | `https://feeds.feedburner.com/CatholicWorldNewsFeatureStories` | EN |
+| Catholic Online | RSS | `https://www.catholic.org/xml/` | EN |
+| Crux | RSS | `https://cruxnow.com/feed` | EN |
+| ACI Prensa | RSS | `https://www.aciprensa.com/rss/news` | ES |
+| ACI Digital | RSS | `https://www.acidigital.com/rss/news` | PT |
+| ZENIT | RSS | `https://zenit.org/feed/` | EN |
+| Catholic Herald | RSS | `https://catholicherald.co.uk/feed/` | EN |
+| Aleteia | RSS | `https://aleteia.org/feed/` | EN |
+| Holy See Documents | Vatican | `https://www.vatican.va/content/vatican/en.html` | EN |
+| USCCB News | RSS | `https://www.usccb.org/subscribe/rss` | EN |
 
 Sources are stored in the `sources` table and can be added/removed at any time without code changes.
