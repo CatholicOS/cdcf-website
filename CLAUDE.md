@@ -88,9 +88,9 @@ All endpoints require Application Password authentication (`edit_posts` capabili
 
 ### `POST /team-member`
 
-Creates an English `team_member` post, translates it to all 5 languages via OpenAI, and appends each translation to the appropriate relationship field. For `team_members`, `ecclesial_council`, and `technical_council`, members are linked to the About page's council field. For `academic_council`, members are linked to the academic collaboration post's `collab_governance` field (requires `collab_post_id`).
+Creates an English `team_member` post, translates it to all 5 languages via OpenAI, and optionally appends each translation to the appropriate relationship field. For `team_members`, `ecclesial_council`, and `technical_council`, members are linked to the About page's council field. For `academic_council`, members are linked to the academic collaboration post's `collab_governance` field (requires `collab_post_id`). When `council` is omitted, the member is created with translations but not linked to any page — use this for project-only members (e.g. project leads) who should then be added to the project's `project_leads` field separately via `update-relationship`.
 
-**Parameters:** `title` (required), `content` (required), `council` (required — one of `team_members`, `ecclesial_council`, `technical_council`, `academic_council`), `member_title`, `member_role`, `member_linkedin_url`, `member_github_url`, `featured_image_id`, `collab_post_id` (required for `academic_council` — the English academic collaboration post ID)
+**Parameters:** `title` (required), `content` (required), `council` (optional — one of `team_members`, `ecclesial_council`, `technical_council`, `academic_council`; omit for project-only members), `member_title`, `member_role`, `member_linkedin_url`, `member_github_url`, `featured_image_id`, `collab_post_id` (required for `academic_council` — the English academic collaboration post ID)
 
 **Returns:** `{ success, en_post_id, translations: { en, it, es, fr, pt, de }, council, errors[] }`
 
@@ -152,6 +152,7 @@ scripts/.venv/bin/python scripts/cdcf_api.py update-meta --post-id 702 --post-ty
 # REST API calls
 scripts/.venv/bin/python scripts/cdcf_api.py get-relationship --post-id 5 --field team_members
 scripts/.venv/bin/python scripts/cdcf_api.py create-team-member --title "Name" --content "<p>Bio</p>" --council technical_council
+scripts/.venv/bin/python scripts/cdcf_api.py create-team-member --title "Name" --content "<p>Bio</p>"  # project-only member, no council
 scripts/.venv/bin/python scripts/cdcf_api.py create-academic-collaboration --title "University Name" --collab-description "Description" --collab-university "University"
 scripts/.venv/bin/python scripts/cdcf_api.py translate-post --source-id 255 --target-lang it
 

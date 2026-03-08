@@ -365,8 +365,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("create-team-member", help="Create team member with auto-translation")
     p.add_argument("--title", required=True)
     p.add_argument("--content", required=True)
-    p.add_argument("--council", required=True,
-                   choices=["team_members", "ecclesial_council", "technical_council", "academic_council"])
+    p.add_argument("--council", default="",
+                   choices=["", "team_members", "ecclesial_council", "technical_council", "academic_council"],
+                   help="Council to link to on the About page. Omit for project-only members.")
     p.add_argument("--member-title")
     p.add_argument("--member-role")
     p.add_argument("--member-linkedin-url")

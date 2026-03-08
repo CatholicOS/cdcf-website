@@ -506,7 +506,7 @@ add_action('rest_api_init', function () {
             'member_role'        => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
             'member_linkedin_url' => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => ''],
             'member_github_url'  => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'esc_url_raw', 'default' => ''],
-            'council'            => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
+            'council'            => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
             'featured_image_id'  => ['required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint', 'default' => 0],
             'collab_post_id'     => ['required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint', 'default' => 0],
         ],
@@ -517,7 +517,7 @@ function cdcf_rest_create_team_member(WP_REST_Request $request) {
     $allowed_councils = ['team_members', 'ecclesial_council', 'technical_council', 'academic_council'];
     $council = $request['council'];
 
-    if (!in_array($council, $allowed_councils, true)) {
+    if ($council && !in_array($council, $allowed_councils, true)) {
         return new WP_Error('invalid_council', 'council must be one of: ' . implode(', ', $allowed_councils), ['status' => 400]);
     }
 
@@ -599,9 +599,12 @@ function cdcf_rest_create_team_member(WP_REST_Request $request) {
         }
     }
 
-    // ── 3. Update relationships ──
+    // ── 3. Update relationships (skip if no council specified) ──
 
-    if ($council === 'academic_council') {
+    if (!$council) {
+        // No council — team member is not linked to any About page section.
+        // Use this for project-only members (e.g. project leads).
+    } elseif ($council === 'academic_council') {
         // Academic council members link to an academic collaboration post's
         // collab_governance field instead of the About page.
         $collab_post_id = $request['collab_post_id'];
