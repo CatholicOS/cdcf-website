@@ -44,6 +44,7 @@ export default function Header() {
         { href: '/about/certificate-of-formation', label: t('certificateOfFormation') },
         { href: '/about/manifesto', label: t('manifesto') },
         { href: '/about/logo-symbolism', label: t('logoSymbolism') },
+        { href: '/bylaws', label: t('bylaws') },
       ],
     },
     {
