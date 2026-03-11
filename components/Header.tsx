@@ -42,9 +42,9 @@ export default function Header() {
         { href: '/about#ecclesial-advisory-council', label: t('ecclesialAdvisoryCouncil') },
         { href: '/about#technical-advisory-council', label: t('technicalAdvisoryCouncil') },
         { href: '/about/certificate-of-formation', label: t('certificateOfFormation') },
+        { href: '/bylaws', label: t('bylaws') },
         { href: '/about/manifesto', label: t('manifesto') },
         { href: '/about/logo-symbolism', label: t('logoSymbolism') },
-        { href: '/bylaws', label: t('bylaws') },
       ],
     },
     {
