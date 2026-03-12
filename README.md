@@ -293,7 +293,7 @@ You can set this up as a WordPress publish hook (e.g. via the WP Webhooks plugin
 
 Production runs natively on a Plesk-managed server (no Docker) with two subdomains:
 
-- **`staging.catholicdigitalcommons.org`** — Next.js frontend (standalone build running via Node.js)
+- **`catholicdigitalcommons.org`** — Next.js frontend (standalone build running via Node.js)
 - **`cms.catholicdigitalcommons.org`** — WordPress admin backend (PHP-FPM managed by Plesk)
 
 WordPress and Next.js share the same MariaDB instance already running on the server. Plesk manages Nginx, SSL certificates, and PHP-FPM.

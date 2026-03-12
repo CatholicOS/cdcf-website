@@ -3940,7 +3940,7 @@ function cdcf_bulk_translate_page() {
  * whenever a page, post, or project is published, unpublished, or trashed.
  *
  * Requires two constants in wp-config.php:
- *   define('CDCF_FRONTEND_URL',       'https://staging.catholicdigitalcommons.org');
+ *   define('CDCF_FRONTEND_URL',       'https://catholicdigitalcommons.org');
  *   define('CDCF_PREVIEW_SECRET',     'your-shared-secret');
  */
 add_action('transition_post_status', function ($new_status, $old_status, $post) {

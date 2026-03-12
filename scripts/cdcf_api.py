@@ -103,6 +103,23 @@ class CdcfClient:
         resp.raise_for_status()
         return {"post_id": post_id, "meta": resp.json().get("meta", {})}
 
+    def update_post(self, post_id: int, post_type: str = "posts", **fields) -> dict:
+        """Update top-level fields on a post (e.g. title, content, featured_media).
+
+        post_type: REST API slug (see get_post).
+        fields: key=value pairs of fields to set.
+
+        Returns the full updated post object.
+        """
+        resp = requests.post(
+            self._wp_url(f"wp/v2/{post_type}/{post_id}"),
+            json=fields,
+            auth=self.wp_auth,
+            timeout=120,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
     # -- GraphQL --
 
     def graphql(self, query: str, variables: dict | None = None) -> dict:
@@ -478,6 +495,14 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--fields", required=True,
                    help='JSON object of fields to set, e.g. \'{"member_title": "Lead Dev"}\'')
 
+    # update-post
+    p = sub.add_parser("update-post", help="Update top-level fields on a post")
+    p.add_argument("--post-id", type=int, required=True)
+    p.add_argument("--post-type", default="posts",
+                   help="REST API slug (posts, pages, project, team_member, etc.)")
+    p.add_argument("--fields", required=True,
+                   help='JSON object of fields to set, e.g. \'{"featured_media": 123}\'')
+
     # -- GraphQL commands --
 
     # graphql
@@ -602,6 +627,10 @@ def _run_cli(args: argparse.Namespace, client: CdcfClient) -> dict:
     if cmd == "update-meta":
         fields = json.loads(args.fields)
         return client.update_meta(args.post_id, args.post_type, **fields)
+
+    if cmd == "update-post":
+        fields = json.loads(args.fields)
+        return client.update_post(args.post_id, args.post_type, **fields)
 
     if cmd == "graphql":
         variables = json.loads(args.variables) if args.variables else None

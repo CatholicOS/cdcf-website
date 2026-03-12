@@ -1,7 +1,7 @@
 import { locales } from '@/src/i18n/routing'
 
 const baseUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://staging.catholicdigitalcommons.org'
+  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://catholicdigitalcommons.org'
 
 export async function GET() {
   const sitemaps = locales

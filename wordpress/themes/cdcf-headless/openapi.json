@@ -23,7 +23,7 @@
       "description": "Local Next.js"
     },
     {
-      "url": "https://staging.catholicdigitalcommons.org/api",
+      "url": "https://catholicdigitalcommons.org/api",
       "description": "Production Next.js"
     }
   ],
@@ -1201,7 +1201,7 @@
         "security": [],
         "servers": [
           { "url": "http://localhost:3000/api", "description": "Local Next.js" },
-          { "url": "https://staging.catholicdigitalcommons.org/api", "description": "Production Next.js" }
+          { "url": "https://catholicdigitalcommons.org/api", "description": "Production Next.js" }
         ],
         "requestBody": {
           "required": true,
@@ -1266,7 +1266,7 @@
         "security": [{ "previewSecret": [] }],
         "servers": [
           { "url": "http://localhost:3000/api", "description": "Local Next.js" },
-          { "url": "https://staging.catholicdigitalcommons.org/api", "description": "Production Next.js" }
+          { "url": "https://catholicdigitalcommons.org/api", "description": "Production Next.js" }
         ],
         "parameters": [
           {
@@ -1318,7 +1318,7 @@
         "security": [{ "previewSecret": [] }],
         "servers": [
           { "url": "http://localhost:3000/api", "description": "Local Next.js" },
-          { "url": "https://staging.catholicdigitalcommons.org/api", "description": "Production Next.js" }
+          { "url": "https://catholicdigitalcommons.org/api", "description": "Production Next.js" }
         ],
         "requestBody": {
           "required": true,
@@ -1405,7 +1405,7 @@
         "security": [],
         "servers": [
           { "url": "http://localhost:3000", "description": "Local Next.js" },
-          { "url": "https://staging.catholicdigitalcommons.org", "description": "Production Next.js" }
+          { "url": "https://catholicdigitalcommons.org", "description": "Production Next.js" }
         ],
         "responses": {
           "200": {
@@ -1413,7 +1413,7 @@
             "content": {
               "application/xml": {
                 "schema": { "type": "string" },
-                "example": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n  <sitemap>\n    <loc>https://staging.catholicdigitalcommons.org/sitemap-en.xml</loc>\n  </sitemap>\n</sitemapindex>"
+                "example": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n  <sitemap>\n    <loc>https://catholicdigitalcommons.org/sitemap-en.xml</loc>\n  </sitemap>\n</sitemapindex>"
               }
             }
           }
@@ -1429,7 +1429,7 @@
         "security": [],
         "servers": [
           { "url": "http://localhost:3000", "description": "Local Next.js" },
-          { "url": "https://staging.catholicdigitalcommons.org", "description": "Production Next.js" }
+          { "url": "https://catholicdigitalcommons.org", "description": "Production Next.js" }
         ],
         "parameters": [
           {

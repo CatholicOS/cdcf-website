@@ -37,7 +37,7 @@ const siteDescription =
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://staging.catholicdigitalcommons.org'
+    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://catholicdigitalcommons.org'
   ),
   title: {
     default: 'Catholic Digital Commons Foundation',
