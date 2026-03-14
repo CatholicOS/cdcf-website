@@ -111,14 +111,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             );
           }
 
+          const expiresIn = Number(tokens.expires_in);
           return {
             ...token,
             accessToken: tokens.access_token,
-            expiresAt: Math.floor(Date.now() / 1000 + tokens.expires_in),
+            expiresAt: Number.isFinite(expiresIn)
+              ? Math.floor(Date.now() / 1000 + expiresIn)
+              : token.expiresAt,
             refreshToken: tokens.refresh_token ?? token.refreshToken,
             error: undefined,
           };
-        } catch {
+        } catch (err) {
+          console.error("[auth] Token refresh failed:", err);
           return { ...token, error: "RefreshAccessTokenError" };
         }
       }

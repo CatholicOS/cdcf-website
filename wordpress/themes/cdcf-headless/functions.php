@@ -4387,6 +4387,7 @@ add_filter('determine_current_user', function ($user_id) {
     }
 
     $response = wp_remote_get(rtrim($issuer, '/') . '/oidc/v1/userinfo', [
+        'timeout' => 5,
         'headers' => [
             'Authorization' => 'Bearer ' . $token,
             'Accept'        => 'application/json',

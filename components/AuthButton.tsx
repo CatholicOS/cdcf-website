@@ -4,7 +4,7 @@ import { useSession, signIn, signOut } from "next-auth/react"
 import { useTranslations } from "next-intl"
 import { Link } from "@/src/i18n/navigation"
 import { ChevronDownIcon, UserIcon } from "@heroicons/react/24/outline"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import clsx from "clsx"
 
 export default function AuthButton() {
@@ -13,17 +13,38 @@ export default function AuthButton() {
   const [isOpen, setIsOpen] = useState(false)
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  function openDropdown() {
+  const openDropdown = useCallback(() => {
     if (closeTimeout.current) {
       clearTimeout(closeTimeout.current)
       closeTimeout.current = null
     }
     setIsOpen(true)
-  }
+  }, [])
 
-  function scheduleClose() {
+  const closeDropdown = useCallback(() => {
+    setIsOpen(false)
+  }, [])
+
+  const scheduleClose = useCallback(() => {
     closeTimeout.current = setTimeout(() => setIsOpen(false), 150)
-  }
+  }, [])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      setIsOpen(prev => !prev)
+    } else if (e.key === 'Escape') {
+      closeDropdown()
+    }
+  }, [closeDropdown])
+
+  useEffect(() => {
+    return () => {
+      if (closeTimeout.current) {
+        clearTimeout(closeTimeout.current)
+      }
+    }
+  }, [])
 
   if (status === "loading") {
     return (
@@ -52,6 +73,9 @@ export default function AuthButton() {
     >
       <button
         className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onKeyDown={handleKeyDown}
       >
         {session.user?.image ? (
           <img
@@ -74,18 +98,20 @@ export default function AuthButton() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full min-w-40 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+        <div role="menu" className="absolute right-0 top-full min-w-40 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
           <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-100 mb-1">
             {session.user?.email}
           </div>
           <Link
             href="/profile"
+            role="menuitem"
             className="block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
             onClick={() => setIsOpen(false)}
           >
             {t("profile")}
           </Link>
           <button
+            role="menuitem"
             onClick={() => signOut()}
             className="block w-full text-left px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
           >

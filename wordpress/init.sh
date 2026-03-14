@@ -60,7 +60,7 @@ wp plugin install polylang --activate --allow-root
 wp plugin install wpgraphql-acf --activate --allow-root
 
 echo "Installing OpenID Connect Generic..."
-wp plugin delete openid-connect-generic --allow-root 2>/dev/null || true
+wp plugin delete daggerhart-openid-connect-generic --allow-root 2>/dev/null || true
 wp plugin install daggerhart-openid-connect-generic --activate --allow-root
 
 # GitHub-hosted plugins

@@ -137,11 +137,18 @@ PROJECT_ID=$(curl -sf -X POST "${ZITADEL_URL}/management/v1/projects/_search" \
   | jq -r '(.result // [])[0].id // empty')
 
 if [ -z "$PROJECT_ID" ]; then
-  PROJECT_ID=$(curl -sf -X POST "${ZITADEL_URL}/management/v1/projects" \
+  resp=$(curl -sf -X POST "${ZITADEL_URL}/management/v1/projects" \
     -H "Authorization: Bearer $PAT" \
     -H "Content-Type: application/json" \
-    -d '{"name": "CDCF", "projectRoleAssertion": true}' \
-    | jq -r '.id')
+    -d '{"name": "CDCF", "projectRoleAssertion": true}') || {
+    error "Failed to create CDCF project (curl failed)"
+    exit 1
+  }
+  PROJECT_ID=$(echo "$resp" | jq -r '.id')
+  if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "null" ]; then
+    error "Failed to create CDCF project — response: $resp"
+    exit 1
+  fi
   ok "Project created: $PROJECT_ID"
 else
   ok "Project exists: $PROJECT_ID"
@@ -224,6 +231,10 @@ create_or_get_app() {
       }")
     client_id=$(echo "$resp" | jq -r '.clientId')
     client_secret=$(echo "$resp" | jq -r '.clientSecret')
+    if [ -z "$client_id" ] || [ "$client_id" = "null" ] || [ -z "$client_secret" ] || [ "$client_secret" = "null" ]; then
+      error "Failed to extract credentials for '${app_name}' — response: $resp"
+      exit 1
+    fi
     ok "App '${app_name}' created"
   fi
 
