@@ -27,6 +27,7 @@ services:
       WORDPRESS_DB_NAME: ${WP_DB_NAME:-wordpress}
       WORDPRESS_DB_USER: ${WP_DB_USER:-wordpress}
       WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
+      ZITADEL_ISSUER_URL: ${ZITADEL_ISSUER_URL:-http://zitadel:8080}
       WORDPRESS_CONFIG_EXTRA: |
         define('FS_METHOD', 'direct');
         define('REDIS_QUEUE_HOST', 'redis');
@@ -38,10 +39,124 @@ services:
         define('SMTP_PASS', '${SMTP_PASS:-}');
         define('SMTP_FROM', '${SMTP_FROM:-webmaster@catholicdigitalcommons.org}');
         define('SMTP_FROM_NAME', '${SMTP_FROM_NAME:-Catholic Digital Commons Foundation}');
+
+        /* Zitadel OIDC */
+        define('OIDC_LOGIN_TYPE', 'button');
+        define('OIDC_CLIENT_ID', '${ZITADEL_WP_CLIENT_ID}');
+        define('OIDC_CLIENT_SECRET', '${ZITADEL_WP_CLIENT_SECRET}');
+        define('OIDC_ENDPOINT_LOGIN_URL', '${ZITADEL_ISSUER_URL:-http://localhost:8085}/oauth/v2/authorize');
+        define('OIDC_ENDPOINT_USERINFO_URL', 'http://zitadel:8080/oidc/v1/userinfo');
+        define('OIDC_ENDPOINT_TOKEN_URL', 'http://zitadel:8080/oauth/v2/token');
+        define('OIDC_ENDPOINT_LOGOUT_URL', '${ZITADEL_ISSUER_URL:-http://localhost:8085}/oidc/v1/end_session');
+        define('OIDC_CLIENT_SCOPE', 'openid email profile urn:zitadel:iam:org:project:roles');
+        define('OIDC_IDENTITY_KEY', 'preferred_username');
+        define('OIDC_NICKNAME_KEY', 'preferred_username');
+        define('OIDC_EMAIL_FORMAT', '{email}');
+        define('OIDC_DISPLAYNAME_FORMAT', '{given_name} {family_name}');
+        define('OIDC_CREATE_IF_DOES_NOT_EXIST', true);
+        define('OIDC_LINK_EXISTING_USERS', true);
+        define('OIDC_REDIRECT_USER_BACK', true);
     volumes:
       - wordpress_data:/var/www/html
       - ./wordpress/themes/cdcf-headless:/var/www/html/wp-content/themes/cdcf-headless
       - ./wordpress/plugins/cdcf-redis-translations:/var/www/html/wp-content/plugins/cdcf-redis-translations
+
+  zitadel-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${ZITADEL_DB_PASSWORD}
+      POSTGRES_DB: zitadel
+    volumes:
+      - zitadel_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d zitadel"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:v4.12.2
+    restart: unless-stopped
+    user: "0"
+    depends_on:
+      zitadel-db:
+        condition: service_healthy
+    command: start-from-init --masterkeyFromEnv
+    environment:
+      ZITADEL_DATABASE_POSTGRES_HOST: zitadel-db
+      ZITADEL_DATABASE_POSTGRES_PORT: 5432
+      ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_USERNAME: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${ZITADEL_DB_PASSWORD}
+      ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
+      ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: postgres
+      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${ZITADEL_DB_PASSWORD}
+      ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
+      ZITADEL_MASTERKEY: ${ZITADEL_MASTERKEY}
+      ZITADEL_EXTERNALPORT: ${ZITADEL_EXTERNAL_PORT:-8085}
+      ZITADEL_EXTERNALSECURE: "false"
+      ZITADEL_TLS_ENABLED: "false"
+      # First-instance bootstrap: automation machine user + PAT
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORDCHANGEREQUIRED: "false"
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: automation-user
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: "Automation User"
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: "2030-01-01T00:00:00Z"
+      ZITADEL_FIRSTINSTANCE_PATPATH: /zitadel-data/automation-user.pat
+      # Login client: separate service user for the login UI
+      ZITADEL_FIRSTINSTANCE_LOGINCLIENTPATPATH: /zitadel/bootstrap/login-client.pat
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_USERNAME: login-client
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_NAME: "Login Client"
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_PAT_EXPIRATIONDATE: "2099-01-01T00:00:00Z"
+      # Enable Login V2 UI
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "true"
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_BASEURI: http://localhost:${ZITADEL_EXTERNAL_PORT:-8085}/ui/v2/login/
+      ZITADEL_OIDC_DEFAULTLOGINURLV2: http://localhost:${ZITADEL_EXTERNAL_PORT:-8085}/ui/v2/login/login?authRequest=
+      ZITADEL_OIDC_DEFAULTLOGOUTURLV2: http://localhost:${ZITADEL_EXTERNAL_PORT:-8085}/ui/v2/login/logout?post_logout_redirect=
+    healthcheck:
+      test: ["CMD", "/app/zitadel", "ready"]
+      interval: 10s
+      timeout: 30s
+      retries: 12
+      start_period: 20s
+    volumes:
+      - zitadel_bootstrap:/zitadel/bootstrap:rw
+      - ./.zitadel-data:/zitadel-data
+
+  zitadel-login:
+    image: ghcr.io/zitadel/zitadel-login:v4.12.2
+    restart: unless-stopped
+    user: "0"
+    depends_on:
+      zitadel:
+        condition: service_healthy
+    environment:
+      ZITADEL_API_URL: http://zitadel:8080
+      NEXT_PUBLIC_BASE_PATH: /ui/v2/login
+      ZITADEL_SERVICE_USER_TOKEN_FILE: /zitadel/bootstrap/login-client.pat
+      CUSTOM_REQUEST_HEADERS: "Host:localhost,X-Forwarded-Proto:http"
+    healthcheck:
+      test: ["CMD", "/bin/sh", "-c", "node /app/healthcheck.mjs http://localhost:3000/ui/v2/login/healthy"]
+      interval: 10s
+      timeout: 30s
+      retries: 12
+      start_period: 20s
+    volumes:
+      - zitadel_bootstrap:/zitadel/bootstrap:ro
+
+  zitadel-proxy:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      zitadel:
+        condition: service_healthy
+      zitadel-login:
+        condition: service_healthy
+    volumes:
+      - ./zitadel/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${ZITADEL_EXTERNAL_PORT:-8085}:80"
 
   wp-init:
     image: wordpress:cli
@@ -69,6 +184,9 @@ services:
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
     entrypoint: ["sh", "/usr/local/bin/init.sh"]
     restart: "no"
+    profiles:
+      - production
+      - dev
 
   redis-worker:
     image: wordpress:cli
@@ -88,6 +206,17 @@ services:
       WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
     entrypoint: ["sh", "-c", "echo 'Waiting for database...'; until wp db check --allow-root >/dev/null 2>&1; do sleep 2; done; echo 'Database ready — starting worker loop'; while true; do wp eval 'if(function_exists(\"redis_queue\")){redis_queue()->process_jobs();}' --allow-root 2>&1; sleep 10; done"]
     restart: unless-stopped
+    profiles:
+      - production
+      - dev
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    profiles:
+      - dev
 
   wpcli:
     image: wordpress:cli
@@ -123,6 +252,7 @@ services:
       - WP_PREVIEW_SECRET=${WP_PREVIEW_SECRET}
     profiles:
       - production
+      - dev
 
   nginx:
     image: nginx:alpine
@@ -137,8 +267,11 @@ services:
       - wordpress
     profiles:
       - production
+      - dev
 
 volumes:
   db_data:
   redis_data:
   wordpress_data:
+  zitadel_db_data:
+  zitadel_bootstrap:

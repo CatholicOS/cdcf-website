@@ -4354,3 +4354,210 @@ function cdcf_render_pending_projects_widget(): void {
         printf('<p><a href="%s">View all %d pending submissions &rarr;</a></p>', $url, $total);
     }
 }
+
+// ─── Zitadel Bearer Token Authentication ────────────────────────────
+//
+// Validates Zitadel access tokens against the /userinfo endpoint and
+// logs the user into WordPress by matching the email address.
+// This allows the Next.js frontend to make authenticated REST API calls.
+
+add_filter('determine_current_user', function ($user_id) {
+    if ($user_id) {
+        return $user_id; // Already authenticated by another method.
+    }
+
+    $header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (!$header || !preg_match('/^Bearer\s+(.+)$/i', $header, $matches)) {
+        return $user_id; // No bearer token provided.
+    }
+
+    $token = $matches[1];
+
+    // Use a transient to cache token validation for 5 minutes.
+    $cache_key = 'cdcf_token_auth_' . md5($token);
+    $cached_user_id = get_transient($cache_key);
+    if ($cached_user_id !== false) {
+        return (int) $cached_user_id;
+    }
+
+    // Validate token with Zitadel.
+    $issuer = defined('ZITADEL_ISSUER_URL') ? ZITADEL_ISSUER_URL : '';
+    if (!$issuer) {
+        return $user_id;
+    }
+
+    $response = wp_remote_get(rtrim($issuer, '/') . '/oidc/v1/userinfo', [
+        'headers' => [
+            'Authorization' => 'Bearer ' . $token,
+            'Accept'        => 'application/json',
+        ],
+    ]);
+
+    if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+        return $user_id; // Validation failed.
+    }
+
+    $data = json_decode(wp_remote_retrieve_body($response), true);
+    $email = $data['email'] ?? '';
+    if (!$email) {
+        return $user_id;
+    }
+
+    $user = get_user_by('email', $email);
+    if (!$user) {
+        return $user_id;
+    }
+
+    set_transient($cache_key, $user->ID, 300); // Cache for 5 mins.
+    return $user->ID;
+}, 20);
+
+// ─── REST endpoint for syncing Zitadel users to WordPress ───────────
+//
+// POST /wp-json/cdcf/v1/sync-user (Application Password auth)
+// Called from Next.js after Zitadel sign-in to ensure a WP user exists.
+// Idempotent: creates user if not exists, updates role/display_name if exists.
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/sync-user', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_sync_user',
+        'permission_callback' => function () {
+            return current_user_can('create_users');
+        },
+        'args' => [
+            'email'        => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
+            'username'     => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_user'],
+            'display_name' => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'role'         => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+        ],
+    ]);
+});
+
+function cdcf_rest_sync_user(WP_REST_Request $request) {
+    $email        = $request['email'];
+    $username     = $request['username'];
+    $display_name = $request['display_name'] ?? '';
+    $role         = $request['role'] ?? 'subscriber';
+
+    // Validate role.
+    $allowed_roles = ['subscriber', 'editor', 'administrator'];
+    if (!in_array($role, $allowed_roles, true)) {
+        $role = 'subscriber';
+    }
+
+    // Check if user exists by email.
+    $user = get_user_by('email', $email);
+
+    if ($user) {
+        // Update existing user.
+        $update_data = ['ID' => $user->ID, 'role' => $role];
+        if ($display_name) {
+            $update_data['display_name'] = $display_name;
+        }
+        $result = wp_update_user($update_data);
+        if (is_wp_error($result)) {
+            return new WP_Error('update_failed', $result->get_error_message(), ['status' => 500]);
+        }
+        return rest_ensure_response([
+            'user_id' => $user->ID,
+            'action'  => 'updated',
+            'role'    => $role,
+        ]);
+    }
+
+    // Create new user with random password (auth via OIDC, never via WP password).
+    $user_id = wp_insert_user([
+        'user_login'   => $username,
+        'user_email'   => $email,
+        'display_name' => $display_name ?: $username,
+        'user_pass'    => wp_generate_password(32, true, true),
+        'role'         => $role,
+    ]);
+
+    if (is_wp_error($user_id)) {
+        return new WP_Error('create_failed', $user_id->get_error_message(), ['status' => 500]);
+    }
+
+    return rest_ensure_response([
+        'user_id' => $user_id,
+        'action'  => 'created',
+        'role'    => $role,
+    ]);
+}
+
+// ─── Auto-redirect wp-login.php to OIDC login flow ──────────────────
+//
+// When a user navigates to wp-admin (and gets redirected to wp-login.php),
+// this hook auto-redirects to the OIDC plugin's authorization flow.
+// Since Zitadel already has an active session from the frontend, the flow
+// is instant (transparent redirect chain).
+//
+// Escape hatch: ?traditional=1 shows the normal WP login form.
+
+add_action('login_init', function () {
+    // Escape hatch: allow traditional WP login.
+    if (isset($_GET['traditional']) && $_GET['traditional'] === '1') {
+        return;
+    }
+
+    // Skip POST requests (form submissions).
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        return;
+    }
+
+    // Skip logout, password reset, and OIDC callback actions.
+    $skip_actions = ['logout', 'lostpassword', 'rp', 'resetpass', 'register', 'openid-connect-authorize'];
+    $action = $_GET['action'] ?? $_REQUEST['action'] ?? '';
+    if (in_array($action, $skip_actions, true)) {
+        return;
+    }
+
+    // Skip if this is already the OIDC callback.
+    if (isset($_GET['login-callback'])) {
+        return;
+    }
+
+    // Redirect to OIDC authorization flow.
+    $redirect_url = wp_login_url() . '?login-callback=openid-connect-authorize';
+    wp_safe_redirect($redirect_url);
+    exit;
+});
+
+// ─── OIDC role mapping from Zitadel roles ────────────────────────────
+//
+// Maps Zitadel project roles to WordPress roles on user creation and
+// subsequent logins via the daggerhart-openid-connect-generic plugin.
+//
+// Zitadel roles claim: urn:zitadel:iam:org:project:roles → { "admin": {...}, "editor": {...} }
+
+/**
+ * Map Zitadel roles to a WordPress role string.
+ */
+function cdcf_map_zitadel_role_to_wp($user_claim) {
+    $roles_claim = $user_claim['urn:zitadel:iam:org:project:roles'] ?? [];
+
+    if (isset($roles_claim['admin'])) {
+        return 'administrator';
+    }
+    if (isset($roles_claim['editor'])) {
+        return 'editor';
+    }
+    return 'subscriber';
+}
+
+// Set WP role on new user creation via OIDC.
+add_filter('openid-connect-generic-user-creation-data', function ($user_data, $user_claim) {
+    $user_data['role'] = cdcf_map_zitadel_role_to_wp($user_claim);
+    return $user_data;
+}, 10, 2);
+
+// Update WP role on subsequent OIDC logins if Zitadel roles changed.
+add_action('openid-connect-generic-update-user-using-current-claim', function ($user, $user_claim) {
+    $new_role = cdcf_map_zitadel_role_to_wp($user_claim);
+    $current_roles = $user->roles;
+
+    if (!in_array($new_role, $current_roles, true)) {
+        $user->set_role($new_role);
+    }
+}, 10, 2);

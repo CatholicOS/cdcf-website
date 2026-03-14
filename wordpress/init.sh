@@ -59,15 +59,21 @@ wp plugin install polylang --activate --allow-root
 # WPGraphQL for ACF (now distributed via WordPress.org since monorepo migration)
 wp plugin install wpgraphql-acf --activate --allow-root
 
+echo "Installing OpenID Connect Generic..."
+wp plugin delete openid-connect-generic --allow-root 2>/dev/null || true
+wp plugin install daggerhart-openid-connect-generic --activate --allow-root
+
 # GitHub-hosted plugins
 
 echo "Installing WPGraphQL Polylang..."
+wp plugin delete wp-graphql-polylang --allow-root 2>/dev/null || true
 wp plugin install \
   "https://github.com/valu-digital/wp-graphql-polylang/archive/refs/heads/master.zip" \
   --activate --allow-root 2>&1 \
   || echo "  NOTE: WPGraphQL Polylang auto-install failed — install manually from GitHub."
 
 echo "Installing Redis Queue..."
+wp plugin delete redis-queue --allow-root 2>/dev/null || true
 wp plugin install \
   "https://github.com/soderlind/redis-queue/releases/latest/download/redis-queue.zip" \
   --activate --allow-root 2>&1 \

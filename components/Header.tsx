@@ -7,6 +7,7 @@ import { Bars3Icon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outli
 import clsx from 'clsx'
 import Logo from './Logo'
 import LanguageSwitcher from './LanguageSwitcher'
+import AuthButton from './AuthButton'
 
 interface NavLink {
   href: string
@@ -130,6 +131,7 @@ export default function Header() {
 
         {/* Right side: language switcher + donate CTA */}
         <div className="flex items-center gap-2">
+          <AuthButton />
           <LanguageSwitcher />
           <Link href="/donate" className="cdcf-btn-primary hidden text-sm sm:inline-flex">
             {t('donate')}
@@ -214,6 +216,9 @@ export default function Header() {
           >
             {t('donate')}
           </Link>
+          <div className="mt-2 mb-2 px-3">
+            <AuthButton />
+          </div>
         </nav>
       </div>
     </header>

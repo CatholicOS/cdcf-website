@@ -248,5 +248,11 @@
     "openSourceProjects": "Proyectos de Código Abierto",
     "contributors": "Colaboradores",
     "languages": "Idiomas"
+  },
+  "auth": {
+    "signIn": "Iniciar sesión",
+    "signOut": "Cerrar sesión",
+    "profile": "Perfil",
+    "loading": "Cargando..."
   }
 }

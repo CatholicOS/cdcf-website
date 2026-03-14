@@ -1,7 +1,22 @@
-# Dev overrides: expose WordPress on localhost:8000
+# Dev overrides: expose WordPress on localhost (default port 8000, override with WP_DEV_PORT)
 # This file is auto-loaded by `docker compose up` alongside docker-compose.yml.
 # It is NOT used in production (CI/CD should use `docker compose -f docker-compose.yml`).
 services:
   wordpress:
     ports:
-      - "8000:80"
+      - "${WP_DEV_PORT:-8000}:80"
+    environment:
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_SECURE: ""
+      SMTP_USER: ""
+      SMTP_PASS: ""
+
+  zitadel:
+    environment:
+      ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_SMTP_HOST: mailpit:1025
+      ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_SMTP_USER: ""
+      ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_SMTP_PASSWORD: ""
+      ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_TLS: "false"
+      ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_FROM: "noreply@cdcf.dev"
+      ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_FROMNAME: "CDCF Dev"
