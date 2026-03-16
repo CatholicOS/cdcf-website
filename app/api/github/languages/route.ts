@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
         ].join('/')
         const res = await fetch(url, {
           headers,
+          signal: AbortSignal.timeout(8000),
           next: { revalidate: 3600 },
         })
         if (res.ok) {
