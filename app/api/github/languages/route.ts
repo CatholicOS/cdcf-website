@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const REPO_PATTERN = /^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/
+const REPO_SEGMENT_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/
 
 export async function GET(request: NextRequest) {
   const reposParam = request.nextUrl.searchParams.get('repos')
@@ -18,7 +18,18 @@ export async function GET(request: NextRequest) {
 
   // Validate all repo identifiers
   for (const repo of repos) {
-    if (!REPO_PATTERN.test(repo)) {
+    const [owner, name, extra] = repo.split('/')
+    if (
+      !owner ||
+      !name ||
+      extra ||
+      !REPO_SEGMENT_PATTERN.test(owner) ||
+      !REPO_SEGMENT_PATTERN.test(name) ||
+      owner === '.' ||
+      owner === '..' ||
+      name === '.' ||
+      name === '..'
+    ) {
       return NextResponse.json(
         { error: `Invalid repo identifier: ${repo}` },
         { status: 400 }
@@ -42,13 +53,19 @@ export async function GET(request: NextRequest) {
   await Promise.all(
     capped.map(async (repo) => {
       try {
-        const res = await fetch(
-          `https://api.github.com/repos/${repo}/languages`,
-          {
-            headers,
-            next: { revalidate: 3600 },
-          }
-        )
+        const [owner, name] = repo.split('/')
+        const url = new URL('https://api.github.com/')
+        url.pathname = [
+          'repos',
+          encodeURIComponent(owner),
+          encodeURIComponent(name),
+          'languages',
+        ].join('/')
+        const res = await fetch(url, {
+          headers,
+          signal: AbortSignal.timeout(8000),
+          next: { revalidate: 3600 },
+        })
         if (res.ok) {
           results[repo] = await res.json()
         }
