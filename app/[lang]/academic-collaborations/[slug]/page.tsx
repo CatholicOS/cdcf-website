@@ -12,7 +12,13 @@ interface AcademicCollaborationPageProps {
 }
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, '').trim()
+  let text = html
+  let prev
+  do {
+    prev = text
+    text = text.replace(/<[^>]*>/g, '')
+  } while (text !== prev)
+  return text.trim()
 }
 
 const SITE_URL =
