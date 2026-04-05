@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { setRequestLocale, getTranslations } from 'next-intl/server'
 import { getAcademicCollaboration } from '@/lib/wordpress/api'
+import { stripHtml } from '@/lib/strip-html'
 import { Link } from '@/src/i18n/navigation'
 import GovernanceSection from '@/components/sections/GovernanceSection'
 import ProjectGrid from '@/components/sections/ProjectGrid'
@@ -11,9 +12,6 @@ interface AcademicCollaborationPageProps {
   params: Promise<{ lang: string; slug: string }>
 }
 
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, '').trim()
-}
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || 'https://catholicdigitalcommons.org'

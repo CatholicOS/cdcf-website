@@ -8,10 +8,16 @@ import clsx from 'clsx'
 import Logo from './Logo'
 import LanguageSwitcher from './LanguageSwitcher'
 
+interface NavChild {
+  href: string
+  label: string
+  group?: string
+}
+
 interface NavLink {
   href: string
   label: string
-  children?: { href: string; label: string }[]
+  children?: NavChild[]
 }
 
 export default function Header() {
@@ -33,6 +39,10 @@ export default function Header() {
     closeTimeout.current = setTimeout(() => setDesktopDropdown(null), 150)
   }
 
+  const govProjectGroup = t('govProjectGovernance')
+  const govAiGroup = t('govAiGovernance')
+  const govStandardsGroup = t('govStandards')
+
   const navLinks: NavLink[] = [
     {
       href: '/about',
@@ -53,6 +63,23 @@ export default function Header() {
       children: [
         { href: '/projects#cdcf-projects', label: t('cdcfProjects') },
         { href: '/projects#community-projects', label: t('communityProjects') },
+      ],
+    },
+    {
+      href: '/project-vetting-criteria',
+      label: t('governance'),
+      children: [
+        { href: '/project-vetting-criteria', label: t('govProjectVetting'), group: govProjectGroup },
+        { href: '/lifecycle', label: t('govLifecycle'), group: govProjectGroup },
+        { href: '/committees', label: t('govCommittees'), group: govProjectGroup },
+        { href: '/project-types', label: t('govProjectTypes'), group: govProjectGroup },
+        { href: '/definitions', label: t('govDefinitions'), group: govProjectGroup },
+        { href: '/ai-vetting-criteria', label: t('govAiVetting'), group: govAiGroup },
+        { href: '/fragmented-catholic-ai-governance', label: t('govFragmented'), group: govAiGroup },
+        { href: '/governance-as-code-catholic-ai', label: t('govAsCode'), group: govAiGroup },
+        { href: '/trusted-synthetic-data-ministry-ai', label: t('govSyntheticData'), group: govAiGroup },
+        { href: '/standards-overview', label: t('govStandardsOverview'), group: govStandardsGroup },
+        { href: '/standards-committees', label: t('govStandardsCommittees'), group: govStandardsGroup },
       ],
     },
     {
@@ -103,16 +130,32 @@ export default function Header() {
                 </Link>
                 {desktopDropdown === link.href && (
                   <div className="absolute left-0 top-full min-w-48 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-                    {link.children.map((child) => (
-                      <Link
-                        key={child.href}
-                        href={child.href}
-                        onClick={() => setDesktopDropdown(null)}
-                        className="block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
-                      >
-                        {child.label}
-                      </Link>
-                    ))}
+                    {link.children.map((child, i, arr) => {
+                      const prevGroup = i > 0 ? arr[i - 1].group : undefined
+                      const showGroup = child.group && child.group !== prevGroup
+                      const isFirstGroup = showGroup && !prevGroup
+                      return (
+                        <div key={child.href}>
+                          {showGroup && (
+                            <div
+                              className={clsx(
+                                'px-4 pt-2 pb-1 text-xs font-semibold tracking-wide text-gray-400 uppercase',
+                                !isFirstGroup && 'mt-1 border-t border-gray-100'
+                              )}
+                            >
+                              {child.group}
+                            </div>
+                          )}
+                          <Link
+                            href={child.href}
+                            onClick={() => setDesktopDropdown(null)}
+                            className="block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+                          >
+                            {child.label}
+                          </Link>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -154,7 +197,7 @@ export default function Header() {
       <div
         className={clsx(
           'overflow-hidden border-t border-gray-200 bg-white transition-all md:hidden',
-          mobileOpen ? 'max-h-96' : 'max-h-0 border-t-0'
+          mobileOpen ? 'max-h-[80vh] overflow-y-auto' : 'max-h-0 border-t-0'
         )}
       >
         <nav className="flex flex-col px-4 py-2">
@@ -185,16 +228,26 @@ export default function Header() {
                   </button>
                 </div>
                 {mobileDropdown === link.href &&
-                  link.children.map((child) => (
-                    <Link
-                      key={child.href}
-                      href={child.href}
-                      onClick={() => setMobileOpen(false)}
-                      className="block rounded-md py-2 pr-3 pl-8 text-sm text-gray-600 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
-                    >
-                      {child.label}
-                    </Link>
-                  ))}
+                  link.children.map((child, i, arr) => {
+                    const prevGroup = i > 0 ? arr[i - 1].group : undefined
+                    const showGroup = child.group && child.group !== prevGroup
+                    return (
+                      <div key={child.href}>
+                        {showGroup && (
+                          <div className="mt-1 pl-8 pr-3 pt-2 pb-1 text-xs font-semibold tracking-wide text-gray-400 uppercase">
+                            {child.group}
+                          </div>
+                        )}
+                        <Link
+                          href={child.href}
+                          onClick={() => setMobileOpen(false)}
+                          className="block rounded-md py-2 pr-3 pl-10 text-sm text-gray-600 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+                        >
+                          {child.label}
+                        </Link>
+                      </div>
+                    )
+                  })}
               </div>
             ) : (
               <Link

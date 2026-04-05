@@ -7,14 +7,10 @@ import { Link } from '@/src/i18n/navigation'
 import RepoLanguages from '@/components/projects/RepoLanguages'
 import ShareButtons from '@/components/blog/ShareButtons'
 import GovernanceSection from '@/components/sections/GovernanceSection'
-import striptags from 'striptags'
+import { stripHtml } from '@/lib/strip-html'
 
 interface ProjectPageProps {
   params: Promise<{ lang: string; slug: string }>
-}
-
-function stripHtml(html: string): string {
-  return striptags(html).trim()
 }
 
 const SITE_URL =
