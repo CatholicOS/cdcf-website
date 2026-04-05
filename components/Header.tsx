@@ -129,10 +129,16 @@ export default function Header() {
                     {link.children.map((child, i) => {
                       const prevGroup = i > 0 ? link.children![i - 1].group : undefined
                       const showGroup = child.group && child.group !== prevGroup
+                      const isFirstGroup = showGroup && !prevGroup
                       return (
                         <div key={child.href}>
                           {showGroup && (
-                            <div className="mt-1 border-t border-gray-100 px-4 pt-2 pb-1 text-xs font-semibold tracking-wide text-gray-400 uppercase first:mt-0 first:border-t-0">
+                            <div
+                              className={clsx(
+                                'px-4 pt-2 pb-1 text-xs font-semibold tracking-wide text-gray-400 uppercase',
+                                !isFirstGroup && 'mt-1 border-t border-gray-100'
+                              )}
+                            >
                               {child.group}
                             </div>
                           )}
