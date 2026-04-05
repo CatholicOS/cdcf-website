@@ -12,13 +12,13 @@ interface BlogPostPageProps {
 }
 
 function stripHtml(html: string): string {
-  let text = html
+  let result = html
   let prev
   do {
-    prev = text
-    text = text.replace(/<[^>]*>/g, '')
-  } while (text !== prev)
-  return text.trim()
+    prev = result
+    result = result.replace(/<[^>]*>/g, '')
+  } while (result !== prev)
+  return result.trim()
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://catholicdigitalcommons.org'
