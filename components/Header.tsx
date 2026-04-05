@@ -187,7 +187,7 @@ export default function Header() {
       <div
         className={clsx(
           'overflow-hidden border-t border-gray-200 bg-white transition-all md:hidden',
-          mobileOpen ? 'max-h-96' : 'max-h-0 border-t-0'
+          mobileOpen ? 'max-h-[80vh] overflow-y-auto' : 'max-h-0 border-t-0'
         )}
       >
         <nav className="flex flex-col px-4 py-2">
