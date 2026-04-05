@@ -8,10 +8,16 @@ import clsx from 'clsx'
 import Logo from './Logo'
 import LanguageSwitcher from './LanguageSwitcher'
 
+interface NavChild {
+  href: string
+  label: string
+  group?: string
+}
+
 interface NavLink {
   href: string
   label: string
-  children?: { href: string; label: string }[]
+  children?: NavChild[]
 }
 
 export default function Header() {
@@ -53,6 +59,23 @@ export default function Header() {
       children: [
         { href: '/projects#cdcf-projects', label: t('cdcfProjects') },
         { href: '/projects#community-projects', label: t('communityProjects') },
+      ],
+    },
+    {
+      href: '/project-vetting-criteria',
+      label: t('governance'),
+      children: [
+        { href: '/project-vetting-criteria', label: t('govProjectVetting'), group: t('govProjectGovernance') },
+        { href: '/lifecycle', label: t('govLifecycle'), group: t('govProjectGovernance') },
+        { href: '/committees', label: t('govCommittees'), group: t('govProjectGovernance') },
+        { href: '/project-types', label: t('govProjectTypes'), group: t('govProjectGovernance') },
+        { href: '/definitions', label: t('govDefinitions'), group: t('govProjectGovernance') },
+        { href: '/ai-vetting-criteria', label: t('govAiVetting'), group: t('govAiGovernance') },
+        { href: '/fragmented-catholic-ai-governance', label: t('govFragmented'), group: t('govAiGovernance') },
+        { href: '/governance-as-code-catholic-ai', label: t('govAsCode'), group: t('govAiGovernance') },
+        { href: '/trusted-synthetic-data-ministry-ai', label: t('govSyntheticData'), group: t('govAiGovernance') },
+        { href: '/standards-overview', label: t('govStandardsOverview'), group: t('govStandards') },
+        { href: '/standards-committees', label: t('govStandardsCommittees'), group: t('govStandards') },
       ],
     },
     {
@@ -103,16 +126,26 @@ export default function Header() {
                 </Link>
                 {desktopDropdown === link.href && (
                   <div className="absolute left-0 top-full min-w-48 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-                    {link.children.map((child) => (
-                      <Link
-                        key={child.href}
-                        href={child.href}
-                        onClick={() => setDesktopDropdown(null)}
-                        className="block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
-                      >
-                        {child.label}
-                      </Link>
-                    ))}
+                    {link.children.map((child, i) => {
+                      const prevGroup = i > 0 ? link.children![i - 1].group : undefined
+                      const showGroup = child.group && child.group !== prevGroup
+                      return (
+                        <div key={child.href}>
+                          {showGroup && (
+                            <div className="mt-1 border-t border-gray-100 px-4 pt-2 pb-1 text-xs font-semibold tracking-wide text-gray-400 uppercase first:mt-0 first:border-t-0">
+                              {child.group}
+                            </div>
+                          )}
+                          <Link
+                            href={child.href}
+                            onClick={() => setDesktopDropdown(null)}
+                            className="block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+                          >
+                            {child.label}
+                          </Link>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -185,16 +218,26 @@ export default function Header() {
                   </button>
                 </div>
                 {mobileDropdown === link.href &&
-                  link.children.map((child) => (
-                    <Link
-                      key={child.href}
-                      href={child.href}
-                      onClick={() => setMobileOpen(false)}
-                      className="block rounded-md py-2 pr-3 pl-8 text-sm text-gray-600 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
-                    >
-                      {child.label}
-                    </Link>
-                  ))}
+                  link.children.map((child, i) => {
+                    const prevGroup = i > 0 ? link.children![i - 1].group : undefined
+                    const showGroup = child.group && child.group !== prevGroup
+                    return (
+                      <div key={child.href}>
+                        {showGroup && (
+                          <div className="mt-1 pl-8 pr-3 pt-2 pb-1 text-xs font-semibold tracking-wide text-gray-400 uppercase">
+                            {child.group}
+                          </div>
+                        )}
+                        <Link
+                          href={child.href}
+                          onClick={() => setMobileOpen(false)}
+                          className="block rounded-md py-2 pr-3 pl-10 text-sm text-gray-600 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+                        >
+                          {child.label}
+                        </Link>
+                      </div>
+                    )
+                  })}
               </div>
             ) : (
               <Link

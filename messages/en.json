@@ -18,7 +18,22 @@
     "localGroups": "Local Groups",
     "academicCollaborations": "Academic Collaborations",
     "cdcfProjects": "CDCF Projects",
-    "communityProjects": "Community Projects"
+    "communityProjects": "Community Projects",
+    "governance": "Governance",
+    "govProjectGovernance": "Project Governance",
+    "govProjectVetting": "Project Vetting Criteria",
+    "govLifecycle": "Project Lifecycle",
+    "govCommittees": "Governance Bodies",
+    "govProjectTypes": "Project Types",
+    "govDefinitions": "Governance Definitions",
+    "govAiGovernance": "AI Governance",
+    "govAiVetting": "AI Vetting Criteria",
+    "govFragmented": "Fragmented AI Governance",
+    "govAsCode": "Governance-as-Code",
+    "govSyntheticData": "Trusted Synthetic Data",
+    "govStandards": "Standards",
+    "govStandardsOverview": "Standards Overview",
+    "govStandardsCommittees": "Standards Committees"
   },
   "footer": {
     "about": {
