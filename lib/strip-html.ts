@@ -1,13 +1,8 @@
+import striptags from 'striptags'
+
 /**
- * Strips all HTML tags from a string, handling nested/malformed tags
- * by looping until no more tags are found.
+ * Strips HTML tags from a string using the striptags parser.
  */
 export function stripHtml(html: string): string {
-  let stripped = html
-  let prev
-  do {
-    prev = stripped
-    stripped = stripped.replace(/<[^>]*>/g, '')
-  } while (stripped !== prev)
-  return stripped.trim()
+  return striptags(html).trim()
 }
