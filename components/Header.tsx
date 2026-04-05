@@ -130,8 +130,8 @@ export default function Header() {
                 </Link>
                 {desktopDropdown === link.href && (
                   <div className="absolute left-0 top-full min-w-48 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-                    {link.children.map((child, i) => {
-                      const prevGroup = i > 0 ? link.children![i - 1].group : undefined
+                    {link.children.map((child, i, arr) => {
+                      const prevGroup = i > 0 ? arr[i - 1].group : undefined
                       const showGroup = child.group && child.group !== prevGroup
                       const isFirstGroup = showGroup && !prevGroup
                       return (
@@ -228,8 +228,8 @@ export default function Header() {
                   </button>
                 </div>
                 {mobileDropdown === link.href &&
-                  link.children.map((child, i) => {
-                    const prevGroup = i > 0 ? link.children![i - 1].group : undefined
+                  link.children.map((child, i, arr) => {
+                    const prevGroup = i > 0 ? arr[i - 1].group : undefined
                     const showGroup = child.group && child.group !== prevGroup
                     return (
                       <div key={child.href}>
