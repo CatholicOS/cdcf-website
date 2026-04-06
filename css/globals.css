@@ -10,7 +10,9 @@ html {
 
 /* Self-linking heading anchors (§ glyph) */
 .heading-anchor {
-  margin-right: 0.4em;
+  position: absolute;
+  right: 100%;
+  padding-right: 0.3em;
   color: var(--color-gray-300);
   text-decoration: none;
   font-weight: normal;
