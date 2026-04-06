@@ -2,6 +2,7 @@ import { wpQuery } from './client'
 import {
   GET_ACADEMIC_COLLABORATION_BY_SLUG,
   GET_ALL_PAGES,
+  GET_CHILD_PAGES,
   GET_PAGE_BY_SLUG,
   GET_POST_BY_SLUG,
   GET_POSTS,
@@ -162,6 +163,31 @@ export async function getAllPages(
     return data.pages.nodes
   } catch (error) {
     console.error('Failed to fetch all pages:', error)
+    return []
+  }
+}
+
+export interface WPChildPage {
+  title: string
+  slug: string
+  uri: string
+  excerpt: string | null
+  modified: string
+}
+
+export async function getChildPages(
+  parentDatabaseId: number,
+  locale: string,
+  options?: FetchOptions
+): Promise<WPChildPage[]> {
+  try {
+    const data = await wpQuery<{
+      pages: { nodes: WPChildPage[] }
+    }>(GET_CHILD_PAGES, { parentId: parentDatabaseId, language: langCode(locale) }, options)
+
+    return data.pages.nodes
+  } catch (error) {
+    console.error('Failed to fetch child pages:', error)
     return []
   }
 }

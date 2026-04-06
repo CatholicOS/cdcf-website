@@ -153,6 +153,7 @@ export interface WPPost {
 }
 
 export interface WPPage {
+  databaseId: number
   title: string
   slug: string
   content: string | null

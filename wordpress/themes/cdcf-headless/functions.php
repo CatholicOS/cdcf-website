@@ -2826,6 +2826,7 @@ add_filter('theme_page_templates', function ($templates) {
     $templates['templates/community.php'] = 'Community';
     $templates['templates/blog.php']      = 'Blog';
     $templates['templates/contact.php']   = 'Contact';
+    $templates['templates/governance-toc.php'] = 'Governance TOC';
     return $templates;
 });
 

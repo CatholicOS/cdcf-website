@@ -39,9 +39,6 @@ export default function Header() {
     closeTimeout.current = setTimeout(() => setDesktopDropdown(null), 150)
   }
 
-  const govProjectGroup = t('govProjectGovernance')
-  const govAiGroup = t('govAiGovernance')
-  const govStandardsGroup = t('govStandards')
 
   const navLinks: NavLink[] = [
     {
@@ -52,7 +49,7 @@ export default function Header() {
         { href: '/about#ecclesial-advisory-council', label: t('ecclesialAdvisoryCouncil') },
         { href: '/about#technical-advisory-council', label: t('technicalAdvisoryCouncil') },
         { href: '/about/certificate-of-formation', label: t('certificateOfFormation') },
-        { href: '/bylaws', label: t('bylaws') },
+        { href: '/about/bylaws', label: t('bylaws') },
         { href: '/about/manifesto', label: t('manifesto') },
         { href: '/about/logo-symbolism', label: t('logoSymbolism') },
       ],
@@ -66,20 +63,12 @@ export default function Header() {
       ],
     },
     {
-      href: '/project-vetting-criteria',
+      href: '/governance',
       label: t('governance'),
       children: [
-        { href: '/project-vetting-criteria', label: t('govProjectVetting'), group: govProjectGroup },
-        { href: '/lifecycle', label: t('govLifecycle'), group: govProjectGroup },
-        { href: '/committees', label: t('govCommittees'), group: govProjectGroup },
-        { href: '/project-types', label: t('govProjectTypes'), group: govProjectGroup },
-        { href: '/definitions', label: t('govDefinitions'), group: govProjectGroup },
-        { href: '/ai-vetting-criteria', label: t('govAiVetting'), group: govAiGroup },
-        { href: '/fragmented-catholic-ai-governance', label: t('govFragmented'), group: govAiGroup },
-        { href: '/governance-as-code-catholic-ai', label: t('govAsCode'), group: govAiGroup },
-        { href: '/trusted-synthetic-data-ministry-ai', label: t('govSyntheticData'), group: govAiGroup },
-        { href: '/standards-overview', label: t('govStandardsOverview'), group: govStandardsGroup },
-        { href: '/standards-committees', label: t('govStandardsCommittees'), group: govStandardsGroup },
+        { href: '/governance/project-governance', label: t('govProjectGovernance') },
+        { href: '/governance/ai-governance', label: t('govAiGovernance') },
+        { href: '/governance/standards', label: t('govStandards') },
       ],
     },
     {

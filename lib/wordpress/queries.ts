@@ -202,6 +202,7 @@ export const GET_PAGE_BY_SLUG = `
         templateName
       }
       translation(language: $language) {
+        databaseId
         title
         slug
         content
@@ -392,6 +393,22 @@ export const GET_ACADEMIC_COLLABORATION_BY_SLUG = `
     academicCollaboration(id: $slug, idType: SLUG) {
       translation(language: $language) {
         ${ACADEMIC_COLLABORATION_FIELDS}
+      }
+    }
+  }
+`
+
+// ─── Child pages query (Governance TOC) ─────────────────────────────
+
+export const GET_CHILD_PAGES = `
+  query GetChildPages($parentId: Int!, $language: LanguageCodeFilterEnum) {
+    pages(where: { parent: $parentId, language: $language, orderby: { field: MENU_ORDER, order: ASC } }, first: 50) {
+      nodes {
+        title
+        slug
+        uri
+        excerpt
+        modified
       }
     }
   }

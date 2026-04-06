@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { setRequestLocale } from 'next-intl/server'
-import { getPage, getPostBySlug, getPosts, getProjects, getSponsors } from '@/lib/wordpress/api'
+import { getPage, getPostBySlug, getPosts, getProjects, getSponsors, getChildPages } from '@/lib/wordpress/api'
 import PageRenderer from '@/components/sections/PageRenderer'
 
 interface PageProps {
@@ -36,7 +36,7 @@ export default async function CatchAllPage({ params }: PageProps) {
   const isLogoSymbolism = slug?.at(-1) === 'logo-symbolism'
 
   // Fetch additional data based on template
-  const [posts, projects, sponsors, fishExplanation] = await Promise.all([
+  const [posts, projects, sponsors, fishExplanation, childPages] = await Promise.all([
     template === 'Blog' || template === 'Home'
       ? getPosts(lang, page.blogFields?.maxPosts || 6)
       : Promise.resolve([]),
@@ -49,6 +49,9 @@ export default async function CatchAllPage({ params }: PageProps) {
     isLogoSymbolism
       ? getPostBySlug('symbolism-of-24', lang)
       : Promise.resolve(null),
+    template === 'Governance TOC'
+      ? getChildPages(page.databaseId, lang)
+      : Promise.resolve([]),
   ])
 
   return (
@@ -59,6 +62,7 @@ export default async function CatchAllPage({ params }: PageProps) {
       sponsors={sponsors}
       isLogoSymbolism={isLogoSymbolism}
       fishExplanationHtml={fishExplanation?.content ?? undefined}
+      childPages={childPages}
     />
   )
 }

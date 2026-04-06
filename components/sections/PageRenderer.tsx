@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server'
 import type { WPPage, WPPost, WPProject, WPSponsor } from '@/lib/wordpress/types'
+import type { WPChildPage } from '@/lib/wordpress/api'
 import { getStats } from '@/lib/stats'
 import HeroBanner from './HeroBanner'
 import StatsBar from './StatsBar'
@@ -13,6 +14,7 @@ import GovernanceSection from './GovernanceSection'
 import CommunityProjectsSection from './CommunityProjectsSection'
 import CallToAction from './CallToAction'
 import TextSection from './TextSection'
+import GovernanceTOC from './GovernanceTOC'
 
 interface PageRendererProps {
   page: WPPage
@@ -21,6 +23,7 @@ interface PageRendererProps {
   sponsors?: WPSponsor[]
   isLogoSymbolism?: boolean
   fishExplanationHtml?: string
+  childPages?: WPChildPage[]
 }
 
 export default async function PageRenderer({
@@ -30,6 +33,7 @@ export default async function PageRenderer({
   sponsors = [],
   isLogoSymbolism,
   fishExplanationHtml,
+  childPages = [],
 }: PageRendererProps) {
   const template = page.template?.templateName || 'Default'
   const t = await getTranslations('about')
@@ -50,6 +54,7 @@ export default async function PageRenderer({
       {template === 'Community' && renderCommunity(page, await getTranslations('community'))}
       {template === 'Blog' && renderBlog(page, posts)}
       {template === 'Contact' && renderContact(page)}
+      {template === 'Governance TOC' && renderGovernanceTOC(page, childPages)}
       {template === 'Default' && renderDefault(page, isLogoSymbolism, fishExplanationHtml)}
 
       {/* CTA — shared across templates that use it */}
@@ -190,6 +195,17 @@ function renderContact(page: WPPage) {
           body={contact?.contactBody || page.content || ''}
         />
       )}
+    </>
+  )
+}
+
+function renderGovernanceTOC(page: WPPage, childPages: WPChildPage[]) {
+  return (
+    <>
+      {page.content && (
+        <TextSection heading="" body={page.content} />
+      )}
+      <GovernanceTOC pages={childPages} />
     </>
   )
 }
