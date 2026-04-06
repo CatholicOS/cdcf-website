@@ -119,9 +119,9 @@ export default function Footer() {
             </h3>
             <ul className="mt-4 space-y-3">
               <li>
-                <a href="#" className="text-sm text-gray-300 transition-colors hover:text-white">
+                <Link href="/governance" className="text-sm text-gray-300 transition-colors hover:text-white">
                   {t('resources.documentation')}
-                </a>
+                </Link>
               </li>
               <li>
                 <Link href="/blog" className="text-sm text-gray-300 transition-colors hover:text-white">
