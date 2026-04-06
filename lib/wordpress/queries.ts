@@ -407,7 +407,6 @@ export const GET_CHILD_PAGES = `
         title
         slug
         uri
-        excerpt
         modified
       }
     }

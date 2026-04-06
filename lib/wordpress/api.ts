@@ -171,7 +171,6 @@ export interface WPChildPage {
   title: string
   slug: string
   uri: string
-  excerpt: string | null
   modified: string
 }
 

@@ -1,6 +1,5 @@
 import { Link } from '@/src/i18n/navigation'
 import type { WPChildPage } from '@/lib/wordpress/api'
-import { stripHtml } from '@/lib/strip-html'
 
 interface GovernanceTOCProps {
   pages: WPChildPage[]
@@ -41,9 +40,9 @@ export default function GovernanceTOC({
               <h3 className="font-serif text-lg font-bold text-cdcf-navy transition-colors group-hover:text-cdcf-gold">
                 {page.title}
               </h3>
-              {page.excerpt && (
-                <p className="mt-2 line-clamp-3 text-sm text-gray-600">
-                  {stripHtml(page.excerpt)}
+              {page.modified && (
+                <p className="mt-2 text-xs text-gray-400">
+                  {new Date(page.modified).toLocaleDateString()}
                 </p>
               )}
             </Link>
