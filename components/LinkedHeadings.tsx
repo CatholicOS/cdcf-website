@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useId } from 'react'
 
 /**
  * Wraps a prose HTML block and converts headings that have `id` attributes
  * into self-linking anchors with a § glyph that appears on hover.
+ *
+ * The `html` prop contains trusted CMS content from WordPress (never user input).
  */
 export default function LinkedHeadings({
   html,
@@ -14,6 +16,8 @@ export default function LinkedHeadings({
   className?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  // Unique key per render to re-trigger the effect when content changes
+  const contentKey = useId() + html.length
 
   useEffect(() => {
     if (!ref.current) return
@@ -21,24 +25,23 @@ export default function LinkedHeadings({
       'h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]'
     )
     for (const heading of headings) {
-      // Skip if already processed
       if (heading.querySelector('.heading-anchor')) continue
 
-      const id = heading.id
       const anchor = document.createElement('a')
-      anchor.href = `#${id}`
+      anchor.href = `#${heading.id}`
       anchor.className = 'heading-anchor'
       anchor.setAttribute('aria-hidden', 'true')
       anchor.textContent = '§'
       heading.style.position = 'relative'
       heading.prepend(anchor)
     }
-  }, [html])
+  }, [contentKey])
 
   return (
     <div
       ref={ref}
       className={className}
+      // nosemgrep: react-dangerouslysetinnerhtml -- trusted CMS content from WordPress
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )
