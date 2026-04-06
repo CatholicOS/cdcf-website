@@ -3531,6 +3531,14 @@ add_action('rest_api_init', function () {
                         'post_title'  => $source->post_title,
                     ];
 
+                    // Propagate parent: use the parent's translation in the target language.
+                    if ($source->post_parent) {
+                        $parent_translation = pll_get_post($source->post_parent, $target_lang);
+                        if ($parent_translation) {
+                            $insert_args['post_parent'] = $parent_translation;
+                        }
+                    }
+
                     if ($source->post_type === 'attachment') {
                         $insert_args['post_status']    = 'inherit';
                         $insert_args['post_mime_type'] = $source->post_mime_type;
@@ -3619,12 +3627,22 @@ add_action('rest_api_init', function () {
                     'post_status'  => $source->post_status,
                 ]);
             } else {
-                $post_id = wp_insert_post([
+                $insert_args = [
                     'post_type'    => $source->post_type,
                     'post_status'  => $source->post_status,
                     'post_title'   => $title ?: $source->post_title,
                     'post_content' => $content,
-                ]);
+                ];
+
+                // Propagate parent: use the parent's translation in the target language.
+                if ($source->post_parent) {
+                    $parent_translation = pll_get_post($source->post_parent, $target_lang);
+                    if ($parent_translation) {
+                        $insert_args['post_parent'] = $parent_translation;
+                    }
+                }
+
+                $post_id = wp_insert_post($insert_args);
 
                 if (is_wp_error($post_id) || !$post_id) {
                     return new WP_Error('insert_failed', 'Failed to create translation post.', ['status' => 500]);
