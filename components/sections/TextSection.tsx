@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import LinkedHeadings from '@/components/LinkedHeadings'
 import FishBackground from './FishBackground'
 import FishEasterEgg from './FishEasterEgg'
 
@@ -44,9 +45,9 @@ export default function TextSection({
         {showDivider && <div className="cdcf-divider" />}
 
         {body && (
-          <div
+          <LinkedHeadings
+            html={body}
             className="prose mt-6 text-lg leading-relaxed text-gray-600"
-            dangerouslySetInnerHTML={{ __html: body }}
           />
         )}
 
