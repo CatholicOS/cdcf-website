@@ -12,6 +12,7 @@ interface NavChild {
   href: string
   label: string
   group?: string
+  children?: { href: string; label: string }[]
 }
 
 interface NavLink {
@@ -20,11 +21,84 @@ interface NavLink {
   children?: NavChild[]
 }
 
+function DesktopDropdown({
+  items,
+  onClose,
+}: {
+  items: NavChild[]
+  onClose: () => void
+}) {
+  const hasNested = items.some((item) => item.children?.length)
+
+  if (hasNested) {
+    return (
+      <div className="absolute left-1/2 top-full -translate-x-1/2 rounded-md border border-gray-200 bg-white py-3 shadow-lg">
+        <div className="flex divide-x divide-gray-100">
+          {items.map((item) => (
+            <div key={item.href} className="min-w-44 px-4">
+              <Link
+                href={item.href}
+                onClick={onClose}
+                className="block pb-1.5 text-xs font-semibold tracking-wide text-cdcf-navy uppercase transition-colors hover:text-cdcf-gold"
+              >
+                {item.label}
+              </Link>
+              {item.children?.map((grandchild) => (
+                <Link
+                  key={grandchild.href}
+                  href={grandchild.href}
+                  onClick={onClose}
+                  className="block py-1.5 text-sm text-gray-600 transition-colors hover:text-cdcf-navy"
+                >
+                  {grandchild.label}
+                </Link>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Flat dropdown (no nested children)
+  return (
+    <div className="absolute left-0 top-full min-w-48 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+      {items.map((child, i, arr) => {
+        const prevGroup = i > 0 ? arr[i - 1].group : undefined
+        const showGroup = child.group && child.group !== prevGroup
+        const isFirstGroup = showGroup && !prevGroup
+        return (
+          <div key={child.href}>
+            {showGroup && (
+              <div
+                className={clsx(
+                  'px-4 pt-2 pb-1 text-xs font-semibold tracking-wide text-gray-400 uppercase',
+                  !isFirstGroup && 'mt-1 border-t border-gray-100'
+                )}
+              >
+                {child.group}
+              </div>
+            )}
+            <Link
+              href={child.href}
+              onClick={onClose}
+              className="block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+            >
+              {child.label}
+            </Link>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function Header() {
   const t = useTranslations('nav')
   const [mobileOpen, setMobileOpen] = useState(false)
   const [desktopDropdown, setDesktopDropdown] = useState<string | null>(null)
   const [mobileDropdown, setMobileDropdown] = useState<string | null>(null)
+  const [mobileSubDropdown, setMobileSubDropdown] = useState<string | null>(null)
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   function openDropdown(href: string) {
@@ -66,9 +140,35 @@ export default function Header() {
       href: '/governance',
       label: t('governance'),
       children: [
-        { href: '/governance/project-governance', label: t('govProjectGovernance') },
-        { href: '/governance/ai-governance', label: t('govAiGovernance') },
-        { href: '/governance/standards', label: t('govStandards') },
+        {
+          href: '/governance/project-governance',
+          label: t('govProjectGovernance'),
+          children: [
+            { href: '/governance/project-governance/project-vetting-criteria', label: t('govProjectVetting') },
+            { href: '/governance/project-governance/lifecycle', label: t('govLifecycle') },
+            { href: '/governance/project-governance/committees', label: t('govCommittees') },
+            { href: '/governance/project-governance/project-types', label: t('govProjectTypes') },
+            { href: '/governance/project-governance/definitions', label: t('govDefinitions') },
+          ],
+        },
+        {
+          href: '/governance/ai-governance',
+          label: t('govAiGovernance'),
+          children: [
+            { href: '/governance/ai-governance/ai-vetting-criteria', label: t('govAiVetting') },
+            { href: '/governance/ai-governance/fragmented-catholic-ai-governance', label: t('govFragmented') },
+            { href: '/governance/ai-governance/governance-as-code-catholic-ai', label: t('govAsCode') },
+            { href: '/governance/ai-governance/trusted-synthetic-data-ministry-ai', label: t('govSyntheticData') },
+          ],
+        },
+        {
+          href: '/governance/standards',
+          label: t('govStandards'),
+          children: [
+            { href: '/governance/standards/standards-overview', label: t('govStandardsOverview') },
+            { href: '/governance/standards/standards-committees', label: t('govStandardsCommittees') },
+          ],
+        },
       ],
     },
     {
@@ -118,34 +218,10 @@ export default function Header() {
                   />
                 </Link>
                 {desktopDropdown === link.href && (
-                  <div className="absolute left-0 top-full min-w-48 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-                    {link.children.map((child, i, arr) => {
-                      const prevGroup = i > 0 ? arr[i - 1].group : undefined
-                      const showGroup = child.group && child.group !== prevGroup
-                      const isFirstGroup = showGroup && !prevGroup
-                      return (
-                        <div key={child.href}>
-                          {showGroup && (
-                            <div
-                              className={clsx(
-                                'px-4 pt-2 pb-1 text-xs font-semibold tracking-wide text-gray-400 uppercase',
-                                !isFirstGroup && 'mt-1 border-t border-gray-100'
-                              )}
-                            >
-                              {child.group}
-                            </div>
-                          )}
-                          <Link
-                            href={child.href}
-                            onClick={() => setDesktopDropdown(null)}
-                            className="block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
-                          >
-                            {child.label}
-                          </Link>
-                        </div>
-                      )
-                    })}
-                  </div>
+                  <DesktopDropdown
+                    items={link.children}
+                    onClose={() => setDesktopDropdown(null)}
+                  />
                 )}
               </div>
             ) : (
@@ -203,7 +279,10 @@ export default function Header() {
                   </Link>
                   <button
                     onClick={() =>
+                    {
+                      setMobileSubDropdown(null)
                       setMobileDropdown(mobileDropdown === link.href ? null : link.href)
+                    }
                     }
                     className="rounded-r-md px-3 py-2.5 text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
                     aria-label={`${link.label} submenu`}
@@ -217,16 +296,48 @@ export default function Header() {
                   </button>
                 </div>
                 {mobileDropdown === link.href &&
-                  link.children.map((child, i, arr) => {
-                    const prevGroup = i > 0 ? arr[i - 1].group : undefined
-                    const showGroup = child.group && child.group !== prevGroup
-                    return (
-                      <div key={child.href}>
-                        {showGroup && (
-                          <div className="mt-1 pl-8 pr-3 pt-2 pb-1 text-xs font-semibold tracking-wide text-gray-400 uppercase">
-                            {child.group}
+                  link.children.map((child) => (
+                    <div key={child.href}>
+                      {child.children ? (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <Link
+                              href={child.href}
+                              onClick={() => setMobileOpen(false)}
+                              className="flex-1 rounded-l-md py-2 pr-3 pl-10 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+                            >
+                              {child.label}
+                            </Link>
+                            <button
+                              onClick={() =>
+                                setMobileSubDropdown(
+                                  mobileSubDropdown === child.href ? null : child.href
+                                )
+                              }
+                              className="rounded-r-md px-3 py-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+                              aria-label={`${child.label} submenu`}
+                            >
+                              <ChevronDownIcon
+                                className={clsx(
+                                  'h-3.5 w-3.5 transition-transform',
+                                  mobileSubDropdown === child.href && 'rotate-180'
+                                )}
+                              />
+                            </button>
                           </div>
-                        )}
+                          {mobileSubDropdown === child.href &&
+                            child.children.map((grandchild) => (
+                              <Link
+                                key={grandchild.href}
+                                href={grandchild.href}
+                                onClick={() => setMobileOpen(false)}
+                                className="block rounded-md py-1.5 pr-3 pl-14 text-sm text-gray-500 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+                              >
+                                {grandchild.label}
+                              </Link>
+                            ))}
+                        </>
+                      ) : (
                         <Link
                           href={child.href}
                           onClick={() => setMobileOpen(false)}
@@ -234,9 +345,9 @@ export default function Header() {
                         >
                           {child.label}
                         </Link>
-                      </div>
-                    )
-                  })}
+                      )}
+                    </div>
+                  ))}
               </div>
             ) : (
               <Link
