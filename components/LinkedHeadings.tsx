@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useId } from 'react'
+import { useEffect, useRef } from 'react'
 
 /**
  * Wraps a prose HTML block and converts headings that have `id` attributes
@@ -16,8 +16,6 @@ export default function LinkedHeadings({
   className?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  // Unique key per render to re-trigger the effect when content changes
-  const contentKey = useId() + html.length
 
   useEffect(() => {
     if (!ref.current) return
@@ -35,7 +33,7 @@ export default function LinkedHeadings({
       heading.style.position = 'relative'
       heading.prepend(anchor)
     }
-  }, [contentKey])
+  }, [html])
 
   return (
     <div
