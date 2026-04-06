@@ -401,7 +401,7 @@ export const GET_ACADEMIC_COLLABORATION_BY_SLUG = `
 // ─── Child pages query (Governance TOC) ─────────────────────────────
 
 export const GET_CHILD_PAGES = `
-  query GetChildPages($parentId: Int!, $language: LanguageCodeFilterEnum) {
+  query GetChildPages($parentId: ID!, $language: LanguageCodeFilterEnum) {
     pages(where: { parent: $parentId, language: $language, orderby: { field: MENU_ORDER, order: ASC } }, first: 50) {
       nodes {
         title
