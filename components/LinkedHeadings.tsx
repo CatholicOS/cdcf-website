@@ -31,7 +31,7 @@ export default function LinkedHeadings({
       anchor.setAttribute('aria-hidden', 'true')
       anchor.textContent = '§'
       heading.style.position = 'relative'
-      heading.appendChild(anchor)
+      heading.prepend(anchor)
     }
   }, [html])
 
