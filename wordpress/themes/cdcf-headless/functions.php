@@ -1159,6 +1159,67 @@ function cdcf_rest_create_academic_collaboration(WP_REST_Request $request) {
     ], 202);
 }
 
+// ─── Update Disposable Domains List ─────────────────────────────────
+//
+// POST /wp-json/cdcf/v1/update-disposable-domains (Application Password auth)
+// Downloads the latest disposable email domain blocklist from the
+// disposable-email-domains community list on GitHub and writes it to
+// the theme directory.
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/update-disposable-domains', [
+        'methods'             => 'POST',
+        'callback'            => function () {
+            $url  = 'https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/master/disposable_email_blocklist.conf';
+            $file = __DIR__ . '/disposable-domains.txt';
+
+            $response = wp_remote_get($url, ['timeout' => 30]);
+            if (is_wp_error($response)) {
+                return new WP_REST_Response([
+                    'success' => false,
+                    'error'   => $response->get_error_message(),
+                ], 502);
+            }
+
+            $code = wp_remote_retrieve_response_code($response);
+            if ($code !== 200) {
+                return new WP_REST_Response([
+                    'success' => false,
+                    'error'   => "GitHub returned HTTP {$code}",
+                ], 502);
+            }
+
+            $body    = wp_remote_retrieve_body($response);
+            $domains = array_filter(array_map('trim', explode("\n", $body)));
+            $count   = count($domains);
+
+            if ($count < 100) {
+                return new WP_REST_Response([
+                    'success' => false,
+                    'error'   => "Downloaded list suspiciously small ({$count} domains), aborting.",
+                ], 422);
+            }
+
+            $written = file_put_contents($file, $body);
+            if ($written === false) {
+                return new WP_REST_Response([
+                    'success' => false,
+                    'error'   => 'Failed to write disposable-domains.txt',
+                ], 500);
+            }
+
+            return rest_ensure_response([
+                'success' => true,
+                'domains' => $count,
+                'bytes'   => $written,
+            ]);
+        },
+        'permission_callback' => function () {
+            return current_user_can('manage_options');
+        },
+    ]);
+});
+
 // ─── Public Referral Endpoint ────────────────────────────────────────
 //
 // Allows visitors to submit a local group referral for admin review.

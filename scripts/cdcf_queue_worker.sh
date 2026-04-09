@@ -78,15 +78,60 @@ fi
 ENDPOINT="${WP_REST_URL}/cdcf/v1/process-queue"
 AUTH=$(echo -n "${WP_APP_USERNAME}:${WP_APP_PASSWORD}" | base64)
 
+DISPOSABLE_DOMAINS_ENDPOINT="${WP_REST_URL}/cdcf/v1/update-disposable-domains"
+DAILY_INTERVAL=${DAILY_INTERVAL:-86400}   # 24 hours in seconds
+
 echo "Starting CDCF Redis Queue worker..."
 echo "  Endpoint: ${ENDPOINT}"
 echo "  Poll interval: ${POLL_INTERVAL}s"
 echo "  Max request time: ${MAX_TIME}s"
 echo "  Concurrency: ${CONCURRENCY}"
 echo "  Batch size: ${BATCH_SIZE}"
+echo "  Daily tasks interval: ${DAILY_INTERVAL}s"
 
 # Wait a bit after service start to let WordPress finish booting.
 sleep 10
+
+# ─── Daily maintenance tasks ──────────────────────────────────────────
+# Tracks the last run time and fires once per DAILY_INTERVAL.
+
+LAST_DAILY_RUN=0
+
+run_daily_tasks() {
+    local NOW
+    NOW=$(date +%s)
+    if (( NOW - LAST_DAILY_RUN < DAILY_INTERVAL )); then
+        return
+    fi
+    LAST_DAILY_RUN=$NOW
+
+    echo "$(date -Iseconds) Running daily tasks..."
+
+    # Update disposable email domain blocklist.
+    local RESPONSE HTTP_CODE
+    RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 60 \
+        -X POST "${DISPOSABLE_DOMAINS_ENDPOINT}" \
+        -H "Authorization: Basic ${AUTH}" 2>&1)
+    HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+    RESPONSE=$(echo "$RESPONSE" | sed '$d')
+
+    if [ "$HTTP_CODE" = "200" ]; then
+        local DOMAIN_COUNT
+        DOMAIN_COUNT=$(echo "$RESPONSE" | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    print(d.get('domains', '?'))
+except:
+    print('?')
+" 2>/dev/null)
+        echo "$(date -Iseconds) Disposable domains list updated (${DOMAIN_COUNT} domains)"
+    else
+        echo "$(date -Iseconds) WARNING: disposable domains update failed (HTTP ${HTTP_CODE}): ${RESPONSE:0:200}"
+    fi
+}
+
+# ─── Queue processing ────────────────────────────────────────────────
 
 # process_one fires a single REST call and logs the result.
 process_one() {
@@ -141,6 +186,8 @@ except:
 }
 
 while true; do
+    run_daily_tasks
+
     if [ "$CONCURRENCY" -le 1 ]; then
         process_one
     else
