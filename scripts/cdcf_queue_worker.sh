@@ -108,7 +108,7 @@ run_daily_tasks() {
 
     # Update disposable email domain blocklist.
     local RESPONSE HTTP_CODE
-    RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 60 \
+    RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 120 \
         -X POST "${DISPOSABLE_DOMAINS_ENDPOINT}" \
         -H "Authorization: Basic ${AUTH}" \
         -H "Content-Type: application/json" \
