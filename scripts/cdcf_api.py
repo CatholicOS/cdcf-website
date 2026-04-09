@@ -503,6 +503,16 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--fields", required=True,
                    help='JSON object of fields to set, e.g. \'{"featured_media": 123}\'')
 
+    # -- Generic REST commands --
+
+    p = sub.add_parser("rest-get", help="GET any WP REST endpoint")
+    p.add_argument("path", help="Endpoint path (e.g. cdcf/v1/relationship, wp/v2/posts)")
+    p.add_argument("--params", help="JSON object of query parameters")
+
+    p = sub.add_parser("rest-post", help="POST to any WP REST endpoint")
+    p.add_argument("path", help="Endpoint path (e.g. cdcf/v1/update-disposable-domains)")
+    p.add_argument("--data", help="JSON object of request body data")
+
     # -- GraphQL commands --
 
     # graphql
@@ -631,6 +641,18 @@ def _run_cli(args: argparse.Namespace, client: CdcfClient) -> dict:
     if cmd == "update-post":
         fields = json.loads(args.fields)
         return client.update_post(args.post_id, args.post_type, **fields)
+
+    if cmd == "rest-get":
+        params = json.loads(args.params) if args.params else None
+        if params is not None and not isinstance(params, dict):
+            raise SystemExit("rest-get: --params must be a JSON object")
+        return client._wp_get(args.path, params)
+
+    if cmd == "rest-post":
+        data = json.loads(args.data) if args.data else None
+        if data is not None and not isinstance(data, dict):
+            raise SystemExit("rest-post: --data must be a JSON object")
+        return client._wp_post(args.path, data)
 
     if cmd == "graphql":
         variables = json.loads(args.variables) if args.variables else None
