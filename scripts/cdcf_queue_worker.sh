@@ -110,7 +110,9 @@ run_daily_tasks() {
     local RESPONSE HTTP_CODE
     RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 60 \
         -X POST "${DISPOSABLE_DOMAINS_ENDPOINT}" \
-        -H "Authorization: Basic ${AUTH}" 2>&1)
+        -H "Authorization: Basic ${AUTH}" \
+        -H "Content-Type: application/json" \
+        -d '{}' 2>&1)
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     RESPONSE=$(echo "$RESPONSE" | sed '$d')
 
