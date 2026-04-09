@@ -162,6 +162,11 @@ scripts/.venv/bin/python scripts/cdcf_api.py get-translation-ids --post-id 5
 scripts/.venv/bin/python scripts/cdcf_api.py get-post-language --post-id 12 --post-type project
 scripts/.venv/bin/python scripts/cdcf_api.py graphql --query '{ pages(first: 5) { nodes { databaseId title } } }'
 
+# Generic REST calls (any endpoint)
+scripts/.venv/bin/python scripts/cdcf_api.py rest-post cdcf/v1/update-disposable-domains
+scripts/.venv/bin/python scripts/cdcf_api.py rest-post cdcf/v1/flush-opcache
+scripts/.venv/bin/python scripts/cdcf_api.py rest-get wp/v2/posts --params '{"per_page": 5}'
+
 # Cache revalidation
 scripts/.venv/bin/python scripts/cdcf_api.py revalidate --path /about
 ```
