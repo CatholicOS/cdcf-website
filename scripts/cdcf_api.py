@@ -644,10 +644,14 @@ def _run_cli(args: argparse.Namespace, client: CdcfClient) -> dict:
 
     if cmd == "rest-get":
         params = json.loads(args.params) if args.params else None
+        if params is not None and not isinstance(params, dict):
+            raise SystemExit("rest-get: --params must be a JSON object")
         return client._wp_get(args.path, params)
 
     if cmd == "rest-post":
         data = json.loads(args.data) if args.data else None
+        if data is not None and not isinstance(data, dict):
+            raise SystemExit("rest-post: --data must be a JSON object")
         return client._wp_post(args.path, data)
 
     if cmd == "graphql":
