@@ -103,7 +103,6 @@ run_daily_tasks() {
     if (( NOW - LAST_DAILY_RUN < DAILY_INTERVAL )); then
         return
     fi
-    LAST_DAILY_RUN=$NOW
 
     echo "$(date -Iseconds) Running daily tasks..."
 
@@ -126,6 +125,7 @@ except:
     print('?')
 " 2>/dev/null)
         echo "$(date -Iseconds) Disposable domains list updated (${DOMAIN_COUNT} domains)"
+        LAST_DAILY_RUN=$NOW
     else
         echo "$(date -Iseconds) WARNING: disposable domains update failed (HTTP ${HTTP_CODE}): ${RESPONSE:0:200}"
     fi

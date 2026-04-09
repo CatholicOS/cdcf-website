@@ -1200,11 +1200,28 @@ add_action('rest_api_init', function () {
                 ], 422);
             }
 
-            $written = file_put_contents($file, $body);
+            $tmp = $file . '.tmp.' . getmypid();
+            $written = file_put_contents($tmp, $body);
             if ($written === false) {
+                @unlink($tmp);
                 return new WP_REST_Response([
                     'success' => false,
-                    'error'   => 'Failed to write disposable-domains.txt',
+                    'error'   => 'Failed to write temp file',
+                ], 500);
+            }
+
+            // Flush to disk before renaming.
+            $fh = fopen($tmp, 'r');
+            if ($fh) {
+                fsync($fh);
+                fclose($fh);
+            }
+
+            if (!rename($tmp, $file)) {
+                @unlink($tmp);
+                return new WP_REST_Response([
+                    'success' => false,
+                    'error'   => 'Failed to rename temp file to disposable-domains.txt',
                 ], 500);
             }
 
@@ -1215,7 +1232,7 @@ add_action('rest_api_init', function () {
             ]);
         },
         'permission_callback' => function () {
-            return current_user_can('manage_options');
+            return current_user_can('edit_posts');
         },
     ]);
 });
