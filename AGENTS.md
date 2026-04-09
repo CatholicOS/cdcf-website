@@ -81,6 +81,7 @@ All endpoints require Application Password authentication (`edit_posts` capabili
 | `GET` | `/relationship` | Read an ACF relationship field (`post_id`, `field`) |
 | `POST` | `/relationship` | Update an ACF relationship field (`post_id`, `field`, `value[]`) |
 | `POST` | `/translate` | Translate a post to a target language via OpenAI (`source_id`, `target_lang`, optional `post_id`) |
+| `POST` | `/update-disposable-domains` | Download latest disposable email domain blocklist from GitHub (called daily by Redis worker) |
 | `POST` | `/team-member` | Create a team member with auto-translation and About page linking (see below) |
 | `POST` | `/community-channel` | Create a community channel with auto-translation and Community page linking (see below) |
 | `POST` | `/local-group` | Create a local group with auto-translation and Community page linking (see below) |
