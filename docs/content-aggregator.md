@@ -20,7 +20,7 @@ graph TB
 
         subgraph db["PostgreSQL + AGE + pgvector"]
             articles[("articles<br/>+ FTS index<br/>+ vector index")]
-            graph[("knowledge<br/>graph")]
+            knowledgegraph[("knowledge<br/>graph")]
         end
 
         subgraph ollama["Ollama"]
