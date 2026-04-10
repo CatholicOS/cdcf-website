@@ -1360,25 +1360,105 @@ CLAUDE.md                     # Document aggregator integration
 
 ## Initial Source List
 
+### Catholic News Agencies & Media
+
+#### English (EN)
+
+| Source | Type | URL |
+|--------|------|-----|
+| Vatican News | RSS | `https://www.vaticannews.va/en.rss.xml` |
+| Catholic News Agency (CNA) | RSS | `https://www.catholicnewsagency.com/feed` |
+| EWTN / National Catholic Register | RSS | `https://ncregister.com/feeds/general-news.xml` |
+| Our Sunday Visitor (OSV News) | RSS | `https://www.osv.com/RSS.aspx` |
+| America Magazine | RSS | `https://www.americamagazine.org/feed` |
+| National Catholic Reporter | RSS | `https://www.ncronline.org/rss.xml` |
+| The Pillar | RSS | `https://www.pillarcatholic.com/feed` |
+| Catholic World News | RSS | `https://feeds.feedburner.com/CatholicWorldNewsFeatureStories` |
+| Catholic Online | RSS | `https://www.catholic.org/xml/` |
+| Crux | RSS | `https://cruxnow.com/feed` |
+| ZENIT | RSS | `https://zenit.org/feed/` |
+| Catholic Herald | RSS | `https://catholicherald.co.uk/feed/` |
+| Aleteia | RSS | `https://aleteia.org/feed/` |
+| USCCB News | RSS | `https://www.usccb.org/subscribe/rss` |
+| ACI Africa | RSS | `https://www.aciafrica.org/rss/` |
+
+#### Italian (IT)
+
+| Source | Type | URL |
+|--------|------|-----|
+| Vatican News Italiano | RSS | `https://www.vaticannews.va/it.rss.xml` |
+| Agenzia SIR | RSS | `https://www.agensir.it/feed/` |
+| ACI Stampa | RSS | `https://www.acistampa.com/rss` |
+| Aleteia Italiano | RSS | `https://it.aleteia.org/feed/` |
+| Zenit Italiano | RSS | `https://it.zenit.org/feed/` |
+| CEI (Conf. Episcopale Italiana) | RSS | `https://www.chiesacattolica.it/feed/` |
+| CEI Servizio Informativo | RSS | `https://servizioinformatico.chiesacattolica.it/feed/` |
+
+#### Spanish (ES)
+
+| Source | Type | URL |
+|--------|------|-----|
+| Vatican News Español | RSS | `https://www.vaticannews.va/es.rss.xml` |
+| ACI Prensa | RSS | `https://www.aciprensa.com/rss/news` |
+| Aleteia Español | RSS | `https://es.aleteia.org/feed/` |
+| Zenit Español | RSS | `https://es.zenit.org/feed/` |
+| Vida Nueva | RSS | `https://www.vidanuevadigital.com/feed/` |
+| CEE (Conf. Episcopal Española) | RSS | `https://www.conferenciaepiscopal.es/feed/` |
+
+#### Portuguese (PT)
+
+| Source | Type | URL |
+|--------|------|-----|
+| Vatican News Português | RSS | `https://www.vaticannews.va/pt.rss.xml` |
+| ACI Digital | RSS | `https://www.acidigital.com/rss/news` |
+| Aleteia Português | RSS | `https://pt.aleteia.org/feed/` |
+| Canção Nova | RSS | `https://noticias.cancaonova.com/feed/` |
+| CNBB (Brazil) | RSS | `https://www.cnbb.org.br/feed/` |
+
+#### French (FR)
+
+| Source | Type | URL |
+|--------|------|-----|
+| Vatican News Français | RSS | `https://www.vaticannews.va/fr.rss.xml` |
+| La Croix | RSS | `https://www.la-croix.com/RSS/UNIVERS` |
+| Aleteia Français | RSS | `https://fr.aleteia.org/feed/` |
+| Zenit Français | RSS | `https://fr.zenit.org/feed/` |
+| CEF (Conf. des Évêques de France) | RSS | `https://eglise.catholique.fr/feed/` |
+
+#### German (DE)
+
+| Source | Type | URL |
+|--------|------|-----|
+| Vatican News Deutsch | RSS | `https://www.vaticannews.va/de.rss.xml` |
+| CNA Deutsch | RSS | `https://de.catholicnewsagency.com/rss` |
+| Domradio.de | RSS | `https://www.domradio.de/rss.xml` |
+
+#### Polish (PL)
+
+| Source | Type | URL |
+|--------|------|-----|
+| Vatican News Polski | RSS | `https://www.vaticannews.va/pl.rss.xml` |
+| Aleteia Polski | RSS | `https://pl.aleteia.org/feed/` |
+| Deon.pl | RSS | `https://deon.pl/rss/` |
+| Niedziela.pl | RSS | `https://www.niedziela.pl/rss` |
+
+#### Other Languages
+
 | Source | Type | URL | Language |
 |--------|------|-----|----------|
-| Vatican News | RSS | `https://www.vaticannews.va/en.rss.xml` | EN |
-| Catholic News Agency (CNA) | RSS | `https://www.catholicnewsagency.com/feed` | EN |
-| EWTN / National Catholic Register | RSS | `https://ncregister.com/feeds/general-news.xml` | EN |
-| Our Sunday Visitor (OSV News) | RSS | `https://www.osv.com/RSS.aspx` | EN |
-| America Magazine | RSS | `https://www.americamagazine.org/feed` | EN |
-| National Catholic Reporter | RSS | `https://www.ncronline.org/rss.xml` | EN |
-| The Pillar | RSS | `https://www.pillarcatholic.com/feed` | EN |
-| Catholic World News | RSS | `https://feeds.feedburner.com/CatholicWorldNewsFeatureStories` | EN |
-| Catholic Online | RSS | `https://www.catholic.org/xml/` | EN |
-| Crux | RSS | `https://cruxnow.com/feed` | EN |
-| ACI Prensa | RSS | `https://www.aciprensa.com/rss/news` | ES |
-| ACI Digital | RSS | `https://www.acidigital.com/rss/news` | PT |
-| ZENIT | RSS | `https://zenit.org/feed/` | EN |
-| Catholic Herald | RSS | `https://catholicherald.co.uk/feed/` | EN |
-| Aleteia | RSS | `https://aleteia.org/feed/` | EN |
+| Vatican News Tiếng Việt | RSS | `https://www.vaticannews.va/vi.rss.xml` | VI |
+| Vatican News العربية | RSS | `https://www.vaticannews.va/ar.rss.xml` | AR |
+| Vatican News 中文 | RSS | `https://www.vaticannews.va/zh.rss.xml` | ZH |
+
+#### Vatican Sources
+
+| Source | Type | URL | Language |
+|--------|------|-----|----------|
 | Holy See Documents | Vatican | `https://www.vatican.va/content/vatican/en.html` | EN |
-| USCCB News | RSS | `https://www.usccb.org/subscribe/rss` | EN |
+| Pontifical Academy for Life | Web | `https://www.academyforlife.va/content/pav/en/news.html` | EN |
+| Pontifical Academy of Sciences | Web | `https://www.pas.va/en/news.html` | EN |
+| Vatican Dicastery for Communication | Web | `https://www.dicasteriumcommunication.va/en.html` | EN |
+| RenAIssance Foundation (Rome Call for AI Ethics) | Web | `https://www.romecall.org/` | EN |
 
 ### YouTube Channels
 
@@ -1387,10 +1467,35 @@ CLAUDE.md                     # Document aggregator integration
 | Bishop Robert Barron | YouTube | `https://www.youtube.com/@BishopBarron` | EN |
 | Ascension Presents (Fr. Mike Schmitz) | YouTube | `https://www.youtube.com/@AscensionPresents` | EN |
 | Catholic Answers | YouTube | `https://www.youtube.com/@catholiccom` | EN |
-| EWTN | YouTube | `https://www.youtube.com/@ABORREZNOV` | EN |
+| EWTN | YouTube | `https://www.youtube.com/@EWTN` | EN |
 | Vatican News | YouTube | `https://www.youtube.com/@VaticanNews` | EN |
 | Breaking in the Habit | YouTube | `https://www.youtube.com/@BreakingInTheHabit` | EN |
 | The Thomistic Institute | YouTube | `https://www.youtube.com/@TheThomisticInstitute` | EN |
+| TV2000it | YouTube | `https://www.youtube.com/@TV2000it` | IT |
+| KTO TV | YouTube | `https://www.youtube.com/@KTOTV` | FR |
+| Collège des Bernardins | YouTube | `https://www.youtube.com/@Bernardins` | FR |
+| Le Jour du Seigneur | YouTube | `https://www.youtube.com/@lejourduseigneur` | FR |
+| EWTN Español | YouTube | `https://www.youtube.com/@EWTNEspanol` | ES |
+| Catholic.net | YouTube | `https://www.youtube.com/@catholicnet` | ES |
+| Desde la Fe | YouTube | `https://www.youtube.com/@desdelafe` | ES |
+| Vatican News Español | YouTube | `https://www.youtube.com/@VaticanNewsEs` | ES |
+| EWTN Deutschland | YouTube | `https://www.youtube.com/@EWTNde` | DE |
+| katholisch.de | YouTube | `https://www.youtube.com/@katholischde` | DE |
+| Vatican News Deutsch | YouTube | `https://www.youtube.com/@VaticanNewsDe` | DE |
+| Canção Nova | YouTube | `https://www.youtube.com/@CancaoNova` | PT |
+| Padre Paulo Ricardo | YouTube | `https://www.youtube.com/@padrepauloricardo` | PT |
+| TV Aparecida | YouTube | `https://www.youtube.com/@TVAparecida` | PT |
+| Vatican News Português | YouTube | `https://www.youtube.com/@VaticanNewsPt` | PT |
+| Vatican News Français | YouTube | `https://www.youtube.com/@VaticanNewsFr` | FR |
+| Langusta na Palmie | YouTube | `https://www.youtube.com/@LangustanaPalmie` | PL |
+| Stacja7 | YouTube | `https://www.youtube.com/@Stacja7` | PL |
+| Telewizja Trwam | YouTube | `https://www.youtube.com/@TelewizjaTrwam` | PL |
+| Radio Maryja | YouTube | `https://www.youtube.com/@RadioMaryja` | PL |
+| Vatican News Polski | YouTube | `https://www.youtube.com/@VaticanNewsPl` | PL |
+| CBCP Media Office | YouTube | `https://www.youtube.com/@CBCPMedia` | FIL/EN |
+| Télé Lumière / Noursat | YouTube | `https://www.youtube.com/@TeleLumiereNoursat` | AR |
+| Noursat | YouTube | `https://www.youtube.com/@Noursat` | AR |
+| Salt + Light Media | YouTube | `https://www.youtube.com/@SaltandLightMedia` | EN/FR |
 
 ### Podcasts
 
@@ -1409,15 +1514,46 @@ CLAUDE.md                     # Document aggregator integration
 |--------|------|-----|----------|-------|
 | arXiv (AI Ethics) | arXiv | `https://export.arxiv.org/api/query` | EN | cs.AI + ethics/religion queries |
 | arXiv (Computers & Society) | arXiv | `https://export.arxiv.org/api/query` | EN | cs.CY category |
-| Catholic University of America — News | RSS | `https://www.catholic.edu/news/rss.xml` | EN | |
-| University of Notre Dame — News | RSS | `https://news.nd.edu/feed/` | EN | |
-| Georgetown University — News | Web | `https://www.georgetown.edu/news/` | EN | |
-| Boston College — News | RSS | `https://www.bc.edu/content/bc-web/bcnews/rss.xml` | EN | |
-| Pontifical Gregorian University | Web | `https://www.unigre.it/en/news/` | EN | |
-| Catholic University of the Sacred Heart (Milan) | Web | `https://www.unicatt.it/news` | IT | |
-| Pontifical Academy for Life | Web | `https://www.academyforlife.va/content/pav/en/news.html` | EN | AI ethics, bioethics & technology |
-| Pontifical Academy of Sciences | Web | `https://www.pas.va/en/news.html` | EN | Science–faith dialogue |
-| Vatican Dicastery for Communication | Web | `https://www.dicasteriumcommunication.va/en.html` | EN | Digital communication policy |
-| McGrath Institute for Church Life (Notre Dame) | RSS | `https://mcgrath.nd.edu/feed/` | EN | Church & technology intersection |
+
+#### Universities — Confirmed RSS Feeds
+
+| Source | Type | URL | Language | Notes |
+|--------|------|-----|----------|-------|
+| Catholic University of America | RSS | `https://www.catholic.edu/news/rss.xml` | EN | |
+| University of Notre Dame | RSS | `https://news.nd.edu/feed/` | EN | |
+| Boston College | RSS | `https://www.bc.edu/content/bc-web/bcnews/rss.xml` | EN | |
+| McGrath Institute (Notre Dame) | RSS | `https://mcgrath.nd.edu/feed/` | EN | Church & technology intersection |
+| Fordham University | RSS | `https://now.fordham.edu/feed/` | EN | Jesuit |
+| Loyola University Chicago | RSS | `https://news.luc.edu/feed/` | EN | Jesuit |
+| Franciscan Univ. of Steubenville | RSS | `https://franciscan.edu/feed/` | EN | Franciscan TOR |
+| University of St. Thomas (Houston) | RSS | `https://news.stthom.edu/feed/` | EN | Basilian Fathers |
+| Pontifical Univ. of the Holy Cross (PUSC) | RSS | `https://www.pusc.it/feed/` | IT | Opus Dei, Rome |
+| Pontifical Athenaeum Regina Apostolorum | RSS | `https://www.upra.org/feed/` | IT | Legionaries of Christ, Rome |
+| Pontifical Antonianum University | RSS | `https://www.antonianum.eu/feed/` | IT | Franciscans OFM, Rome |
+| Sophia University (Tokyo) | RSS | `https://www.sophia.ac.jp/eng/feed/` | JA/EN | Jesuit |
+| Unisinos (Brazil) | RSS | `https://www.unisinos.br/noticias/feed/` | PT | Jesuit |
+| KU Leuven | RSS | `https://nieuws.kuleuven.be/en/rss` | NL/EN | Belgium |
+| Université Catholique de Lyon (UCLy) | RSS | `https://www.ucly.fr/feed/` | FR | France |
+| Universitas Katolik Parahyangan (UNPAR) | RSS | `https://unpar.ac.id/feed/` | ID | Indonesia |
+| Pontificia Universidad Católica del Perú (PUCP) | RSS | `https://www.pucp.edu.pe/feed/` | ES | Peru |
+| Assumption University (Thailand) | RSS | `https://www.au.edu/feed/` | EN/TH | Montfortians, Bangkok |
+
+#### Universities — Web Scraping (no RSS feed)
+
+| Source | Type | URL | Language | Notes |
+|--------|------|-----|----------|-------|
+| Georgetown University | Web | `https://www.georgetown.edu/news/` | EN | Jesuit |
+| Pontifical Gregorian University | Web | `https://www.unigre.it/it/news/` | IT | Jesuit, Rome |
+| Catholic Univ. of the Sacred Heart (Milan) | Web | `https://www.unicatt.it/news` | IT | Largest Catholic university in the world |
+| Pontifical Lateran University | Web | `https://www.pul.va/category/news/` | IT | Rome |
+| Pontifical Urbaniana University | Web | `https://www.urbaniana.va/it/news-ed-eventi/news.html` | IT | Rome |
+| Universidad Pontificia Comillas | Web | `https://www.comillas.edu/en/news/` | ES | Jesuit, Madrid |
+| UCLouvain | Web | `https://uclouvain.be/en/news` | FR | Belgium |
+| Ateneo de Manila University | Web | `https://www.ateneo.edu/news` | EN/FIL | Jesuit, Philippines |
+| Fu Jen Catholic University | Web | `https://www.fju.edu.tw/` | ZH | SVD/Jesuit, Taiwan |
+| Universidade Católica Portuguesa | Web | `https://www.ucp.pt/` | PT | Portugal |
+| Catholic University of Korea | Web | `https://www.catholic.ac.kr/en/` | KO | South Korea |
+| Nanzan University | Web | `https://www.nanzan-u.ac.jp/English/` | JA | SVD, Japan |
+| Pontificia Universidad Católica de Chile | Web | `https://www.uc.cl/en/news/` | ES | Chile |
 
 Sources are stored in the `sources` table and can be added/removed at any time without code changes.
