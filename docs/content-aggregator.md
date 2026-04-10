@@ -8,13 +8,28 @@ An AI-powered system that daily scours Catholic media (RSS feeds, news sites, Va
 
 ```mermaid
 graph TB
-    subgraph Docker Compose
+    subgraph plesk["Plesk Server (catholicdigitalcommons.org)"]
+        subgraph nextjs["Next.js (CDCF website)"]
+            research["/research pages<br/><small>search · graph viz</small>"]
+            researchClient["lib/research/client.ts<br/><small>fetch wrapper</small>"]
+        end
+        wordpress["WordPress<br/><small>CMS · unchanged</small>"]
+    end
+
+    subgraph dedicated["Dedicated Server (Hetzner / OVH)"]
+        subgraph api["FastAPI (research API)"]
+            searchEndpoint["/api/search"]
+            articlesEndpoint["/api/articles"]
+            graphEndpoint["/api/graph"]
+            tagsEndpoint["/api/tags · /api/entities"]
+        end
+
         subgraph worker["Python Worker (aggregator)"]
             fetcher["Fetcher<br/><small>RSS · Crawl4AI · yt-dlp</small>"]
             transcriber["Transcriber<br/><small>faster-whisper</small>"]
             classifier["AI Classifier<br/><small>Claude / OpenAI</small>"]
             embedder["Embedder"]
-            pipeline["Pipeline orchestrator"]
+            pipelineOrch["Pipeline orchestrator"]
             graphbuilder["Graph builder<br/><small>AGE</small>"]
         end
 
@@ -26,48 +41,51 @@ graph TB
         subgraph ollama["Ollama"]
             nomic["nomic-embed-text<br/><small>768-dim</small>"]
         end
-
-        subgraph nextjs["Next.js"]
-            research["/research<br/><small>search · graph viz</small>"]
-        end
-
-        wordpress["WordPress<br/><small>existing · unchanged</small>"]
     end
 
-    fetcher --> pipeline
-    transcriber --> pipeline
-    classifier --> pipeline
-    embedder --> pipeline
-    graphbuilder --> pipeline
-
-    pipeline -->|"read/write"| db
-    embedder -->|"embed text"| ollama
-    research -->|"query"| db
-    research -->|"embed query"| ollama
+    research --> researchClient
+    researchClient -->|"HTTPS + API key"| api
     nextjs -->|"WPGraphQL"| wordpress
 
-    classDef dbStyle fill:#2d5f8a,stroke:#1a3a5c,color:#fff
+    fetcher --> pipelineOrch
+    transcriber --> pipelineOrch
+    classifier --> pipelineOrch
+    embedder --> pipelineOrch
+    graphbuilder --> pipelineOrch
+
+    pipelineOrch -->|"read/write"| db
+    api -->|"read"| db
+    embedder -->|"embed text"| ollama
+    api -->|"embed query"| ollama
+
+    classDef pleskStyle fill:#6b4c8a,stroke:#4a2e6b,color:#fff
+    classDef dedicatedStyle fill:#2d5f8a,stroke:#1a3a5c,color:#fff
+    classDef apiStyle fill:#8a5b2d,stroke:#6b3d1a,color:#fff
     classDef workerStyle fill:#5b4a8a,stroke:#3d2e6b,color:#fff
+    classDef dbStyle fill:#2d7a5f,stroke:#1a5c3a,color:#fff
     classDef ollamaStyle fill:#4a7a5b,stroke:#2e5c3d,color:#fff
-    classDef nextStyle fill:#8a5b2d,stroke:#6b3d1a,color:#fff
     classDef wpStyle fill:#555,stroke:#333,color:#fff
 
-    class db dbStyle
+    class plesk pleskStyle
+    class dedicated dedicatedStyle
+    class api apiStyle
     class worker workerStyle
+    class db dbStyle
     class ollama ollamaStyle
-    class nextjs nextStyle
     class wordpress wpStyle
 ```
 
 **Key design decisions:**
 
+- **Two-server topology** — the aggregator runs on a dedicated server (Hetzner/OVH) separate from the Plesk server hosting the CDCF website. A FastAPI service on the dedicated server exposes a REST API that the Next.js frontend calls over HTTPS, authenticated with an API key. This keeps the database private, avoids exposing PostgreSQL ports, and allows the aggregation pipeline to use CPU/RAM without impacting the website.
 - **PostgreSQL with Apache AGE + pgvector** — single database for relational data, full-text search (tsvector), vector similarity search (pgvector), and property-graph queries (openCypher). No separate graph database or vector store needed.
-- **Python worker** — runs daily via cron (or a loop with sleep). Modular design with swappable AI providers.
-- **Next.js `/research` route** — a standalone section of the existing site. Fetches directly from PostgreSQL (not WordPress).
+- **FastAPI research API** — a lightweight Python API server on the dedicated server that handles search queries (including embedding the query text via Ollama), article retrieval, graph data, and faceted browsing. Protected by API key authentication.
+- **Python worker** — runs daily via cron (or a loop with sleep). Modular design with swappable AI providers. Docker resource limits (`--cpus`, `--memory`) prevent the worker from starving the API during aggregation.
+- **Next.js `/research` route** — a standalone section of the existing site. Server components fetch from the aggregator API using a typed client (`lib/research/client.ts`), following the same pattern as the existing WPGraphQL integration.
 - **[Crawl4AI](https://github.com/unclecode/crawl4ai)** — open-source web crawler purpose-built for LLM pipelines. Outputs clean Markdown from any web page (including JavaScript-rendered content via Playwright), eliminating the need for manual HTML-to-text extraction. RSS feeds are still parsed directly with `feedparser`.
 - **Multimedia ingestion** — YouTube channels and podcasts are first-class source types. Audio/video content is transcribed and summarized by dedicated tools before entering the standard AI classification pipeline (see [Multimedia Processing](#multimedia-processing) below).
 - **Academic sources** — arXiv papers, Catholic university news, and academic institution feeds are monitored for research at the intersection of technology, ethics, and the Church. Papers are fetched via the arXiv API and PDF text extraction; university news via RSS/web crawling (see [Academic & Scientific Sources](#academic--scientific-sources) below).
-- **Decoupled from WordPress** — the aggregator is an independent subsystem. WordPress continues to serve CMS content; the research section queries PostgreSQL directly.
+- **Decoupled from WordPress** — the aggregator is an independent subsystem. WordPress continues to serve CMS content; the research section queries the aggregator API.
 
 ## Database Schema
 
@@ -900,15 +918,85 @@ Alternatively, an on-demand run can be triggered:
 docker compose run --rm aggregator python -m aggregator --once
 ```
 
+## Research API (FastAPI)
+
+The aggregator exposes a REST API via FastAPI, running on the dedicated server alongside PostgreSQL and Ollama. The CDCF Next.js frontend calls this API over HTTPS — the database is never exposed directly.
+
+### Authentication
+
+All endpoints require an API key passed via the `X-API-Key` header. The key is validated per-request against `AGG_API_KEYS` (a comma-separated list supporting key rotation).
+
+```python
+# aggregator/api/auth.py
+from fastapi import Security, HTTPException
+from fastapi.security import APIKeyHeader
+
+api_key_header = APIKeyHeader(name="X-API-Key")
+
+async def verify_api_key(key: str = Security(api_key_header)):
+    if key not in settings.api_keys:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+```
+
+### Endpoints
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/api/search` | Hybrid search (FTS + semantic via RRF). Params: `q`, `tags[]`, `sources[]`, `from_date`, `to_date`, `language`, `content_type`, `min_relevance`, `limit`, `offset`. The API embeds the query text via Ollama before running the hybrid SQL query. |
+| `GET` | `/api/articles/{id}` | Single article with entities, tags, and related articles (via vector similarity). |
+| `GET` | `/api/tags` | All tags with article counts. Optional `limit` param. |
+| `GET` | `/api/entities` | Entities with filters: `type`, `q` (name search), `limit`, `offset`. |
+| `GET` | `/api/graph` | Knowledge graph data (nodes + edges) for visualization. Params: `center_id` (article or entity), `depth`, `limit`. Returns JSON suitable for D3.js force layout. |
+| `GET` | `/api/sources` | Active sources with article counts and last-fetched timestamps. |
+| `GET` | `/api/stats` | Dashboard stats: total articles, sources, entities, recent pipeline runs. |
+
+### Caching
+
+Responses include `Cache-Control` headers to reduce load:
+
+| Endpoint | Cache TTL | Rationale |
+|----------|-----------|-----------|
+| `/api/search` | 5 min | Balances freshness with performance for repeated queries |
+| `/api/articles/{id}` | 1 hour | Article content rarely changes after ingestion |
+| `/api/tags`, `/api/entities` | 15 min | Updated only when new articles are processed |
+| `/api/graph` | 15 min | Graph structure changes infrequently |
+| `/api/sources`, `/api/stats` | 5 min | Light queries, useful to keep fresh |
+
+The Next.js frontend benefits from these headers via `fetch()` with `next: { revalidate }` for ISR, matching the existing WPGraphQL pattern.
+
+### Resource Isolation
+
+Docker resource limits prevent the aggregation worker from starving the API during pipeline runs:
+
+```yaml
+  # API server — guaranteed resources for serving requests
+  aggregator-api:
+    deploy:
+      resources:
+        reservations:
+          cpus: '2'
+          memory: 2G
+
+  # Worker — limited to prevent starvation during daily pipeline run
+  aggregator:
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+```
+
+PostgreSQL's MVCC ensures readers (API) never block writers (worker) and vice versa. The daily pipeline runs for 1–2 hours with most time spent on network I/O (fetching, API calls); the remaining 22+ hours the worker is idle.
+
 ## Next.js Frontend
 
 ### Route: `/research`
 
-A new top-level route (`app/[lang]/research/page.tsx`) that queries PostgreSQL directly via a thin API route.
+A new top-level route (`app/[lang]/research/page.tsx`) that fetches from the aggregator API using a typed client.
 
 **Features:**
 
-- **Search bar** — hybrid search combining FTS (`ts_query`) with vector similarity (pgvector). Finds results even when query terms don't match article keywords (e.g. "machine learning morality" → "AI Ethics" articles). Cross-language: a query in English can surface relevant Spanish or Italian articles.
+- **Search bar** — hybrid search combining FTS with vector similarity. Finds results even when query terms don't match article keywords (e.g. "machine learning morality" → "AI Ethics" articles). Cross-language: a query in English can surface relevant Spanish or Italian articles.
 - **Faceted filters** — by tag, source, date range, relevance threshold, entity type, content language
 - **Results list** — title, source, date, relevance badge, summary, tags
 - **Article detail** — full content view with related entities sidebar and semantically related articles
@@ -918,18 +1006,45 @@ A new top-level route (`app/[lang]/research/page.tsx`) that queries PostgreSQL d
   - Click a node to filter the search results
   - Zoom/pan, search within graph
 
-### API Routes
+### API Client
 
-```
-app/api/research/
-├── search/route.ts       # GET: full-text search with facets
-├── articles/[id]/route.ts # GET: single article with entities
-├── tags/route.ts         # GET: all tags with counts
-├── entities/route.ts     # GET: entities with filters
-└── graph/route.ts        # GET: knowledge graph data (nodes + edges)
-```
+The Next.js frontend calls the aggregator API through a typed client, following the same pattern as the existing WPGraphQL integration:
 
-These API routes connect to PostgreSQL using `pg` (node-postgres) with a connection pool.
+```typescript
+// src/lib/research/client.ts
+const AGGREGATOR_API_URL = process.env.AGGREGATOR_API_URL!;
+const AGGREGATOR_API_KEY = process.env.AGGREGATOR_API_KEY!;
+
+export async function researchQuery<T>(
+  endpoint: string,
+  params?: Record<string, string>,
+  options?: { revalidate?: number }
+): Promise<T> {
+  const url = new URL(endpoint, AGGREGATOR_API_URL);
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  }
+  const res = await fetch(url.toString(), {
+    headers: { 'X-API-Key': AGGREGATOR_API_KEY },
+    next: { revalidate: options?.revalidate ?? 300 },  // 5 min ISR default
+  });
+  if (!res.ok) throw new Error(`Aggregator API error: ${res.status}`);
+  return res.json();
+}
+
+// Typed convenience functions
+export const searchArticles = (params: SearchParams) =>
+  researchQuery<SearchResponse>('/api/search', params, { revalidate: 300 });
+
+export const getArticle = (id: number) =>
+  researchQuery<ArticleDetail>(`/api/articles/${id}`, undefined, { revalidate: 3600 });
+
+export const getTags = () =>
+  researchQuery<Tag[]>('/api/tags', undefined, { revalidate: 900 });
+
+export const getGraphData = (params: GraphParams) =>
+  researchQuery<GraphData>('/api/graph', params, { revalidate: 900 });
+```
 
 ### Knowledge Graph Visualization
 
@@ -943,13 +1058,18 @@ The graph visualization uses D3.js force-directed layout with:
 
 This is a client component (`'use client'`) using `useRef` for the D3 SVG container.
 
-## Docker Compose Additions
+## Docker Compose (Dedicated Server)
+
+The aggregator runs as its own Docker Compose stack on the dedicated server — separate from the CDCF website's Plesk stack.
 
 ```yaml
+# aggregator/docker-compose.yml — runs on the dedicated server
+
+services:
   # PostgreSQL with Apache AGE (knowledge graph) + pgvector (semantic search)
   aggregator-db:
     build:
-      context: ./aggregator
+      context: .
       dockerfile: Dockerfile.db  # extends apache/age:PG16_latest, adds pgvector
     restart: unless-stopped
     environment:
@@ -958,19 +1078,40 @@ This is a client component (`'use client'`) using `useRef` for the D3 SVG contai
       POSTGRES_PASSWORD: ${AGG_DB_PASSWORD}
     volumes:
       - aggregator_db_data:/var/lib/postgresql/data
-      - ./aggregator/sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    # No port exposure — only accessible within the Docker network
+
+  # FastAPI research API — the only service exposed to the internet
+  aggregator-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    depends_on:
+      - aggregator-db
+      - ollama
+    environment:
+      DATABASE_URL: postgresql://${AGG_DB_USER:-aggregator}:${AGG_DB_PASSWORD}@aggregator-db:5432/${AGG_DB_NAME:-aggregator}
+      OLLAMA_BASE_URL: http://ollama:11434
+      AGG_API_KEYS: ${AGG_API_KEYS}  # comma-separated, supports key rotation
     ports:
-      - "5432:5432"
+      - "443:8000"  # behind reverse proxy (Caddy/nginx) with TLS
+    deploy:
+      resources:
+        reservations:
+          cpus: '2'
+          memory: 2G
 
   # Python worker for content aggregation
   # Includes Crawl4AI + Playwright, yt-dlp, faster-whisper
   aggregator:
     build:
-      context: ./aggregator
+      context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       - aggregator-db
+      - ollama
     environment:
       DATABASE_URL: postgresql://${AGG_DB_USER:-aggregator}:${AGG_DB_PASSWORD}@aggregator-db:5432/${AGG_DB_NAME:-aggregator}
       AI_PROVIDER: ${AI_PROVIDER:-claude}
@@ -985,8 +1126,11 @@ This is a client component (`'use client'`) using `useRef` for the D3 SVG contai
     # Temporary storage for audio downloads during transcription
     tmpfs:
       - /tmp/aggregator-audio:size=2G
-    profiles:
-      - aggregator
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
 
   # Local embedding model server (nomic-embed-text, 768-dim, multilingual)
   ollama:
@@ -996,27 +1140,30 @@ This is a client component (`'use client'`) using `useRef` for the D3 SVG contai
       - ollama_data:/root/.ollama
     # Pull the embedding model on first start
     entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull nomic-embed-text && wait"]
-    profiles:
-      - aggregator
 
-# Add to volumes:
+volumes:
   aggregator_db_data:
   ollama_data:
 ```
 
-The `aggregator` profile keeps these services opt-in — they only start when explicitly requested:
+The stack runs with a single command:
 
 ```bash
-docker compose --profile aggregator up -d
+docker compose up -d
 ```
 
+**Network security:** Only the `aggregator-api` service exposes a port. PostgreSQL, Ollama, and the worker are accessible only within the Docker network. A reverse proxy (Caddy or nginx) terminates TLS in front of the API.
+
 ## Environment Variables
+
+### Dedicated Server (aggregator `.env`)
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `AGG_DB_NAME` | PostgreSQL database name | `aggregator` |
 | `AGG_DB_USER` | PostgreSQL user | `aggregator` |
 | `AGG_DB_PASSWORD` | PostgreSQL password | (required) |
+| `AGG_API_KEYS` | Comma-separated API keys for authenticating requests from the CDCF frontend | (required) |
 | `AI_PROVIDER` | AI backend: `claude` or `openai` | `claude` |
 | `ANTHROPIC_API_KEY` | Anthropic API key (if using Claude) | — |
 | `OPENAI_API_KEY` | OpenAI API key (if using OpenAI for classification or embeddings) | — |
@@ -1048,15 +1195,20 @@ docker compose --profile aggregator up -d
 | `AGG_CENTROID_MAX_DISTANCE` | Max cosine distance from corpus centroid before skipping AI classification | `0.65` |
 | `AGG_ENTITY_MERGE_THRESHOLD` | Minimum cosine similarity to auto-merge duplicate entities | `0.92` |
 | `AGG_ENTITY_REVIEW_THRESHOLD` | Minimum similarity to flag entity pair for manual review | `0.80` |
-| `AGG_DATABASE_URL` | Full PostgreSQL connection string (overrides individual vars) | — |
 
-For production (Plesk), `AGG_DATABASE_URL` points to a PostgreSQL instance on the server. The Next.js app reads it to serve the `/research` API routes.
+### Plesk Server (CDCF `.env.local`)
+
+| Variable | Description |
+|----------|-------------|
+| `AGGREGATOR_API_URL` | Base URL of the aggregator API (e.g. `https://aggregator.catholicdigitalcommons.org`) |
+| `AGGREGATOR_API_KEY` | API key for authenticating with the aggregator (must match one of `AGG_API_KEYS`) |
 
 ## Phased Implementation
 
 ### Phase 1 — Database & Skeleton (Week 1–2)
 
-- Set up PostgreSQL + Apache AGE + pgvector in Docker Compose (custom Dockerfile.db)
+- Provision dedicated server (Hetzner/OVH, 8 cores, 16 GB RAM, 100 GB SSD)
+- Set up Docker Compose stack: PostgreSQL + AGE + pgvector, Ollama, worker, API
 - Create SQL schema (`aggregator/sql/init.sql`)
 - Scaffold Python package with config, DB connection, models
 - Implement RSS fetcher (`feedparser`) with 3–5 seed Catholic media sources
@@ -1085,11 +1237,13 @@ For production (Plesk), `AGG_DATABASE_URL` points to a PostgreSQL instance on th
 - Entity disambiguation via embedding similarity (auto-merge + manual review queue)
 - Backfill embeddings for existing articles
 
-### Phase 4 — Frontend Search (Week 7–8)
+### Phase 4 — API & Frontend Search (Week 7–8)
 
-- Next.js API routes for search, articles, tags, entities
-- PostgreSQL connection pool in Next.js (`pg` + `pgvector` packages)
-- Hybrid search API (FTS + vector similarity via Reciprocal Rank Fusion)
+- Build FastAPI research API with authentication (`X-API-Key`)
+- Implement search, articles, tags, entities, graph endpoints
+- Hybrid search endpoint (FTS + vector similarity via Reciprocal Rank Fusion)
+- Set up TLS reverse proxy (Caddy) on dedicated server
+- Build `lib/research/client.ts` API client on the CDCF frontend
 - `/research` page with search bar + faceted filters
 - Article detail view with entity sidebar
 - Responsive design with existing CDCF styling (`cdcf-section`, `cdcf-heading`, etc.)
@@ -1108,10 +1262,15 @@ For production (Plesk), `AGG_DATABASE_URL` points to a PostgreSQL instance on th
 
 ### New Files
 
+#### Dedicated Server (aggregator repo)
+
 ```
 aggregator/
-├── Dockerfile
+├── docker-compose.yml        # Full stack: DB + API + worker + Ollama
+├── Dockerfile                # Python worker (fetchers, AI, transcription)
+├── Dockerfile.api            # FastAPI research API server
 ├── Dockerfile.db             # extends apache/age, adds pgvector
+├── Caddyfile                 # TLS reverse proxy for the API
 ├── pyproject.toml
 ├── __init__.py
 ├── __main__.py
@@ -1119,6 +1278,20 @@ aggregator/
 ├── db.py
 ├── models.py
 ├── pipeline.py
+├── api/
+│   ├── __init__.py
+│   ├── main.py               # FastAPI app, CORS, lifespan
+│   ├── auth.py               # API key verification
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── search.py         # GET /api/search (hybrid FTS + semantic)
+│   │   ├── articles.py       # GET /api/articles/{id}
+│   │   ├── tags.py           # GET /api/tags
+│   │   ├── entities.py       # GET /api/entities
+│   │   ├── graph.py          # GET /api/graph
+│   │   ├── sources.py        # GET /api/sources
+│   │   └── stats.py          # GET /api/stats
+│   └── schemas.py            # Pydantic response models
 ├── fetchers/
 │   ├── __init__.py
 │   ├── base.py
@@ -1146,17 +1319,14 @@ aggregator/
 │   └── builder.py
 └── sql/
     └── init.sql
+```
 
+#### CDCF Website (this repo)
+
+```
 src/app/[lang]/research/
 ├── page.tsx
 └── [id]/page.tsx
-
-src/app/api/research/
-├── search/route.ts
-├── articles/[id]/route.ts
-├── tags/route.ts
-├── entities/route.ts
-└── graph/route.ts
 
 src/components/research/
 ├── SearchBar.tsx
@@ -1168,19 +1338,17 @@ src/components/research/
 └── RelevanceBadge.tsx
 
 src/lib/research/
-├── db.ts                     # pg connection pool
-├── queries.ts                # SQL query builders
-└── types.ts                  # TypeScript interfaces
+├── client.ts                 # Aggregator API fetch wrapper
+└── types.ts                  # TypeScript interfaces for API responses
 ```
 
-### Modified Files
+### Modified Files (this repo)
 
 ```
-docker-compose.yml            # Add aggregator-db + aggregator services
-.env.example                  # Add AGG_* and AI provider variables
+.env.example                  # Add AGGREGATOR_API_URL, AGGREGATOR_API_KEY
 src/i18n/routing.ts           # (no change needed — /research is locale-aware by default)
 messages/*.json               # Add research.* translation keys
-CLAUDE.md                     # Document aggregator subsystem
+CLAUDE.md                     # Document aggregator integration
 ```
 
 ## Initial Source List
