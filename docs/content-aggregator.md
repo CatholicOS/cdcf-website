@@ -10,31 +10,35 @@ An AI-powered system that daily scours Catholic media (RSS feeds, news sites, Va
 graph TB
     subgraph plesk["Plesk Server (catholicdigitalcommons.org)"]
         subgraph nextjs["Next.js (CDCF website)"]
-            research["/research pages<br/><small>search · graph viz</small>"]
-            researchClient["lib/research/client.ts<br/><small>fetch wrapper</small>"]
+            researchPages["/research pages<br/><small>search · graph viz</small>"]
+            researchClient["lib/research/client.ts<br/><small>typed fetch wrapper</small>"]
         end
         wordpress["WordPress<br/><small>CMS · unchanged</small>"]
     end
 
     subgraph dedicated["Dedicated Server (Hetzner / OVH)"]
+        subgraph caddy["Caddy (TLS reverse proxy)"]
+            tlsTermination["HTTPS termination"]
+        end
+
         subgraph api["FastAPI (research API)"]
             searchEndpoint["/api/search"]
             articlesEndpoint["/api/articles"]
             graphEndpoint["/api/graph"]
-            tagsEndpoint["/api/tags · /api/entities"]
+            otherEndpoints["/api/tags · /api/entities<br/>/api/sources · /api/stats"]
         end
 
-        subgraph worker["Python Worker (aggregator)"]
+        subgraph worker["Python Worker (daily cron)"]
+            orchestrator["Pipeline orchestrator"]
             fetcher["Fetcher<br/><small>RSS · Crawl4AI · yt-dlp</small>"]
             transcriber["Transcriber<br/><small>faster-whisper</small>"]
             classifier["AI Classifier<br/><small>Claude / OpenAI</small>"]
             embedder["Embedder"]
-            pipelineOrch["Pipeline orchestrator"]
             graphbuilder["Graph builder<br/><small>AGE</small>"]
         end
 
         subgraph db["PostgreSQL + AGE + pgvector"]
-            articles[("articles<br/>+ FTS index<br/>+ vector index")]
+            articlesTbl[("articles<br/>+ FTS index<br/>+ vector index")]
             knowledgegraph[("knowledge<br/>graph")]
         end
 
@@ -43,23 +47,25 @@ graph TB
         end
     end
 
-    research --> researchClient
-    researchClient -->|"HTTPS + API key"| api
+    researchPages --> researchClient
+    researchClient -->|"HTTPS + API key"| caddy
+    caddy --> api
     nextjs -->|"WPGraphQL"| wordpress
 
-    fetcher --> pipelineOrch
-    transcriber --> pipelineOrch
-    classifier --> pipelineOrch
-    embedder --> pipelineOrch
-    graphbuilder --> pipelineOrch
+    orchestrator --> fetcher
+    orchestrator --> transcriber
+    orchestrator --> classifier
+    orchestrator --> embedder
+    orchestrator --> graphbuilder
 
-    pipelineOrch -->|"read/write"| db
-    api -->|"read"| db
+    orchestrator -->|"read/write"| db
+    api -->|"read-only"| db
     embedder -->|"embed text"| ollama
     api -->|"embed query"| ollama
 
     classDef pleskStyle fill:#6b4c8a,stroke:#4a2e6b,color:#fff
     classDef dedicatedStyle fill:#2d5f8a,stroke:#1a3a5c,color:#fff
+    classDef caddyStyle fill:#22863a,stroke:#176130,color:#fff
     classDef apiStyle fill:#8a5b2d,stroke:#6b3d1a,color:#fff
     classDef workerStyle fill:#5b4a8a,stroke:#3d2e6b,color:#fff
     classDef dbStyle fill:#2d7a5f,stroke:#1a5c3a,color:#fff
@@ -68,6 +74,7 @@ graph TB
 
     class plesk pleskStyle
     class dedicated dedicatedStyle
+    class caddy caddyStyle
     class api apiStyle
     class worker workerStyle
     class db dbStyle
