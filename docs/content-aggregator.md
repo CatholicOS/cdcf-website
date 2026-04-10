@@ -6,32 +6,62 @@ An AI-powered system that daily scours Catholic media (RSS feeds, news sites, Va
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│  Docker Compose                                              │
-│                                                              │
-│  ┌─────────────┐    ┌──────────────────────────────────────┐ │
-│  │  PostgreSQL  │    │  Python Worker (aggregator)          │ │
-│  │  + AGE ext.  │◄───│  - Fetcher (RSS + Crawl4AI + yt-dlp)│ │
-│  │              │    │  - Transcriber (Whisper)             │ │
-│  │  • articles  │    │  - AI Classifier (Claude / OpenAI)   │ │
-│  │  • FTS index │    │  - Pipeline orchestrator             │ │
-│  │  • knowledge │    │  - Graph builder (AGE)               │ │
-│  │    graph     │                                            │
-│  └──────┬───────┘                                            │
-│         │                                                    │
-│  ┌──────▼───────┐    ┌──────────────────────────────────────┐ │
-│  │   Next.js    │    │  WordPress (existing)                │ │
-│  │  /research   │    │  - unchanged                         │ │
-│  │  - search    │    └──────────────────────────────────────┘ │
-│  │  - graph viz │                                            │
-│  └──────────────┘                                            │
-└──────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Docker Compose
+        subgraph worker["Python Worker (aggregator)"]
+            fetcher["Fetcher<br/><small>RSS · Crawl4AI · yt-dlp</small>"]
+            transcriber["Transcriber<br/><small>faster-whisper</small>"]
+            classifier["AI Classifier<br/><small>Claude / OpenAI</small>"]
+            embedder["Embedder"]
+            pipeline["Pipeline orchestrator"]
+            graphbuilder["Graph builder<br/><small>AGE</small>"]
+        end
+
+        subgraph db["PostgreSQL + AGE + pgvector"]
+            articles[("articles<br/>+ FTS index<br/>+ vector index")]
+            graph[("knowledge<br/>graph")]
+        end
+
+        subgraph ollama["Ollama"]
+            nomic["nomic-embed-text<br/><small>768-dim</small>"]
+        end
+
+        subgraph nextjs["Next.js"]
+            research["/research<br/><small>search · graph viz</small>"]
+        end
+
+        wordpress["WordPress<br/><small>existing · unchanged</small>"]
+    end
+
+    fetcher --> pipeline
+    transcriber --> pipeline
+    classifier --> pipeline
+    embedder --> pipeline
+    graphbuilder --> pipeline
+
+    pipeline -->|"read/write"| db
+    embedder -->|"embed text"| ollama
+    research -->|"query"| db
+    research -->|"embed query"| ollama
+    nextjs -->|"WPGraphQL"| wordpress
+
+    classDef dbStyle fill:#2d5f8a,stroke:#1a3a5c,color:#fff
+    classDef workerStyle fill:#5b4a8a,stroke:#3d2e6b,color:#fff
+    classDef ollamaStyle fill:#4a7a5b,stroke:#2e5c3d,color:#fff
+    classDef nextStyle fill:#8a5b2d,stroke:#6b3d1a,color:#fff
+    classDef wpStyle fill:#555,stroke:#333,color:#fff
+
+    class db dbStyle
+    class worker workerStyle
+    class ollama ollamaStyle
+    class nextjs nextStyle
+    class wordpress wpStyle
 ```
 
 **Key design decisions:**
 
-- **PostgreSQL with Apache AGE** — single database for relational data, full-text search (tsvector), and property-graph queries (openCypher). No separate graph database needed.
+- **PostgreSQL with Apache AGE + pgvector** — single database for relational data, full-text search (tsvector), vector similarity search (pgvector), and property-graph queries (openCypher). No separate graph database or vector store needed.
 - **Python worker** — runs daily via cron (or a loop with sleep). Modular design with swappable AI providers.
 - **Next.js `/research` route** — a standalone section of the existing site. Fetches directly from PostgreSQL (not WordPress).
 - **[Crawl4AI](https://github.com/unclecode/crawl4ai)** — open-source web crawler purpose-built for LLM pipelines. Outputs clean Markdown from any web page (including JavaScript-rendered content via Playwright), eliminating the need for manual HTML-to-text extraction. RSS feeds are still parsed directly with `feedparser`.
@@ -44,6 +74,9 @@ An AI-powered system that daily scours Catholic media (RSS feeds, news sites, Va
 ### PostgreSQL Tables
 
 ```sql
+-- Vector similarity search
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- Sources (RSS feeds, websites to monitor)
 CREATE TABLE sources (
     id              SERIAL PRIMARY KEY,
@@ -96,6 +129,7 @@ CREATE TABLE articles (
     media_url       TEXT,               -- direct URL to audio/video file or stream
     thumbnail_url   TEXT,               -- thumbnail/poster image URL
     relevance_score REAL DEFAULT 0.0,   -- AI-assigned 0.0–1.0
+    embedding       vector(768),       -- semantic embedding (populated async by embedder)
     metadata        JSONB DEFAULT '{}', -- arbitrary extra fields
 
     -- Full-text search vector (auto-updated via trigger)
@@ -109,6 +143,7 @@ CREATE TABLE articles (
 );
 
 CREATE INDEX idx_articles_search ON articles USING GIN (search_vector);
+CREATE INDEX idx_articles_embedding ON articles USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX idx_articles_published ON articles (published_at DESC);
 CREATE INDEX idx_articles_relevance ON articles (relevance_score DESC);
 CREATE INDEX idx_articles_source ON articles (source_id);
@@ -136,8 +171,11 @@ CREATE TABLE entities (
     )),
     description TEXT,
     external_url TEXT,
+    embedding   vector(768),   -- for entity disambiguation (merge "Bishop Barron" / "Robert Barron" / "Bp. Barron")
     UNIQUE (name, entity_type)
 );
+
+CREATE INDEX idx_entities_embedding ON entities USING hnsw (embedding vector_cosine_ops);
 
 -- Article–entity associations
 CREATE TABLE article_entities (
@@ -241,6 +279,7 @@ aggregator/
 │   ├── extractor.py      # Named entity extraction
 │   ├── summarizer.py     # Article summarization
 │   ├── transcriber.py    # Audio/video transcription (Whisper)
+│   ├── embedder.py       # Vector embedding generation (Ollama / OpenAI)
 │   ├── link_follower.py  # Discover + crawl outbound links from articles
 │   └── source_discoverer.py  # Auto-discover and promote new sources
 ├── graph/
@@ -259,17 +298,21 @@ aggregator/
    b. Deduplicate against existing articles (by external_url)
    c. For each new article:
       i.    For web sources: Crawl4AI returns clean Markdown directly; for RSS: extract text from HTML
-      ii.   AI: Score relevance (0.0–1.0) — skip if < 0.3
-      iii.  AI: Generate summary (1–2 sentences)
-      iv.   AI: Assign tags from controlled vocabulary + suggest new ones
-      v.    AI: Extract named entities (people, orgs, projects, documents)
-      vi.   Insert article + tags + entities into PostgreSQL
-      vii.  Sync to Apache AGE graph (nodes + edges)
-      viii. Log processing result
-3. Link-following pass (see below)
-4. Source discovery pass (see below)
-5. Run co-occurrence analysis across recent articles
-6. Update graph edges for entity relationships
+      ii.   Generate embedding for article text (title + content excerpt → vector)
+      iii.  Corpus centroid pre-filter: skip if cosine distance from centroid > AGG_CENTROID_MAX_DISTANCE
+      iv.   AI: Score relevance (0.0–1.0) — skip if < 0.3
+      v.    AI: Generate summary (1–2 sentences)
+      vi.   AI: Assign tags from controlled vocabulary + suggest new ones
+      vii.  AI: Extract named entities (people, orgs, projects, documents)
+      viii. Insert article + tags + entities into PostgreSQL
+      ix.   Re-embed article with enriched text (title + summary + tags → vector)
+      x.    Sync to Apache AGE graph (nodes + edges)
+      xi.   Log processing result
+3. Entity disambiguation pass (see Vector Embeddings below)
+4. Link-following pass (see below)
+5. Source discovery pass (see below)
+6. Run co-occurrence analysis across recent articles
+7. Update graph edges for entity relationships
 ```
 
 ### Link Following
@@ -277,7 +320,7 @@ aggregator/
 After the initial fetch-and-classify pass, the pipeline runs a **link-following step** that discovers and crawls outbound links found within article content.
 
 ```
-3. Link-following pass:
+4. Link-following pass:
    a. For each newly ingested article:
       i.   Extract all outbound URLs from content_html
       ii.  Filter against domain allowlist (see below) — skip social media, ads, navigation links
@@ -320,7 +363,7 @@ Links to social media (Twitter/X, Facebook, Instagram), generic platforms (Mediu
 As the aggregator follows links and ingests articles, it tracks which external domains consistently produce relevant content. When a domain crosses a confidence threshold, it is automatically promoted to a crawlable source — enabling the system to organically grow its source list over time.
 
 ```
-4. Source discovery pass:
+5. Source discovery pass:
    a. Aggregate stats from recently ingested articles by domain:
       - Count of articles ingested from this domain
       - Average relevance score across those articles
@@ -353,6 +396,202 @@ As the aggregator follows links and ingests articles, it tracks which external d
 **Manual review:** Candidates below the auto-promote threshold are visible in the admin interface (and future `/research` admin panel) where a human can approve or reject them. Rejected candidates are not reconsidered unless explicitly reset.
 
 **RSS auto-detection:** When a candidate is promoted, the system attempts to find an RSS/Atom feed on the domain (checking `<link rel="alternate" type="application/rss+xml">`, common paths like `/feed`, `/rss`, `/rss.xml`). If found, the source is created with `source_type='rss'`; otherwise it falls back to `source_type='web'` for HTML scraping.
+
+### Vector Embeddings
+
+Every article and entity gets a dense vector embedding stored in a `pgvector` column with an HNSW index. This enables capabilities that pure keyword search and name-matching cannot provide:
+
+1. **Semantic search** — "machine learning morality" finds articles tagged "AI Ethics" even when keywords don't overlap.
+2. **Cross-language discovery** — multilingual embedding models map EN/ES/PT/IT/FR/DE content into the same vector space, so a Spanish article on "ética digital" surfaces alongside English articles on "digital ethics."
+3. **Entity disambiguation** — "Bishop Barron," "Robert Barron," and "Bp. Barron" are recognized as the same person by comparing entity embeddings rather than relying on exact name matching.
+4. **Corpus centroid pre-filter** — articles semantically far from the corpus centroid are likely off-topic, enabling a cheap pre-screen before the expensive AI classification step.
+
+At the scale of this project (low tens of thousands of articles over its lifetime), pgvector with HNSW handles this comfortably.
+
+#### Embedding Model
+
+The default embedding model is **[nomic-embed-text](https://ollama.com/library/nomic-embed-text)** (768 dimensions, strong multilingual support) served locally via **Ollama**. This provides:
+
+- **Zero marginal cost** — no per-request API charges, suitable for ongoing daily pipeline runs.
+- **Privacy** — article content never leaves the server.
+- **Low latency** — local inference is faster than a cloud API round-trip, which matters when embedding the user's query at search time.
+- **No new infrastructure** — Ollama runs as a single Docker container.
+
+OpenAI embeddings (`text-embedding-3-small`, 768 dimensions via the `dimensions` parameter) are available as a cloud fallback for environments where running a local model isn't practical.
+
+#### Embedding Processor
+
+```python
+# aggregator/processors/embedder.py
+from abc import ABC, abstractmethod
+
+class EmbeddingProvider(ABC):
+    @abstractmethod
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        """Return a list of embedding vectors for the given texts."""
+        ...
+
+class OllamaEmbedder(EmbeddingProvider):
+    """Local embeddings via Ollama (nomic-embed-text, 768 dimensions)."""
+    def __init__(self, base_url: str = "http://ollama:11434"):
+        self.base_url = base_url
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        import httpx
+        async with httpx.AsyncClient() as client:
+            results = []
+            for text in texts:
+                resp = await client.post(
+                    f"{self.base_url}/api/embeddings",
+                    json={"model": "nomic-embed-text", "prompt": text}
+                )
+                results.append(resp.json()["embedding"])
+            return results
+
+class OpenAIEmbedder(EmbeddingProvider):
+    """OpenAI embeddings (text-embedding-3-small, 768 dimensions)."""
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        import openai
+        client = openai.AsyncOpenAI()
+        result = await client.embeddings.create(
+            input=texts, model="text-embedding-3-small", dimensions=768
+        )
+        return [item.embedding for item in result.data]
+
+class Embedder:
+    """Generates and stores embeddings for articles and entities."""
+
+    def __init__(self, provider: EmbeddingProvider, db):
+        self.provider = provider
+        self.db = db
+
+    async def embed_article(self, article_id: int, title: str, summary: str, tags: list[str]):
+        """Build a composite text from title + summary + tags, embed it, and store."""
+        text = f"{title}\n{summary}\n{', '.join(tags)}"
+        [embedding] = await self.provider.embed([text])
+        await self.db.execute(
+            "UPDATE articles SET embedding = $1 WHERE id = $2",
+            embedding, article_id
+        )
+
+    async def embed_entity(self, entity_id: int, name: str, entity_type: str, description: str | None):
+        """Embed entity name + type + description for disambiguation."""
+        text = f"{name} ({entity_type})"
+        if description:
+            text += f": {description}"
+        [embedding] = await self.provider.embed([text])
+        await self.db.execute(
+            "UPDATE entities SET embedding = $1 WHERE id = $2",
+            embedding, entity_id
+        )
+```
+
+The provider is selected via the `AGG_EMBEDDING_PROVIDER` environment variable (`ollama` or `openai`). Both produce 768-dimensional vectors. Embeddings are generated in batches during the pipeline run.
+
+#### Corpus Centroid Pre-filter
+
+Before running the expensive AI classification step, the pipeline can cheaply screen out off-topic articles by comparing their embedding to the corpus centroid — the average embedding of all existing articles:
+
+```python
+# In pipeline.py, after fetching and embedding a new article but before AI classification
+centroid = await db.fetchval("SELECT AVG(embedding) FROM articles WHERE embedding IS NOT NULL")
+if centroid is not None:
+    distance = cosine_distance(article_embedding, centroid)
+    if distance > AGG_CENTROID_MAX_DISTANCE:
+        log.info(f"Skipping '{article.title}' — cosine distance {distance:.3f} from corpus centroid exceeds threshold")
+        await db.execute(
+            "INSERT INTO processing_log (article_id, step, status, details) VALUES ($1, 'centroid_filter', 'skipped', $2)",
+            article.id, {"distance": distance, "threshold": AGG_CENTROID_MAX_DISTANCE}
+        )
+        continue  # skip AI classification entirely
+```
+
+This reduces AI API costs by filtering obviously irrelevant articles (e.g. a general sports article that happened to mention a Catholic school) before they reach the classifier. The centroid is recalculated periodically (not on every article) and cached.
+
+#### Entity Disambiguation
+
+After new entities are extracted, the pipeline runs a disambiguation pass:
+
+```
+3. Entity disambiguation pass:
+   a. For each newly created entity:
+      i.   Generate embedding from name + type + description
+      ii.  Query existing entities of the same type for nearest neighbors:
+           SELECT id, name, 1 - (embedding <=> $1) AS similarity
+           FROM entities
+           WHERE entity_type = $2 AND id != $3
+           ORDER BY embedding <=> $1
+           LIMIT 5
+      iii. If top match has similarity >= AGG_ENTITY_MERGE_THRESHOLD (default 0.92):
+           - Merge: reassign all article_entities rows to the existing entity
+           - Update the existing entity's description if the new one is richer
+           - Delete the duplicate entity
+           - Log the merge in processing_log
+      iv.  If similarity is between 0.80 and 0.92: flag for manual review
+```
+
+This catches variations like "Bishop Barron" / "Robert Barron" / "Bp. Barron", "USCCB" / "United States Conference of Catholic Bishops", and "Vatican" / "Holy See" (when contextually equivalent).
+
+#### Semantic Search Integration
+
+The search API supports a hybrid search mode that combines FTS and vector similarity using **Reciprocal Rank Fusion (RRF)**. RRF is rank-based rather than score-based, which avoids the problem of comparing FTS scores and cosine similarities that live on fundamentally different scales:
+
+```sql
+-- Hybrid search: Reciprocal Rank Fusion (RRF) of FTS + semantic results
+WITH fts AS (
+    SELECT id,
+        ROW_NUMBER() OVER (ORDER BY ts_rank(search_vector, websearch_to_tsquery('english', $1)) DESC) AS rank
+    FROM articles
+    WHERE search_vector @@ websearch_to_tsquery('english', $1)
+),
+semantic AS (
+    SELECT id,
+        ROW_NUMBER() OVER (ORDER BY embedding <=> $2::vector) AS rank
+    FROM articles
+    WHERE embedding IS NOT NULL
+    ORDER BY embedding <=> $2::vector
+    LIMIT 100
+)
+SELECT a.id, a.title, a.summary, a.published_at,
+    COALESCE(1.0 / (60 + fts.rank), 0) + COALESCE(1.0 / (60 + sem.rank), 0) AS rrf_score
+FROM articles a
+LEFT JOIN fts ON a.id = fts.id
+LEFT JOIN semantic sem ON a.id = sem.id
+WHERE fts.id IS NOT NULL OR sem.id IS NOT NULL
+ORDER BY rrf_score DESC
+LIMIT $3 OFFSET $4;
+```
+
+The constant `60` in the RRF formula is the standard smoothing factor (from the original RRF paper). It prevents top-ranked results from dominating and gives a balanced fusion without requiring any weight tuning.
+
+The search API route embeds the user's query text at request time (a single local Ollama call, ~50ms), then runs the hybrid query.
+
+#### Related Articles
+
+Vector similarity provides a natural "related articles" feature without relying on tag overlap or graph proximity:
+
+```sql
+SELECT id, title, summary, published_at,
+    1 - (embedding <=> (SELECT embedding FROM articles WHERE id = $1)) AS similarity
+FROM articles
+WHERE id != $1 AND embedding IS NOT NULL
+ORDER BY embedding <=> (SELECT embedding FROM articles WHERE id = $1)
+LIMIT 5;
+```
+
+This query is used in the article detail view sidebar.
+
+#### Safeguards
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `AGG_EMBEDDING_PROVIDER` | `ollama` | Embedding backend: `ollama` (local nomic-embed-text) or `openai` |
+| `AGG_EMBEDDING_MODEL` | `nomic-embed-text` | Ollama model name (ignored when provider is `openai`) |
+| `AGG_EMBEDDING_DIMENSIONS` | `768` | Vector dimensions (must match model output) |
+| `AGG_EMBEDDING_BATCH_SIZE` | `32` | Articles to embed per batch |
+| `AGG_CENTROID_MAX_DISTANCE` | `0.65` | Maximum cosine distance from corpus centroid before skipping AI classification |
+| `AGG_ENTITY_MERGE_THRESHOLD` | `0.92` | Minimum cosine similarity to auto-merge duplicate entities |
+| `AGG_ENTITY_REVIEW_THRESHOLD` | `0.80` | Minimum similarity to flag entity pair for manual review |
 
 ### AI Provider Abstraction
 
@@ -669,10 +908,10 @@ A new top-level route (`app/[lang]/research/page.tsx`) that queries PostgreSQL d
 
 **Features:**
 
-- **Search bar** — full-text search via `ts_query` against `articles.search_vector`
-- **Faceted filters** — by tag, source, date range, relevance threshold, entity type
+- **Search bar** — hybrid search combining FTS (`ts_query`) with vector similarity (pgvector). Finds results even when query terms don't match article keywords (e.g. "machine learning morality" → "AI Ethics" articles). Cross-language: a query in English can surface relevant Spanish or Italian articles.
+- **Faceted filters** — by tag, source, date range, relevance threshold, entity type, content language
 - **Results list** — title, source, date, relevance badge, summary, tags
-- **Article detail** — full content view with related entities sidebar
+- **Article detail** — full content view with related entities sidebar and semantically related articles
 - **Knowledge graph** — interactive D3.js force-directed graph visualization
   - Nodes = entities + articles, colored by type
   - Edges = relationships (mentions, co-occurrence, tagged-with)
@@ -707,9 +946,11 @@ This is a client component (`'use client'`) using `useRef` for the D3 SVG contai
 ## Docker Compose Additions
 
 ```yaml
-  # PostgreSQL with Apache AGE extension for knowledge graph
+  # PostgreSQL with Apache AGE (knowledge graph) + pgvector (semantic search)
   aggregator-db:
-    image: apache/age:PG16_latest
+    build:
+      context: ./aggregator
+      dockerfile: Dockerfile.db  # extends apache/age:PG16_latest, adds pgvector
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${AGG_DB_NAME:-aggregator}
@@ -737,6 +978,8 @@ This is a client component (`'use client'`) using `useRef` for the D3 SVG contai
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       AGG_TRANSCRIPTION_PROVIDER: ${AGG_TRANSCRIPTION_PROVIDER:-local}
       AGG_WHISPER_MODEL: ${AGG_WHISPER_MODEL:-base}
+      AGG_EMBEDDING_PROVIDER: ${AGG_EMBEDDING_PROVIDER:-ollama}
+      OLLAMA_BASE_URL: http://ollama:11434
     # Crawl4AI uses Playwright which needs shared memory for Chromium
     shm_size: '512m'
     # Temporary storage for audio downloads during transcription
@@ -745,8 +988,20 @@ This is a client component (`'use client'`) using `useRef` for the D3 SVG contai
     profiles:
       - aggregator
 
+  # Local embedding model server (nomic-embed-text, 768-dim, multilingual)
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    # Pull the embedding model on first start
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull nomic-embed-text && wait"]
+    profiles:
+      - aggregator
+
 # Add to volumes:
   aggregator_db_data:
+  ollama_data:
 ```
 
 The `aggregator` profile keeps these services opt-in — they only start when explicitly requested:
@@ -764,7 +1019,7 @@ docker compose --profile aggregator up -d
 | `AGG_DB_PASSWORD` | PostgreSQL password | (required) |
 | `AI_PROVIDER` | AI backend: `claude` or `openai` | `claude` |
 | `ANTHROPIC_API_KEY` | Anthropic API key (if using Claude) | — |
-| `OPENAI_API_KEY` | OpenAI API key (if using OpenAI) | — |
+| `OPENAI_API_KEY` | OpenAI API key (if using OpenAI for classification or embeddings) | — |
 | `AGG_FETCH_INTERVAL` | Default fetch interval | `24h` |
 | `AGG_RELEVANCE_THRESHOLD` | Minimum relevance score to store | `0.3` |
 | `AGG_LINK_MAX_DEPTH` | Maximum crawl depth for link following | `2` |
@@ -786,6 +1041,13 @@ docker compose --profile aggregator up -d
 | `AGG_ARXIV_FETCH_INTERVAL` | How often to re-run arXiv queries | `7 days` |
 | `AGG_ARXIV_PDF_MAX_PAGES` | Skip PDF extraction for papers longer than this | `50` |
 | `AGG_ARXIV_ABSTRACT_RELEVANCE_THRESHOLD` | Minimum abstract relevance to download full PDF | `0.4` |
+| `AGG_EMBEDDING_PROVIDER` | Embedding backend: `ollama` (local nomic-embed-text) or `openai` | `ollama` |
+| `AGG_EMBEDDING_MODEL` | Ollama model name (ignored when provider is `openai`) | `nomic-embed-text` |
+| `AGG_EMBEDDING_DIMENSIONS` | Vector dimensions (must match model output) | `768` |
+| `AGG_EMBEDDING_BATCH_SIZE` | Articles to embed per batch | `32` |
+| `AGG_CENTROID_MAX_DISTANCE` | Max cosine distance from corpus centroid before skipping AI classification | `0.65` |
+| `AGG_ENTITY_MERGE_THRESHOLD` | Minimum cosine similarity to auto-merge duplicate entities | `0.92` |
+| `AGG_ENTITY_REVIEW_THRESHOLD` | Minimum similarity to flag entity pair for manual review | `0.80` |
 | `AGG_DATABASE_URL` | Full PostgreSQL connection string (overrides individual vars) | — |
 
 For production (Plesk), `AGG_DATABASE_URL` points to a PostgreSQL instance on the server. The Next.js app reads it to serve the `/research` API routes.
@@ -794,7 +1056,7 @@ For production (Plesk), `AGG_DATABASE_URL` points to a PostgreSQL instance on th
 
 ### Phase 1 — Database & Skeleton (Week 1–2)
 
-- Set up PostgreSQL + Apache AGE in Docker Compose
+- Set up PostgreSQL + Apache AGE + pgvector in Docker Compose (custom Dockerfile.db)
 - Create SQL schema (`aggregator/sql/init.sql`)
 - Scaffold Python package with config, DB connection, models
 - Implement RSS fetcher (`feedparser`) with 3–5 seed Catholic media sources
@@ -813,17 +1075,21 @@ For production (Plesk), `AGG_DATABASE_URL` points to a PostgreSQL instance on th
 - Integrate AI step into pipeline
 - Add processing log for observability
 
-### Phase 3 — Knowledge Graph (Week 5–6)
+### Phase 3 — Knowledge Graph & Embeddings (Week 5–6)
 
 - Build Apache AGE graph sync (nodes + edges from relational data)
 - Implement co-occurrence analysis (entities that appear together across articles)
 - Add AI-inferred entity relationships (`RELATED_TO` edges)
 - Cypher query helpers for graph traversal
+- Implement embedding processor (Ollama / OpenAI providers)
+- Entity disambiguation via embedding similarity (auto-merge + manual review queue)
+- Backfill embeddings for existing articles
 
 ### Phase 4 — Frontend Search (Week 7–8)
 
 - Next.js API routes for search, articles, tags, entities
-- PostgreSQL connection pool in Next.js (`pg` package)
+- PostgreSQL connection pool in Next.js (`pg` + `pgvector` packages)
+- Hybrid search API (FTS + vector similarity via Reciprocal Rank Fusion)
 - `/research` page with search bar + faceted filters
 - Article detail view with entity sidebar
 - Responsive design with existing CDCF styling (`cdcf-section`, `cdcf-heading`, etc.)
@@ -831,6 +1097,7 @@ For production (Plesk), `AGG_DATABASE_URL` points to a PostgreSQL instance on th
 ### Phase 5 — Graph Visualization & Polish (Week 9–10)
 
 - D3.js force-directed graph component
+- "Related articles" sidebar powered by vector similarity
 - Click-to-filter integration between graph and search
 - Performance optimization (pagination, caching, lazy loading)
 - Add more sources (Vatican.va, diocesan tech blogs, Catholic tech project feeds)
@@ -844,6 +1111,7 @@ For production (Plesk), `AGG_DATABASE_URL` points to a PostgreSQL instance on th
 ```
 aggregator/
 ├── Dockerfile
+├── Dockerfile.db             # extends apache/age, adds pgvector
 ├── pyproject.toml
 ├── __init__.py
 ├── __main__.py
@@ -871,6 +1139,7 @@ aggregator/
 │   ├── extractor.py
 │   ├── summarizer.py
 │   ├── transcriber.py
+│   ├── embedder.py
 │   └── link_follower.py
 ├── graph/
 │   ├── __init__.py
