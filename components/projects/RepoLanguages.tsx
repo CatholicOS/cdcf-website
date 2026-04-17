@@ -58,11 +58,13 @@ export default function RepoLanguages({ repos, label }: RepoLanguagesProps) {
   useEffect(() => {
     if (repoIds.length === 0) return
 
+    let cancelled = false
     fetch(`/api/github/languages?repos=${repoIds.join(',')}`)
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setLanguages(data))
-      .catch(() => setLanguages(null))
-      .finally(() => setLoading(false))
+      .then((data) => { if (!cancelled) setLanguages(data) })
+      .catch(() => { if (!cancelled) setLanguages(null) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repos.join(',')])
 
