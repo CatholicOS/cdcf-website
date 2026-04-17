@@ -13,7 +13,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
   const t = useTranslations('projects')
   const dialogRef = useRef<HTMLDialogElement>(null)
   const openedAtRef = useRef<number>(0)
-  const formDataRef = useRef<{ fields: Record<string, string>; repoUrls: string[]; tags: string[] }>({
+  const [formData, setFormData] = useState<{ fields: Record<string, string>; repoUrls: string[]; tags: string[] }>({
     fields: {},
     repoUrls: [''],
     tags: [],
@@ -33,7 +33,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
     setTags([])
     setTagInput('')
     openedAtRef.current = Date.now()
-    formDataRef.current = { fields: {}, repoUrls: [''], tags: [] }
+    setFormData({ fields: {}, repoUrls: [''], tags: [] })
     dialogRef.current?.showModal()
   }, [])
 
@@ -72,7 +72,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
 
     const filteredRepoUrls = repoUrls.filter((u) => u.trim() !== '')
 
-    formDataRef.current = { fields, repoUrls: filteredRepoUrls, tags }
+    setFormData({ fields, repoUrls: filteredRepoUrls, tags })
 
     try {
       const res = await fetch('/api/submit-project/send-code', {
@@ -106,9 +106,9 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formDataRef.current.fields,
-          repo_urls: formDataRef.current.repoUrls,
-          tags: formDataRef.current.tags,
+          ...formData.fields,
+          repo_urls: formData.repoUrls,
+          tags: formData.tags,
           verification_code: verificationCode,
           elapsed_ms: Date.now() - openedAtRef.current,
         }),
@@ -146,9 +146,9 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formDataRef.current.fields,
-          repo_urls: formDataRef.current.repoUrls,
-          tags: formDataRef.current.tags,
+          ...formData.fields,
+          repo_urls: formData.repoUrls,
+          tags: formData.tags,
           elapsed_ms: Date.now() - openedAtRef.current,
         }),
       })
@@ -229,7 +229,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
                 </div>
                 <h3 className="text-lg font-semibold text-cdcf-navy">{t('checkEmailTitle')}</h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  {t('checkEmailMessage', { email: formDataRef.current.fields.submitter_email })}
+                  {t('checkEmailMessage', { email: formData.fields.submitter_email })}
                 </p>
               </div>
 
@@ -314,7 +314,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
                     id="project_name"
                     name="project_name"
                     required
-                    defaultValue={formDataRef.current.fields.project_name}
+                    defaultValue={formData.fields.project_name}
                     placeholder={t('fieldProjectNamePlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -329,7 +329,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
                     id="category"
                     name="category"
                     list="project-categories"
-                    defaultValue={formDataRef.current.fields.category}
+                    defaultValue={formData.fields.category}
                     placeholder={t('fieldCategoryPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -393,7 +393,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
                     name="description"
                     required
                     rows={3}
-                    defaultValue={formDataRef.current.fields.description}
+                    defaultValue={formData.fields.description}
                     placeholder={t('fieldDescriptionPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -407,7 +407,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
                     type="url"
                     id="url"
                     name="url"
-                    defaultValue={formDataRef.current.fields.url}
+                    defaultValue={formData.fields.url}
                     placeholder={t('fieldProjectUrlPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -458,7 +458,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
                     id="submitter_name"
                     name="submitter_name"
                     required
-                    defaultValue={formDataRef.current.fields.submitter_name}
+                    defaultValue={formData.fields.submitter_name}
                     placeholder={t('fieldYourNamePlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -473,7 +473,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
                     id="submitter_email"
                     name="submitter_email"
                     required
-                    defaultValue={formDataRef.current.fields.submitter_email}
+                    defaultValue={formData.fields.submitter_email}
                     placeholder={t('fieldYourEmailPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />

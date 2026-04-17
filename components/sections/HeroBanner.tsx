@@ -48,10 +48,13 @@ export default function HeroBanner({ hero }: HeroBannerProps) {
 
       <div className={clsx('cdcf-section relative flex flex-col', alignClass)}>
         {hero.heroShowLogo && (
-          <img
+          <Image
             src="/logo.svg"
             alt=""
+            width={96}
+            height={96}
             className="mb-8 h-20 w-20 sm:h-24 sm:w-24"
+            unoptimized
           />
         )}
 

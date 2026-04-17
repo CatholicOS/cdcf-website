@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 /**
  * Inline SVG path data for stylized fish in various poses.
@@ -57,9 +57,7 @@ function randomBetween(min: number, max: number) {
 }
 
 export default function FishBackground({ count = 5 }: { count?: number }) {
-  const [fish, setFish] = useState<PlacedFish[]>([])
-
-  useEffect(() => {
+  const [fish] = useState(() => {
     const placed: PlacedFish[] = []
     const minDistance = 8 // minimum % distance between fish centers
 
@@ -88,8 +86,8 @@ export default function FishBackground({ count = 5 }: { count?: number }) {
       if (candidate) placed.push(candidate)
     }
 
-    setFish(placed)
-  }, [count])
+    return placed
+  })
 
   if (fish.length === 0) return null
 

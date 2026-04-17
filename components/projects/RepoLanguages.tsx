@@ -38,8 +38,6 @@ type LanguageData = Record<string, Record<string, number>>
 
 export default function RepoLanguages({ repos, label }: RepoLanguagesProps) {
   const [languages, setLanguages] = useState<LanguageData | null>(null)
-  const [loading, setLoading] = useState(true)
-
   // Extract owner/repo from GitHub URLs
   const repoIds = repos
     .map((url) => {
@@ -55,11 +53,10 @@ export default function RepoLanguages({ repos, label }: RepoLanguagesProps) {
     })
     .filter((id): id is string => id !== null)
 
+  const [loading, setLoading] = useState(repoIds.length > 0)
+
   useEffect(() => {
-    if (repoIds.length === 0) {
-      setLoading(false)
-      return
-    }
+    if (repoIds.length === 0) return
 
     fetch(`/api/github/languages?repos=${repoIds.join(',')}`)
       .then((res) => (res.ok ? res.json() : null))

@@ -13,7 +13,7 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
   const t = useTranslations('communityProjects')
   const dialogRef = useRef<HTMLDialogElement>(null)
   const openedAtRef = useRef<number>(0)
-  const formDataRef = useRef<{ fields: Record<string, string>; tags: string[] }>({ fields: {}, tags: [] })
+  const [formData, setFormData] = useState<{ fields: Record<string, string>; tags: string[] }>({ fields: {}, tags: [] })
   const [status, setStatus] = useState<Status>('idle')
   const [verificationCode, setVerificationCode] = useState('')
   const [codeError, setCodeError] = useState('')
@@ -27,7 +27,7 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
     setTags([])
     setTagInput('')
     openedAtRef.current = Date.now()
-    formDataRef.current = { fields: {}, tags: [] }
+    setFormData({ fields: {}, tags: [] })
     dialogRef.current?.showModal()
   }, [])
 
@@ -53,7 +53,7 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
       website: data.get('website') as string,
     }
 
-    formDataRef.current = { fields, tags }
+    setFormData({ fields, tags })
 
     const payload = {
       ...fields,
@@ -88,8 +88,8 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formDataRef.current.fields,
-          tags: formDataRef.current.tags,
+          ...formData.fields,
+          tags: formData.tags,
           verification_code: verificationCode,
           elapsed_ms: Date.now() - openedAtRef.current,
         }),
@@ -127,8 +127,8 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formDataRef.current.fields,
-          tags: formDataRef.current.tags,
+          ...formData.fields,
+          tags: formData.tags,
           elapsed_ms: Date.now() - openedAtRef.current,
         }),
       })
@@ -209,7 +209,7 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                 </div>
                 <h3 className="text-lg font-semibold text-cdcf-navy">{t('checkEmailTitle')}</h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  {t('checkEmailMessage', { email: formDataRef.current.fields.submitter_email })}
+                  {t('checkEmailMessage', { email: formData.fields.submitter_email })}
                 </p>
               </div>
 
@@ -294,7 +294,7 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                     id="cp_project_name"
                     name="project_name"
                     required
-                    defaultValue={formDataRef.current.fields.project_name}
+                    defaultValue={formData.fields.project_name}
                     placeholder={t('fieldProjectNamePlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -309,7 +309,7 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                     id="cp_category"
                     name="category"
                     list="cp-categories"
-                    defaultValue={formDataRef.current.fields.category}
+                    defaultValue={formData.fields.category}
                     placeholder={t('fieldCategoryPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -373,7 +373,7 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                     name="description"
                     required
                     rows={3}
-                    defaultValue={formDataRef.current.fields.description}
+                    defaultValue={formData.fields.description}
                     placeholder={t('fieldDescriptionPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -387,7 +387,7 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                     type="url"
                     id="cp_project_url"
                     name="project_url"
-                    defaultValue={formDataRef.current.fields.project_url}
+                    defaultValue={formData.fields.project_url}
                     placeholder={t('fieldProjectUrlPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -401,7 +401,7 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                     type="url"
                     id="cp_github_url"
                     name="github_url"
-                    defaultValue={formDataRef.current.fields.github_url}
+                    defaultValue={formData.fields.github_url}
                     placeholder={t('fieldGithubUrlPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -418,7 +418,7 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                     id="cp_submitter_name"
                     name="submitter_name"
                     required
-                    defaultValue={formDataRef.current.fields.submitter_name}
+                    defaultValue={formData.fields.submitter_name}
                     placeholder={t('fieldYourNamePlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -433,7 +433,7 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                     id="cp_submitter_email"
                     name="submitter_email"
                     required
-                    defaultValue={formDataRef.current.fields.submitter_email}
+                    defaultValue={formData.fields.submitter_email}
                     placeholder={t('fieldYourEmailPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
