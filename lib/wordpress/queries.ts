@@ -73,7 +73,7 @@ const PROJECT_FIELDS = `
     projectUrl
     projectLicense
     projectCategory
-    projectLeads {
+    projectLeads(first: 50) {
       nodes {
         ... on TeamMember {
           ${TEAM_MEMBER_FIELDS}
@@ -138,14 +138,14 @@ const ACADEMIC_COLLABORATION_FIELDS = `
     collabLocation
     collabDescription
     collabWebsiteUrl
-    collabProjects {
+    collabProjects(first: 50) {
       nodes {
         ... on Project {
           ${PROJECT_FIELDS}
         }
       }
     }
-    collabGovernance {
+    collabGovernance(first: 50) {
       nodes {
         ... on TeamMember {
           ${TEAM_MEMBER_FIELDS}
@@ -212,21 +212,21 @@ export const GET_PAGE_BY_SLUG = `
         ${HERO_FRAGMENT}
         ${CTA_FRAGMENT}
         aboutFields {
-          teamMembers {
+          teamMembers(first: 50) {
             nodes {
               ... on TeamMember {
                 ${TEAM_MEMBER_FIELDS}
               }
             }
           }
-          ecclesialCouncil {
+          ecclesialCouncil(first: 50) {
             nodes {
               ... on TeamMember {
                 ${TEAM_MEMBER_FIELDS}
               }
             }
           }
-          technicalCouncil {
+          technicalCouncil(first: 50) {
             nodes {
               ... on TeamMember {
                 ${TEAM_MEMBER_FIELDS}
@@ -238,7 +238,7 @@ export const GET_PAGE_BY_SLUG = `
         projectsPageFields {
           showFilters
           gridColumns
-          communityProjects {
+          communityProjects(first: 50) {
             nodes {
               ... on CommunityProject {
                 ${COMMUNITY_PROJECT_FIELDS}
@@ -247,28 +247,28 @@ export const GET_PAGE_BY_SLUG = `
           }
         }
         communityFields {
-          channels {
+          channels(first: 50) {
             nodes {
               ... on CommunityChannel {
                 ${CHANNEL_FIELDS}
               }
             }
           }
-          localGroups {
+          localGroups(first: 50) {
             nodes {
               ... on LocalGroup {
                 ${LOCAL_GROUP_FIELDS}
               }
             }
           }
-          members {
+          members(first: 50) {
             nodes {
               ... on TeamMember {
                 ${TEAM_MEMBER_FIELDS}
               }
             }
           }
-          academicCollaborations {
+          academicCollaborations(first: 50) {
             nodes {
               ... on AcademicCollaboration {
                 ${ACADEMIC_COLLABORATION_CARD_FIELDS}
