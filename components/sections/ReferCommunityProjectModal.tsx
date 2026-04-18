@@ -149,6 +149,8 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
     setStatus('idle')
     setVerificationCode('')
     setCodeError('')
+    setTags(formData.tags)
+    setTagInput('')
     setFormKey((k) => k + 1)
   }
 
