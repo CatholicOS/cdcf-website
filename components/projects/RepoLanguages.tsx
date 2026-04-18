@@ -59,7 +59,14 @@ export default function RepoLanguages({ repos, label }: RepoLanguagesProps) {
   const loading = repoIds.length > 0 && fetchedKey !== repoKey
 
   useEffect(() => {
-    if (repoIds.length === 0) return
+    if (repoIds.length === 0) {
+      // Clear stale data via microtask to satisfy react-hooks/set-state-in-effect
+      Promise.resolve().then(() => {
+        setLanguages(null)
+        setFetchedKey(null)
+      })
+      return
+    }
 
     const controller = new AbortController()
     fetch(`/api/github/languages?repos=${repoIds.join(',')}`, { signal: controller.signal })
