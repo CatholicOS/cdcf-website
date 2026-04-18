@@ -61,7 +61,7 @@ export default function RepoLanguages({ repos, label }: RepoLanguagesProps) {
   useEffect(() => {
     if (repoIds.length === 0) {
       // Clear stale data via microtask to satisfy react-hooks/set-state-in-effect
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         setLanguages(null)
         setFetchedKey(null)
       })
