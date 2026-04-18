@@ -22,6 +22,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
     setStatus('idle')
     setVerificationCode('')
     setCodeError('')
+    setFormData({})
     openedAtRef.current = Date.now()
     dialogRef.current?.showModal()
   }, [])
