@@ -83,7 +83,7 @@ export default async function LangLayout({
 }) {
   const { lang } = await params
 
-  if (!locales.includes(lang as any)) {
+  if (!(locales as readonly string[]).includes(lang)) {
     notFound()
   }
 

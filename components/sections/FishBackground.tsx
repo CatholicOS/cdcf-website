@@ -1,6 +1,3 @@
-'use client'
-
-import { useEffect, useState } from 'react'
 
 /**
  * Inline SVG path data for stylized fish in various poses.
@@ -52,44 +49,50 @@ interface PlacedFish {
   opacity: number
 }
 
-function randomBetween(min: number, max: number) {
-  return min + Math.random() * (max - min)
+/** Simple deterministic PRNG (mulberry32) seeded from count */
+function createSeededRng(seed: number) {
+  let s = seed | 0
+  return () => {
+    s = (s + 0x6d2b79f5) | 0
+    let t = Math.imul(s ^ (s >>> 15), 1 | s)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
 }
 
-export default function FishBackground({ count = 5 }: { count?: number }) {
-  const [fish, setFish] = useState<PlacedFish[]>([])
+function seededBetween(rng: () => number, min: number, max: number) {
+  return min + rng() * (max - min)
+}
 
-  useEffect(() => {
-    const placed: PlacedFish[] = []
-    const minDistance = 8 // minimum % distance between fish centers
+export default function FishBackground({ count = 5, seed }: { count?: number; seed?: number }) {
+  const rng = createSeededRng(seed ?? count * 7919)
+  const fish: PlacedFish[] = []
+  const minDistance = 8 // minimum % distance between fish centers
 
-    for (let i = 0; i < count; i++) {
-      let candidate: PlacedFish | null = null
-      for (let attempt = 0; attempt < 50; attempt++) {
-        const x = randomBetween(5, 90)
-        const y = randomBetween(5, 90)
-        const tooClose = placed.some((p) => {
-          const dx = p.x - x
-          const dy = p.y - y
-          return Math.sqrt(dx * dx + dy * dy) < minDistance
-        })
-        if (!tooClose) {
-          candidate = {
-            pathIndex: Math.floor(Math.random() * fishPaths.length),
-            x,
-            y,
-            rotation: randomBetween(-35, 35),
-            size: randomBetween(80, 140),
-            opacity: randomBetween(0.1, 0.18),
-          }
-          break
+  for (let i = 0; i < count; i++) {
+    let candidate: PlacedFish | null = null
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const x = seededBetween(rng, 5, 90)
+      const y = seededBetween(rng, 5, 90)
+      const tooClose = fish.some((p) => {
+        const dx = p.x - x
+        const dy = p.y - y
+        return Math.sqrt(dx * dx + dy * dy) < minDistance
+      })
+      if (!tooClose) {
+        candidate = {
+          pathIndex: Math.floor(rng() * fishPaths.length),
+          x,
+          y,
+          rotation: seededBetween(rng, -35, 35),
+          size: seededBetween(rng, 80, 140),
+          opacity: seededBetween(rng, 0.1, 0.18),
         }
+        break
       }
-      if (candidate) placed.push(candidate)
     }
-
-    setFish(placed)
-  }, [count])
+    if (candidate) fish.push(candidate)
+  }
 
   if (fish.length === 0) return null
 

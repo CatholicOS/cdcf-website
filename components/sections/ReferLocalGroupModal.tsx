@@ -13,7 +13,8 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
   const t = useTranslations('community')
   const dialogRef = useRef<HTMLDialogElement>(null)
   const openedAtRef = useRef<number>(0)
-  const formDataRef = useRef<Record<string, string>>({})
+  const [formData, setFormData] = useState<Record<string, string>>({})
+  const [formKey, setFormKey] = useState(0)
   const [status, setStatus] = useState<Status>('idle')
   const [verificationCode, setVerificationCode] = useState('')
   const [codeError, setCodeError] = useState('')
@@ -22,6 +23,8 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
     setStatus('idle')
     setVerificationCode('')
     setCodeError('')
+    setFormData({})
+    setFormKey((k) => k + 1)
     openedAtRef.current = Date.now()
     dialogRef.current?.showModal()
   }, [])
@@ -49,7 +52,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
     }
 
     // Store form data for the final submission
-    formDataRef.current = {
+    setFormData({
       group_name: payload.group_name,
       location: payload.location,
       url: payload.url,
@@ -57,7 +60,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
       submitter_name: payload.submitter_name,
       submitter_email: payload.submitter_email,
       website: payload.website,
-    }
+    })
 
     try {
       const res = await fetch('/api/refer-local-group/send-code', {
@@ -86,7 +89,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formDataRef.current,
+          ...formData,
           verification_code: verificationCode,
           elapsed_ms: Date.now() - openedAtRef.current,
         }),
@@ -124,7 +127,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formDataRef.current,
+          ...formData,
           elapsed_ms: Date.now() - openedAtRef.current,
         }),
       })
@@ -143,6 +146,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
     setStatus('idle')
     setVerificationCode('')
     setCodeError('')
+    setFormKey((k) => k + 1)
   }
 
   const isCodeView = status === 'awaiting_code' || status === 'submitting'
@@ -205,7 +209,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                 </div>
                 <h3 className="text-lg font-semibold text-cdcf-navy">{t('checkEmailTitle')}</h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  {t('checkEmailMessage', { email: formDataRef.current.submitter_email })}
+                  {t('checkEmailMessage', { email: formData.submitter_email })}
                 </p>
               </div>
 
@@ -268,7 +272,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                 </div>
               )}
 
-              <form onSubmit={handleSendCode} className="space-y-4">
+              <form key={formKey} onSubmit={(e) => { void handleSendCode(e) }} className="space-y-4">
                 {/* Honeypot — hidden from real users */}
                 <div className="absolute -left-[9999px]" aria-hidden="true">
                   <label htmlFor="website">Website</label>
@@ -290,7 +294,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                     id="group_name"
                     name="group_name"
                     required
-                    defaultValue={formDataRef.current.group_name}
+                    defaultValue={formData.group_name}
                     placeholder={t('fieldGroupNamePlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -304,7 +308,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                     type="text"
                     id="location"
                     name="location"
-                    defaultValue={formDataRef.current.location}
+                    defaultValue={formData.location}
                     placeholder={t('fieldLocationPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -319,7 +323,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                     id="url"
                     name="url"
                     required
-                    defaultValue={formDataRef.current.url}
+                    defaultValue={formData.url}
                     placeholder={t('fieldUrlPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -334,7 +338,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                     name="description"
                     required
                     rows={3}
-                    defaultValue={formDataRef.current.description}
+                    defaultValue={formData.description}
                     placeholder={t('fieldDescriptionPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -351,7 +355,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                     id="submitter_name"
                     name="submitter_name"
                     required
-                    defaultValue={formDataRef.current.submitter_name}
+                    defaultValue={formData.submitter_name}
                     placeholder={t('fieldYourNamePlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
@@ -366,7 +370,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                     id="submitter_email"
                     name="submitter_email"
                     required
-                    defaultValue={formDataRef.current.submitter_email}
+                    defaultValue={formData.submitter_email}
                     placeholder={t('fieldYourEmailPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />

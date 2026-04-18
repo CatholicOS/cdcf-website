@@ -8,6 +8,6 @@ export async function GET() {
 }
 
 export async function POST() {
-  revalidateTag('site-stats')
+  revalidateTag('site-stats', { expire: 0 })
   return NextResponse.json({ revalidated: true })
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import { usePathname } from '@/src/i18n/navigation'
 import { useTranslations } from 'next-intl'
 
@@ -11,17 +11,15 @@ interface ShareButtonsProps {
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://catholicdigitalcommons.org'
 
+const subscribeNoop = () => () => {}
+const getCanShare = () => typeof navigator.share === 'function'
+const getCanShareServer = () => false
+
 export default function ShareButtons({ title, namespace = 'blog' }: ShareButtonsProps) {
   const t = useTranslations(namespace)
   const pathname = usePathname()
-  const [canShare, setCanShare] = useState(false)
-  const [url, setUrl] = useState('')
-
-  useEffect(() => {
-    const fullUrl = `${SITE_URL}${pathname}`
-    setUrl(fullUrl)
-    setCanShare(typeof navigator.share === 'function')
-  }, [pathname])
+  const canShare = useSyncExternalStore(subscribeNoop, getCanShare, getCanShareServer)
+  const url = `${SITE_URL}${pathname}`
 
   const encodedUrl = encodeURIComponent(url)
   const encodedTitle = encodeURIComponent(title)
