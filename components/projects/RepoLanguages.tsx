@@ -38,6 +38,8 @@ type LanguageData = Record<string, Record<string, number>>
 
 export default function RepoLanguages({ repos, label }: RepoLanguagesProps) {
   const [languages, setLanguages] = useState<LanguageData | null>(null)
+  const [fetchedKey, setFetchedKey] = useState<string | null>(null)
+
   // Extract owner/repo from GitHub URLs
   const repoIds = repos
     .map((url) => {
@@ -53,20 +55,28 @@ export default function RepoLanguages({ repos, label }: RepoLanguagesProps) {
     })
     .filter((id): id is string => id !== null)
 
-  const [loading, setLoading] = useState(repoIds.length > 0)
+  const repoKey = repoIds.join(',')
+  const loading = repoIds.length > 0 && fetchedKey !== repoKey
 
   useEffect(() => {
     if (repoIds.length === 0) return
 
-    let cancelled = false
-    fetch(`/api/github/languages?repos=${repoIds.join(',')}`)
+    const controller = new AbortController()
+    fetch(`/api/github/languages?repos=${repoIds.join(',')}`, { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (!cancelled) setLanguages(data) })
-      .catch(() => { if (!cancelled) setLanguages(null) })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
+      .then((data) => {
+        setLanguages(data)
+        setFetchedKey(repoKey)
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          setLanguages(null)
+          setFetchedKey(repoKey)
+        }
+      })
+    return () => controller.abort()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repos.join(',')])
+  }, [repoKey])
 
   if (loading) {
     return (
