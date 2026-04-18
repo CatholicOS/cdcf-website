@@ -14,6 +14,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
   const dialogRef = useRef<HTMLDialogElement>(null)
   const openedAtRef = useRef<number>(0)
   const [formData, setFormData] = useState<Record<string, string>>({})
+  const [formKey, setFormKey] = useState(0)
   const [status, setStatus] = useState<Status>('idle')
   const [verificationCode, setVerificationCode] = useState('')
   const [codeError, setCodeError] = useState('')
@@ -23,6 +24,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
     setVerificationCode('')
     setCodeError('')
     setFormData({})
+    setFormKey((k) => k + 1)
     openedAtRef.current = Date.now()
     dialogRef.current?.showModal()
   }, [])
@@ -144,6 +146,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
     setStatus('idle')
     setVerificationCode('')
     setCodeError('')
+    setFormKey((k) => k + 1)
   }
 
   const isCodeView = status === 'awaiting_code' || status === 'submitting'
@@ -269,7 +272,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                 </div>
               )}
 
-              <form onSubmit={handleSendCode} className="space-y-4">
+              <form key={formKey} onSubmit={handleSendCode} className="space-y-4">
                 {/* Honeypot — hidden from real users */}
                 <div className="absolute -left-[9999px]" aria-hidden="true">
                   <label htmlFor="website">Website</label>

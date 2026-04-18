@@ -18,6 +18,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
     repoUrls: [''],
     tags: [],
   })
+  const [formKey, setFormKey] = useState(0)
   const [status, setStatus] = useState<Status>('idle')
   const [verificationCode, setVerificationCode] = useState('')
   const [codeError, setCodeError] = useState('')
@@ -32,6 +33,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
     setRepoUrls([''])
     setTags([])
     setTagInput('')
+    setFormKey((k) => k + 1)
     openedAtRef.current = Date.now()
     setFormData({ fields: {}, repoUrls: [''], tags: [] })
     dialogRef.current?.showModal()
@@ -167,6 +169,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
     setStatus('idle')
     setVerificationCode('')
     setCodeError('')
+    setFormKey((k) => k + 1)
   }
 
   const isCodeView = status === 'awaiting_code' || status === 'submitting'
@@ -292,7 +295,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
                 </div>
               )}
 
-              <form onSubmit={handleSendCode} className="space-y-4">
+              <form key={formKey} onSubmit={handleSendCode} className="space-y-4">
                 {/* Honeypot — hidden from real users */}
                 <div className="absolute -left-[9999px]" aria-hidden="true">
                   <label htmlFor="website">Website</label>

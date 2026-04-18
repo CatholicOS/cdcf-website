@@ -14,6 +14,7 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
   const dialogRef = useRef<HTMLDialogElement>(null)
   const openedAtRef = useRef<number>(0)
   const [formData, setFormData] = useState<{ fields: Record<string, string>; tags: string[] }>({ fields: {}, tags: [] })
+  const [formKey, setFormKey] = useState(0)
   const [status, setStatus] = useState<Status>('idle')
   const [verificationCode, setVerificationCode] = useState('')
   const [codeError, setCodeError] = useState('')
@@ -26,6 +27,7 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
     setCodeError('')
     setTags([])
     setTagInput('')
+    setFormKey((k) => k + 1)
     openedAtRef.current = Date.now()
     setFormData({ fields: {}, tags: [] })
     dialogRef.current?.showModal()
@@ -147,6 +149,7 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
     setStatus('idle')
     setVerificationCode('')
     setCodeError('')
+    setFormKey((k) => k + 1)
   }
 
   const isCodeView = status === 'awaiting_code' || status === 'submitting'
@@ -272,7 +275,7 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                 </div>
               )}
 
-              <form onSubmit={handleSendCode} className="space-y-4">
+              <form key={formKey} onSubmit={handleSendCode} className="space-y-4">
                 {/* Honeypot — hidden from real users */}
                 <div className="absolute -left-[9999px]" aria-hidden="true">
                   <label htmlFor="cp_website">Website</label>
