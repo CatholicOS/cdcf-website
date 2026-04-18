@@ -272,7 +272,7 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                 </div>
               )}
 
-              <form key={formKey} onSubmit={handleSendCode} className="space-y-4">
+              <form key={formKey} onSubmit={(e) => { handleSendCode(e) }} className="space-y-4">
                 {/* Honeypot — hidden from real users */}
                 <div className="absolute -left-[9999px]" aria-hidden="true">
                   <label htmlFor="website">Website</label>
