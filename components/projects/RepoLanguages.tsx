@@ -74,7 +74,7 @@ export default function RepoLanguages({ repos, label }: RepoLanguagesProps) {
           setFetchedKey(repoKey)
         }
       })
-    return () => controller.abort()
+    return () => { controller.abort() }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoKey])
 
