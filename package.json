@@ -21,7 +21,7 @@
     "striptags": "^3.2.0"
   },
   "devDependencies": {
-    "@redocly/cli": "^2.20.0",
+    "@redocly/cli": "^2.28.1",
     "@tailwindcss/postcss": "^4.0.0",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^22.0.0",
