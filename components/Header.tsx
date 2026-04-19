@@ -152,20 +152,20 @@ export default function Header() {
           ],
         },
         {
+          href: '/governance/standards',
+          label: t('govStandards'),
+          children: [
+            { href: '/governance/standards/standards-overview', label: t('govStandardsOverview') },
+            { href: '/governance/standards/standards-committees', label: t('govStandardsCommittees') },
+          ],
+        },
+        {
           href: '/governance/research',
           label: t('govResearch'),
           children: [
             { href: '/governance/research/fragmented-catholic-digital-governance', label: t('govFragmented') },
             { href: '/governance/research/governance-as-code-catholic-technology', label: t('govAsCode') },
             { href: '/governance/research/trusted-data-infrastructure-catholic-ministry', label: t('govTrustedData') },
-          ],
-        },
-        {
-          href: '/governance/standards',
-          label: t('govStandards'),
-          children: [
-            { href: '/governance/standards/standards-overview', label: t('govStandardsOverview') },
-            { href: '/governance/standards/standards-committees', label: t('govStandardsCommittees') },
           ],
         },
       ],
