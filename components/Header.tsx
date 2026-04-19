@@ -152,13 +152,12 @@ export default function Header() {
           ],
         },
         {
-          href: '/governance/ai-governance',
-          label: t('govAiGovernance'),
+          href: '/governance/research',
+          label: t('govResearch'),
           children: [
-            { href: '/governance/ai-governance/ai-vetting-criteria', label: t('govAiVetting') },
-            { href: '/governance/ai-governance/fragmented-catholic-ai-governance', label: t('govFragmented') },
-            { href: '/governance/ai-governance/governance-as-code-catholic-ai', label: t('govAsCode') },
-            { href: '/governance/ai-governance/trusted-synthetic-data-ministry-ai', label: t('govSyntheticData') },
+            { href: '/governance/research/fragmented-catholic-digital-governance', label: t('govFragmented') },
+            { href: '/governance/research/governance-as-code-catholic-technology', label: t('govAsCode') },
+            { href: '/governance/research/trusted-data-infrastructure-catholic-ministry', label: t('govTrustedData') },
           ],
         },
         {
