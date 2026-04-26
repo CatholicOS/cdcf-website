@@ -4348,7 +4348,11 @@ function cdcf_is_public_submission(int $post_id): bool {
  * @param string $post_type   The CPT slug (project | community_project | local_group).
  */
 function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_type): void {
-    if (!function_exists('pll_set_post_language') || !function_exists('pll_save_post_translations')) {
+    if (
+        !function_exists('pll_set_post_language')
+        || !function_exists('pll_save_post_translations')
+        || !function_exists('pll_get_post_translations')
+    ) {
         error_log("cdcf_enqueue_translations_for_submission: Polylang not active; skipping post {$en_post_id}.");
         return;
     }
@@ -4361,10 +4365,15 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
 
     $target_langs = ['it', 'es', 'fr', 'pt', 'de'];
 
+    // Build the Polylang translation map once; accumulate as we create new siblings.
+    // Pre-seeding from the existing map handles partial re-runs where some langs
+    // are already linked.
+    $translations = pll_get_post_translations($en_post_id);
+    $translations['en'] = $en_post_id;
+
     foreach ($target_langs as $lang) {
-        // Skip if a translation already exists for this language.
-        $existing_id = function_exists('pll_get_post') ? pll_get_post($en_post_id, $lang) : 0;
-        if ($existing_id) {
+        // Skip if a translation is already linked for this language.
+        if (!empty($translations[$lang])) {
             continue;
         }
 
@@ -4382,9 +4391,6 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
 
         pll_set_post_language($trans_id, $lang);
 
-        // Update the Polylang translation map so the new sibling is linked.
-        $translations = pll_get_post_translations($en_post_id);
-        $translations['en']  = $en_post_id;
         $translations[$lang] = $trans_id;
         pll_save_post_translations($translations);
 
@@ -4400,8 +4406,8 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
 
 /**
  * Fires when an admin publishes a public-submission post.
- * Priority 20 so it runs after the existing sitemap-revalidation
- * hook at priority 10.
+ * Priority 20 so it runs after all priority-10 hooks (sitemap
+ * revalidation and the untrash/re-pend hook).
  */
 add_action('transition_post_status', function ($new_status, $old_status, $post) {
     if ($new_status === $old_status) {
@@ -4413,11 +4419,19 @@ add_action('transition_post_status', function ($new_status, $old_status, $post) 
     if (!in_array($post->post_type, ['project', 'community_project', 'local_group'], true)) {
         return;
     }
+
+    // Only process the English source post — when the worker promotes a
+    // translation sibling to `publish`, this hook fires again, but there
+    // is nothing more to enqueue at that point.
+    $source_id = cdcf_get_source_post_id($post->ID);
+    if ($source_id !== $post->ID) {
+        return;
+    }
+
     if (!cdcf_is_public_submission($post->ID)) {
         return;
     }
 
-    $source_id = cdcf_get_source_post_id($post->ID);
     cdcf_enqueue_translations_for_submission($source_id, $post->post_type);
 }, 20, 3);
 
