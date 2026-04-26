@@ -4333,6 +4333,71 @@ function cdcf_is_public_submission(int $post_id): bool {
     );
 }
 
+/**
+ * For each target language (it/es/fr/pt/de):
+ *   - Skip if a Polylang translation already exists.
+ *   - Otherwise create a draft sibling post, link it via Polylang,
+ *     and enqueue a background AI translation job.
+ *
+ * The existing worker (cdcf_process_translation) will auto-publish
+ * each translation once its source post is `publish`.
+ *
+ * @param int    $en_post_id  The English (source) post ID. MUST be the source,
+ *                            not a translation — caller should resolve via
+ *                            cdcf_get_source_post_id() first.
+ * @param string $post_type   The CPT slug (project | community_project | local_group).
+ */
+function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_type): void {
+    if (!function_exists('pll_set_post_language') || !function_exists('pll_save_post_translations')) {
+        error_log("cdcf_enqueue_translations_for_submission: Polylang not active; skipping post {$en_post_id}.");
+        return;
+    }
+
+    $en_post = get_post($en_post_id);
+    if (!$en_post) {
+        error_log("cdcf_enqueue_translations_for_submission: Source post {$en_post_id} not found.");
+        return;
+    }
+
+    $target_langs = ['it', 'es', 'fr', 'pt', 'de'];
+
+    foreach ($target_langs as $lang) {
+        // Skip if a translation already exists for this language.
+        $existing_id = function_exists('pll_get_post') ? pll_get_post($en_post_id, $lang) : 0;
+        if ($existing_id) {
+            continue;
+        }
+
+        // Create a draft sibling post; the worker will fill content and auto-publish.
+        $trans_id = wp_insert_post([
+            'post_type'   => $post_type,
+            'post_status' => 'draft',
+            'post_title'  => $en_post->post_title,
+        ]);
+
+        if (is_wp_error($trans_id) || !$trans_id) {
+            error_log("cdcf_enqueue_translations_for_submission: Failed to create {$lang} sibling for post {$en_post_id}.");
+            continue;
+        }
+
+        pll_set_post_language($trans_id, $lang);
+
+        // Update the Polylang translation map so the new sibling is linked.
+        $translations = pll_get_post_translations($en_post_id);
+        $translations['en']  = $en_post_id;
+        $translations[$lang] = $trans_id;
+        pll_save_post_translations($translations);
+
+        // Enqueue background translation: Redis Queue if available, WP-Cron fallback.
+        if (function_exists('cdcf_enqueue_translation')) {
+            cdcf_enqueue_translation($trans_id, $en_post_id, $lang);
+        } else {
+            wp_schedule_single_event(time(), 'cdcf_async_translate', [$trans_id, $en_post_id, $lang]);
+            spawn_cron();
+        }
+    }
+}
+
 // ─── Project Submission: Meta Box ────────────────────────────────────
 
 /**
