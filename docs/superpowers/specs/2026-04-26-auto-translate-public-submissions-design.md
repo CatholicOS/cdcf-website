@@ -34,16 +34,21 @@ One new section in `wordpress/themes/cdcf-headless/functions.php`, placed near t
 Returns `true` if the source (EN) post has either `_submission_submitter_email` or `_referral_submitter_email` meta. Uses the existing `cdcf_get_source_post_id()` helper so it works whether called with the EN post ID or a translation's ID.
 
 **`cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_type): void`**
-For each `lang` in `['it', 'es', 'fr', 'pt', 'de']`:
-1. If `pll_get_post($en_post_id, $lang)` returns a non-zero ID → skip (translation already exists).
+Build the Polylang translation map once before the loop:
+```php
+$translations = pll_get_post_translations($en_post_id);
+$translations['en'] = $en_post_id;
+```
+Then for each `lang` in `['it', 'es', 'fr', 'pt', 'de']`:
+1. If `!empty($translations[$lang])` → skip (translation already linked, possibly from a partial earlier run).
 2. Otherwise:
    - `wp_insert_post(['post_type' => $post_type, 'post_status' => 'draft', 'post_title' => <EN title>])`
    - On failure: `error_log` and continue to next language.
    - `pll_set_post_language($trans_id, $lang)`
-   - Update the Polylang translation map: read existing via `pll_get_post_translations($en_post_id)`, add `'en' => $en_post_id` and `$lang => $trans_id`, save with `pll_save_post_translations()`.
+   - `$translations[$lang] = $trans_id;` then `pll_save_post_translations($translations)` — the map accumulates as new siblings are created, matching the pattern at functions.php lines 570-590 (`cdcf_rest_create_team_member`).
    - `cdcf_enqueue_translation($trans_id, $en_post_id, $lang)` if available; otherwise WP-Cron fallback (`wp_schedule_single_event('cdcf_async_translate', …) + spawn_cron()`), matching the pattern at functions.php lines 593-599.
 
-Dependency guard at function entry: if `pll_set_post_language` or `pll_save_post_translations` not present, `error_log` and return.
+Dependency guard at function entry: if any of `pll_set_post_language`, `pll_save_post_translations`, or `pll_get_post_translations` is not present, `error_log` and return.
 
 ### Hook
 
@@ -52,14 +57,20 @@ add_action('transition_post_status', function ($new_status, $old_status, $post) 
     if ($new_status === $old_status) return;
     if ($new_status !== 'publish') return;
     if (!in_array($post->post_type, ['project', 'community_project', 'local_group'], true)) return;
+
+    // Only process the EN source — when the worker promotes a translation
+    // sibling to `publish`, this hook fires again and would otherwise loop
+    // through the helper as a no-op for each language.
+    $source_id = cdcf_get_source_post_id($post->ID);
+    if ($source_id !== $post->ID) return;
+
     if (!cdcf_is_public_submission($post->ID)) return;
 
-    $source_id = cdcf_get_source_post_id($post->ID);
     cdcf_enqueue_translations_for_submission($source_id, $post->post_type);
 }, 20, 3);
 ```
 
-Priority `20` so it runs after the existing sitemap-revalidation hook at priority `10`.
+Priority `20` so it runs after all priority-10 `transition_post_status` hooks (sitemap revalidation and the untrash/re-pend hook).
 
 ## Data Flow
 
