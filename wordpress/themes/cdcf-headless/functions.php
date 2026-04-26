@@ -4398,6 +4398,29 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
     }
 }
 
+/**
+ * Fires when an admin publishes a public-submission post.
+ * Priority 20 so it runs after the existing sitemap-revalidation
+ * hook at priority 10.
+ */
+add_action('transition_post_status', function ($new_status, $old_status, $post) {
+    if ($new_status === $old_status) {
+        return;
+    }
+    if ($new_status !== 'publish') {
+        return;
+    }
+    if (!in_array($post->post_type, ['project', 'community_project', 'local_group'], true)) {
+        return;
+    }
+    if (!cdcf_is_public_submission($post->ID)) {
+        return;
+    }
+
+    $source_id = cdcf_get_source_post_id($post->ID);
+    cdcf_enqueue_translations_for_submission($source_id, $post->post_type);
+}, 20, 3);
+
 // ─── Project Submission: Meta Box ────────────────────────────────────
 
 /**
