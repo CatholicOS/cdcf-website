@@ -4311,6 +4311,130 @@ add_action('transition_post_status', function ($new_status, $old_status, $post) 
     wp_update_post(['ID' => $post->ID, 'post_status' => 'pending']);
 }, 10, 3);
 
+// ─── Auto-Translate Public Submissions on Approval ───────────────────
+//
+// When an admin publishes a public-submission post (project,
+// community_project, or local_group whose source has submitter meta),
+// create draft sibling posts in it/es/fr/pt/de, link them via Polylang,
+// and enqueue background AI translations. The existing worker
+// (cdcf_process_translation) auto-publishes each translation when its
+// source is `publish` (see line ~3560).
+
+/**
+ * True if the source (EN) post has submitter meta from the public
+ * submission/referral form. Works whether called with the EN post ID
+ * or a translation's ID — resolves to source via cdcf_get_source_post_id().
+ */
+function cdcf_is_public_submission(int $post_id): bool {
+    $source_id = cdcf_get_source_post_id($post_id);
+    return (bool) (
+        get_post_meta($source_id, '_submission_submitter_email', true)
+        || get_post_meta($source_id, '_referral_submitter_email', true)
+    );
+}
+
+/**
+ * For each target language (it/es/fr/pt/de):
+ *   - Skip if a Polylang translation already exists.
+ *   - Otherwise create a draft sibling post, link it via Polylang,
+ *     and enqueue a background AI translation job.
+ *
+ * The existing worker (cdcf_process_translation) will auto-publish
+ * each translation once its source post is `publish`.
+ *
+ * @param int    $en_post_id  The English (source) post ID. MUST be the source,
+ *                            not a translation — caller should resolve via
+ *                            cdcf_get_source_post_id() first.
+ * @param string $post_type   The CPT slug (project | community_project | local_group).
+ */
+function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_type): void {
+    if (
+        !function_exists('pll_set_post_language')
+        || !function_exists('pll_save_post_translations')
+        || !function_exists('pll_get_post_translations')
+    ) {
+        error_log("cdcf_enqueue_translations_for_submission: Polylang not active; skipping post {$en_post_id}.");
+        return;
+    }
+
+    $en_post = get_post($en_post_id);
+    if (!$en_post) {
+        error_log("cdcf_enqueue_translations_for_submission: Source post {$en_post_id} not found.");
+        return;
+    }
+
+    $target_langs = ['it', 'es', 'fr', 'pt', 'de'];
+
+    // Build the Polylang translation map once; accumulate as we create new siblings.
+    // Pre-seeding from the existing map handles partial re-runs where some langs
+    // are already linked.
+    $translations = pll_get_post_translations($en_post_id);
+    $translations['en'] = $en_post_id;
+
+    foreach ($target_langs as $lang) {
+        // Skip if a translation is already linked for this language.
+        if (!empty($translations[$lang])) {
+            continue;
+        }
+
+        // Create a draft sibling post; the worker will fill content and auto-publish.
+        $trans_id = wp_insert_post([
+            'post_type'   => $post_type,
+            'post_status' => 'draft',
+            'post_title'  => $en_post->post_title,
+        ]);
+
+        if (is_wp_error($trans_id) || !$trans_id) {
+            error_log("cdcf_enqueue_translations_for_submission: Failed to create {$lang} sibling for post {$en_post_id}.");
+            continue;
+        }
+
+        pll_set_post_language($trans_id, $lang);
+
+        $translations[$lang] = $trans_id;
+        pll_save_post_translations($translations);
+
+        // Enqueue background translation: Redis Queue if available, WP-Cron fallback.
+        if (function_exists('cdcf_enqueue_translation')) {
+            cdcf_enqueue_translation($trans_id, $en_post_id, $lang);
+        } else {
+            wp_schedule_single_event(time(), 'cdcf_async_translate', [$trans_id, $en_post_id, $lang]);
+            spawn_cron();
+        }
+    }
+}
+
+/**
+ * Fires when an admin publishes a public-submission post.
+ * Priority 20 so it runs after all priority-10 hooks (sitemap
+ * revalidation and the untrash/re-pend hook).
+ */
+add_action('transition_post_status', function ($new_status, $old_status, $post) {
+    if ($new_status === $old_status) {
+        return;
+    }
+    if ($new_status !== 'publish') {
+        return;
+    }
+    if (!in_array($post->post_type, ['project', 'community_project', 'local_group'], true)) {
+        return;
+    }
+
+    // Only process the English source post — when the worker promotes a
+    // translation sibling to `publish`, this hook fires again, but there
+    // is nothing more to enqueue at that point.
+    $source_id = cdcf_get_source_post_id($post->ID);
+    if ($source_id !== $post->ID) {
+        return;
+    }
+
+    if (!cdcf_is_public_submission($post->ID)) {
+        return;
+    }
+
+    cdcf_enqueue_translations_for_submission($source_id, $post->post_type);
+}, 20, 3);
+
 // ─── Project Submission: Meta Box ────────────────────────────────────
 
 /**
