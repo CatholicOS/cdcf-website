@@ -3586,11 +3586,15 @@ function cdcf_process_translation($post_id, $source_id, $target_lang) {
     }
 
     // Translate each oversized field's chunks individually and reassemble.
+    // Pass the tail of the previous translated chunk as context so the model
+    // keeps terminology, register, and style consistent across chunk
+    // boundaries (cdcf_openai_translate handles the trim and the prompt).
     foreach ($chunked_fields as $key => $chunks) {
         $translated_parts = [];
         $total = count($chunks);
         foreach ($chunks as $i => $chunk) {
-            $chunk_result = cdcf_openai_translate([$key => $chunk], $source_name, $target_name, $api_key);
+            $context = $i > 0 && !empty($translated_parts) ? end($translated_parts) : '';
+            $chunk_result = cdcf_openai_translate([$key => $chunk], $source_name, $target_name, $api_key, $context);
             if (is_wp_error($chunk_result)) {
                 error_log(sprintf(
                     'cdcf_process_translation: chunk %d/%d failed for post %d %s (%s) – %s',
@@ -3862,15 +3866,67 @@ add_action('rest_api_init', function () {
 });
 
 /**
- * Send an array of strings to OpenAI for translation.
+ * Send an array of strings to OpenAI for translation, with bounded retries
+ * for transient upstream failures (HTTP 5xx, malformed JSON, network blips).
+ *
+ * Hard failures (auth, rate limit, 4xx) short-circuit immediately.
  *
  * @param  array  $strings     ['key' => 'source text', ...]
  * @param  string $source_lang Human-readable source language name.
  * @param  string $target_lang Human-readable target language name.
  * @param  string $api_key     OpenAI API key.
+ * @param  string $context     Optional preceding translated text to maintain
+ *                             terminology / register consistency across chunks.
  * @return array|WP_Error      ['key' => 'translated text', ...] or WP_Error.
  */
-function cdcf_openai_translate($strings, $source_lang, $target_lang, $api_key) {
+function cdcf_openai_translate($strings, $source_lang, $target_lang, $api_key, $context = '') {
+    $max_attempts = 3;
+    $backoff      = [2, 5]; // seconds before retry attempts 2 and 3
+
+    $last_error = null;
+    for ($attempt = 1; $attempt <= $max_attempts; $attempt++) {
+        $result = _cdcf_openai_translate_attempt($strings, $source_lang, $target_lang, $api_key, $context);
+        if (!is_wp_error($result)) {
+            return $result;
+        }
+
+        $last_error = $result;
+        $code       = $result->get_error_code();
+        $msg        = $result->get_error_message();
+
+        // Retry on transient upstream conditions only. Auth / 4xx is permanent.
+        $is_retryable = in_array($code, ['openai_parse', 'openai_empty'], true)
+            || ($code === 'openai_error' && (
+                strpos($msg, 'HTTP 5') !== false
+                || strpos($msg, 'HTTP 408') !== false
+                || strpos($msg, 'HTTP 429') !== false
+            ))
+            || ($code === 'http_request_failed' && stripos($msg, 'cURL error 28') !== false);
+
+        if (!$is_retryable || $attempt === $max_attempts) {
+            return $result;
+        }
+
+        $delay = $backoff[$attempt - 1] ?? 5;
+        error_log(sprintf(
+            'cdcf_openai_translate: attempt %d/%d failed (%s: %s); retrying in %ds',
+            $attempt,
+            $max_attempts,
+            $code,
+            $msg,
+            $delay
+        ));
+        sleep($delay);
+    }
+
+    return $last_error;
+}
+
+/**
+ * One attempt at the OpenAI translation call. Caller handles retry policy.
+ * Internal — do not call directly; use cdcf_openai_translate().
+ */
+function _cdcf_openai_translate_attempt($strings, $source_lang, $target_lang, $api_key, $context = '') {
     $model = get_option('cdcf_openai_model', 'gpt-4o-mini');
 
     $system_prompt = <<<PROMPT
@@ -3883,6 +3939,13 @@ Use formal register appropriate for an institutional Catholic organization.
 Return ONLY a valid JSON object with the same keys and translated values.
 Do not wrap the response in markdown code fences.
 PROMPT;
+
+    if ($context !== '') {
+        // Trim very long context — model only needs a paragraph or two of
+        // tail to lock in terminology and tone for the next chunk.
+        $context_excerpt = mb_substr($context, max(0, mb_strlen($context) - 1500));
+        $system_prompt  .= "\n\nThe following is the END of the previous translated portion of the SAME document. Do not re-translate or include it. Use it ONLY to maintain consistent terminology, register, and style:\n---\n{$context_excerpt}\n---";
+    }
 
     $user_message = wp_json_encode($strings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
