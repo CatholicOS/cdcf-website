@@ -3458,6 +3458,56 @@ add_action('wp_ajax_cdcf_ai_translate', function () {
 // ─── Background translation processor (WP Cron) ─────────────────────
 
 /**
+ * Soft cap on characters per OpenAI request. A single ~30K-char post_content
+ * routinely takes >120s on gpt-4o-mini, hitting the nginx/PHP-FPM upstream
+ * timeout. Chunking at ~5K chars per request keeps each call well under that
+ * window.
+ */
+const CDCF_TRANSLATION_CHUNK_CHARS = 5000;
+
+/**
+ * Split a chunk of HTML at top-level block-element boundaries so each piece
+ * fits under $max_chars. Boundaries are placed AFTER closing tags of common
+ * block elements (p, h1–h6, ul, ol, table, blockquote, pre, div, section,
+ * article, figure, details, dl) — never mid-element. Returns [$html] when no
+ * boundary is found or content is already under the cap.
+ */
+function cdcf_chunk_html_content(string $html, int $max_chars = CDCF_TRANSLATION_CHUNK_CHARS): array {
+    $html = trim($html);
+    if ($html === '' || mb_strlen($html) <= $max_chars) {
+        return [$html];
+    }
+
+    $delimiter = "\x00CDCF_CHUNK_BOUNDARY\x00";
+    $boundary  = '#(</(?:p|h[1-6]|ul|ol|table|blockquote|pre|div|section|article|figure|details|dl)>\s*)#i';
+    $marked    = preg_replace($boundary, '$1' . $delimiter, $html);
+    $parts     = array_values(array_filter(
+        explode($delimiter, (string) $marked),
+        static fn($p) => trim($p) !== ''
+    ));
+
+    if (count($parts) <= 1) {
+        // No splittable boundaries (e.g. one huge <table> or plain text).
+        return [$html];
+    }
+
+    $chunks  = [];
+    $current = '';
+    foreach ($parts as $part) {
+        if ($current !== '' && mb_strlen($current) + mb_strlen($part) > $max_chars) {
+            $chunks[] = $current;
+            $current  = $part;
+        } else {
+            $current .= $part;
+        }
+    }
+    if ($current !== '') {
+        $chunks[] = $current;
+    }
+    return $chunks;
+}
+
+/**
  * @return true|WP_Error  true on success (or no-op), WP_Error on failure so
  *                        callers (Redis Queue job, REST handler) can retry.
  */
@@ -3510,10 +3560,69 @@ function cdcf_process_translation($post_id, $source_id, $target_lang) {
     $source_lang = pll_default_language('slug');
     $source_name = CDCF_LOCALE_NAMES[$source_lang] ?? $source_lang;
 
-    $result = cdcf_openai_translate($strings, $source_name, $target_name, $api_key);
+    // Pull oversized fields out of the batch and chunk them. A single ~30K
+    // post_content takes >120s on gpt-4o-mini and trips the nginx/PHP-FPM
+    // upstream timeout. Each chunk gets its own (short) OpenAI call;
+    // translated chunks are reassembled below.
+    $chunked_fields = [];
+    foreach ($strings as $key => $value) {
+        if (mb_strlen((string) $value) <= CDCF_TRANSLATION_CHUNK_CHARS) {
+            continue;
+        }
+        $chunks = cdcf_chunk_html_content((string) $value);
+        if (count($chunks) > 1) {
+            $chunked_fields[$key] = $chunks;
+            unset($strings[$key]);
+        }
+    }
+
+    // Translate the (now smaller) batch in one call.
+    $result = !empty($strings)
+        ? cdcf_openai_translate($strings, $source_name, $target_name, $api_key)
+        : [];
     if (is_wp_error($result)) {
         error_log('cdcf_process_translation: OpenAI error – ' . $result->get_error_message());
         return $result; // Surface to caller so retry logic engages.
+    }
+
+    // Translate each oversized field's chunks individually and reassemble.
+    foreach ($chunked_fields as $key => $chunks) {
+        $translated_parts = [];
+        $total = count($chunks);
+        foreach ($chunks as $i => $chunk) {
+            $chunk_result = cdcf_openai_translate([$key => $chunk], $source_name, $target_name, $api_key);
+            if (is_wp_error($chunk_result)) {
+                error_log(sprintf(
+                    'cdcf_process_translation: chunk %d/%d failed for post %d %s (%s) – %s',
+                    $i + 1,
+                    $total,
+                    $post_id,
+                    $key,
+                    $target_lang,
+                    $chunk_result->get_error_message()
+                ));
+                return $chunk_result;
+            }
+            // OpenAI may return a JSON object missing the expected key (model
+            // hallucination, schema drift). Falling back to the untranslated
+            // chunk preserves output structure but mixes source-lang content
+            // into the translation — log so this is investigable rather than
+            // silently shipping bad translations.
+            if (!isset($chunk_result[$key])) {
+                error_log(sprintf(
+                    'cdcf_process_translation: chunk %d/%d for post %d %s (%s) returned no "%s" key; falling back to untranslated chunk. Response: %s',
+                    $i + 1,
+                    $total,
+                    $post_id,
+                    $key,
+                    $target_lang,
+                    $key,
+                    mb_substr((string) wp_json_encode($chunk_result), 0, 500)
+                ));
+            }
+            $translated_parts[] = $chunk_result[$key] ?? $chunk;
+        }
+        $result[$key] = implode('', $translated_parts);
     }
 
     // Write translations.
