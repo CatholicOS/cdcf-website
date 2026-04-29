@@ -4,11 +4,23 @@
  *
  * Called via:  wp eval-file /usr/local/bin/translate-all.php --allow-root
  *
+ * Pass `overwrite` as a positional arg to re-translate translations that
+ * already have content (default: skip non-empty translations):
+ *   wp eval-file /usr/local/bin/translate-all.php overwrite --allow-root
+ *
  * Requires:
  *   - Polylang active with languages configured
  *   - cdcf_openai_api_key WordPress option set
  *   - cdcf-headless theme active (provides cdcf_openai_translate())
  */
+
+// ── Argument parsing ────────────────────────────────────────────────
+
+$overwrite = ! empty( $args ) && in_array( 'overwrite', (array) $args, true );
+
+if ( $overwrite ) {
+    WP_CLI::log( 'Overwrite mode: existing non-empty translations WILL be re-translated.' );
+}
 
 // ── Pre-flight checks ───────────────────────────────────────────────
 
@@ -137,13 +149,14 @@ foreach ( $source_posts as $source ) {
         if ( isset( $existing[ $lang ] ) && $existing[ $lang ] != $source->ID ) {
             $trans_id = $existing[ $lang ];
 
-            // If the existing translation already has content, skip it.
-            if ( cdcf_translation_has_content( $trans_id, $translatable_types ) ) {
+            // If the existing translation already has content, skip it
+            // (unless overwrite mode was requested — re-translates from source).
+            if ( ! $overwrite && cdcf_translation_has_content( $trans_id, $translatable_types ) ) {
                 $stats['skipped']++;
                 continue;
             }
 
-            // Existing translation is empty — populate it.
+            // Existing translation is empty (or overwrite mode) — populate it.
             $translation_id = $trans_id;
             $is_update      = true;
         }
