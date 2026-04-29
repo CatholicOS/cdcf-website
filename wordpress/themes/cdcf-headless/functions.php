@@ -3603,6 +3603,23 @@ function cdcf_process_translation($post_id, $source_id, $target_lang) {
                 ));
                 return $chunk_result;
             }
+            // OpenAI may return a JSON object missing the expected key (model
+            // hallucination, schema drift). Falling back to the untranslated
+            // chunk preserves output structure but mixes source-lang content
+            // into the translation — log so this is investigable rather than
+            // silently shipping bad translations.
+            if (!isset($chunk_result[$key])) {
+                error_log(sprintf(
+                    'cdcf_process_translation: chunk %d/%d for post %d %s (%s) returned no "%s" key; falling back to untranslated chunk. Response: %s',
+                    $i + 1,
+                    $total,
+                    $post_id,
+                    $key,
+                    $target_lang,
+                    $key,
+                    mb_substr((string) wp_json_encode($chunk_result), 0, 500)
+                ));
+            }
             $translated_parts[] = $chunk_result[$key] ?? $chunk;
         }
         $result[$key] = implode('', $translated_parts);
