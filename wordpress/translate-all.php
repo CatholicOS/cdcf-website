@@ -151,7 +151,7 @@ foreach ( $source_posts as $source ) {
 
             // If the existing translation already has content, skip it
             // (unless overwrite mode was requested — re-translates from source).
-            if ( false === $overwrite && cdcf_translation_has_content( $trans_id, $translatable_types ) ) {
+            if ( false === $overwrite && true === cdcf_translation_has_content( $trans_id, $translatable_types ) ) {
                 $stats['skipped']++;
                 continue;
             }
