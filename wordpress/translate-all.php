@@ -18,7 +18,7 @@
 
 $overwrite = ! empty( $args ) && in_array( 'overwrite', (array) $args, true );
 
-if ( $overwrite ) {
+if ( true === $overwrite ) {
     WP_CLI::log( 'Overwrite mode: existing non-empty translations WILL be re-translated.' );
 }
 
@@ -151,7 +151,7 @@ foreach ( $source_posts as $source ) {
 
             // If the existing translation already has content, skip it
             // (unless overwrite mode was requested — re-translates from source).
-            if ( ! $overwrite && cdcf_translation_has_content( $trans_id, $translatable_types ) ) {
+            if ( false === $overwrite && cdcf_translation_has_content( $trans_id, $translatable_types ) ) {
                 $stats['skipped']++;
                 continue;
             }

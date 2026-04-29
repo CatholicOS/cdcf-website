@@ -30,12 +30,12 @@ class CDCF_Translation_Job extends Abstract_Base_Job {
         // Surface WP_Error so redis-queue's retry_attempts/retry_backoff engages.
         // Without throwing, OpenAI timeouts silently mark the job successful and
         // the translation post is never updated.
-        if (is_wp_error($result)) {
+        if (is_wp_error($result) === true) {
             throw new \RuntimeException(sprintf(
                 'cdcf_process_translation failed for post %d (%s): %s',
-                $post_id,
-                $target_lang,
-                $result->get_error_message()
+                (int) $post_id,
+                esc_html((string) $target_lang),
+                esc_html($result->get_error_message())
             ));
         }
 
