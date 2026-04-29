@@ -1203,7 +1203,7 @@ add_action('rest_api_init', function () {
             $tmp = $file . '.tmp.' . getmypid();
             $written = file_put_contents($tmp, $body);
             if ($written === false) {
-                @unlink($tmp);
+                @unlink($tmp); // nosemgrep: $tmp is a locally-constructed temp filename, not user input.
                 return new WP_REST_Response([
                     'success' => false,
                     'error'   => 'Failed to write temp file',
@@ -1218,7 +1218,7 @@ add_action('rest_api_init', function () {
             }
 
             if (!rename($tmp, $file)) {
-                @unlink($tmp);
+                @unlink($tmp); // nosemgrep: $tmp is a locally-constructed temp filename, not user input.
                 return new WP_REST_Response([
                     'success' => false,
                     'error'   => 'Failed to rename temp file to disposable-domains.txt',
@@ -3457,11 +3457,15 @@ add_action('wp_ajax_cdcf_ai_translate', function () {
 
 // ─── Background translation processor (WP Cron) ─────────────────────
 
+/**
+ * @return true|WP_Error  true on success (or no-op), WP_Error on failure so
+ *                        callers (Redis Queue job, REST handler) can retry.
+ */
 function cdcf_process_translation($post_id, $source_id, $target_lang) {
     $source = get_post($source_id);
     if (!$source) {
         error_log("cdcf_process_translation: Source post {$source_id} not found.");
-        return;
+        return new WP_Error('source_missing', "Source post {$source_id} not found.");
     }
 
     // Collect translatable strings.
@@ -3492,14 +3496,14 @@ function cdcf_process_translation($post_id, $source_id, $target_lang) {
 
     if (empty($strings)) {
         error_log("cdcf_process_translation: No translatable content for post {$source_id}.");
-        return;
+        return true; // No-op success: nothing to translate, not a failure to retry.
     }
 
     // Call OpenAI.
     $api_key = get_option('cdcf_openai_api_key');
     if (!$api_key) {
         error_log('cdcf_process_translation: OpenAI API key not configured.');
-        return;
+        return new WP_Error('no_api_key', 'OpenAI API key not configured.');
     }
 
     $target_name = CDCF_LOCALE_NAMES[$target_lang] ?? $target_lang;
@@ -3509,7 +3513,7 @@ function cdcf_process_translation($post_id, $source_id, $target_lang) {
     $result = cdcf_openai_translate($strings, $source_name, $target_name, $api_key);
     if (is_wp_error($result)) {
         error_log('cdcf_process_translation: OpenAI error – ' . $result->get_error_message());
-        return;
+        return $result; // Surface to caller so retry logic engages.
     }
 
     // Write translations.
@@ -3562,6 +3566,7 @@ function cdcf_process_translation($post_id, $source_id, $target_lang) {
     }
 
     error_log("cdcf_process_translation: Translation complete for post {$post_id} ({$target_lang}).");
+    return true;
 }
 add_action('cdcf_async_translate', 'cdcf_process_translation', 10, 3);
 
@@ -3897,9 +3902,9 @@ function cdcf_bulk_translate_page() {
     ?>
     <div class="wrap">
         <h1>Bulk Translate Media</h1>
-        <p>Translating <strong><?php echo count($post_ids); ?></strong> media item(s)
-           into <strong><?php echo count($target_langs); ?></strong> language(s).
-           Total API calls: <strong><?php echo count($post_ids) * count($target_langs); ?></strong>.</p>
+        <p>Translating <strong><?php echo (int) count($post_ids); ?></strong> media item(s)
+           into <strong><?php echo (int) count($target_langs); ?></strong> language(s).
+           Total API calls: <strong><?php echo (int) (count($post_ids) * count($target_langs)); ?></strong>.</p>
 
         <table class="widefat fixed striped" style="max-width:800px;">
             <thead>

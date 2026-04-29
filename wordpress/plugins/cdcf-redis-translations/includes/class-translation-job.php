@@ -25,7 +25,19 @@ class CDCF_Translation_Job extends Abstract_Base_Job {
             throw new \RuntimeException('cdcf_process_translation() not available — is cdcf-headless theme active?');
         }
 
-        cdcf_process_translation($post_id, $source_id, $target_lang);
+        $result = cdcf_process_translation($post_id, $source_id, $target_lang);
+
+        // Surface WP_Error so redis-queue's retry_attempts/retry_backoff engages.
+        // Without throwing, OpenAI timeouts silently mark the job successful and
+        // the translation post is never updated.
+        if (is_wp_error($result) === true) {
+            throw new \RuntimeException(sprintf(
+                'cdcf_process_translation failed for post %d (%s): %s',
+                (int) $post_id,
+                esc_html((string) $target_lang),
+                esc_html($result->get_error_message())
+            ));
+        }
 
         return $this->success([
             'post_id'     => $post_id,
