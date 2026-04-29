@@ -3893,13 +3893,17 @@ function cdcf_openai_translate($strings, $source_lang, $target_lang, $api_key, $
         $last_error = $result;
         $code       = $result->get_error_code();
         $msg        = $result->get_error_message();
+        $data       = $result->get_error_data();
+        $status     = is_array($data) && isset($data['status']) ? (int) $data['status'] : null;
 
         // Retry on transient upstream conditions only. Auth / 4xx is permanent.
+        // Status comes from $error_data attached by _cdcf_openai_translate_attempt
+        // (numeric, exact) rather than substring-matching the error message.
         $is_retryable = in_array($code, ['openai_parse', 'openai_empty'], true)
-            || ($code === 'openai_error' && (
-                strpos($msg, 'HTTP 5') !== false
-                || strpos($msg, 'HTTP 408') !== false
-                || strpos($msg, 'HTTP 429') !== false
+            || ($code === 'openai_error' && $status !== null && (
+                $status === 408
+                || $status === 429
+                || ($status >= 500 && $status < 600)
             ))
             || ($code === 'http_request_failed' && stripos($msg, 'cURL error 28') !== false);
 
@@ -3940,22 +3944,31 @@ Return ONLY a valid JSON object with the same keys and translated values.
 Do not wrap the response in markdown code fences.
 PROMPT;
 
+    $user_message = wp_json_encode($strings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    // Build the message list. Keep $system_prompt static so dynamic / model-
+    // sourced text never gets promoted to system-level instructions; instead
+    // pass the previous translated chunk as a separate user message.
+    $messages = [
+        ['role' => 'system', 'content' => $system_prompt],
+    ];
+
     if ($context !== '') {
         // Trim very long context — model only needs a paragraph or two of
         // tail to lock in terminology and tone for the next chunk.
         $context_excerpt = mb_substr($context, max(0, mb_strlen($context) - 1500));
-        $system_prompt  .= "\n\nThe following is the END of the previous translated portion of the SAME document. Do not re-translate or include it. Use it ONLY to maintain consistent terminology, register, and style:\n---\n{$context_excerpt}\n---";
+        $messages[] = [
+            'role'    => 'user',
+            'content' => "The following is the END of the previous translated portion of the SAME document. Do not re-translate or include it. Use it ONLY to maintain consistent terminology, register, and style:\n---\n{$context_excerpt}\n---",
+        ];
     }
 
-    $user_message = wp_json_encode($strings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $messages[] = ['role' => 'user', 'content' => $user_message];
 
     $body = [
         'model'       => $model,
         'temperature' => 0.3,
-        'messages'    => [
-            ['role' => 'system',  'content' => $system_prompt],
-            ['role' => 'user',    'content' => $user_message],
-        ],
+        'messages'    => $messages,
     ];
 
     $response = wp_remote_post('https://api.openai.com/v1/chat/completions', [
@@ -3977,7 +3990,9 @@ PROMPT;
     if ($code !== 200) {
         $err = json_decode($raw, true);
         $msg = $err['error']['message'] ?? "HTTP {$code}";
-        return new WP_Error('openai_error', 'OpenAI API error: ' . $msg);
+        // Attach the numeric HTTP status so cdcf_openai_translate's retry
+        // policy can decide retryability without substring-matching the message.
+        return new WP_Error('openai_error', 'OpenAI API error: ' . $msg, ['status' => (int) $code]);
     }
 
     $data = json_decode($raw, true);
