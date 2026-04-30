@@ -4,15 +4,43 @@ import type { NextRequest } from 'next/server'
 // Hosts that ARE allowed to be indexed by search engines. Anything else
 // (staging, preview deploys, raw IPs, one-off subdomains) gets a
 // noindex/nofollow X-Robots-Tag so it can't leak into search results.
-const PRODUCTION_HOSTS = new Set([
-  'catholicdigitalcommons.org',
-  'www.catholicdigitalcommons.org',
-])
+//
+// Primary source is NEXT_PUBLIC_SITE_URL (kept in lockstep with the value
+// used by metadataBase in app/[lang]/layout.tsx). The hardcoded fallback
+// guarantees production stays indexable if NEXT_PUBLIC_SITE_URL is unset
+// or malformed at build time.
+const FALLBACK_PRODUCTION_HOSTS = ['catholicdigitalcommons.org']
+
+function buildProductionHosts(): Set<string> {
+  const hosts = new Set<string>()
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+  if (siteUrl) {
+    try {
+      hosts.add(new URL(siteUrl).hostname.toLowerCase())
+    } catch {
+      // Malformed URL — fall through to the fallback list.
+    }
+  }
+
+  if (hosts.size === 0) {
+    for (const host of FALLBACK_PRODUCTION_HOSTS) hosts.add(host)
+  }
+
+  // Always treat the www. variant as production-equivalent.
+  for (const host of [...hosts]) {
+    if (!host.startsWith('www.')) hosts.add(`www.${host}`)
+  }
+
+  return hosts
+}
+
+const PRODUCTION_HOSTS = buildProductionHosts()
 
 export function middleware(request: NextRequest) {
   const response = NextResponse.next()
 
-  const host = (request.headers.get('host') ?? '').toLowerCase().split(':')[0]
+  const host = request.nextUrl.hostname.toLowerCase()
   if (!PRODUCTION_HOSTS.has(host)) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow')
   }
