@@ -49,7 +49,12 @@ const intlProxy = createMiddleware(routing)
 // Paths excluded from next-intl locale routing. Mirrors the original
 // proxy.ts matcher exclusions, hoisted so we can branch on it in code
 // (we want noindex on a wider set of paths than locale routing).
-const INTL_EXCLUDE = /^\/(api|_next|wp-admin|wp-login|wp-json|graphql|wp-content|favicon\.ico|logo\.svg|.*\..*)/
+//
+// Each path-segment literal must be followed by `/` or end-of-string so
+// `/apiary`, `/wp-jsonary`, etc. are NOT excluded. Filename literals
+// must match exactly (anchor to end). The trailing `.*\..*` catches any
+// remaining asset-like path that contains a dot.
+const INTL_EXCLUDE = /^\/(?:(?:api|_next|wp-admin|wp-login|wp-json|graphql|wp-content)(?:\/|$)|favicon\.ico$|logo\.svg$|.*\..*)/
 
 export function proxy(request: NextRequest) {
   // Run next-intl only for routes it owns; pass-through otherwise.
