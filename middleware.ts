@@ -27,9 +27,15 @@ function buildProductionHosts(): Set<string> {
     for (const host of FALLBACK_PRODUCTION_HOSTS) hosts.add(host)
   }
 
-  // Always treat the www. variant as production-equivalent.
+  // Always treat the bare and www. variants as production-equivalent so a
+  // visitor reaching either URL gets the same indexing policy regardless of
+  // which form NEXT_PUBLIC_SITE_URL was configured with.
   for (const host of [...hosts]) {
-    if (!host.startsWith('www.')) hosts.add(`www.${host}`)
+    if (host.startsWith('www.')) {
+      hosts.add(host.slice(4))
+    } else {
+      hosts.add(`www.${host}`)
+    }
   }
 
   return hosts
