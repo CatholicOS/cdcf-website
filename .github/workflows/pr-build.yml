@@ -14,26 +14,11 @@ permissions:
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'app/**'
-      - 'components/**'
-      - 'lib/**'
-      - 'src/**'
-      - 'public/**'
-      - 'css/**'
-      - 'fonts/**'
-      - 'messages/**'
-      - 'proxy.ts'
-      - 'middleware.ts'
-      - 'next.config.*'
-      - 'tsconfig.json'
-      - 'tsconfig.*.json'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'tailwind.config.*'
-      - 'postcss.config.*'
-      - '.nvmrc'
-      - '.github/workflows/pr-build.yml'
+    # No `paths:` filter on purpose. With path filtering, PRs that don't
+    # touch build inputs would skip this workflow entirely — and GitHub's
+    # required-check rule blocks merge when the check never reports a
+    # status. Always-run + caching is the simpler, more reliable shape.
+    # Cached cold-build is ~1–2 min, which is acceptable on every PR.
 
 # Cancel earlier runs against the same PR head when a new commit is pushed.
 concurrency:
