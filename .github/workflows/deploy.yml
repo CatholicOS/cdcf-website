@@ -1,4 +1,19 @@
 name: Build and Deploy
+
+# Unified deploy workflow for production and staging.
+#
+# Triggers:
+#   - release: published   → always deploys to production
+#   - workflow_dispatch    → user picks environment (default: staging)
+#
+# All ${{ ... }} interpolations are repo secrets / vars / known choice
+# inputs (trusted). No untrusted github.event.* fields are used.
+#
+# Production-only steps (WP theme + plugin tarballs, plugin activation)
+# are gated behind `if: env.ENVIRONMENT == 'production'`. Staging shares
+# the same WordPress backend, so we never push theme/plugin from a
+# staging deploy — that would overwrite production code.
+
 permissions:
   contents: read
 
@@ -6,10 +21,26 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options: [production, staging]
+        default: staging
+
+# Prevent concurrent deploys to the same environment from racing.
+concurrency:
+  group: deploy-${{ github.event_name == 'release' && 'production' || inputs.environment }}
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      # Release events always map to production; workflow_dispatch uses
+      # the user-selected environment.
+      ENVIRONMENT: ${{ github.event_name == 'release' && 'production' || inputs.environment }}
 
     steps:
       - name: Checkout code
@@ -28,37 +59,49 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .next/cache
-          key: nextjs-${{ hashFiles('package-lock.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx', '**/*.css') }}
-          restore-keys: nextjs-${{ hashFiles('package-lock.json') }}-
+          key: nextjs-${{ env.ENVIRONMENT }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx', '**/*.css') }}
+          restore-keys: nextjs-${{ env.ENVIRONMENT }}-${{ hashFiles('package-lock.json') }}-
 
       - name: Build Next.js
-        run: npm run build
         env:
           WP_GRAPHQL_URL: ${{ vars.WP_GRAPHQL_URL }}
-          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL_PROD }}
+          # Per-environment canonical URL — baked into client bundle at build time.
+          NEXT_PUBLIC_SITE_URL: ${{ env.ENVIRONMENT == 'production' && vars.NEXT_PUBLIC_SITE_URL_PROD || vars.NEXT_PUBLIC_SITE_URL_STAGING }}
+        run: npm run build
 
-      - name: Prepare bundles
+      - name: Prepare Next.js bundle
         run: |
           cp -r .next/static .next/standalone/.next/static
           cp -r public .next/standalone/public
           tar -czf /tmp/nextjs-bundle.tar.gz -C .next/standalone .
+
+      - name: Prepare WP theme and plugin bundles
+        if: env.ENVIRONMENT == 'production'
+        run: |
           tar -czf /tmp/wp-theme.tar.gz -C wordpress/themes/cdcf-headless .
           tar -czf /tmp/wp-plugin-redis-translations.tar.gz -C wordpress/plugins/cdcf-redis-translations .
 
       - name: Setup SSH key
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          echo "$VPS_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
 
-      - name: Upload bundles
+      - name: Upload Next.js bundle
+        env:
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
           for attempt in 1 2 3; do
             echo "Upload attempt $attempt..."
             if scp -i ~/.ssh/deploy_key \
-              /tmp/nextjs-bundle.tar.gz /tmp/wp-theme.tar.gz /tmp/wp-plugin-redis-translations.tar.gz \
-              ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/tmp/; then
+              -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
+              /tmp/nextjs-bundle.tar.gz \
+              "${VPS_USERNAME}@${VPS_HOST}:/tmp/nextjs-bundle.tar.gz"; then
               echo "Upload succeeded on attempt $attempt"
               exit 0
             fi
@@ -68,23 +111,72 @@ jobs:
           echo "All upload attempts failed"
           exit 1
 
-      - name: Extract and restart
+      - name: Upload WP theme/plugin bundles
+        if: env.ENVIRONMENT == 'production'
+        env:
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          for attempt in 1 2 3; do
+            echo "Upload attempt $attempt..."
+            if scp -i ~/.ssh/deploy_key \
+              -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
+              /tmp/wp-theme.tar.gz /tmp/wp-plugin-redis-translations.tar.gz \
+              "${VPS_USERNAME}@${VPS_HOST}:/tmp/"; then
+              echo "Upload succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "Upload failed on attempt $attempt"
+            [ "$attempt" -lt 3 ] && echo "Waiting 15 seconds before retry..." && sleep 15
+          done
+          echo "All upload attempts failed"
+          exit 1
+
+      - name: Extract Next.js bundle and restart
+        env:
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          # Pick the right target dir per environment.
+          APP_DIR: ${{ env.ENVIRONMENT == 'production' && vars.VPS_APP_DIR || vars.VPS_STAGING_APP_DIR }}
         run: |
           for attempt in 1 2 3; do
             echo "SSH attempt $attempt..."
             if ssh -i ~/.ssh/deploy_key \
-              ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
-              "mkdir -p ${{ vars.VPS_APP_DIR }} && \
-               tar -xzf /tmp/nextjs-bundle.tar.gz -C ${{ vars.VPS_APP_DIR }} && \
+              -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
+              "${VPS_USERNAME}@${VPS_HOST}" \
+              "mkdir -p \"$APP_DIR\" && \
+               tar -xzf /tmp/nextjs-bundle.tar.gz -C \"$APP_DIR\" && \
                rm /tmp/nextjs-bundle.tar.gz && \
-               mkdir -p ${{ vars.WP_THEME_DIR }} && \
-               tar -xzf /tmp/wp-theme.tar.gz -C ${{ vars.WP_THEME_DIR }} && \
+               mkdir -p \"$APP_DIR/tmp\" && \
+               touch \"$APP_DIR/tmp/restart.txt\""; then
+              echo "SSH succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "SSH failed on attempt $attempt"
+            [ "$attempt" -lt 3 ] && echo "Waiting 15 seconds before retry..." && sleep 15
+          done
+          echo "All SSH attempts failed"
+          exit 1
+
+      - name: Extract WP theme and plugin bundles
+        if: env.ENVIRONMENT == 'production'
+        env:
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          WP_THEME_DIR: ${{ vars.WP_THEME_DIR }}
+          WP_PLUGINS_DIR: ${{ vars.WP_PLUGINS_DIR }}
+        run: |
+          for attempt in 1 2 3; do
+            echo "SSH attempt $attempt..."
+            if ssh -i ~/.ssh/deploy_key \
+              -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
+              "${VPS_USERNAME}@${VPS_HOST}" \
+              "mkdir -p \"$WP_THEME_DIR\" && \
+               tar -xzf /tmp/wp-theme.tar.gz -C \"$WP_THEME_DIR\" && \
                rm /tmp/wp-theme.tar.gz && \
-               mkdir -p ${{ vars.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
-               tar -xzf /tmp/wp-plugin-redis-translations.tar.gz -C ${{ vars.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
-               rm /tmp/wp-plugin-redis-translations.tar.gz && \
-               mkdir -p ${{ vars.VPS_APP_DIR }}/tmp && \
-               touch ${{ vars.VPS_APP_DIR }}/tmp/restart.txt"; then
+               mkdir -p \"$WP_PLUGINS_DIR/cdcf-redis-translations\" && \
+               tar -xzf /tmp/wp-plugin-redis-translations.tar.gz -C \"$WP_PLUGINS_DIR/cdcf-redis-translations\" && \
+               rm /tmp/wp-plugin-redis-translations.tar.gz"; then
               echo "SSH succeeded on attempt $attempt"
               exit 0
             fi
@@ -95,9 +187,14 @@ jobs:
           exit 1
 
       - name: Activate plugins
+        if: env.ENVIRONMENT == 'production'
+        env:
+          WP_REST_URL: ${{ vars.WP_REST_URL }}
+          WP_APP_USERNAME: ${{ secrets.WP_APP_USERNAME }}
+          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
         run: |
-          WP_URL="${{ vars.WP_REST_URL }}/wp/v2/plugins"
-          AUTH=$(echo -n "${{ secrets.WP_APP_USERNAME }}:${{ secrets.WP_APP_PASSWORD }}" | base64)
+          WP_URL="$WP_REST_URL/wp/v2/plugins"
+          AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
           for PLUGIN in redis-queue/redis-queue cdcf-redis-translations/cdcf-redis-translations; do
             SLUG=$(echo "$PLUGIN" | tr '/' '%2F')
             STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
