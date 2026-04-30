@@ -7,43 +7,23 @@ import { routing } from './src/i18n/routing'
 // (staging, preview deploys, raw IPs, one-off subdomains) gets a
 // noindex/nofollow X-Robots-Tag so it can't leak into search results.
 //
-// Primary source is NEXT_PUBLIC_SITE_URL (kept in lockstep with the value
-// used by metadataBase in app/[lang]/layout.tsx). The hardcoded fallback
-// guarantees production stays indexable if NEXT_PUBLIC_SITE_URL is unset
-// or malformed at build time.
-const FALLBACK_PRODUCTION_HOSTS = ['catholicdigitalcommons.org']
-
-function buildProductionHosts(): Set<string> {
-  const hosts = new Set<string>()
-
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
-  if (siteUrl) {
-    try {
-      hosts.add(new URL(siteUrl).hostname.toLowerCase())
-    } catch {
-      // Malformed URL — fall through to the fallback list.
-    }
-  }
-
-  if (hosts.size === 0) {
-    for (const host of FALLBACK_PRODUCTION_HOSTS) hosts.add(host)
-  }
-
-  // Always treat the bare and www. variants as production-equivalent so a
-  // visitor reaching either URL gets the same indexing policy regardless of
-  // which form NEXT_PUBLIC_SITE_URL was configured with.
-  for (const host of [...hosts]) {
-    if (host.startsWith('www.')) {
-      hosts.add(host.slice(4))
-    } else {
-      hosts.add(`www.${host}`)
-    }
-  }
-
-  return hosts
-}
-
-const PRODUCTION_HOSTS = buildProductionHosts()
+// Hardcoded — NOT derived from NEXT_PUBLIC_SITE_URL. The two are
+// different concepts:
+//   - NEXT_PUBLIC_SITE_URL = "what URL THIS deployment thinks it is"
+//     (different per environment: prod vs staging)
+//   - INDEXABLE_HOSTS      = "what URLs search engines should index"
+//     (always the production hostname, regardless of where the
+//     build is running)
+// Mixing the two means the staging build adds itself to the
+// indexable list — the opposite of intent.
+//
+// If the canonical hostname ever changes, update this list. There is
+// no runtime override on purpose; environment-derived behavior here
+// would re-introduce the bug above.
+const INDEXABLE_HOSTS = new Set<string>([
+  'catholicdigitalcommons.org',
+  'www.catholicdigitalcommons.org',
+])
 const intlProxy = createMiddleware(routing)
 
 // Paths excluded from next-intl locale routing. Mirrors the original
@@ -73,7 +53,7 @@ export function proxy(request: NextRequest) {
   // forwards via `proxy_set_header Host $host` and is the only reliable
   // source of the incoming hostname in this topology.
   const host = (request.headers.get('host') ?? '').toLowerCase().split(':')[0]
-  if (host && !PRODUCTION_HOSTS.has(host)) {
+  if (host && !INDEXABLE_HOSTS.has(host)) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow')
   }
 
