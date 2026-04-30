@@ -65,8 +65,15 @@ export function proxy(request: NextRequest) {
   // Apply noindex on any non-production host (staging, preview deploys,
   // raw IPs). Applied after intl middleware so robots.txt and sitemap on
   // staging also carry the header.
-  const host = request.nextUrl.hostname.toLowerCase()
-  if (!PRODUCTION_HOSTS.has(host)) {
+  //
+  // We read the Host header rather than request.nextUrl.hostname because
+  // Next.js runs with `trustHostHeader: false` behind Plesk's reverse
+  // proxy; nextUrl.hostname falls back to the bind address (localhost)
+  // and would noindex production. The Host header is what nginx actually
+  // forwards via `proxy_set_header Host $host` and is the only reliable
+  // source of the incoming hostname in this topology.
+  const host = (request.headers.get('host') ?? '').toLowerCase().split(':')[0]
+  if (host && !PRODUCTION_HOSTS.has(host)) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow')
   }
 
