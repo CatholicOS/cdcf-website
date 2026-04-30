@@ -53,25 +53,11 @@ jobs:
         env:
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_HOST_KEY: ${{ secrets.VPS_HOST_KEY }}
         run: |
           mkdir -p ~/.ssh
           echo "$VPS_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-
-          # Prefer the pinned host key from VPS_HOST_KEY (defense against
-          # MITM on the runner's first connection). Fall back to ssh-keyscan
-          # only if the secret is unset, so deploys keep working until the
-          # secret is configured.
-          if [ -n "$VPS_HOST_KEY" ]; then
-            echo "$VPS_HOST_KEY" > ~/.ssh/known_hosts
-            chmod 644 ~/.ssh/known_hosts
-            echo "Using pinned VPS_HOST_KEY for known_hosts."
-          else
-            echo "WARNING: VPS_HOST_KEY secret not set; falling back to ssh-keyscan."
-            echo "         Set VPS_HOST_KEY to the output of \`ssh-keyscan -H <host>\` to harden against MITM."
-            ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
-          fi
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
 
       - name: Upload bundle
         env:
@@ -99,7 +85,7 @@ jobs:
         env:
           VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_STAGING_APP_DIR: ${{ secrets.VPS_STAGING_APP_DIR }}
+          VPS_STAGING_APP_DIR: ${{ vars.VPS_STAGING_APP_DIR }}
         run: |
           for attempt in 1 2 3; do
             echo "SSH attempt $attempt..."
