@@ -1,0 +1,103 @@
+name: Build and Deploy to Staging
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+
+# Deploys the Next.js bundle only - staging shares the same WordPress
+# backend (cms.catholicdigitalcommons.org) as production, so the
+# headless theme and the cdcf-redis-translations plugin are NOT
+# pushed from this workflow. Use the Build and Deploy (production)
+# workflow for theme / plugin changes.
+#
+# All ${{ ... }} interpolations are from repository secrets and vars
+# (trusted). No untrusted github.event inputs are used.
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Next.js build
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: .next/cache
+          key: nextjs-staging-${{ hashFiles('package-lock.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx', '**/*.css') }}
+          restore-keys: nextjs-staging-${{ hashFiles('package-lock.json') }}-
+
+      - name: Build Next.js
+        run: npm run build
+        env:
+          WP_GRAPHQL_URL: ${{ vars.WP_GRAPHQL_URL }}
+
+      - name: Prepare bundle
+        run: |
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public
+          tar -czf /tmp/nextjs-bundle.tar.gz -C .next/standalone .
+
+      - name: Setup SSH key
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload bundle
+        env:
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          for attempt in 1 2 3; do
+            echo "Upload attempt $attempt..."
+            if scp -i ~/.ssh/deploy_key \
+              /tmp/nextjs-bundle.tar.gz \
+              "${VPS_USERNAME}@${VPS_HOST}:/tmp/staging-bundle.tar.gz"; then
+              echo "Upload succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "Upload failed on attempt $attempt"
+            [ "$attempt" -lt 3 ] && echo "Waiting 15 seconds before retry..." && sleep 15
+          done
+          echo "All upload attempts failed"
+          exit 1
+
+      - name: Extract and restart
+        env:
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_STAGING_APP_DIR: ${{ secrets.VPS_STAGING_APP_DIR }}
+        run: |
+          for attempt in 1 2 3; do
+            echo "SSH attempt $attempt..."
+            if ssh -i ~/.ssh/deploy_key \
+              "${VPS_USERNAME}@${VPS_HOST}" \
+              "mkdir -p \"$VPS_STAGING_APP_DIR\" && \
+               tar -xzf /tmp/staging-bundle.tar.gz -C \"$VPS_STAGING_APP_DIR\" && \
+               rm /tmp/staging-bundle.tar.gz && \
+               mkdir -p \"$VPS_STAGING_APP_DIR/tmp\" && \
+               touch \"$VPS_STAGING_APP_DIR/tmp/restart.txt\""; then
+              echo "SSH succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "SSH failed on attempt $attempt"
+            [ "$attempt" -lt 3 ] && echo "Waiting 15 seconds before retry..." && sleep 15
+          done
+          echo "All SSH attempts failed"
+          exit 1
