@@ -42,6 +42,7 @@ jobs:
         run: npm run build
         env:
           WP_GRAPHQL_URL: ${{ vars.WP_GRAPHQL_URL }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL_STAGING }}
 
       - name: Prepare bundle
         run: |
