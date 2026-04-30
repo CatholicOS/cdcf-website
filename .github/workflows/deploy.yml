@@ -73,8 +73,8 @@ jobs:
             echo "SSH attempt $attempt..."
             if ssh -i ~/.ssh/deploy_key \
               ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
-              "mkdir -p ${{ secrets.VPS_APP_DIR }} && \
-               tar -xzf /tmp/nextjs-bundle.tar.gz -C ${{ secrets.VPS_APP_DIR }} && \
+              "mkdir -p ${{ vars.VPS_APP_DIR }} && \
+               tar -xzf /tmp/nextjs-bundle.tar.gz -C ${{ vars.VPS_APP_DIR }} && \
                rm /tmp/nextjs-bundle.tar.gz && \
                mkdir -p ${{ vars.WP_THEME_DIR }} && \
                tar -xzf /tmp/wp-theme.tar.gz -C ${{ vars.WP_THEME_DIR }} && \
@@ -82,8 +82,8 @@ jobs:
                mkdir -p ${{ vars.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
                tar -xzf /tmp/wp-plugin-redis-translations.tar.gz -C ${{ vars.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
                rm /tmp/wp-plugin-redis-translations.tar.gz && \
-               mkdir -p ${{ secrets.VPS_APP_DIR }}/tmp && \
-               touch ${{ secrets.VPS_APP_DIR }}/tmp/restart.txt"; then
+               mkdir -p ${{ vars.VPS_APP_DIR }}/tmp && \
+               touch ${{ vars.VPS_APP_DIR }}/tmp/restart.txt"; then
               echo "SSH succeeded on attempt $attempt"
               exit 0
             fi
