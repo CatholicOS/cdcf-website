@@ -1,4 +1,19 @@
 name: Build and Deploy
+
+# Unified deploy workflow for production and staging.
+#
+# Triggers:
+#   - release: published   → always deploys to production
+#   - workflow_dispatch    → user picks environment (default: staging)
+#
+# All ${{ ... }} interpolations are repo secrets / vars / known choice
+# inputs (trusted). No untrusted github.event.* fields are used.
+#
+# Production-only steps (WP theme + plugin tarballs, plugin activation)
+# are gated behind `if: env.ENVIRONMENT == 'production'`. Staging shares
+# the same WordPress backend, so we never push theme/plugin from a
+# staging deploy — that would overwrite production code.
+
 permissions:
   contents: read
 
@@ -6,10 +21,26 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options: [production, staging]
+        default: staging
+
+# Prevent concurrent deploys to the same environment from racing.
+concurrency:
+  group: deploy-${{ github.event_name == 'release' && 'production' || inputs.environment }}
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      # Release events always map to production; workflow_dispatch uses
+      # the user-selected environment.
+      ENVIRONMENT: ${{ github.event_name == 'release' && 'production' || inputs.environment }}
 
     steps:
       - name: Checkout code
@@ -24,41 +55,190 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Resolve environment-specific values (fail-fast)
+        # The `${{ X == 'production' && A || B }}` ternary that GitHub
+        # Actions supports treats empty strings as falsy — if the prod
+        # var was missing, prod deploys would silently fall back to the
+        # staging value. Resolve in shell with explicit non-empty checks
+        # so misconfiguration surfaces here, before we build or deploy.
+        #
+        # Also validates the production-only WP_THEME_DIR / WP_PLUGINS_DIR
+        # vars (used directly in later production steps): if either were
+        # empty, `tar -xzf ... -C ""` would extract to the current
+        # directory on the VPS instead of failing, corrupting the deploy.
+        env:
+          SITE_URL_PROD: ${{ vars.NEXT_PUBLIC_SITE_URL_PROD }}
+          SITE_URL_STAGING: ${{ vars.NEXT_PUBLIC_SITE_URL_STAGING }}
+          APP_DIR_PROD: ${{ vars.VPS_APP_DIR }}
+          APP_DIR_STAGING: ${{ vars.VPS_STAGING_APP_DIR }}
+          WP_THEME_DIR: ${{ vars.WP_THEME_DIR }}
+          WP_PLUGINS_DIR: ${{ vars.WP_PLUGINS_DIR }}
+        run: |
+          case "$ENVIRONMENT" in
+            production)
+              SITE_URL="$SITE_URL_PROD"
+              APP_DIR="$APP_DIR_PROD"
+              ;;
+            staging)
+              SITE_URL="$SITE_URL_STAGING"
+              APP_DIR="$APP_DIR_STAGING"
+              ;;
+            *)
+              echo "ERROR: ENVIRONMENT=$ENVIRONMENT (expected 'production' or 'staging')"
+              exit 1
+              ;;
+          esac
+
+          if [ -z "$SITE_URL" ]; then
+            echo "ERROR: NEXT_PUBLIC_SITE_URL for $ENVIRONMENT is empty (expected vars.NEXT_PUBLIC_SITE_URL_$(echo "$ENVIRONMENT" | tr '[:lower:]' '[:upper:]'))"
+            exit 1
+          fi
+          if [ -z "$APP_DIR" ]; then
+            echo "ERROR: APP_DIR for $ENVIRONMENT is empty (expected vars.VPS_APP_DIR or vars.VPS_STAGING_APP_DIR)"
+            exit 1
+          fi
+
+          # Production-only vars: validate now so later WP-extract steps
+          # don't silently extract to "" / the runner's current directory
+          # if these were misconfigured.
+          if [ "$ENVIRONMENT" = "production" ]; then
+            if [ -z "$WP_THEME_DIR" ]; then
+              echo "ERROR: vars.WP_THEME_DIR is empty (required for production)"
+              exit 1
+            fi
+            if [ -z "$WP_PLUGINS_DIR" ]; then
+              echo "ERROR: vars.WP_PLUGINS_DIR is empty (required for production)"
+              exit 1
+            fi
+          fi
+
+          {
+            echo "RESOLVED_SITE_URL=$SITE_URL"
+            echo "RESOLVED_APP_DIR=$APP_DIR"
+          } >> "$GITHUB_ENV"
+          echo "Resolved for $ENVIRONMENT: SITE_URL=$SITE_URL  APP_DIR=$APP_DIR"
+
       - name: Cache Next.js build
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .next/cache
-          key: nextjs-${{ hashFiles('package-lock.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx', '**/*.css') }}
-          restore-keys: nextjs-${{ hashFiles('package-lock.json') }}-
+          key: nextjs-${{ env.ENVIRONMENT }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx', '**/*.css') }}
+          restore-keys: nextjs-${{ env.ENVIRONMENT }}-${{ hashFiles('package-lock.json') }}-
 
       - name: Build Next.js
-        run: npm run build
         env:
           WP_GRAPHQL_URL: ${{ vars.WP_GRAPHQL_URL }}
-          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL_PROD }}
+          # Resolved + validated above, so no risk of an empty value silently
+          # baking the wrong URL into the client bundle.
+          NEXT_PUBLIC_SITE_URL: ${{ env.RESOLVED_SITE_URL }}
+        run: npm run build
 
-      - name: Prepare bundles
+      - name: Prepare Next.js bundle
         run: |
           cp -r .next/static .next/standalone/.next/static
           cp -r public .next/standalone/public
           tar -czf /tmp/nextjs-bundle.tar.gz -C .next/standalone .
+
+      - name: Prepare WP theme and plugin bundles
+        if: env.ENVIRONMENT == 'production'
+        run: |
           tar -czf /tmp/wp-theme.tar.gz -C wordpress/themes/cdcf-headless .
           tar -czf /tmp/wp-plugin-redis-translations.tar.gz -C wordpress/plugins/cdcf-redis-translations .
 
       - name: Setup SSH key
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST_KEY: ${{ vars.VPS_HOST_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          echo "$VPS_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+          # Pinned host key from the VPS_HOST_KEY repo variable. Capture
+          # once with `ssh-keyscan <host>` and store as a multi-line repo
+          # variable; if the server's host key ever rotates, regenerate
+          # and update the variable.
+          if [ -z "$VPS_HOST_KEY" ]; then
+            echo "ERROR: VPS_HOST_KEY repo variable is empty. Refusing to deploy without a pinned host key."
+            exit 1
+          fi
+          echo "$VPS_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
-      - name: Upload bundles
+      - name: Sanity-check pinned host key against DNS SSHFP records
+        # Non-fatal drift check. The pinned VPS_HOST_KEY is the trust
+        # anchor; this step compares it against the SSHFP records
+        # published in DNS for catholicdigitalcommons.org and emits
+        # GitHub-Actions warnings on any divergence so we notice if:
+        #   - the pin is stale (server rotated, DNS was updated, but
+        #     VPS_HOST_KEY wasn't)
+        #   - or DNS lags reality (we re-pinned but DNS hasn't been
+        #     re-published)
+        # Either way, deploys keep running on the pinned key.
+        env:
+          VPS_HOST_KEY: ${{ vars.VPS_HOST_KEY }}
+          SSHFP_HOST: catholicdigitalcommons.org
+        run: |
+          if ! command -v dig >/dev/null; then
+            echo "::warning::dig not available; skipping SSHFP drift check."
+            exit 0
+          fi
+
+          # SHA-256 hex fingerprint of each pinned key's raw blob
+          # (uppercase, sorted, deduped). known_hosts lines are
+          # `<host> <keytype> <base64-key> [comment]`.
+          PIN_FPS=$(printf '%s\n' "$VPS_HOST_KEY" \
+            | awk '$2 ~ /^(ssh-|ecdsa-)/' \
+            | while read -r _host _alg keyb64 _; do
+                printf '%s' "$keyb64" | base64 -d 2>/dev/null | sha256sum | awk '{print toupper($1)}'
+              done \
+            | sort -u)
+
+          # SHA-256 SSHFP records (hashtype 2). dig may split long
+          # hashes with a space; strip it before comparison.
+          DNS_FPS=$(dig +short SSHFP "$SSHFP_HOST" \
+            | awk '$2 == "2" {for (i=3; i<=NF; i++) printf "%s", $i; print ""}' \
+            | tr -d ' ' \
+            | tr 'a-f' 'A-F' \
+            | sort -u)
+
+          if [ -z "$DNS_FPS" ]; then
+            echo "::warning::No SHA-256 SSHFP records found for $SSHFP_HOST; skipping drift check."
+            exit 0
+          fi
+          if [ -z "$PIN_FPS" ]; then
+            echo "::warning::Could not derive any fingerprints from VPS_HOST_KEY; skipping drift check."
+            exit 0
+          fi
+
+          PIN_NOT_IN_DNS=$(comm -23 <(echo "$PIN_FPS") <(echo "$DNS_FPS"))
+          DNS_NOT_IN_PIN=$(comm -13 <(echo "$PIN_FPS") <(echo "$DNS_FPS"))
+
+          if [ -n "$PIN_NOT_IN_DNS" ]; then
+            while IFS= read -r fp; do
+              echo "::warning::Pinned key SHA256:$fp not in DNS SSHFP for $SSHFP_HOST. Either DNS lags reality or VPS_HOST_KEY is stale."
+            done <<< "$PIN_NOT_IN_DNS"
+          fi
+          if [ -n "$DNS_NOT_IN_PIN" ]; then
+            while IFS= read -r fp; do
+              echo "::warning::DNS SSHFP advertises SHA256:$fp which is NOT in pinned VPS_HOST_KEY. Server may have rotated; consider regenerating the pin."
+            done <<< "$DNS_NOT_IN_PIN"
+          fi
+
+          if [ -z "$PIN_NOT_IN_DNS" ] && [ -z "$DNS_NOT_IN_PIN" ]; then
+            echo "Pin matches DNS SSHFP records for $SSHFP_HOST."
+          fi
+
+      - name: Upload Next.js bundle
+        env:
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
           for attempt in 1 2 3; do
             echo "Upload attempt $attempt..."
             if scp -i ~/.ssh/deploy_key \
-              /tmp/nextjs-bundle.tar.gz /tmp/wp-theme.tar.gz /tmp/wp-plugin-redis-translations.tar.gz \
-              ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/tmp/; then
+              -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
+              /tmp/nextjs-bundle.tar.gz \
+              "${VPS_USERNAME}@${VPS_HOST}:/tmp/nextjs-bundle.tar.gz"; then
               echo "Upload succeeded on attempt $attempt"
               exit 0
             fi
@@ -68,23 +248,71 @@ jobs:
           echo "All upload attempts failed"
           exit 1
 
-      - name: Extract and restart
+      - name: Upload WP theme/plugin bundles
+        if: env.ENVIRONMENT == 'production'
+        env:
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          for attempt in 1 2 3; do
+            echo "Upload attempt $attempt..."
+            if scp -i ~/.ssh/deploy_key \
+              -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
+              /tmp/wp-theme.tar.gz /tmp/wp-plugin-redis-translations.tar.gz \
+              "${VPS_USERNAME}@${VPS_HOST}:/tmp/"; then
+              echo "Upload succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "Upload failed on attempt $attempt"
+            [ "$attempt" -lt 3 ] && echo "Waiting 15 seconds before retry..." && sleep 15
+          done
+          echo "All upload attempts failed"
+          exit 1
+
+      - name: Extract Next.js bundle and restart
+        env:
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          # Resolved + validated in the "Resolve environment-specific values" step.
+          APP_DIR: ${{ env.RESOLVED_APP_DIR }}
         run: |
           for attempt in 1 2 3; do
             echo "SSH attempt $attempt..."
             if ssh -i ~/.ssh/deploy_key \
-              ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} \
-              "mkdir -p ${{ vars.VPS_APP_DIR }} && \
-               tar -xzf /tmp/nextjs-bundle.tar.gz -C ${{ vars.VPS_APP_DIR }} && \
-               rm /tmp/nextjs-bundle.tar.gz && \
-               mkdir -p ${{ vars.WP_THEME_DIR }} && \
-               tar -xzf /tmp/wp-theme.tar.gz -C ${{ vars.WP_THEME_DIR }} && \
-               rm /tmp/wp-theme.tar.gz && \
-               mkdir -p ${{ vars.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
-               tar -xzf /tmp/wp-plugin-redis-translations.tar.gz -C ${{ vars.WP_PLUGINS_DIR }}/cdcf-redis-translations && \
-               rm /tmp/wp-plugin-redis-translations.tar.gz && \
-               mkdir -p ${{ vars.VPS_APP_DIR }}/tmp && \
-               touch ${{ vars.VPS_APP_DIR }}/tmp/restart.txt"; then
+              -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
+              "${VPS_USERNAME}@${VPS_HOST}" \
+              "mkdir -p \"$APP_DIR\" && \
+               tar -xzf /tmp/nextjs-bundle.tar.gz -C \"$APP_DIR\" && \
+               mkdir -p \"$APP_DIR/tmp\" && \
+               touch \"$APP_DIR/tmp/restart.txt\" && \
+               rm /tmp/nextjs-bundle.tar.gz"; then
+              echo "SSH succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "SSH failed on attempt $attempt"
+            [ "$attempt" -lt 3 ] && echo "Waiting 15 seconds before retry..." && sleep 15
+          done
+          echo "All SSH attempts failed"
+          exit 1
+
+      - name: Extract WP theme and plugin bundles
+        if: env.ENVIRONMENT == 'production'
+        env:
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          WP_THEME_DIR: ${{ vars.WP_THEME_DIR }}
+          WP_PLUGINS_DIR: ${{ vars.WP_PLUGINS_DIR }}
+        run: |
+          for attempt in 1 2 3; do
+            echo "SSH attempt $attempt..."
+            if ssh -i ~/.ssh/deploy_key \
+              -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
+              "${VPS_USERNAME}@${VPS_HOST}" \
+              "mkdir -p \"$WP_THEME_DIR\" && \
+               tar -xzf /tmp/wp-theme.tar.gz -C \"$WP_THEME_DIR\" && \
+               mkdir -p \"$WP_PLUGINS_DIR/cdcf-redis-translations\" && \
+               tar -xzf /tmp/wp-plugin-redis-translations.tar.gz -C \"$WP_PLUGINS_DIR/cdcf-redis-translations\" && \
+               rm /tmp/wp-theme.tar.gz /tmp/wp-plugin-redis-translations.tar.gz"; then
               echo "SSH succeeded on attempt $attempt"
               exit 0
             fi
@@ -95,9 +323,15 @@ jobs:
           exit 1
 
       - name: Activate plugins
+        if: env.ENVIRONMENT == 'production'
+        env:
+          WP_REST_URL: ${{ vars.WP_REST_URL }}
+          WP_APP_USERNAME: ${{ secrets.WP_APP_USERNAME }}
+          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
         run: |
-          WP_URL="${{ vars.WP_REST_URL }}/wp/v2/plugins"
-          AUTH=$(echo -n "${{ secrets.WP_APP_USERNAME }}:${{ secrets.WP_APP_PASSWORD }}" | base64)
+          WP_URL="$WP_REST_URL/wp/v2/plugins"
+          AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
+          FAILED=0
           for PLUGIN in redis-queue/redis-queue cdcf-redis-translations/cdcf-redis-translations; do
             SLUG=$(echo "$PLUGIN" | tr '/' '%2F')
             STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
@@ -106,4 +340,14 @@ jobs:
               -H "Content-Type: application/json" \
               -d '{"status":"active"}')
             echo "Activate $PLUGIN: HTTP $STATUS"
+            # Treat anything outside 2xx as a failure but keep going so the
+            # log shows the status of every plugin, not just the first failure.
+            if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
+              echo "::error::Failed to activate $PLUGIN (HTTP $STATUS)"
+              FAILED=1
+            fi
           done
+          if [ "$FAILED" -ne 0 ]; then
+            echo "One or more plugin activations failed; failing the deploy."
+            exit 1
+          fi
