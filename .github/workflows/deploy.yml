@@ -55,6 +55,48 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Resolve environment-specific values (fail-fast)
+        # The `${{ X == 'production' && A || B }}` ternary that GitHub
+        # Actions supports treats empty strings as falsy — if the prod
+        # var was missing, prod deploys would silently fall back to the
+        # staging value. Resolve in shell with explicit non-empty checks
+        # so misconfiguration surfaces here, before we build or deploy.
+        env:
+          SITE_URL_PROD: ${{ vars.NEXT_PUBLIC_SITE_URL_PROD }}
+          SITE_URL_STAGING: ${{ vars.NEXT_PUBLIC_SITE_URL_STAGING }}
+          APP_DIR_PROD: ${{ vars.VPS_APP_DIR }}
+          APP_DIR_STAGING: ${{ vars.VPS_STAGING_APP_DIR }}
+        run: |
+          case "$ENVIRONMENT" in
+            production)
+              SITE_URL="$SITE_URL_PROD"
+              APP_DIR="$APP_DIR_PROD"
+              ;;
+            staging)
+              SITE_URL="$SITE_URL_STAGING"
+              APP_DIR="$APP_DIR_STAGING"
+              ;;
+            *)
+              echo "ERROR: ENVIRONMENT=$ENVIRONMENT (expected 'production' or 'staging')"
+              exit 1
+              ;;
+          esac
+
+          if [ -z "$SITE_URL" ]; then
+            echo "ERROR: NEXT_PUBLIC_SITE_URL for $ENVIRONMENT is empty (expected vars.NEXT_PUBLIC_SITE_URL_$(echo "$ENVIRONMENT" | tr '[:lower:]' '[:upper:]'))"
+            exit 1
+          fi
+          if [ -z "$APP_DIR" ]; then
+            echo "ERROR: APP_DIR for $ENVIRONMENT is empty (expected vars.VPS_APP_DIR or vars.VPS_STAGING_APP_DIR)"
+            exit 1
+          fi
+
+          {
+            echo "RESOLVED_SITE_URL=$SITE_URL"
+            echo "RESOLVED_APP_DIR=$APP_DIR"
+          } >> "$GITHUB_ENV"
+          echo "Resolved for $ENVIRONMENT: SITE_URL=$SITE_URL  APP_DIR=$APP_DIR"
+
       - name: Cache Next.js build
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
@@ -65,8 +107,9 @@ jobs:
       - name: Build Next.js
         env:
           WP_GRAPHQL_URL: ${{ vars.WP_GRAPHQL_URL }}
-          # Per-environment canonical URL — baked into client bundle at build time.
-          NEXT_PUBLIC_SITE_URL: ${{ env.ENVIRONMENT == 'production' && vars.NEXT_PUBLIC_SITE_URL_PROD || vars.NEXT_PUBLIC_SITE_URL_STAGING }}
+          # Resolved + validated above, so no risk of an empty value silently
+          # baking the wrong URL into the client bundle.
+          NEXT_PUBLIC_SITE_URL: ${{ env.RESOLVED_SITE_URL }}
         run: npm run build
 
       - name: Prepare Next.js bundle
@@ -209,8 +252,8 @@ jobs:
         env:
           VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
-          # Pick the right target dir per environment.
-          APP_DIR: ${{ env.ENVIRONMENT == 'production' && vars.VPS_APP_DIR || vars.VPS_STAGING_APP_DIR }}
+          # Resolved + validated in the "Resolve environment-specific values" step.
+          APP_DIR: ${{ env.RESOLVED_APP_DIR }}
         run: |
           for attempt in 1 2 3; do
             echo "SSH attempt $attempt..."
@@ -267,6 +310,7 @@ jobs:
         run: |
           WP_URL="$WP_REST_URL/wp/v2/plugins"
           AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
+          FAILED=0
           for PLUGIN in redis-queue/redis-queue cdcf-redis-translations/cdcf-redis-translations; do
             SLUG=$(echo "$PLUGIN" | tr '/' '%2F')
             STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
@@ -275,4 +319,14 @@ jobs:
               -H "Content-Type: application/json" \
               -d '{"status":"active"}')
             echo "Activate $PLUGIN: HTTP $STATUS"
+            # Treat anything outside 2xx as a failure but keep going so the
+            # log shows the status of every plugin, not just the first failure.
+            if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
+              echo "::error::Failed to activate $PLUGIN (HTTP $STATUS)"
+              FAILED=1
+            fi
           done
+          if [ "$FAILED" -ne 0 ]; then
+            echo "One or more plugin activations failed; failing the deploy."
+            exit 1
+          fi
