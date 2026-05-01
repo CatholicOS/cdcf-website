@@ -146,9 +146,9 @@ jobs:
               "${VPS_USERNAME}@${VPS_HOST}" \
               "mkdir -p \"$APP_DIR\" && \
                tar -xzf /tmp/nextjs-bundle.tar.gz -C \"$APP_DIR\" && \
-               rm /tmp/nextjs-bundle.tar.gz && \
                mkdir -p \"$APP_DIR/tmp\" && \
-               touch \"$APP_DIR/tmp/restart.txt\""; then
+               touch \"$APP_DIR/tmp/restart.txt\" && \
+               rm /tmp/nextjs-bundle.tar.gz"; then
               echo "SSH succeeded on attempt $attempt"
               exit 0
             fi
@@ -173,10 +173,9 @@ jobs:
               "${VPS_USERNAME}@${VPS_HOST}" \
               "mkdir -p \"$WP_THEME_DIR\" && \
                tar -xzf /tmp/wp-theme.tar.gz -C \"$WP_THEME_DIR\" && \
-               rm /tmp/wp-theme.tar.gz && \
                mkdir -p \"$WP_PLUGINS_DIR/cdcf-redis-translations\" && \
                tar -xzf /tmp/wp-plugin-redis-translations.tar.gz -C \"$WP_PLUGINS_DIR/cdcf-redis-translations\" && \
-               rm /tmp/wp-plugin-redis-translations.tar.gz"; then
+               rm /tmp/wp-theme.tar.gz /tmp/wp-plugin-redis-translations.tar.gz"; then
               echo "SSH succeeded on attempt $attempt"
               exit 0
             fi
