@@ -63,6 +63,7 @@ export default async function CatchAllPage({ params }: PageProps) {
       isLogoSymbolism={isLogoSymbolism}
       fishExplanationHtml={fishExplanation?.content ?? undefined}
       childPages={childPages}
+      parentPath={pageSlug}
     />
   )
 }
