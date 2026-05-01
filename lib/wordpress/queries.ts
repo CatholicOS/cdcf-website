@@ -422,6 +422,10 @@ export const GET_ALL_PAGES = `
         slug
         uri
         modified
+        translations {
+          language { code }
+          uri
+        }
       }
     }
   }

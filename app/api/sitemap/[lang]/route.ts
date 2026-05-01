@@ -18,8 +18,11 @@ function buildUrl(locale: string, path: string): string {
   return `${baseUrl}${prefix}${cleanPath}`
 }
 
-function buildAlternateLinks(path: string): string {
-  return locales
+function buildAlternateLinks(
+  path: string,
+  alternateLocales: readonly string[] = locales
+): string {
+  return alternateLocales
     .map(
       (locale) =>
         `      <xhtml:link rel="alternate" hreflang="${locale}" href="${buildUrl(locale, path)}" />`
@@ -32,14 +35,15 @@ function urlEntry(
   lastmod: string,
   changefreq: string,
   priority: number,
-  path: string
+  path: string,
+  alternateLocales?: readonly string[]
 ): string {
   return `  <url>
     <loc>${loc}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>${changefreq}</changefreq>
     <priority>${priority.toFixed(1)}</priority>
-${buildAlternateLinks(path)}
+${buildAlternateLinks(path, alternateLocales)}
   </url>`
 }
 
@@ -62,7 +66,7 @@ export async function GET(
   const entries: string[] = []
 
   for (const page of pages) {
-    const uri = page.uri === '/' ? '/' : page.uri
+    const uri = page.enUri === '/' ? '/' : page.enUri
     const isHome = uri === '/'
     entries.push(
       urlEntry(
@@ -70,7 +74,8 @@ export async function GET(
         page.modified,
         'weekly',
         isHome ? 1.0 : 0.8,
-        uri
+        uri,
+        page.availableLocales
       )
     )
   }

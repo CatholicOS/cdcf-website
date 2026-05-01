@@ -151,16 +151,37 @@ export async function getAcademicCollaboration(
   }
 }
 
+export interface WPSitemapPage {
+  enUri: string
+  modified: string
+  availableLocales: string[]
+}
+
+interface RawAllPagesNode {
+  slug: string
+  uri: string
+  modified: string
+  translations?: { language: { code: string }; uri: string }[]
+}
+
 export async function getAllPages(
   locale: string,
   options?: FetchOptions
-): Promise<{ slug: string; uri: string; modified: string }[]> {
+): Promise<WPSitemapPage[]> {
   try {
     const data = await wpQuery<{
-      pages: { nodes: { slug: string; uri: string; modified: string }[] }
+      pages: { nodes: RawAllPagesNode[] }
     }>(GET_ALL_PAGES, { language: langCode(locale) }, options)
 
-    return data.pages.nodes
+    return data.pages.nodes.map((node) => {
+      const enUri =
+        locale === 'en'
+          ? node.uri
+          : node.translations?.find((t) => t.language.code === 'EN')?.uri ?? node.uri
+      const otherLocales = node.translations?.map((t) => t.language.code.toLowerCase()) ?? []
+      const availableLocales = Array.from(new Set([locale, ...otherLocales]))
+      return { enUri, modified: node.modified, availableLocales }
+    })
   } catch (error) {
     console.error('Failed to fetch all pages:', error)
     return []
