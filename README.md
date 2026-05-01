@@ -1,5 +1,11 @@
 # Catholic Digital Commons Foundation — Website CMS
 
+[![Next.js](https://img.shields.io/github/package-json/dependency-version/CatholicOS/cdcf-website/next?label=Next.js&logo=nextdotjs&color=000000)](https://nextjs.org)
+[![React](https://img.shields.io/github/package-json/dependency-version/CatholicOS/cdcf-website/react?label=React&logo=react&color=61DAFB&logoColor=white)](https://react.dev)
+[![TypeScript](https://img.shields.io/github/package-json/dependency-version/CatholicOS/cdcf-website/dev/typescript?label=TypeScript&logo=typescript&color=3178C6&logoColor=white)](https://www.typescriptlang.org)
+[![Tailwind CSS](https://img.shields.io/github/package-json/dependency-version/CatholicOS/cdcf-website/dev/tailwindcss?label=Tailwind%20CSS&logo=tailwindcss&color=06B6D4&logoColor=white)](https://tailwindcss.com)
+[![PR Build](https://github.com/CatholicOS/cdcf-website/actions/workflows/pr-build.yml/badge.svg?branch=main)](https://github.com/CatholicOS/cdcf-website/actions/workflows/pr-build.yml)
+
 The official website for the **Catholic Digital Commons Foundation (CDCF)**, built with Next.js and headless WordPress. This site serves as the public-facing portal for the foundation, showcasing projects, community resources, news, and governance information.
 
 ## Tech Stack
