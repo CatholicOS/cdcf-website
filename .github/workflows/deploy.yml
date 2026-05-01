@@ -84,12 +84,21 @@ jobs:
       - name: Setup SSH key
         env:
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_HOST_KEY: ${{ vars.VPS_HOST_KEY }}
         run: |
           mkdir -p ~/.ssh
           echo "$VPS_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          # Pinned host key from the VPS_HOST_KEY repo variable. Capture
+          # once with `ssh-keyscan <host>` and store as a multi-line repo
+          # variable; if the server's host key ever rotates, regenerate
+          # and update the variable.
+          if [ -z "$VPS_HOST_KEY" ]; then
+            echo "ERROR: VPS_HOST_KEY repo variable is empty. Refusing to deploy without a pinned host key."
+            exit 1
+          fi
+          echo "$VPS_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
       - name: Upload Next.js bundle
         env:
