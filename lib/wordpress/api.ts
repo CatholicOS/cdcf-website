@@ -169,9 +169,15 @@ export async function getAllPages(
 
 export interface WPChildPage {
   title: string
-  slug: string
-  uri: string
+  enSlug: string
   modified: string
+}
+
+interface RawChildPage {
+  title: string
+  slug: string
+  modified: string
+  translations?: { language: { code: string }; slug: string }[]
 }
 
 export async function getChildPages(
@@ -181,10 +187,16 @@ export async function getChildPages(
 ): Promise<WPChildPage[]> {
   try {
     const data = await wpQuery<{
-      pages: { nodes: WPChildPage[] }
+      pages: { nodes: RawChildPage[] }
     }>(GET_CHILD_PAGES, { parentId: parentDatabaseId, language: langCode(locale) }, options)
 
-    return data.pages.nodes
+    return data.pages.nodes.map((node) => {
+      const enSlug =
+        locale === 'en'
+          ? node.slug
+          : node.translations?.find((t) => t.language.code === 'EN')?.slug ?? node.slug
+      return { title: node.title, enSlug, modified: node.modified }
+    })
   } catch (error) {
     console.error('Failed to fetch child pages:', error)
     return []

@@ -24,6 +24,7 @@ interface PageRendererProps {
   isLogoSymbolism?: boolean
   fishExplanationHtml?: string
   childPages?: WPChildPage[]
+  parentPath?: string
 }
 
 export default async function PageRenderer({
@@ -34,6 +35,7 @@ export default async function PageRenderer({
   isLogoSymbolism,
   fishExplanationHtml,
   childPages = [],
+  parentPath = '/',
 }: PageRendererProps) {
   const template = page.template?.templateName || 'Default'
   const t = await getTranslations('about')
@@ -52,9 +54,9 @@ export default async function PageRenderer({
       {template === 'About' && renderAbout(page, t)}
       {template === 'Projects' && renderProjects(page, projects, await getTranslations('projects'))}
       {template === 'Community' && renderCommunity(page, await getTranslations('community'))}
-      {template === 'Blog' && renderBlog(page, posts)}
+      {template === 'Blog' && renderBlog(posts)}
       {template === 'Contact' && renderContact(page)}
-      {template === 'Governance TOC' && renderGovernanceTOC(page, childPages)}
+      {template === 'Governance TOC' && renderGovernanceTOC(page, childPages, parentPath)}
       {template === 'Default' && renderDefault(page, isLogoSymbolism, fishExplanationHtml)}
 
       {/* CTA — shared across templates that use it */}
@@ -181,7 +183,7 @@ function renderCommunity(page: WPPage, t: (key: string) => string) {
   )
 }
 
-function renderBlog(page: WPPage, posts: WPPost[]) {
+function renderBlog(posts: WPPost[]) {
   return <BlogFeed posts={posts} />
 }
 
@@ -199,13 +201,13 @@ function renderContact(page: WPPage) {
   )
 }
 
-function renderGovernanceTOC(page: WPPage, childPages: WPChildPage[]) {
+function renderGovernanceTOC(page: WPPage, childPages: WPChildPage[], parentPath: string) {
   return (
     <>
       {page.content && (
         <TextSection heading="" body={page.content} />
       )}
-      <GovernanceTOC pages={childPages} />
+      <GovernanceTOC pages={childPages} parentPath={parentPath} />
     </>
   )
 }

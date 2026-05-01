@@ -3,16 +3,20 @@ import type { WPChildPage } from '@/lib/wordpress/api'
 
 interface GovernanceTOCProps {
   pages: WPChildPage[]
+  parentPath: string
   heading?: string
   description?: string
 }
 
 export default function GovernanceTOC({
   pages,
+  parentPath,
   heading,
   description,
 }: GovernanceTOCProps) {
   if (pages.length === 0) return null
+
+  const base = parentPath && parentPath !== '/' ? `/${parentPath}` : ''
 
   return (
     <section className="py-16 sm:py-20">
@@ -33,8 +37,8 @@ export default function GovernanceTOC({
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {pages.map((page) => (
             <Link
-              key={page.slug}
-              href={page.uri}
+              key={page.enSlug}
+              href={`${base}/${page.enSlug}`}
               className="group rounded-lg border border-gray-200 p-6 transition-all hover:border-cdcf-gold hover:shadow-md"
             >
               <h3 className="font-serif text-lg font-bold text-cdcf-navy transition-colors group-hover:text-cdcf-gold">

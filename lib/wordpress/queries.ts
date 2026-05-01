@@ -406,8 +406,11 @@ export const GET_CHILD_PAGES = `
       nodes {
         title
         slug
-        uri
         modified
+        translations {
+          language { code }
+          slug
+        }
       }
     }
   }
