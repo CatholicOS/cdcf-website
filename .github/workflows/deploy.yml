@@ -100,6 +100,70 @@ jobs:
           echo "$VPS_HOST_KEY" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
+      - name: Sanity-check pinned host key against DNS SSHFP records
+        # Non-fatal drift check. The pinned VPS_HOST_KEY is the trust
+        # anchor; this step compares it against the SSHFP records
+        # published in DNS for catholicdigitalcommons.org and emits
+        # GitHub-Actions warnings on any divergence so we notice if:
+        #   - the pin is stale (server rotated, DNS was updated, but
+        #     VPS_HOST_KEY wasn't)
+        #   - or DNS lags reality (we re-pinned but DNS hasn't been
+        #     re-published)
+        # Either way, deploys keep running on the pinned key.
+        env:
+          VPS_HOST_KEY: ${{ vars.VPS_HOST_KEY }}
+          SSHFP_HOST: catholicdigitalcommons.org
+        run: |
+          if ! command -v dig >/dev/null; then
+            echo "::warning::dig not available; skipping SSHFP drift check."
+            exit 0
+          fi
+
+          # SHA-256 hex fingerprint of each pinned key's raw blob
+          # (uppercase, sorted, deduped). known_hosts lines are
+          # `<host> <keytype> <base64-key> [comment]`.
+          PIN_FPS=$(printf '%s\n' "$VPS_HOST_KEY" \
+            | awk '$2 ~ /^(ssh-|ecdsa-)/' \
+            | while read -r _host _alg keyb64 _; do
+                printf '%s' "$keyb64" | base64 -d 2>/dev/null | sha256sum | awk '{print toupper($1)}'
+              done \
+            | sort -u)
+
+          # SHA-256 SSHFP records (hashtype 2). dig may split long
+          # hashes with a space; strip it before comparison.
+          DNS_FPS=$(dig +short SSHFP "$SSHFP_HOST" \
+            | awk '$2 == "2" {for (i=3; i<=NF; i++) printf "%s", $i; print ""}' \
+            | tr -d ' ' \
+            | tr 'a-f' 'A-F' \
+            | sort -u)
+
+          if [ -z "$DNS_FPS" ]; then
+            echo "::warning::No SHA-256 SSHFP records found for $SSHFP_HOST; skipping drift check."
+            exit 0
+          fi
+          if [ -z "$PIN_FPS" ]; then
+            echo "::warning::Could not derive any fingerprints from VPS_HOST_KEY; skipping drift check."
+            exit 0
+          fi
+
+          PIN_NOT_IN_DNS=$(comm -23 <(echo "$PIN_FPS") <(echo "$DNS_FPS"))
+          DNS_NOT_IN_PIN=$(comm -13 <(echo "$PIN_FPS") <(echo "$DNS_FPS"))
+
+          if [ -n "$PIN_NOT_IN_DNS" ]; then
+            while IFS= read -r fp; do
+              echo "::warning::Pinned key SHA256:$fp not in DNS SSHFP for $SSHFP_HOST. Either DNS lags reality or VPS_HOST_KEY is stale."
+            done <<< "$PIN_NOT_IN_DNS"
+          fi
+          if [ -n "$DNS_NOT_IN_PIN" ]; then
+            while IFS= read -r fp; do
+              echo "::warning::DNS SSHFP advertises SHA256:$fp which is NOT in pinned VPS_HOST_KEY. Server may have rotated; consider regenerating the pin."
+            done <<< "$DNS_NOT_IN_PIN"
+          fi
+
+          if [ -z "$PIN_NOT_IN_DNS" ] && [ -z "$DNS_NOT_IN_PIN" ]; then
+            echo "Pin matches DNS SSHFP records for $SSHFP_HOST."
+          fi
+
       - name: Upload Next.js bundle
         env:
           VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
