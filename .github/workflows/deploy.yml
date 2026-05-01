@@ -61,11 +61,18 @@ jobs:
         # var was missing, prod deploys would silently fall back to the
         # staging value. Resolve in shell with explicit non-empty checks
         # so misconfiguration surfaces here, before we build or deploy.
+        #
+        # Also validates the production-only WP_THEME_DIR / WP_PLUGINS_DIR
+        # vars (used directly in later production steps): if either were
+        # empty, `tar -xzf ... -C ""` would extract to the current
+        # directory on the VPS instead of failing, corrupting the deploy.
         env:
           SITE_URL_PROD: ${{ vars.NEXT_PUBLIC_SITE_URL_PROD }}
           SITE_URL_STAGING: ${{ vars.NEXT_PUBLIC_SITE_URL_STAGING }}
           APP_DIR_PROD: ${{ vars.VPS_APP_DIR }}
           APP_DIR_STAGING: ${{ vars.VPS_STAGING_APP_DIR }}
+          WP_THEME_DIR: ${{ vars.WP_THEME_DIR }}
+          WP_PLUGINS_DIR: ${{ vars.WP_PLUGINS_DIR }}
         run: |
           case "$ENVIRONMENT" in
             production)
@@ -89,6 +96,20 @@ jobs:
           if [ -z "$APP_DIR" ]; then
             echo "ERROR: APP_DIR for $ENVIRONMENT is empty (expected vars.VPS_APP_DIR or vars.VPS_STAGING_APP_DIR)"
             exit 1
+          fi
+
+          # Production-only vars: validate now so later WP-extract steps
+          # don't silently extract to "" / the runner's current directory
+          # if these were misconfigured.
+          if [ "$ENVIRONMENT" = "production" ]; then
+            if [ -z "$WP_THEME_DIR" ]; then
+              echo "ERROR: vars.WP_THEME_DIR is empty (required for production)"
+              exit 1
+            fi
+            if [ -z "$WP_PLUGINS_DIR" ]; then
+              echo "ERROR: vars.WP_PLUGINS_DIR is empty (required for production)"
+              exit 1
+            fi
           fi
 
           {
