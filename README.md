@@ -4,7 +4,7 @@ The official website for the **Catholic Digital Commons Foundation (CDCF)**, bui
 
 ## Tech Stack
 
-- **Framework:** Next.js 15 (App Router, React Server Components)
+- **Framework:** Next.js 16 (App Router, React Server Components)
 - **CMS:** WordPress (headless) with WPGraphQL + ACF + Polylang
 - **Styling:** Tailwind CSS v4 + custom CDCF brand system
 - **i18n:** next-intl (UI chrome) + Polylang (CMS content)
@@ -289,32 +289,70 @@ You can set this up as a WordPress publish hook (e.g. via the WP Webhooks plugin
 
 ## Deployment
 
-### Production Architecture
+### Production and Staging Architecture
 
-Production runs natively on a Plesk-managed server (no Docker) with two subdomains:
+Production and staging both run natively on the same Plesk-managed server (no Docker) on three subdomains:
 
-- **`catholicdigitalcommons.org`** — Next.js frontend (standalone build running via Node.js)
+- **`catholicdigitalcommons.org`** — production Next.js frontend (standalone build, Node.js)
+- **`staging.catholicdigitalcommons.org`** — staging Next.js frontend (separate standalone build, same Node.js)
 - **`cms.catholicdigitalcommons.org`** — WordPress admin backend (PHP-FPM managed by Plesk)
 
-WordPress and Next.js share the same MariaDB instance already running on the server. Plesk manages Nginx, SSL certificates, and PHP-FPM.
+**Staging shares the production WordPress backend.** That keeps the staging environment lightweight (no second WP install or DB), but it also means staging-only theme/plugin testing isn't possible — both environments see the same CMS code at any moment. The deploy workflow only ships the Next.js bundle to staging for that reason.
 
-The Next.js app fetches content from WordPress via `WP_GRAPHQL_URL=https://cms.catholicdigitalcommons.org/graphql`. The WordPress theme's CORS headers (registered in `functions.php`) allow cross-origin GraphQL requests from the frontend subdomain.
+`proxy.ts` sets `X-Robots-Tag: noindex, nofollow` on every response from any host other than `catholicdigitalcommons.org` / `www.catholicdigitalcommons.org`, so staging (and any preview / one-off subdomain) is never indexed by search engines.
+
+The Next.js apps fetch content from WordPress via `WP_GRAPHQL_URL=https://cms.catholicdigitalcommons.org/graphql`. The WordPress theme's CORS headers (registered in `functions.php`) allow cross-origin GraphQL requests from both the production and staging frontends.
+
+Per-environment runtime env vars (`WP_GRAPHQL_URL`, `WP_PREVIEW_SECRET`, etc.) are configured in the **Plesk panel** for each Node.js app, not in `.env.local` files on disk. `NEXT_PUBLIC_SITE_URL` is per-environment too but is **baked into the client bundle at build time** (different value per workflow run, see below).
 
 ### GitHub Actions CI/CD
 
-The deploy workflow (`.github/workflows/deploy.yml`) triggers when a GitHub release is published. It builds the Next.js standalone output in CI, then SCPs the artifacts to the VPS (no repo clone needed on the server).
+The deploy workflow (`.github/workflows/deploy.yml`) is unified for both environments:
 
-**Required GitHub Secrets:**
+- **`release: published`** — automatically deploys to **production**
+- **`workflow_dispatch`** — user picks `production` or `staging` (default: `staging`)
+
+Production-only steps (WP theme + plugin tarballs, plugin activation) are gated behind an environment check. Staging deploys ship only the Next.js bundle so they can't overwrite production WordPress code.
+
+**Triggering deploys from the command line** (no UI dropdown needed):
+
+```bash
+# Deploy to staging (matches the dropdown default)
+gh workflow run deploy.yml --ref main -f environment=staging
+
+# Deploy to production
+gh workflow run deploy.yml --ref main -f environment=production
+
+# No -f → uses the workflow default (staging)
+gh workflow run deploy.yml --ref main
+```
+
+A separate workflow (`.github/workflows/pr-build.yml`) runs `next build` on every pull request as a required check, so build-only failures (file-name conflicts, missing imports, type errors) are caught pre-merge instead of at deploy time.
+
+**Required GitHub repository configuration:**
+
+Secrets (encrypted, used as credentials):
 
 | Secret | Description |
 |--------|-------------|
-| `WP_GRAPHQL_URL` | WordPress GraphQL endpoint (e.g. `https://cms.catholicdigitalcommons.org/graphql`) |
-| `WP_PREVIEW_SECRET` | Shared secret for preview/revalidation |
 | `VPS_HOST` | VPS IP address or hostname |
 | `VPS_USERNAME` | SSH username |
 | `VPS_SSH_KEY` | SSH private key for deployment |
-| `VPS_APP_DIR` | Directory on the VPS where the Next.js standalone app runs |
-| `WP_THEME_DIR` | WordPress theme directory (e.g. `/var/www/vhosts/.../wp-content/themes/cdcf-headless`) |
+| `WP_APP_USERNAME` | WordPress application-password username (for plugin activation) |
+| `WP_APP_PASSWORD` | WordPress application password |
+
+Variables (plain config, visible in workflow logs):
+
+| Variable | Description |
+|----------|-------------|
+| `WP_GRAPHQL_URL` | WordPress GraphQL endpoint (e.g. `https://cms.catholicdigitalcommons.org/graphql`) |
+| `WP_REST_URL` | WordPress REST root (e.g. `https://cms.catholicdigitalcommons.org/wp-json`) |
+| `NEXT_PUBLIC_SITE_URL_PROD` | Public URL of the production site (e.g. `https://catholicdigitalcommons.org`) |
+| `NEXT_PUBLIC_SITE_URL_STAGING` | Public URL of the staging site (e.g. `https://staging.catholicdigitalcommons.org`) |
+| `VPS_APP_DIR` | Production Next.js app directory on the VPS |
+| `VPS_STAGING_APP_DIR` | Staging Next.js app directory on the VPS |
+| `WP_THEME_DIR` | WordPress theme directory (e.g. `/var/www/vhosts/.../wp-content/themes`) |
+| `WP_PLUGINS_DIR` | WordPress plugins directory (e.g. `/var/www/vhosts/.../wp-content/plugins`) |
 
 ### Docker (Local Development Only)
 
