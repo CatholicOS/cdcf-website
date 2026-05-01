@@ -434,3 +434,42 @@ export const GET_ALL_PAGES = `
   }
 `
 
+// ─── Posts query (sitemap) ──────────────────────────────────────────
+
+export const GET_POSTS_FOR_SITEMAP = `
+  query GetPostsForSitemap($language: LanguageCodeFilterEnum) {
+    posts(where: { language: $language }, first: 1000) {
+      nodes {
+        slug
+        date
+        modified
+        postSettings {
+          hideFromBlog
+        }
+        translations {
+          language { code }
+          slug
+        }
+      }
+    }
+  }
+`
+
+// ─── Projects query (sitemap) ───────────────────────────────────────
+
+export const GET_PROJECTS_FOR_SITEMAP = `
+  query GetProjectsForSitemap($language: LanguageCodeFilterEnum) {
+    projects(where: { language: $language }, first: 100) {
+      nodes {
+        slug
+        date
+        modified
+        translations {
+          language { code }
+          slug
+        }
+      }
+    }
+  }
+`
+

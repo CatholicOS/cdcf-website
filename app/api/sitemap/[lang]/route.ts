@@ -1,6 +1,10 @@
 import { NextRequest } from 'next/server'
 import { locales, defaultLocale } from '@/src/i18n/routing'
-import { getAllPages, getPosts, getProjects } from '@/lib/wordpress/api'
+import {
+  getAllPages,
+  getPostsForSitemap,
+  getProjectsForSitemap,
+} from '@/lib/wordpress/api'
 
 export const revalidate = 3600
 
@@ -30,6 +34,18 @@ function buildAlternateLinks(
     .join('\n')
 }
 
+function buildAlternateLinksByLocale(pathByLocale: Map<string, string>): string {
+  const lines: string[] = []
+  for (const locale of locales) {
+    const path = pathByLocale.get(locale)
+    if (path === undefined) continue
+    lines.push(
+      `      <xhtml:link rel="alternate" hreflang="${locale}" href="${buildUrl(locale, path)}" />`
+    )
+  }
+  return lines.join('\n')
+}
+
 function urlEntry(
   loc: string,
   lastmod: string,
@@ -47,6 +63,22 @@ ${buildAlternateLinks(path, alternateLocales)}
   </url>`
 }
 
+function urlEntryByLocale(
+  loc: string,
+  lastmod: string,
+  changefreq: string,
+  priority: number,
+  pathByLocale: Map<string, string>
+): string {
+  return `  <url>
+    <loc>${loc}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>${changefreq}</changefreq>
+    <priority>${priority.toFixed(1)}</priority>
+${buildAlternateLinksByLocale(pathByLocale)}
+  </url>`
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ lang: string }> }
@@ -59,8 +91,8 @@ export async function GET(
 
   const [pages, posts, projects] = await Promise.all([
     getAllPages(lang, { tags: ['sitemap'] }),
-    getPosts(lang, 1000, { tags: ['sitemap'] }),
-    getProjects(lang, { tags: ['sitemap'] }),
+    getPostsForSitemap(lang, { tags: ['sitemap'] }),
+    getProjectsForSitemap(lang, { tags: ['sitemap'] }),
   ])
 
   const entries: string[] = []
@@ -80,22 +112,42 @@ export async function GET(
     )
   }
 
+  const knownLocales = new Set<string>(locales)
+
   for (const post of posts) {
-    const path = `/blog/${post.slug}`
+    const ownPath = `/blog/${post.slug}`
+    const pathByLocale = new Map<string, string>([[lang, ownPath]])
+    for (const t of post.translations) {
+      if (knownLocales.has(t.code)) {
+        pathByLocale.set(t.code, `/blog/${t.slug}`)
+      }
+    }
     entries.push(
-      urlEntry(buildUrl(lang, path), post.date, 'daily', 0.6, path)
+      urlEntryByLocale(
+        buildUrl(lang, ownPath),
+        post.modified,
+        'daily',
+        0.6,
+        pathByLocale
+      )
     )
   }
 
   for (const project of projects) {
-    const path = `/projects/${project.slug}`
+    const ownPath = `/projects/${project.slug}`
+    const pathByLocale = new Map<string, string>([[lang, ownPath]])
+    for (const t of project.translations) {
+      if (knownLocales.has(t.code)) {
+        pathByLocale.set(t.code, `/projects/${t.slug}`)
+      }
+    }
     entries.push(
-      urlEntry(
-        buildUrl(lang, path),
-        new Date().toISOString(),
+      urlEntryByLocale(
+        buildUrl(lang, ownPath),
+        project.modified,
         'weekly',
         0.6,
-        path
+        pathByLocale
       )
     )
   }

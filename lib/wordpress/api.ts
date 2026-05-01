@@ -6,7 +6,9 @@ import {
   GET_PAGE_BY_SLUG,
   GET_POST_BY_SLUG,
   GET_POSTS,
+  GET_POSTS_FOR_SITEMAP,
   GET_PROJECTS,
+  GET_PROJECTS_FOR_SITEMAP,
   GET_PROJECT_BY_SLUG,
   GET_SPONSORS,
 } from './queries'
@@ -184,6 +186,81 @@ export async function getAllPages(
     })
   } catch (error) {
     console.error('Failed to fetch all pages:', error)
+    return []
+  }
+}
+
+export interface WPSitemapPost {
+  slug: string
+  modified: string
+  translations: { code: string; slug: string }[]
+}
+
+interface RawSitemapPost {
+  slug: string
+  date: string
+  modified?: string | null
+  postSettings?: { hideFromBlog?: boolean | null } | null
+  translations?: { language: { code: string }; slug: string }[]
+}
+
+export async function getPostsForSitemap(
+  locale: string,
+  options?: FetchOptions
+): Promise<WPSitemapPost[]> {
+  try {
+    const data = await wpQuery<{
+      posts: { nodes: RawSitemapPost[] }
+    }>(GET_POSTS_FOR_SITEMAP, { language: langCode(locale) }, options)
+
+    return data.posts.nodes
+      .filter((p) => !p.postSettings?.hideFromBlog)
+      .map((p) => ({
+        slug: p.slug,
+        modified: p.modified ?? p.date,
+        translations: (p.translations ?? []).map((t) => ({
+          code: t.language.code.toLowerCase(),
+          slug: t.slug,
+        })),
+      }))
+  } catch (error) {
+    console.error('Failed to fetch posts for sitemap:', error)
+    return []
+  }
+}
+
+export interface WPSitemapProject {
+  slug: string
+  modified: string
+  translations: { code: string; slug: string }[]
+}
+
+interface RawSitemapProject {
+  slug: string
+  date: string
+  modified?: string | null
+  translations?: { language: { code: string }; slug: string }[]
+}
+
+export async function getProjectsForSitemap(
+  locale: string,
+  options?: FetchOptions
+): Promise<WPSitemapProject[]> {
+  try {
+    const data = await wpQuery<{
+      projects: { nodes: RawSitemapProject[] }
+    }>(GET_PROJECTS_FOR_SITEMAP, { language: langCode(locale) }, options)
+
+    return data.projects.nodes.map((p) => ({
+      slug: p.slug,
+      modified: p.modified ?? p.date,
+      translations: (p.translations ?? []).map((t) => ({
+        code: t.language.code.toLowerCase(),
+        slug: t.slug,
+      })),
+    }))
+  } catch (error) {
+    console.error('Failed to fetch projects for sitemap:', error)
     return []
   }
 }
