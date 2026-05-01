@@ -332,15 +332,17 @@ jobs:
           # Activate plugins idempotently. GET current status first and only
           # POST when it isn't already "active". Each POST triggers
           # flush_rewrite_rules() in WP, which rewrites .htaccess and
-          # briefly desyncs Plesk's nginx mirror — that race is the root
-          # cause of the /wp-json/* 404 wave during deploys (issue #41).
+          # briefly desyncs Plesk's nginx mirror — that race is the
+          # suspected cause of the /wp-json/* 404 wave during deploys
+          # (issue #41).
           WP_URL="$WP_REST_URL/wp/v2/plugins"
           AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
           FAILED=0
           for PLUGIN in redis-queue/redis-queue cdcf-redis-translations/cdcf-redis-translations; do
             SLUG=$(echo "$PLUGIN" | tr '/' '%2F')
 
-            CURRENT=$(curl -s -w '\n%{http_code}' \
+            CURRENT=$(curl -sS -w '\n%{http_code}' \
+              --connect-timeout 10 --max-time 30 \
               -X GET "$WP_URL/$SLUG" \
               -H "Authorization: Basic $AUTH")
             GET_STATUS=$(echo "$CURRENT" | tail -n1)
@@ -354,20 +356,15 @@ jobs:
 
             # Extract the "status" field. Falls back to "unknown" on parse
             # failure, which forces the activate path (safe default).
-            CURRENT_STATUS=$(echo "$BODY" | python3 -c '
-import json, sys
-try:
-    print(json.load(sys.stdin).get("status", "unknown"))
-except Exception:
-    print("unknown")
-' 2>/dev/null || echo unknown)
+            CURRENT_STATUS=$(echo "$BODY" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("status", "unknown"))' 2>/dev/null || echo unknown)
 
             if [ "$CURRENT_STATUS" = "active" ]; then
               echo "Skip $PLUGIN: already active"
               continue
             fi
 
-            STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
+            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' \
+              --connect-timeout 10 --max-time 30 \
               -X POST "$WP_URL/$SLUG" \
               -H "Authorization: Basic $AUTH" \
               -H "Content-Type: application/json" \
