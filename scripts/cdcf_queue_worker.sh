@@ -75,6 +75,14 @@ if [ -z "$WP_REST_URL" ] || [ -z "$WP_APP_USERNAME" ] || [ -z "$WP_APP_PASSWORD"
     exit 1
 fi
 
+# Required for in_maintenance() — without this the worker silently
+# ignores the deploy-time pause flag and keeps hitting FPM during
+# deploys (the very condition this whole feature is meant to prevent).
+if ! command -v redis-cli >/dev/null 2>&1; then
+    echo "ERROR: redis-cli not found in PATH. Install it (Debian/Ubuntu: 'sudo apt install redis-tools'; RHEL: 'sudo dnf install redis')."
+    exit 1
+fi
+
 ENDPOINT="${WP_REST_URL}/cdcf/v1/process-queue"
 AUTH=$(echo -n "${WP_APP_USERNAME}:${WP_APP_PASSWORD}" | base64)
 

@@ -85,7 +85,7 @@ All endpoints require Application Password authentication. Most endpoints requir
 | `POST` | `/team-member` | Create a team member with auto-translation and About page linking (see below) |
 | `POST` | `/community-channel` | Create a community channel with auto-translation and Community page linking (see below) |
 | `POST` | `/local-group` | Create a local group with auto-translation and Community page linking (see below) |
-| `POST` | `/maintenance` | Pause or resume the cdcf-queue-worker by setting/clearing a Redis flag (`{action: "begin"|"end", duration_seconds?: int}` — server-clamps duration to 60–600). Requires administrator (`manage_options`) capability. |
+| `POST` | `/maintenance` | Pause or resume the cdcf-queue-worker by setting/clearing a Redis flag. Body: `action` is `"begin"` or `"end"`; optional `duration_seconds` is clamped server-side to 60–600. Requires administrator (`manage_options`) capability. |
 | `POST` | `/academic-collaboration` | Create an academic collaboration with auto-translation and Community page linking (see below) |
 
 ### `POST /team-member`
