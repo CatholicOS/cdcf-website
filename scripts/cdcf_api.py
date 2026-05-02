@@ -355,12 +355,16 @@ class CdcfClient:
         resp.raise_for_status()
         return resp.json()
 
-    def maintenance(self, action: str, duration_seconds: int = 300) -> dict:
-        """Set or clear the deploy-time maintenance flag.
+    # -- Maintenance Flag --
 
-        action: 'begin' (sets cdcf:maintenance:until in Redis with a
-                clamped TTL) or 'end' (deletes the key).
-        duration_seconds: only used for 'begin'. Server clamps to [60, 600].
+    def maintenance(self, action: str, duration_seconds: int = 300) -> dict:
+        """POST /cdcf/v1/maintenance — set or clear the deploy-time maintenance flag.
+
+        action: 'begin' (sets cdcf:maintenance:until in Redis with a clamped
+                TTL) or 'end' (deletes the key). Validated by argparse at the
+                CLI layer; ValueError raised for invalid values when called
+                programmatically.
+        duration_seconds: only sent for 'begin'. Server clamps to [60, 600].
 
         Returns the endpoint response dict.
         """
