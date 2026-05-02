@@ -339,11 +339,11 @@ jobs:
           AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
           FAILED=0
           for PLUGIN in redis-queue/redis-queue cdcf-redis-translations/cdcf-redis-translations; do
-            SLUG=$(echo "$PLUGIN" | tr '/' '%2F')
-
+            # The WP REST plugins route expects a literal "/" in the slug;
+            # encoding it as %2F yields rest_plugin_not_found (404).
             CURRENT=$(curl -sS -w '\n%{http_code}' \
               --connect-timeout 10 --max-time 30 \
-              -X GET "$WP_URL/$SLUG" \
+              -X GET "$WP_URL/$PLUGIN" \
               -H "Authorization: Basic $AUTH")
             GET_STATUS=$(echo "$CURRENT" | tail -n1)
             BODY=$(echo "$CURRENT" | sed '$d')
@@ -365,7 +365,7 @@ jobs:
 
             STATUS=$(curl -sS -o /dev/null -w '%{http_code}' \
               --connect-timeout 10 --max-time 30 \
-              -X POST "$WP_URL/$SLUG" \
+              -X POST "$WP_URL/$PLUGIN" \
               -H "Authorization: Basic $AUTH" \
               -H "Content-Type: application/json" \
               -d '{"status":"active"}')
