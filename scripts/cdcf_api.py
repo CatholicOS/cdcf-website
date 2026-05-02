@@ -355,6 +355,22 @@ class CdcfClient:
         resp.raise_for_status()
         return resp.json()
 
+    def maintenance(self, action: str, duration_seconds: int = 300) -> dict:
+        """Set or clear the deploy-time maintenance flag.
+
+        action: 'begin' (sets cdcf:maintenance:until in Redis with a
+                clamped TTL) or 'end' (deletes the key).
+        duration_seconds: only used for 'begin'. Server clamps to [60, 600].
+
+        Returns the endpoint response dict.
+        """
+        if action not in ("begin", "end"):
+            raise ValueError(f"action must be 'begin' or 'end', got {action!r}")
+        payload: dict = {"action": action}
+        if action == "begin":
+            payload["duration_seconds"] = int(duration_seconds)
+        return self._wp_post("cdcf/v1/maintenance", payload)
+
 
 # ---------------------------------------------------------------------------
 # CLI
@@ -471,6 +487,14 @@ def _build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("revalidate", help="Revalidate Next.js cache")
     p.add_argument("--path", help="Path to revalidate")
     p.add_argument("--tags", nargs="*", help="Cache tags to revalidate")
+
+    # maintenance
+    p = sub.add_parser("maintenance",
+                       help="Pause/resume the cdcf-queue-worker via Redis flag")
+    p.add_argument("--action", required=True, choices=["begin", "end"])
+    p.add_argument("--duration", type=int, default=300,
+                   help="Seconds to pause for (clamped server-side to 60-600). "
+                        "Only used with --action begin. Default: 300")
 
     # -- Post Meta / ACF Fields --
 
@@ -627,6 +651,9 @@ def _run_cli(args: argparse.Namespace, client: CdcfClient) -> dict:
 
     if cmd == "revalidate":
         return client.revalidate(path=args.path, tags=args.tags)
+
+    if cmd == "maintenance":
+        return client.maintenance(args.action, args.duration)
 
     if cmd == "get-post":
         return client.get_post(args.post_id, args.post_type)
