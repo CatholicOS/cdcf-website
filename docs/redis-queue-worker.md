@@ -147,6 +147,63 @@ sudo chmod +x /usr/local/bin/cdcf_queue_worker.sh
 sudo systemctl restart cdcf-queue-worker
 ```
 
+## Maintenance mode
+
+The worker can be paused via a Redis flag. While the flag is set, the worker skips both `process_one` and `run_daily_tasks` and just sleeps `POLL_INTERVAL` seconds per cycle. This is used by the production deploy workflow to prevent the worker's parallel POSTs from competing with deploy-time WP traffic for FPM workers.
+
+### Setting and clearing the flag
+
+Via the WP REST API (the way the deploy workflow does it):
+
+```bash
+# Pause for 300 seconds
+curl -u "$WP_APP_USERNAME:$WP_APP_PASSWORD" \
+  -X POST "$WP_REST_URL/cdcf/v1/maintenance" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"begin","duration_seconds":300}'
+
+# Resume
+curl -u "$WP_APP_USERNAME:$WP_APP_PASSWORD" \
+  -X POST "$WP_REST_URL/cdcf/v1/maintenance" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"end"}'
+```
+
+Or via the Python CLI:
+
+```bash
+scripts/.venv/bin/python scripts/cdcf_api.py maintenance --action begin --duration 300
+scripts/.venv/bin/python scripts/cdcf_api.py maintenance --action end
+```
+
+Or directly via `redis-cli` on the VPS (operator-only):
+
+```bash
+redis-cli SETEX cdcf:maintenance:until 300 1
+redis-cli DEL cdcf:maintenance:until
+```
+
+The TTL is server-clamped to `[60, 600]` seconds. If `end` is never called, the flag self-expires within ≤600 seconds.
+
+### Expected log output
+
+The worker logs exactly one line per transition, never per cycle:
+
+```
+2026-05-02T12:00:00+00:00 Entering maintenance mode (worker paused)
+2026-05-02T12:02:30+00:00 Exiting maintenance mode (worker resumed)
+2026-05-02T12:02:45+00:00 Processed 3 job(s)
+```
+
+### Verifying during a deploy
+
+```bash
+journalctl -u cdcf-queue-worker -f
+# Expect one "Entering" then one "Exiting" line bracketing the deploy.
+# Compare 504 counts in the WP access log before/after the deploy day
+# to baseline (~10/day; bad days hit 200+).
+```
+
 ## Troubleshooting
 
 ### Worker logs show "WARNING: unexpected response"
