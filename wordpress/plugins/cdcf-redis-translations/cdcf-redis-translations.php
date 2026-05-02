@@ -56,7 +56,7 @@ add_action('rest_api_init', function () {
                 );
             }
 
-            if (!class_exists('Redis')) {
+            if (class_exists('Redis') === false) {
                 return new WP_Error(
                     'redis_unavailable',
                     'PHP Redis extension not installed',
@@ -66,7 +66,7 @@ add_action('rest_api_init', function () {
 
             try {
                 $redis = new Redis();
-                if (!$redis->connect('127.0.0.1', 6379, 1.0)) {
+                if ($redis->connect('127.0.0.1', 6379, 1.0) === false) {
                     return new WP_Error(
                         'redis_unavailable',
                         'Could not connect to Redis at 127.0.0.1:6379',
@@ -83,7 +83,7 @@ add_action('rest_api_init', function () {
             }
 
             // action === 'begin'
-            $duration = intval($request['duration_seconds'] ?? 300);
+            $duration = (int) ($request['duration_seconds'] ?? 300);
             $duration = max(60, min(600, $duration));
             $redis->setex('cdcf:maintenance:until', $duration, '1');
             return new WP_REST_Response([
