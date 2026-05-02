@@ -295,6 +295,35 @@ jobs:
           echo "All SSH attempts failed"
           exit 1
 
+      - name: Pause queue worker for deploy
+        if: env.ENVIRONMENT == 'production'
+        # When staging gets its own WP backend, also gate this step on
+        # env.ENVIRONMENT == 'staging' and route to the staging WP REST URL.
+        # Today staging shares the production backend, so only production
+        # deploys touch FPM hard enough to need the pause.
+        env:
+          WP_REST_URL: ${{ vars.WP_REST_URL }}
+          WP_APP_USERNAME: ${{ secrets.WP_APP_USERNAME }}
+          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+        run: |
+          AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
+          for attempt in 1 2 3; do
+            STATUS=$(curl -sS -o /tmp/maint-begin.json -w '%{http_code}' \
+              --connect-timeout 10 --max-time 30 \
+              -X POST "$WP_REST_URL/cdcf/v1/maintenance" \
+              -H "Authorization: Basic $AUTH" \
+              -H "Content-Type: application/json" \
+              -d '{"action":"begin","duration_seconds":300}')
+            if [ "$STATUS" = "200" ]; then
+              echo "Worker paused: $(cat /tmp/maint-begin.json)"
+              exit 0
+            fi
+            echo "Maintenance begin attempt $attempt failed (HTTP $STATUS)"
+            [ "$attempt" -lt 3 ] && sleep 5
+          done
+          echo "::error::Failed to pause queue worker; aborting deploy."
+          exit 1
+
       - name: Extract WP theme and plugin bundles
         if: env.ENVIRONMENT == 'production'
         env:
@@ -381,3 +410,29 @@ jobs:
             echo "One or more plugin activations failed; failing the deploy."
             exit 1
           fi
+
+      - name: Resume queue worker after deploy
+        if: always() && env.ENVIRONMENT == 'production'
+        env:
+          WP_REST_URL: ${{ vars.WP_REST_URL }}
+          WP_APP_USERNAME: ${{ secrets.WP_APP_USERNAME }}
+          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+        run: |
+          AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
+          for attempt in 1 2 3; do
+            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' \
+              --connect-timeout 10 --max-time 30 \
+              -X POST "$WP_REST_URL/cdcf/v1/maintenance" \
+              -H "Authorization: Basic $AUTH" \
+              -H "Content-Type: application/json" \
+              -d '{"action":"end"}')
+            if [ "$STATUS" = "200" ]; then
+              echo "Worker resumed."
+              exit 0
+            fi
+            echo "Maintenance end attempt $attempt failed (HTTP $STATUS)"
+            [ "$attempt" -lt 3 ] && sleep 5
+          done
+          # Don't exit 1 here — the TTL self-heals within 600s and failing
+          # this step would mask the real outcome of the deploy.
+          echo "::warning::Failed to resume queue worker; will self-heal via TTL within 600s."

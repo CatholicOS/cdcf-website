@@ -74,7 +74,7 @@ Uses `@import 'tailwindcss'` (not `@tailwind` directives). Custom utilities via 
 
 ## REST API Endpoints (`cdcf/v1`)
 
-All endpoints require Application Password authentication (`edit_posts` capability).
+All endpoints require Application Password authentication. Most endpoints require `edit_posts` capability; `/process-queue` and `/maintenance` require `manage_options` (administrator) — see the row notes where capability differs.
 
 | Method | Route | Description |
 |--------|-------|-------------|
@@ -85,6 +85,7 @@ All endpoints require Application Password authentication (`edit_posts` capabili
 | `POST` | `/team-member` | Create a team member with auto-translation and About page linking (see below) |
 | `POST` | `/community-channel` | Create a community channel with auto-translation and Community page linking (see below) |
 | `POST` | `/local-group` | Create a local group with auto-translation and Community page linking (see below) |
+| `POST` | `/maintenance` | Pause or resume the cdcf-queue-worker by setting/clearing a Redis flag. Body: `action` is `"begin"` or `"end"`; optional `duration_seconds` is clamped server-side to 60–600. Requires administrator (`manage_options`) capability. |
 | `POST` | `/academic-collaboration` | Create an academic collaboration with auto-translation and Community page linking (see below) |
 
 ### `POST /team-member`
@@ -169,6 +170,10 @@ scripts/.venv/bin/python scripts/cdcf_api.py rest-get wp/v2/posts --params '{"pe
 
 # Cache revalidation
 scripts/.venv/bin/python scripts/cdcf_api.py revalidate --path /about
+
+# Pause/resume the queue worker (used by the deploy workflow)
+scripts/.venv/bin/python scripts/cdcf_api.py maintenance --action begin --duration 300
+scripts/.venv/bin/python scripts/cdcf_api.py maintenance --action end
 ```
 
 See `docs/python-api-client.md` for full documentation of all commands and library usage.
