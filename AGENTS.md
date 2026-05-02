@@ -74,7 +74,7 @@ Uses `@import 'tailwindcss'` (not `@tailwind` directives). Custom utilities via 
 
 ## REST API Endpoints (`cdcf/v1`)
 
-All endpoints require Application Password authentication (`edit_posts` capability).
+All endpoints require Application Password authentication. Most endpoints require `edit_posts` capability; `/process-queue` and `/maintenance` require `manage_options` (administrator) — see the row notes where capability differs.
 
 | Method | Route | Description |
 |--------|-------|-------------|

@@ -85,7 +85,13 @@ add_action('rest_api_init', function () {
             // action === 'begin'
             $duration = (int) ($request['duration_seconds'] ?? 300);
             $duration = max(60, min(600, $duration));
-            $redis->setex('cdcf:maintenance:until', $duration, '1');
+            if ($redis->setex('cdcf:maintenance:until', $duration, '1') === false) {
+                return new WP_Error(
+                    'redis_write_failed',
+                    'Failed to set maintenance flag in Redis',
+                    ['status' => 500]
+                );
+            }
             return new WP_REST_Response([
                 'ok'       => true,
                 'until'    => time() + $duration,

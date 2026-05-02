@@ -33,7 +33,7 @@ Queue Worker (systemd service)
 - Redis server running on the production host
 - The `redis-queue` and `cdcf-redis-translations` WordPress plugins activated
 - A WordPress user with `manage_options` capability and an Application Password
-- `curl` and `python3` available on the server
+- `curl`, `python3`, and `redis-cli` available on the server (`redis-cli` is typically provided by the `redis-tools` package on Debian/Ubuntu or `redis` on RHEL-derived distros; the worker uses it to poll the maintenance flag — see "Maintenance mode" below)
 
 ## 1. Install the worker script
 
