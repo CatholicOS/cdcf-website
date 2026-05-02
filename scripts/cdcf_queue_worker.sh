@@ -133,6 +133,16 @@ except:
     fi
 }
 
+# ─── Maintenance flag check ──────────────────────────────────────────
+# Returns 0 (true) if the maintenance flag is set in Redis, 1 (false)
+# otherwise. Redis-unreachable counts as "not in maintenance" so a
+# Redis outage does not stall the worker indefinitely.
+in_maintenance() {
+    local result
+    result=$(redis-cli -h 127.0.0.1 -p 6379 -n 0 EXISTS cdcf:maintenance:until 2>/dev/null) || return 1
+    [ "$result" = "1" ]
+}
+
 # ─── Queue processing ────────────────────────────────────────────────
 
 # process_one fires a single REST call and logs the result.
@@ -187,7 +197,22 @@ except:
     fi
 }
 
+IN_MAINTENANCE=0
 while true; do
+    if in_maintenance; then
+        if [ "$IN_MAINTENANCE" = "0" ]; then
+            echo "$(date -Iseconds) Entering maintenance mode (worker paused)"
+            IN_MAINTENANCE=1
+        fi
+        sleep "${POLL_INTERVAL}"
+        continue
+    fi
+
+    if [ "$IN_MAINTENANCE" = "1" ]; then
+        echo "$(date -Iseconds) Exiting maintenance mode (worker resumed)"
+        IN_MAINTENANCE=0
+    fi
+
     run_daily_tasks
 
     if [ "$CONCURRENCY" -le 1 ]; then
