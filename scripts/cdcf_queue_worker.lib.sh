@@ -111,7 +111,7 @@ queue_is_empty() {
     now=$(date +%s)
     immediate=$(redis-cli -h 127.0.0.1 -p 6379 -n 0 ZCARD redis_queue:queue:default 2>/dev/null) || return 1
     delayed=$(redis-cli -h 127.0.0.1 -p 6379 -n 0 ZCOUNT redis_queue:delayed -inf "$now" 2>/dev/null) || return 1
-    [ $((immediate + delayed)) = "0" ]
+    (( immediate + delayed == 0 ))
 }
 
 # ─── Queue processing ────────────────────────────────────────────────

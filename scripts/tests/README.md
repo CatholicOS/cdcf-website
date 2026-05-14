@@ -70,7 +70,7 @@ Fresh checkouts of the repo need `git clone --recurse-submodules` (or `git submo
 
 ## File layout
 
-```
+```text
 scripts/tests/
 ├── README.md                       (this file)
 ├── bats/                           (submodule — bats-core runner, do not edit)
