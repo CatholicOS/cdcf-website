@@ -44,9 +44,13 @@ final class ProcessQueueHandlerTest extends TestCase
 
     public function test_redis_queue_unavailable_returns_200_with_error_payload(): void
     {
-        // No Brain Monkey stub for redis_queue() — PHP's
-        // function_exists('redis_queue') therefore returns false and the
-        // handler hits its early-return branch.
+        // Brain Monkey stubs from other tests may have eval-declared
+        // redis_queue() in the symbol table; force function_exists to
+        // return false so the handler hits its early-return branch.
+        Functions\when('function_exists')->alias(
+            fn(string $name): bool => $name !== 'redis_queue'
+        );
+
         $req = new WP_REST_Request();
         $response = cdcf_handle_process_queue($req);
 

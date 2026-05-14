@@ -1,6 +1,11 @@
 <?php
 require_once __DIR__ . '/../vendor/autoload.php';
 
+// Brain Monkey lazy-loads Patchwork on the first Monkey\setUp() call,
+// but Patchwork can only instrument files loaded AFTER it. Load it
+// here so it instruments includes/handlers.php below.
+require_once __DIR__ . '/../vendor/antecedent/patchwork/Patchwork.php';
+
 // Brain Monkey teardown is per-test in setUp/tearDown; nothing to do here.
 
 // Define ABSPATH so handlers.php (which guards with `defined('ABSPATH') || exit;`)
