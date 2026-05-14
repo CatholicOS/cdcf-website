@@ -235,4 +235,48 @@ final class MaintenanceHandlerTest extends TestCase
         $this->assertSame('redis_write_failed', $response->get_error_code());
         $this->assertSame(500, $response->get_error_data()['status']);
     }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function test_redis_throwable_does_not_leak_exception_message(): void
+    {
+        $req = new WP_REST_Request();
+        $req->set_param('action', 'begin');
+
+        // Force Redis::connect() to throw — exercises the catch (\Throwable $e)
+        // branch in cdcf_handle_maintenance.
+        $sensitive = '/var/secret/path/internal-detail.sock: Connection refused';
+        $redis = Mockery::mock('overload:Redis');
+        $redis->shouldReceive('connect')
+            ->once()
+            ->andThrow(new \RuntimeException($sensitive));
+
+        // The handler logs the detail via error_log() before returning.
+        // Capture the logged call so we can both (a) silence the write to
+        // STDERR (which PHPUnit's failOnWarning would otherwise convert
+        // into a test failure) and (b) assert that the sensitive detail
+        // is in fact logged server-side, not just suppressed.
+        $logged = '';
+        Functions\when('error_log')->alias(function ($msg) use (&$logged) {
+            $logged = (string) $msg;
+            return true;
+        });
+
+        $response = cdcf_handle_maintenance($req);
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('redis_unavailable', $response->get_error_code());
+        $this->assertSame(500, $response->get_error_data()['status']);
+
+        // The whole point of the catch block's rewrite: don't expose
+        // internal exception text to API clients.
+        $this->assertSame('Redis service unavailable', $response->get_error_message());
+        $this->assertStringNotContainsString($sensitive, $response->get_error_message());
+
+        // …and the corollary: the detail IS captured server-side for the
+        // operator. Logging the full message is the whole point of
+        // catching the exception in the first place.
+        $this->assertStringContainsString($sensitive, $logged);
+        $this->assertStringContainsString('RuntimeException', $logged);
+    }
 }

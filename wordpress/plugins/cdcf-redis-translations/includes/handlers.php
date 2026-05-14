@@ -80,7 +80,22 @@ function cdcf_handle_maintenance(WP_REST_Request $request) {
             );
         }
     } catch (\Throwable $e) {
-        return new WP_Error('redis_unavailable', $e->getMessage(), ['status' => 500]);
+        // Log internals (exception class, message, file:line) for the
+        // operator, return a generic message to the client so this REST
+        // endpoint doesn't leak server paths or PhpRedis internals to
+        // anyone past the manage_options gate.
+        error_log(sprintf(
+            'cdcf_handle_maintenance: Redis exception %s: %s (at %s:%d)',
+            get_class($e),
+            $e->getMessage(),
+            $e->getFile(),
+            $e->getLine()
+        ));
+        return new WP_Error(
+            'redis_unavailable',
+            'Redis service unavailable',
+            ['status' => 500]
+        );
     }
 
     if ($action === 'end') {
