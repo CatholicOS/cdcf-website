@@ -42,6 +42,32 @@ export function proxy(request: NextRequest) {
     ? NextResponse.next()
     : intlProxy(request)
 
+  // Fix Location header when next-intl produces a locale redirect.
+  // Under Plesk Passenger the upstream Node.js port (e.g. 3000) leaks
+  // into request.nextUrl.origin, which next-intl uses to construct
+  // the 307 redirect target — observed as
+  //   location: https://catholicdigitalcommons.org:3000/it
+  // when an Italian-speaking browser hits /. Public traffic only ever
+  // reaches us on the default HTTPS port, so the redirect should never
+  // carry an explicit port unless the Host header itself does (local
+  // dev: Host: localhost:3000). Rewrite to match the Host header port
+  // (empty for production / staging where Host has no port).
+  const hostHeader = (request.headers.get('host') ?? '').toLowerCase()
+  const hostHeaderPort = hostHeader.includes(':') ? hostHeader.split(':')[1] : ''
+  const location = response.headers.get('location')
+  if (location) {
+    try {
+      const url = new URL(location)
+      if (url.port && url.port !== hostHeaderPort) {
+        url.port = hostHeaderPort
+        response.headers.set('location', url.toString())
+      }
+    } catch {
+      // Location wasn't an absolute URL — middleware never produces
+      // relative Locations, so this branch is just defence in depth.
+    }
+  }
+
   // Apply noindex on any non-production host (staging, preview deploys,
   // raw IPs). Applied after intl middleware so robots.txt and sitemap on
   // staging also carry the header.
@@ -52,7 +78,7 @@ export function proxy(request: NextRequest) {
   // and would noindex production. The Host header is what nginx actually
   // forwards via `proxy_set_header Host $host` and is the only reliable
   // source of the incoming hostname in this topology.
-  const host = (request.headers.get('host') ?? '').toLowerCase().split(':')[0]
+  const host = hostHeader.split(':')[0]
   if (host && !INDEXABLE_HOSTS.has(host)) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow')
   }
