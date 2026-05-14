@@ -21,6 +21,7 @@
 - [ ] **Step 1: Confirm working tree is clean**
 
 Run:
+
 ```bash
 cd /home/johnrdorazio/development/CatholicOS_org/cdcf-website
 git status
@@ -33,6 +34,7 @@ If anything is uncommitted, stop and surface it to the user — don't auto-stash
 - [ ] **Step 2: Create and switch to the feature branch**
 
 Run:
+
 ```bash
 git checkout -b feature/auto-translate-public-submissions
 ```
@@ -42,6 +44,7 @@ Expected: `Switched to a new branch 'feature/auto-translate-public-submissions'`
 - [ ] **Step 3: Verify branch**
 
 Run:
+
 ```bash
 git branch --show-current
 ```
@@ -53,11 +56,13 @@ Expected output: `feature/auto-translate-public-submissions`.
 ## Task 2: Add `cdcf_is_public_submission()` helper
 
 **Files:**
+
 - Modify: `wordpress/themes/cdcf-headless/functions.php` — insert new section between line 4312 and line 4314 (between the close of the "Restore Public Submissions to Pending on Untrash" hook and the start of the "Project Submission: Meta Box" section)
 
 - [ ] **Step 1: Open functions.php and locate the insertion point**
 
 Run:
+
 ```bash
 grep -n "Project Submission: Meta Box" wordpress/themes/cdcf-headless/functions.php
 ```
@@ -109,6 +114,7 @@ function cdcf_is_public_submission(int $post_id): bool {
 - [ ] **Step 3: Verify the insertion is syntactically valid PHP**
 
 Run:
+
 ```bash
 docker compose exec -T wordpress php -l /var/www/html/wp-content/themes/cdcf-headless/functions.php
 ```
@@ -116,6 +122,7 @@ docker compose exec -T wordpress php -l /var/www/html/wp-content/themes/cdcf-hea
 Expected: `No syntax errors detected in /var/www/html/wp-content/themes/cdcf-headless/functions.php`.
 
 If Docker is not running, fall back to:
+
 ```bash
 php -l wordpress/themes/cdcf-headless/functions.php
 ```
@@ -125,6 +132,7 @@ If neither PHP is available, surface that to the user — do not proceed without
 - [ ] **Step 4: Commit**
 
 Run:
+
 ```bash
 git add wordpress/themes/cdcf-headless/functions.php
 git commit -m "$(cat <<'EOF'
@@ -145,6 +153,7 @@ EOF
 ## Task 3: Add `cdcf_enqueue_translations_for_submission()` helper
 
 **Files:**
+
 - Modify: `wordpress/themes/cdcf-headless/functions.php` — append the new function immediately after `cdcf_is_public_submission()` (inside the same "Auto-Translate Public Submissions on Approval" section).
 
 - [ ] **Step 1: Insert the second helper**
@@ -245,6 +254,7 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
 - [ ] **Step 2: Verify syntax**
 
 Run:
+
 ```bash
 docker compose exec -T wordpress php -l /var/www/html/wp-content/themes/cdcf-headless/functions.php
 ```
@@ -254,6 +264,7 @@ Expected: `No syntax errors detected ...`.
 - [ ] **Step 3: Commit**
 
 Run:
+
 ```bash
 git add wordpress/themes/cdcf-headless/functions.php
 git commit -m "$(cat <<'EOF'
@@ -275,6 +286,7 @@ EOF
 ## Task 4: Add the `transition_post_status` hook that wires it together
 
 **Files:**
+
 - Modify: `wordpress/themes/cdcf-headless/functions.php` — append the hook registration immediately after `cdcf_enqueue_translations_for_submission()`.
 
 - [ ] **Step 1: Insert the hook**
@@ -337,6 +349,7 @@ add_action('transition_post_status', function ($new_status, $old_status, $post) 
 - [ ] **Step 2: Verify syntax**
 
 Run:
+
 ```bash
 docker compose exec -T wordpress php -l /var/www/html/wp-content/themes/cdcf-headless/functions.php
 ```
@@ -346,6 +359,7 @@ Expected: `No syntax errors detected ...`.
 - [ ] **Step 3: Commit**
 
 Run:
+
 ```bash
 git add wordpress/themes/cdcf-headless/functions.php
 git commit -m "$(cat <<'EOF'
@@ -371,6 +385,7 @@ EOF
 ## Task 5: Manual verification — happy path (project)
 
 **Prerequisites:**
+
 - Docker stack running: `docker compose up -d` from the repo root.
 - Confirm the WordPress container is up: `docker compose ps wordpress` shows `Up`.
 - Confirm Polylang and ACF are active in wp-admin.
@@ -378,6 +393,7 @@ EOF
 - [ ] **Step 1: Submit a test project via the public form**
 
 Open `http://localhost` in a browser. Go to the Projects page. Click "Submit a Project". Fill the form with:
+
 - Project Name: `Test Project Auto-Translate`
 - Description: `A test project to verify auto-translation on approval.`
 - Repository URL: `https://github.com/example/test`
@@ -389,6 +405,7 @@ Enter the verification code. Submit.
 - [ ] **Step 2: Confirm the EN post was created as `pending`**
 
 Run:
+
 ```bash
 scripts/.venv/bin/python scripts/cdcf_api.py graphql --query '{ projects(first: 5, where: { status: PENDING, language: EN }) { nodes { databaseId title status } } }'
 ```
@@ -398,6 +415,7 @@ Expected: a node with `title: "Test Project Auto-Translate"` and `status: "pendi
 - [ ] **Step 3: Confirm no translations exist yet**
 
 Run (substitute `<EN_ID>`):
+
 ```bash
 scripts/.venv/bin/python scripts/cdcf_api.py get-translation-ids --post-id <EN_ID>
 ```
@@ -411,6 +429,7 @@ In wp-admin (`http://localhost/wp-admin`), open the pending project and click **
 - [ ] **Step 5: Confirm 5 draft translations were created and linked**
 
 Within ~2 seconds of approval (before the worker runs), re-check translations:
+
 ```bash
 scripts/.venv/bin/python scripts/cdcf_api.py get-translation-ids --post-id <EN_ID>
 ```
@@ -418,6 +437,7 @@ scripts/.venv/bin/python scripts/cdcf_api.py get-translation-ids --post-id <EN_I
 Expected: entries for all 6 languages (`en, it, es, fr, pt, de`). The 5 new translations should exist as draft posts. Capture each translation ID.
 
 For each non-EN translation ID, verify it's a draft of the right CPT:
+
 ```bash
 scripts/.venv/bin/python scripts/cdcf_api.py get-post --post-id <TRANS_ID> --post-type project
 ```
@@ -427,6 +447,7 @@ Expected: `post_status: "draft"`, `post_type: "project"`, language matches.
 - [ ] **Step 6: Wait for the worker and confirm auto-publish**
 
 Wait ~30 seconds (or until your queue worker reports completion). Re-check:
+
 ```bash
 scripts/.venv/bin/python scripts/cdcf_api.py get-post --post-id <TRANS_ID> --post-type project
 ```
@@ -434,6 +455,7 @@ scripts/.venv/bin/python scripts/cdcf_api.py get-post --post-id <TRANS_ID> --pos
 Expected: `post_status: "publish"` and content has been translated (not just empty / source title).
 
 If a translation is stuck in `draft` after several minutes, check the worker logs:
+
 ```bash
 docker compose logs --tail=200 wordpress | grep cdcf_process_translation
 ```
@@ -441,6 +463,7 @@ docker compose logs --tail=200 wordpress | grep cdcf_process_translation
 - [ ] **Step 7: Confirm translated pages render on the public site**
 
 Visit each locale URL (substitute the actual slug):
+
 - `http://localhost/it/projects/test-project-auto-translate`
 - `http://localhost/es/projects/test-project-auto-translate`
 - `http://localhost/fr/projects/test-project-auto-translate`
@@ -492,6 +515,7 @@ In wp-admin, click **Publish**.
 - [ ] **Step 4: Confirm NO translations were created**
 
 Wait ~5 seconds. Run:
+
 ```bash
 scripts/.venv/bin/python scripts/cdcf_api.py get-translation-ids --post-id <NEW_ID>
 ```
@@ -509,6 +533,7 @@ In wp-admin, trash the test post.
 - [ ] **Step 1: Take an already-translated submission post from Task 5**
 
 Use the `EN_ID` from Task 5 (the `Test Project Auto-Translate` post). Confirm it has 5 translations:
+
 ```bash
 scripts/.venv/bin/python scripts/cdcf_api.py get-translation-ids --post-id <EN_ID>
 ```
@@ -528,6 +553,7 @@ scripts/.venv/bin/python scripts/cdcf_api.py get-translation-ids --post-id <EN_I
 Expected: still exactly 6 entries — same IDs as before. No new draft siblings.
 
 Cross-check by listing all `project` posts created in the last 5 minutes:
+
 ```bash
 scripts/.venv/bin/python scripts/cdcf_api.py graphql --query '{ projects(first: 20, where: { language: EN }) { nodes { databaseId title date } } }'
 ```
@@ -541,6 +567,7 @@ Expected: no fresh duplicates of the test title.
 - [ ] **Step 1: Push the branch**
 
 Run:
+
 ```bash
 git push -u origin feature/auto-translate-public-submissions
 ```
@@ -550,6 +577,7 @@ Expected: branch pushed and tracking set up.
 - [ ] **Step 2: Open a pull request**
 
 Run:
+
 ```bash
 gh pr create --title "feat: auto-translate public submissions on approval" --body "$(cat <<'EOF'
 ## Summary
@@ -581,6 +609,7 @@ Expected: PR URL printed. Surface it to the user.
 ## Self-Review
 
 **Spec coverage:**
+
 - Architecture: helper functions + hook → ✅ Tasks 2, 3, 4
 - Data flow on approval (publish transition fires both hooks) → ✅ Task 4 (hook registered at priority 20, after the existing priority-10 sitemap hook)
 - Worker auto-publish behavior → ✅ leveraged in Task 4 design comment, verified in Task 5 step 6
@@ -595,6 +624,7 @@ Expected: PR URL printed. Surface it to the user.
 **Placeholder scan:** No "TBD", "TODO", "implement later", or "similar to Task N" without the actual code. Every code-changing step has a complete code block. Every command has expected output. Manual-verification tasks have explicit step-by-step commands using the existing `scripts/cdcf_api.py` CLI.
 
 **Type/name consistency:**
+
 - `cdcf_is_public_submission(int $post_id): bool` — defined in Task 2, called in Task 4 with `$post->ID` (int). ✅
 - `cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_type): void` — defined in Task 3, called in Task 4 with `$source_id` and `$post->post_type`. ✅
 - `cdcf_get_source_post_id()` — pre-existing (functions.php:4144), used in Task 2 and Task 4. ✅

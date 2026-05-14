@@ -44,14 +44,14 @@ cp .env.local.example .env.local
 
 Edit `.env.local`:
 
-| Variable | Description |
-|----------|-------------|
-| `WP_GRAPHQL_URL` | WordPress GraphQL endpoint (e.g. `http://localhost/graphql` or `http://wordpress/graphql` in Docker) |
-| `WP_PREVIEW_SECRET` | Shared secret for Next.js draft mode preview |
-| `WP_DB_ROOT_PASSWORD` | MariaDB root password |
-| `WP_DB_NAME` | WordPress database name (default: `wordpress`) |
-| `WP_DB_USER` | WordPress database user (default: `wordpress`) |
-| `WP_DB_PASSWORD` | WordPress database password |
+| Variable              | Description                                                                                          |
+| --------------------- | ---------------------------------------------------------------------------------------------------- |
+| `WP_GRAPHQL_URL`      | WordPress GraphQL endpoint (e.g. `http://localhost/graphql` or `http://wordpress/graphql` in Docker) |
+| `WP_PREVIEW_SECRET`   | Shared secret for Next.js draft mode preview                                                         |
+| `WP_DB_ROOT_PASSWORD` | MariaDB root password                                                                                |
+| `WP_DB_NAME`          | WordPress database name (default: `wordpress`)                                                       |
+| `WP_DB_USER`          | WordPress database user (default: `wordpress`)                                                       |
+| `WP_DB_PASSWORD`      | WordPress database password                                                                          |
 
 ### Development
 
@@ -81,6 +81,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ### WordPress Setup (First Run)
 
 **Using Docker (automatic):** The `wp-init` service in `docker-compose.yml` runs `wordpress/init.sh` on first boot, which automatically:
+
 - Installs WordPress core with admin credentials from env vars
 - Installs and activates all required plugins (WPGraphQL, ACF, WPGraphQL for ACF, Polylang, WPGraphQL Polylang)
 - Activates the `cdcf-headless` theme
@@ -202,24 +203,24 @@ cdcf-website/
 
 ### Content Model
 
-| Page Template | Sections (fixed order) |
-|---------------|----------------------|
-| Home | Hero, Stats, Featured Projects, Sponsors, CTA |
-| About | Hero, Content, Team/Governance, CTA |
-| Projects | Hero, Project Grid, CTA |
-| Community | Hero, Channels, Team/Governance, CTA |
-| Blog | Hero, Blog Feed |
-| Contact | Hero, Content, CTA |
+| Page Template | Sections (fixed order)                        |
+| ------------- | --------------------------------------------- |
+| Home          | Hero, Stats, Featured Projects, Sponsors, CTA |
+| About         | Hero, Content, Team/Governance, CTA           |
+| Projects      | Hero, Project Grid, CTA                       |
+| Community     | Hero, Channels, Team/Governance, CTA          |
+| Blog          | Hero, Blog Feed                               |
+| Contact       | Hero, Content, CTA                            |
 
 ### Custom Post Types
 
-| CPT | Purpose | Key ACF Fields |
-|-----|---------|---------------|
-| `project` | Foundation projects | status, repoUrl, projectUrl, license, category |
-| `team_member` | Team/governance members | role, title, linkedinUrl, githubUrl |
-| `sponsor` | Sponsors and partners | tier, sponsorUrl |
-| `community_channel` | Community platforms | icon, channelUrl, description |
-| `stat_item` | Statistics counters | icon, number, label |
+| CPT                 | Purpose                 | Key ACF Fields                                 |
+| ------------------- | ----------------------- | ---------------------------------------------- |
+| `project`           | Foundation projects     | status, repoUrl, projectUrl, license, category |
+| `team_member`       | Team/governance members | role, title, linkedinUrl, githubUrl            |
+| `sponsor`           | Sponsors and partners   | tier, sponsorUrl                               |
+| `community_channel` | Community platforms     | icon, channelUrl, description                  |
+| `stat_item`         | Statistics counters     | icon, number, label                            |
 
 ## CMS Editing Guide
 
@@ -339,26 +340,26 @@ A separate workflow (`.github/workflows/pr-build.yml`) runs `next build` on ever
 
 Secrets (encrypted, used as credentials):
 
-| Secret | Description |
-|--------|-------------|
-| `VPS_HOST` | VPS IP address or hostname |
-| `VPS_USERNAME` | SSH username |
-| `VPS_SSH_KEY` | SSH private key for deployment |
+| Secret            | Description                                                     |
+| ----------------- | --------------------------------------------------------------- |
+| `VPS_HOST`        | VPS IP address or hostname                                      |
+| `VPS_USERNAME`    | SSH username                                                    |
+| `VPS_SSH_KEY`     | SSH private key for deployment                                  |
 | `WP_APP_USERNAME` | WordPress application-password username (for plugin activation) |
-| `WP_APP_PASSWORD` | WordPress application password |
+| `WP_APP_PASSWORD` | WordPress application password                                  |
 
 Variables (plain config, visible in workflow logs):
 
-| Variable | Description |
-|----------|-------------|
-| `WP_GRAPHQL_URL` | WordPress GraphQL endpoint (e.g. `https://cms.catholicdigitalcommons.org/graphql`) |
-| `WP_REST_URL` | WordPress REST root (e.g. `https://cms.catholicdigitalcommons.org/wp-json`) |
-| `NEXT_PUBLIC_SITE_URL_PROD` | Public URL of the production site (e.g. `https://catholicdigitalcommons.org`) |
+| Variable                       | Description                                                                        |
+| ------------------------------ | ---------------------------------------------------------------------------------- |
+| `WP_GRAPHQL_URL`               | WordPress GraphQL endpoint (e.g. `https://cms.catholicdigitalcommons.org/graphql`) |
+| `WP_REST_URL`                  | WordPress REST root (e.g. `https://cms.catholicdigitalcommons.org/wp-json`)        |
+| `NEXT_PUBLIC_SITE_URL_PROD`    | Public URL of the production site (e.g. `https://catholicdigitalcommons.org`)      |
 | `NEXT_PUBLIC_SITE_URL_STAGING` | Public URL of the staging site (e.g. `https://staging.catholicdigitalcommons.org`) |
-| `VPS_APP_DIR` | Production Next.js app directory on the VPS |
-| `VPS_STAGING_APP_DIR` | Staging Next.js app directory on the VPS |
-| `WP_THEME_DIR` | WordPress theme directory (e.g. `/var/www/vhosts/.../wp-content/themes`) |
-| `WP_PLUGINS_DIR` | WordPress plugins directory (e.g. `/var/www/vhosts/.../wp-content/plugins`) |
+| `VPS_APP_DIR`                  | Production Next.js app directory on the VPS                                        |
+| `VPS_STAGING_APP_DIR`          | Staging Next.js app directory on the VPS                                           |
+| `WP_THEME_DIR`                 | WordPress theme directory (e.g. `/var/www/vhosts/.../wp-content/themes`)           |
+| `WP_PLUGINS_DIR`               | WordPress plugins directory (e.g. `/var/www/vhosts/.../wp-content/plugins`)        |
 
 ### Docker (Local Development Only)
 

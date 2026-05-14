@@ -24,26 +24,26 @@
 
 ## File Structure
 
-| File | Action | Responsibility |
-|---|---|---|
-| `wordpress/plugins/cdcf-redis-translations/cdcf-redis-translations.php` | Modify | Replace closure callbacks with named-function references; `require_once` the new `includes/handlers.php` |
-| `wordpress/plugins/cdcf-redis-translations/includes/handlers.php` | Create | Houses `cdcf_handle_maintenance`, `cdcf_handle_process_queue`, their permission callbacks, plus `cdcf_enqueue_translation` if not already in `includes/functions.php` (already there per current tree — confirm) |
-| `wordpress/plugins/cdcf-redis-translations/tests/bootstrap.php` | Create | Brain Monkey setup, autoload, require handler files |
-| `wordpress/plugins/cdcf-redis-translations/tests/MaintenanceHandlerTest.php` | Create | Tests for `cdcf_handle_maintenance` and its permission callback |
-| `wordpress/plugins/cdcf-redis-translations/tests/ProcessQueueHandlerTest.php` | Create | Tests for `cdcf_handle_process_queue` |
-| `wordpress/plugins/cdcf-redis-translations/tests/EnqueueTranslationFallbackTest.php` | Create | Tests for `cdcf_enqueue_translation` Redis-up vs Redis-down fallback path |
-| `wordpress/plugins/cdcf-redis-translations/composer.json` | Create | phpunit/phpunit ^10, brain/monkey ^2.6, mockery/mockery ^1.6 |
-| `wordpress/plugins/cdcf-redis-translations/phpunit.xml.dist` | Create | Discovers `tests/*Test.php` |
-| `wordpress/plugins/cdcf-redis-translations/.gitignore` | Create | Ignore `vendor/`, `.phpunit.result.cache` |
-| `wordpress/themes/cdcf-headless/functions.php` | Modify | Replace closure callbacks for the `/cdcf/v1/relationship` routes with named functions; `require_once` the new `includes/handlers/relationship.php` |
-| `wordpress/themes/cdcf-headless/includes/handlers/relationship.php` | Create | Houses `cdcf_handle_relationship_get`, `cdcf_handle_relationship_post`, permission callback |
-| `wordpress/themes/cdcf-headless/tests/bootstrap.php` | Create | Brain Monkey setup |
-| `wordpress/themes/cdcf-headless/tests/RelationshipHandlerTest.php` | Create | Tests for the relationship handler pair |
-| `wordpress/themes/cdcf-headless/composer.json` | Create | Same deps as plugin tree |
-| `wordpress/themes/cdcf-headless/phpunit.xml.dist` | Create | Discovers `tests/*Test.php` |
-| `wordpress/themes/cdcf-headless/.gitignore` | Create | Ignore `vendor/`, `.phpunit.result.cache` |
-| `.github/workflows/test-wordpress.yml` | Create | CI: matrix over the two trees, `continue-on-error: true` |
-| `AGENTS.md` | Modify | Add `composer test` invocations to "Build & Development Commands" |
+| File                                                                                 | Action | Responsibility                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `wordpress/plugins/cdcf-redis-translations/cdcf-redis-translations.php`              | Modify | Replace closure callbacks with named-function references; `require_once` the new `includes/handlers.php`                                                                                                         |
+| `wordpress/plugins/cdcf-redis-translations/includes/handlers.php`                    | Create | Houses `cdcf_handle_maintenance`, `cdcf_handle_process_queue`, their permission callbacks, plus `cdcf_enqueue_translation` if not already in `includes/functions.php` (already there per current tree — confirm) |
+| `wordpress/plugins/cdcf-redis-translations/tests/bootstrap.php`                      | Create | Brain Monkey setup, autoload, require handler files                                                                                                                                                              |
+| `wordpress/plugins/cdcf-redis-translations/tests/MaintenanceHandlerTest.php`         | Create | Tests for `cdcf_handle_maintenance` and its permission callback                                                                                                                                                  |
+| `wordpress/plugins/cdcf-redis-translations/tests/ProcessQueueHandlerTest.php`        | Create | Tests for `cdcf_handle_process_queue`                                                                                                                                                                            |
+| `wordpress/plugins/cdcf-redis-translations/tests/EnqueueTranslationFallbackTest.php` | Create | Tests for `cdcf_enqueue_translation` Redis-up vs Redis-down fallback path                                                                                                                                        |
+| `wordpress/plugins/cdcf-redis-translations/composer.json`                            | Create | phpunit/phpunit ^10, brain/monkey ^2.6, mockery/mockery ^1.6                                                                                                                                                     |
+| `wordpress/plugins/cdcf-redis-translations/phpunit.xml.dist`                         | Create | Discovers `tests/*Test.php`                                                                                                                                                                                      |
+| `wordpress/plugins/cdcf-redis-translations/.gitignore`                               | Create | Ignore `vendor/`, `.phpunit.result.cache`                                                                                                                                                                        |
+| `wordpress/themes/cdcf-headless/functions.php`                                       | Modify | Replace closure callbacks for the `/cdcf/v1/relationship` routes with named functions; `require_once` the new `includes/handlers/relationship.php`                                                               |
+| `wordpress/themes/cdcf-headless/includes/handlers/relationship.php`                  | Create | Houses `cdcf_handle_relationship_get`, `cdcf_handle_relationship_post`, permission callback                                                                                                                      |
+| `wordpress/themes/cdcf-headless/tests/bootstrap.php`                                 | Create | Brain Monkey setup                                                                                                                                                                                               |
+| `wordpress/themes/cdcf-headless/tests/RelationshipHandlerTest.php`                   | Create | Tests for the relationship handler pair                                                                                                                                                                          |
+| `wordpress/themes/cdcf-headless/composer.json`                                       | Create | Same deps as plugin tree                                                                                                                                                                                         |
+| `wordpress/themes/cdcf-headless/phpunit.xml.dist`                                    | Create | Discovers `tests/*Test.php`                                                                                                                                                                                      |
+| `wordpress/themes/cdcf-headless/.gitignore`                                          | Create | Ignore `vendor/`, `.phpunit.result.cache`                                                                                                                                                                        |
+| `.github/workflows/test-wordpress.yml`                                               | Create | CI: matrix over the two trees, `continue-on-error: true`                                                                                                                                                         |
+| `AGENTS.md`                                                                          | Modify | Add `composer test` invocations to "Build & Development Commands"                                                                                                                                                |
 
 The two PHP trees are intentionally independent — no shared composer root, no shared vendor. Keeps the install footprint tiny and lets each tree be deployed without the test deps.
 
@@ -80,6 +80,7 @@ Expect "nothing to commit, working tree clean".
 ## Task 2: Plugin — refactor closures into named handlers
 
 **Files:**
+
 - Create: `wordpress/plugins/cdcf-redis-translations/includes/handlers.php`
 - Modify: `wordpress/plugins/cdcf-redis-translations/cdcf-redis-translations.php`
 
@@ -184,6 +185,7 @@ EOF
 ## Task 3: Plugin — composer + phpunit scaffolding
 
 **Files:**
+
 - Create: `wordpress/plugins/cdcf-redis-translations/composer.json`
 - Create: `wordpress/plugins/cdcf-redis-translations/phpunit.xml.dist`
 - Create: `wordpress/plugins/cdcf-redis-translations/.gitignore`
@@ -319,25 +321,26 @@ EOF
 ## Task 4: Plugin — MaintenanceHandlerTest
 
 **Files:**
+
 - Create: `wordpress/plugins/cdcf-redis-translations/tests/MaintenanceHandlerTest.php`
 
 - [ ] **Step 1: Write the test class**
 
 Cases (one PHPUnit method per row):
 
-| Case | Setup | Expected |
-|---|---|---|
-| Permission check delegates to `current_user_can('manage_options')` | `Brain\Monkey\Functions\expect('current_user_can')->once()->with('manage_options')->andReturn(true);` | `cdcf_maintenance_permission_check() === true` |
-| `begin` with default duration → 200 + `setex` called with 300s TTL | Mockery `overload:Redis`, expect `connect` then `setex('cdcf:maintenance:until', 300, '1')` | response is `WP_REST_Response`, `data['ok']===true`, `data['duration']===300` |
-| `begin` with low duration → clamped to 60 | `duration_seconds=1` | `data['duration']===60`, `setex(..., 60, ...)` called |
-| `begin` with high duration → clamped to 600 | `duration_seconds=99999` | `data['duration']===600` |
-| `begin` with `300` → passes through unchanged | `duration_seconds=300` | `data['duration']===300` |
-| `end` → 200 + `del` called | `action='end'` | `data['ok']===true`, `del('cdcf:maintenance:until')` called |
-| `end` idempotent (key absent) | Mockery `del` returns 0 | still `{ok:true}` — endpoint doesn't error |
-| Invalid action → 400 `WP_Error('invalid_action')` | `action='foo'` | response is a `WP_Error` with code `invalid_action` and HTTP 400 |
-| Missing `Redis` class → 500 `redis_unavailable` | Don't define `Redis` (or use a guard); skip-if needed | `WP_Error('redis_unavailable')`, HTTP 500 |
-| `Redis::connect()` returns false → 500 | Mockery `connect` returns false | `WP_Error('redis_unavailable')`, HTTP 500 |
-| `setex` returns false → 500 `redis_write_failed` | Mockery `setex` returns false | `WP_Error('redis_write_failed')`, HTTP 500 |
+| Case                                                               | Setup                                                                                                 | Expected                                                                      |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Permission check delegates to `current_user_can('manage_options')` | `Brain\Monkey\Functions\expect('current_user_can')->once()->with('manage_options')->andReturn(true);` | `cdcf_maintenance_permission_check() === true`                                |
+| `begin` with default duration → 200 + `setex` called with 300s TTL | Mockery `overload:Redis`, expect `connect` then `setex('cdcf:maintenance:until', 300, '1')`           | response is `WP_REST_Response`, `data['ok']===true`, `data['duration']===300` |
+| `begin` with low duration → clamped to 60                          | `duration_seconds=1`                                                                                  | `data['duration']===60`, `setex(..., 60, ...)` called                         |
+| `begin` with high duration → clamped to 600                        | `duration_seconds=99999`                                                                              | `data['duration']===600`                                                      |
+| `begin` with `300` → passes through unchanged                      | `duration_seconds=300`                                                                                | `data['duration']===300`                                                      |
+| `end` → 200 + `del` called                                         | `action='end'`                                                                                        | `data['ok']===true`, `del('cdcf:maintenance:until')` called                   |
+| `end` idempotent (key absent)                                      | Mockery `del` returns 0                                                                               | still `{ok:true}` — endpoint doesn't error                                    |
+| Invalid action → 400 `WP_Error('invalid_action')`                  | `action='foo'`                                                                                        | response is a `WP_Error` with code `invalid_action` and HTTP 400              |
+| Missing `Redis` class → 500 `redis_unavailable`                    | Don't define `Redis` (or use a guard); skip-if needed                                                 | `WP_Error('redis_unavailable')`, HTTP 500                                     |
+| `Redis::connect()` returns false → 500                             | Mockery `connect` returns false                                                                       | `WP_Error('redis_unavailable')`, HTTP 500                                     |
+| `setex` returns false → 500 `redis_write_failed`                   | Mockery `setex` returns false                                                                         | `WP_Error('redis_write_failed')`, HTTP 500                                    |
 
 Use a `WP_REST_Request` constructed in the test, with `set_param` for `action` and `duration_seconds`.
 
@@ -396,20 +399,21 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 5: Plugin — ProcessQueueHandlerTest
 
 **Files:**
+
 - Create: `wordpress/plugins/cdcf-redis-translations/tests/ProcessQueueHandlerTest.php`
 
 - [ ] **Step 1: Write the test class**
 
 Cases:
 
-| Case | Setup | Expected |
-|---|---|---|
-| `redis_queue()` not defined → 200 with `{processed:0, error:'redis_queue not available'}` | `Brain\Monkey\Functions\when('function_exists')->alias(fn($f) => $f !== 'redis_queue');` | response `data` matches |
+| Case                                                                                                 | Setup                                                                                              | Expected                              |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `redis_queue()` not defined → 200 with `{processed:0, error:'redis_queue not available'}`            | `Brain\Monkey\Functions\when('function_exists')->alias(fn($f) => $f !== 'redis_queue');`           | response `data` matches               |
 | Happy path delegates to `redis_queue()->get_job_processor()->process_jobs(['default'], $batch_size)` | Mockery-mock the global `redis_queue` function via Brain Monkey + a stub object exposing the chain | response wraps the processor's return |
-| `batch_size` clamp — input 0 → 1 | `batch_size=0` | `process_jobs` called with `1` |
-| `batch_size` clamp — input 100 → 50 | `batch_size=100` | `process_jobs` called with `50` |
-| `batch_size` omitted → default 10 | no batch_size param | `process_jobs` called with `10` |
-| Permission check delegates to `current_user_can('manage_options')` | (as in MaintenanceHandlerTest) | returns true |
+| `batch_size` clamp — input 0 → 1                                                                     | `batch_size=0`                                                                                     | `process_jobs` called with `1`        |
+| `batch_size` clamp — input 100 → 50                                                                  | `batch_size=100`                                                                                   | `process_jobs` called with `50`       |
+| `batch_size` omitted → default 10                                                                    | no batch_size param                                                                                | `process_jobs` called with `10`       |
+| Permission check delegates to `current_user_can('manage_options')`                                   | (as in MaintenanceHandlerTest)                                                                     | returns true                          |
 
 - [ ] **Step 2: Run + commit**
 
@@ -427,18 +431,19 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 6: Plugin — EnqueueTranslationFallbackTest
 
 **Files:**
+
 - Create: `wordpress/plugins/cdcf-redis-translations/tests/EnqueueTranslationFallbackTest.php`
 
 The `cdcf_enqueue_translation()` function in `includes/functions.php` has a Redis-up vs Redis-down branch — Redis-up enqueues a job to the queue; Redis-down (or `redis_queue()` not defined) falls back to `wp_schedule_single_event`. That's a high-stakes branch (translation goes via cron instead of Redis) and worth pinning.
 
 Cases:
 
-| Case | Setup | Expected |
-|---|---|---|
-| Redis-up: enqueues translation job, does NOT schedule WP-Cron | Mock `redis_queue()` to return a chain that swallows `enqueue` | `wp_schedule_single_event` NOT called (verify with `Brain\Monkey\Functions\expect('wp_schedule_single_event')->never()`) |
-| Redis-down: falls back to `wp_schedule_single_event` exactly once | `function_exists('redis_queue')` returns false | `wp_schedule_single_event` called once with the right hook + args |
-| `redis_queue()->queue_manager->enqueue` throws → fallback to WP-Cron | Mock enqueue to throw `RuntimeException('redis down')` | `wp_schedule_single_event` called once |
-| Argument shape passed downstream | inspect the args of `enqueue` (Redis-up) and `wp_schedule_single_event` (Redis-down) | match the documented contract: `[ 'post_id', 'source_id', 'target_lang' ]` |
+| Case                                                                 | Setup                                                                                | Expected                                                                                                                 |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| Redis-up: enqueues translation job, does NOT schedule WP-Cron        | Mock `redis_queue()` to return a chain that swallows `enqueue`                       | `wp_schedule_single_event` NOT called (verify with `Brain\Monkey\Functions\expect('wp_schedule_single_event')->never()`) |
+| Redis-down: falls back to `wp_schedule_single_event` exactly once    | `function_exists('redis_queue')` returns false                                       | `wp_schedule_single_event` called once with the right hook + args                                                        |
+| `redis_queue()->queue_manager->enqueue` throws → fallback to WP-Cron | Mock enqueue to throw `RuntimeException('redis down')`                               | `wp_schedule_single_event` called once                                                                                   |
+| Argument shape passed downstream                                     | inspect the args of `enqueue` (Redis-up) and `wp_schedule_single_event` (Redis-down) | match the documented contract: `[ 'post_id', 'source_id', 'target_lang' ]`                                               |
 
 - [ ] **Run + commit:**
 
@@ -456,6 +461,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 7: Theme — refactor relationship handlers + scaffold + tests
 
 **Files:**
+
 - Modify: `wordpress/themes/cdcf-headless/functions.php`
 - Create: `wordpress/themes/cdcf-headless/includes/handlers/relationship.php`
 - Create: `wordpress/themes/cdcf-headless/composer.json`
@@ -472,14 +478,14 @@ Same pattern as Tasks 2-6, scoped to the theme's `/cdcf/v1/relationship` GET+POS
 - [ ] **Step 4: composer.json + phpunit.xml.dist + .gitignore + bootstrap.php** — same shape as the plugin tree.
 - [ ] **Step 5: `RelationshipHandlerTest.php`** cases:
 
-| Case | Expected |
-|---|---|
-| GET reads ACF field via `get_field` and returns it as JSON | response shape matches |
-| GET with missing `post_id` → 400 `WP_Error('missing_param')` | |
-| GET with missing `field` → 400 | |
+| Case                                                               | Expected                                  |
+| ------------------------------------------------------------------ | ----------------------------------------- |
+| GET reads ACF field via `get_field` and returns it as JSON         | response shape matches                    |
+| GET with missing `post_id` → 400 `WP_Error('missing_param')`       |                                           |
+| GET with missing `field` → 400                                     |                                           |
 | POST writes ACF field via `update_field` and returns the new value | `update_field` called with the right args |
-| POST with non-array `value` → 400 `WP_Error('invalid_value')` | |
-| Permission callback delegates to `current_user_can('edit_posts')` | |
+| POST with non-array `value` → 400 `WP_Error('invalid_value')`      |                                           |
+| Permission callback delegates to `current_user_can('edit_posts')`  |                                           |
 
 - [ ] **Step 6: Run + commit** the refactor and the tests as two separate commits (refactor first so it's reviewable on its own).
 
@@ -488,6 +494,7 @@ Same pattern as Tasks 2-6, scoped to the theme's `/cdcf/v1/relationship` GET+POS
 ## Task 8: CI workflow
 
 **Files:**
+
 - Create: `.github/workflows/test-wordpress.yml`
 
 - [ ] **Step 1: Write the workflow**
@@ -502,15 +509,15 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'wordpress/plugins/cdcf-redis-translations/**'
-      - 'wordpress/themes/cdcf-headless/**'
-      - '.github/workflows/test-wordpress.yml'
+      - "wordpress/plugins/cdcf-redis-translations/**"
+      - "wordpress/themes/cdcf-headless/**"
+      - ".github/workflows/test-wordpress.yml"
   push:
     branches: [main]
     paths:
-      - 'wordpress/plugins/cdcf-redis-translations/**'
-      - 'wordpress/themes/cdcf-headless/**'
-      - '.github/workflows/test-wordpress.yml'
+      - "wordpress/plugins/cdcf-redis-translations/**"
+      - "wordpress/themes/cdcf-headless/**"
+      - ".github/workflows/test-wordpress.yml"
 
 concurrency:
   group: test-wordpress-${{ github.event.pull_request.number || github.ref }}
@@ -530,7 +537,7 @@ jobs:
       - uses: actions/checkout@<pinned-sha> # v6
       - uses: shivammathur/setup-php@<pinned-sha>
         with:
-          php-version: '8.3'
+          php-version: "8.3"
           tools: composer
       - name: Install dependencies
         working-directory: wordpress/${{ matrix.tree }}
@@ -556,6 +563,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 9: Documentation
 
 **Files:**
+
 - Modify: `AGENTS.md`
 
 - [ ] **Step 1: Add the commands to "Build & Development Commands"**

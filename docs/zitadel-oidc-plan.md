@@ -66,6 +66,7 @@ zitadel:
 Add `zitadel_db_data:` to the `volumes:` section.
 
 **Design notes:**
+
 - Port 8085 avoids conflicts with Nginx (80) and Next.js dev (3000)
 - `start-from-init` is idempotent — initializes on first run, starts normally after
 - Zitadel requires PostgreSQL (can't share the existing MariaDB)
@@ -76,6 +77,7 @@ Add `zitadel_db_data:` to the `volumes:` section.
 **Plugin:** [`openid-connect-generic`](https://wordpress.org/plugins/daggerhart-openid-connect-generic/) by daggerhart
 
 **Why this plugin:**
+
 - Most widely used open-source WP OIDC client, actively maintained
 - Configurable via `wp-config.php` constants (works with Docker env-driven config)
 - Adds a "Login with OpenID Connect" button alongside the standard WP login form — doesn't replace it
@@ -163,23 +165,25 @@ npm install next-auth@beta
 
 ### 2.2 New Files to Create
 
-| File | Purpose |
-|------|---------|
-| `lib/auth.ts` | Auth.js config — Zitadel OIDC provider, JWT session strategy, role extraction from `urn:zitadel:iam:org:project:roles` claim |
-| `app/api/auth/[...nextauth]/route.ts` | Auth.js route handler (`export { GET, POST } from handlers`) |
-| `types/next-auth.d.ts` | TypeScript augmentation — add `accessToken` and `roles` to Session/JWT types |
-| `components/AuthButton.tsx` | Client component — sign in/out button using `useSession()` |
-| `lib/auth-utils.ts` | Server helpers — `requireAuth()`, `requireRole(role)`, `hasRole(session, role)` |
+| File                                  | Purpose                                                                                                                      |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `lib/auth.ts`                         | Auth.js config — Zitadel OIDC provider, JWT session strategy, role extraction from `urn:zitadel:iam:org:project:roles` claim |
+| `app/api/auth/[...nextauth]/route.ts` | Auth.js route handler (`export { GET, POST } from handlers`)                                                                 |
+| `types/next-auth.d.ts`                | TypeScript augmentation — add `accessToken` and `roles` to Session/JWT types                                                 |
+| `components/AuthButton.tsx`           | Client component — sign in/out button using `useSession()`                                                                   |
+| `lib/auth-utils.ts`                   | Server helpers — `requireAuth()`, `requireRole(role)`, `hasRole(session, role)`                                              |
 
 ### 2.3 Modify Existing Files
 
 **`middleware.ts`** — Compose Auth.js `auth()` wrapper with existing next-intl middleware:
+
 - Wrap the export with `auth()` to populate `req.auth` on every request
 - Check protected paths (e.g. `/dashboard`, `/profile`) and redirect unauthenticated users to `/login`
 - Fall through to the existing `createMiddleware(routing)` for all other routes
 - Add `api/auth` to the matcher exclusion list
 
 **`app/[lang]/layout.tsx`** — Wrap children with `<SessionProvider>`:
+
 - Import `SessionProvider` from `next-auth/react`
 - Call `auth()` server-side to get the session
 - Wrap `NextIntlClientProvider` children with `<SessionProvider session={session}>`
@@ -193,6 +197,7 @@ npm install next-auth@beta
 **File:** `wordpress/themes/cdcf-headless/functions.php`
 
 Add a `determine_current_user` filter (priority 20) that:
+
 1. Checks for a `Bearer` token in the `Authorization` header
 2. Validates it against Zitadel's `/oidc/v1/userinfo` endpoint
 3. Looks up the WordPress user by the email from the userinfo response
@@ -206,13 +211,14 @@ Existing auth methods (cookies, Application Passwords) are checked first and rem
 
 ## Production Deployment
 
-| Component | Domain | Notes |
-|-----------|--------|-------|
-| Zitadel | `auth.catholicdigitalcommons.org` | Docker or binary install on Plesk, TLS via Let's Encrypt |
-| WordPress | `cms.catholicdigitalcommons.org` | Install OIDC plugin, configure endpoints to `auth.*` domain |
-| Next.js | `staging.catholicdigitalcommons.org` | Set `AUTH_*` env vars, register callback URI in Zitadel |
+| Component | Domain                               | Notes                                                       |
+| --------- | ------------------------------------ | ----------------------------------------------------------- |
+| Zitadel   | `auth.catholicdigitalcommons.org`    | Docker or binary install on Plesk, TLS via Let's Encrypt    |
+| WordPress | `cms.catholicdigitalcommons.org`     | Install OIDC plugin, configure endpoints to `auth.*` domain |
+| Next.js   | `staging.catholicdigitalcommons.org` | Set `AUTH_*` env vars, register callback URI in Zitadel     |
 
 Production env overrides:
+
 ```
 ZITADEL_EXTERNAL_DOMAIN=auth.catholicdigitalcommons.org
 ZITADEL_EXTERNAL_PORT=443
@@ -227,6 +233,7 @@ ZITADEL_ISSUER_URL=https://auth.catholicdigitalcommons.org
 ## Verification Steps
 
 ### Phase 1
+
 1. `docker compose up` — verify Zitadel boots (`curl http://localhost:8085/debug/ready`)
 2. Access Zitadel console, create project + apps, note client IDs/secrets
 3. Set env vars, restart WordPress
@@ -236,6 +243,7 @@ ZITADEL_ISSUER_URL=https://auth.catholicdigitalcommons.org
 7. Verify Python CLI still works: `scripts/.venv/bin/python scripts/cdcf_api.py get-relationship --post-id 5 --field team_members`
 
 ### Phase 2
+
 1. `npm run build` — verify no TypeScript errors
 2. `curl http://localhost:3000/api/auth/providers` — verify Zitadel provider listed
 3. Click "Sign In" in header, verify redirect to Zitadel, authenticate, verify redirect back
@@ -247,6 +255,7 @@ ZITADEL_ISSUER_URL=https://auth.catholicdigitalcommons.org
 ## Files Summary
 
 ### New files (Phase 2)
+
 - `lib/auth.ts`
 - `app/api/auth/[...nextauth]/route.ts`
 - `types/next-auth.d.ts`
@@ -254,6 +263,7 @@ ZITADEL_ISSUER_URL=https://auth.catholicdigitalcommons.org
 - `lib/auth-utils.ts`
 
 ### Modified files
+
 - `docker-compose.yml` — Zitadel services + WP OIDC config (Phase 1)
 - `wordpress/init.sh` — plugin install (Phase 1)
 - `.env.local.example` — new env vars (Phase 1)

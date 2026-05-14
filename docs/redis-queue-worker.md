@@ -68,15 +68,15 @@ sudo chown root:root /etc/cdcf-queue.env
 
 ### Environment variables
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `WP_REST_URL` | Yes | | WordPress REST API base URL |
-| `WP_APP_USERNAME` | Yes | | WordPress username with `manage_options` capability |
-| `WP_APP_PASSWORD` | Yes | | WordPress Application Password for the above user |
-| `CONCURRENCY` | No | `1` | Number of parallel HTTP requests per polling cycle |
-| `POLL_INTERVAL` | No | `15` | Seconds to wait between polling cycles |
-| `MAX_TIME` | No | `300` | Max timeout in seconds for each curl request |
-| `BATCH_SIZE` | No | `10` (single) / `1` (parallel) | Number of jobs each request dequeues from Redis |
+| Variable          | Required | Default                        | Description                                         |
+| ----------------- | -------- | ------------------------------ | --------------------------------------------------- |
+| `WP_REST_URL`     | Yes      |                                | WordPress REST API base URL                         |
+| `WP_APP_USERNAME` | Yes      |                                | WordPress username with `manage_options` capability |
+| `WP_APP_PASSWORD` | Yes      |                                | WordPress Application Password for the above user   |
+| `CONCURRENCY`     | No       | `1`                            | Number of parallel HTTP requests per polling cycle  |
+| `POLL_INTERVAL`   | No       | `15`                           | Seconds to wait between polling cycles              |
+| `MAX_TIME`        | No       | `300`                          | Max timeout in seconds for each curl request        |
+| `BATCH_SIZE`      | No       | `10` (single) / `1` (parallel) | Number of jobs each request dequeues from Redis     |
 
 ### Concurrency and batch size
 
@@ -215,6 +215,7 @@ journalctl -u cdcf-queue-worker -f
 ### Worker logs show "WARNING: unexpected response"
 
 The WordPress REST endpoint may be unreachable. Check:
+
 - WordPress is running: `curl -s https://cms.catholicdigitalcommons.org/wp-json/`
 - Redis is running: `redis-cli ping`
 - Credentials are correct in `/etc/cdcf-queue.env`
@@ -222,6 +223,7 @@ The WordPress REST endpoint may be unreachable. Check:
 ### Translations stay as drafts
 
 The queue worker may not be running or jobs are failing. Check:
+
 - Service status: `sudo systemctl status cdcf-queue-worker`
 - Worker logs: `journalctl -u cdcf-queue-worker --since "30 min ago"`
 - WordPress debug log for `cdcf_process_translation` errors
@@ -229,5 +231,6 @@ The queue worker may not be running or jobs are failing. Check:
 ### Jobs are processed but content is not translated
 
 The OpenAI API key may not be configured in WordPress:
+
 - Check `Settings > CDCF` in wp-admin for the API key
 - Check the WordPress debug log for OpenAI API errors

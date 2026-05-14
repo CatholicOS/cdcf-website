@@ -254,23 +254,23 @@ SELECT create_graph('catholic_tech');
 
 **Node types (labels):**
 
-| Label | Properties | Mapped from |
-|-------|-----------|-------------|
+| Label     | Properties                                              | Mapped from      |
+| --------- | ------------------------------------------------------- | ---------------- |
 | `Article` | `id`, `title`, `url`, `published_at`, `relevance_score` | `articles` table |
-| `Entity` | `id`, `name`, `entity_type`, `description` | `entities` table |
-| `Tag` | `id`, `name`, `slug` | `tags` table |
-| `Source` | `id`, `name`, `url`, `source_type` | `sources` table |
+| `Entity`  | `id`, `name`, `entity_type`, `description`              | `entities` table |
+| `Tag`     | `id`, `name`, `slug`                                    | `tags` table     |
+| `Source`  | `id`, `name`, `url`, `source_type`                      | `sources` table  |
 
 **Edge types:**
 
-| Edge | From → To | Properties |
-|------|-----------|------------|
-| `TAGGED_WITH` | Article → Tag | `confidence` |
-| `MENTIONS` | Article → Entity | `role` |
-| `PUBLISHED_BY` | Article → Source | — |
-| `RELATED_TO` | Entity → Entity | `relation_type`, `weight` |
-| `CO_OCCURS_WITH` | Entity → Entity | `count`, `articles[]` |
-| `REFERENCES` | Article → Article | `link_type`, `context` |
+| Edge             | From → To         | Properties                |
+| ---------------- | ----------------- | ------------------------- |
+| `TAGGED_WITH`    | Article → Tag     | `confidence`              |
+| `MENTIONS`       | Article → Entity  | `role`                    |
+| `PUBLISHED_BY`   | Article → Source  | —                         |
+| `RELATED_TO`     | Entity → Entity   | `relation_type`, `weight` |
+| `CO_OCCURS_WITH` | Entity → Entity   | `count`, `articles[]`     |
+| `REFERENCES`     | Article → Article | `link_type`, `context`    |
 
 Entity-to-entity relationships (`RELATED_TO`, `CO_OCCURS_WITH`) are inferred by the AI classifier and co-occurrence analysis. `REFERENCES` edges are created when an article links to another document that was also ingested — `link_type` indicates the nature of the reference (e.g. `cited_document`, `related_project`, `source_reference`, `press_release`) and `context` stores the surrounding text where the link appeared.
 
@@ -365,12 +365,12 @@ After the initial fetch-and-classify pass, the pipeline runs a **link-following 
 
 **Safeguards:**
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `AGG_LINK_MAX_DEPTH` | `2` | Maximum crawl depth from original source article |
-| `AGG_LINK_BATCH_SIZE` | `50` | Max discovered links to process per pipeline run |
-| `AGG_LINK_RATE_LIMIT` | `2` | Seconds between requests to the same domain |
-| `AGG_LINK_RELEVANCE_THRESHOLD` | `0.4` | Minimum relevance to ingest a discovered link (slightly higher than source threshold) |
+| Setting                        | Default | Description                                                                           |
+| ------------------------------ | ------- | ------------------------------------------------------------------------------------- |
+| `AGG_LINK_MAX_DEPTH`           | `2`     | Maximum crawl depth from original source article                                      |
+| `AGG_LINK_BATCH_SIZE`          | `50`    | Max discovered links to process per pipeline run                                      |
+| `AGG_LINK_RATE_LIMIT`          | `2`     | Seconds between requests to the same domain                                           |
+| `AGG_LINK_RELEVANCE_THRESHOLD` | `0.4`   | Minimum relevance to ingest a discovered link (slightly higher than source threshold) |
 
 **Domain allowlist** — only links to these domain categories are followed:
 
@@ -411,12 +411,12 @@ As the aggregator follows links and ingests articles, it tracks which external d
 
 **Safeguards:**
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `AGG_SOURCE_AUTO_PROMOTE_CONFIDENCE` | `0.8` | Minimum AI confidence to auto-promote a candidate source |
-| `AGG_SOURCE_MIN_HITS` | `5` | Minimum articles from this domain before promotion is considered |
-| `AGG_SOURCE_MIN_AVG_RELEVANCE` | `0.6` | Minimum average relevance score across articles from this domain |
-| `AGG_SOURCE_MAX_AUTO_PER_RUN` | `3` | Maximum sources to auto-promote per pipeline run (prevents runaway growth) |
+| Setting                              | Default | Description                                                                |
+| ------------------------------------ | ------- | -------------------------------------------------------------------------- |
+| `AGG_SOURCE_AUTO_PROMOTE_CONFIDENCE` | `0.8`   | Minimum AI confidence to auto-promote a candidate source                   |
+| `AGG_SOURCE_MIN_HITS`                | `5`     | Minimum articles from this domain before promotion is considered           |
+| `AGG_SOURCE_MIN_AVG_RELEVANCE`       | `0.6`   | Minimum average relevance score across articles from this domain           |
+| `AGG_SOURCE_MAX_AUTO_PER_RUN`        | `3`     | Maximum sources to auto-promote per pipeline run (prevents runaway growth) |
 
 **Manual review:** Candidates below the auto-promote threshold are visible in the admin interface (and future `/research` admin panel) where a human can approve or reject them. Rejected candidates are not reconsidered unless explicitly reset.
 
@@ -608,15 +608,15 @@ This query is used in the article detail view sidebar.
 
 #### Safeguards
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `AGG_EMBEDDING_PROVIDER` | `ollama` | Embedding backend: `ollama` (local nomic-embed-text) or `openai` |
-| `AGG_EMBEDDING_MODEL` | `nomic-embed-text` | Ollama model name (ignored when provider is `openai`) |
-| `AGG_EMBEDDING_DIMENSIONS` | `768` | Vector dimensions (must match model output) |
-| `AGG_EMBEDDING_BATCH_SIZE` | `32` | Articles to embed per batch |
-| `AGG_CENTROID_MAX_DISTANCE` | `0.65` | Maximum cosine distance from corpus centroid before skipping AI classification |
-| `AGG_ENTITY_MERGE_THRESHOLD` | `0.92` | Minimum cosine similarity to auto-merge duplicate entities |
-| `AGG_ENTITY_REVIEW_THRESHOLD` | `0.80` | Minimum similarity to flag entity pair for manual review |
+| Setting                       | Default            | Description                                                                    |
+| ----------------------------- | ------------------ | ------------------------------------------------------------------------------ |
+| `AGG_EMBEDDING_PROVIDER`      | `ollama`           | Embedding backend: `ollama` (local nomic-embed-text) or `openai`               |
+| `AGG_EMBEDDING_MODEL`         | `nomic-embed-text` | Ollama model name (ignored when provider is `openai`)                          |
+| `AGG_EMBEDDING_DIMENSIONS`    | `768`              | Vector dimensions (must match model output)                                    |
+| `AGG_EMBEDDING_BATCH_SIZE`    | `32`               | Articles to embed per batch                                                    |
+| `AGG_CENTROID_MAX_DISTANCE`   | `0.65`             | Maximum cosine distance from corpus centroid before skipping AI classification |
+| `AGG_ENTITY_MERGE_THRESHOLD`  | `0.92`             | Minimum cosine similarity to auto-merge duplicate entities                     |
+| `AGG_ENTITY_REVIEW_THRESHOLD` | `0.80`             | Minimum similarity to flag entity pair for manual review                       |
 
 ### AI Provider Abstraction
 
@@ -686,12 +686,12 @@ YouTube channels, podcasts, and other audio/video sources are first-class conten
 
 #### Transcription Stack
 
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| **[OpenAI Whisper](https://github.com/openai/whisper)** (local) | Speech-to-text transcription | Runs locally via `faster-whisper` (CTranslate2-optimized). No API costs. Model size configurable (`base`, `small`, `medium`, `large-v3`). |
-| **OpenAI Whisper API** (cloud fallback) | Speech-to-text transcription | Used when local transcription is disabled or for languages where local models underperform. Per-minute cost. |
-| **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** | YouTube audio extraction | Downloads audio-only streams (no video) to minimize bandwidth/storage. Also extracts metadata (title, description, duration, thumbnail, upload date, channel info). |
-| **[feedparser](https://github.com/kurtmckee/feedparser)** | Podcast RSS parsing | Parses podcast RSS/Atom feeds to discover episodes. Extracts enclosure URLs (audio files), episode metadata, and show notes. |
+| Tool                                                            | Purpose                      | Notes                                                                                                                                                               |
+| --------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[OpenAI Whisper](https://github.com/openai/whisper)** (local) | Speech-to-text transcription | Runs locally via `faster-whisper` (CTranslate2-optimized). No API costs. Model size configurable (`base`, `small`, `medium`, `large-v3`).                           |
+| **OpenAI Whisper API** (cloud fallback)                         | Speech-to-text transcription | Used when local transcription is disabled or for languages where local models underperform. Per-minute cost.                                                        |
+| **[yt-dlp](https://github.com/yt-dlp/yt-dlp)**                  | YouTube audio extraction     | Downloads audio-only streams (no video) to minimize bandwidth/storage. Also extracts metadata (title, description, duration, thumbnail, upload date, channel info). |
+| **[feedparser](https://github.com/kurtmckee/feedparser)**       | Podcast RSS parsing          | Parses podcast RSS/Atom feeds to discover episodes. Extracts enclosure URLs (audio files), episode metadata, and show notes.                                        |
 
 The transcription provider is selected via the `AGG_TRANSCRIPTION_PROVIDER` environment variable (`local` or `openai_api`). Local transcription is the default to avoid per-minute API costs.
 
@@ -797,14 +797,14 @@ The AI classifier receives the transcript as `content_text` and processes it ide
 
 #### Safeguards
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `AGG_TRANSCRIPTION_PROVIDER` | `local` | Transcription backend: `local` (faster-whisper) or `openai_api` |
-| `AGG_WHISPER_MODEL` | `base` | Whisper model size for local transcription (`base`, `small`, `medium`, `large-v3`) |
-| `AGG_MAX_AUDIO_DURATION` | `7200` | Maximum audio duration in seconds to transcribe (skip files longer than 2 hours) |
-| `AGG_AUDIO_TEMP_DIR` | `/tmp/aggregator-audio` | Temporary directory for audio downloads (cleaned after transcription) |
-| `AGG_YOUTUBE_MAX_VIDEOS_PER_RUN` | `10` | Maximum new videos to process per channel per pipeline run |
-| `AGG_PODCAST_MAX_EPISODES_PER_RUN` | `5` | Maximum new episodes to process per podcast per pipeline run |
+| Setting                            | Default                 | Description                                                                        |
+| ---------------------------------- | ----------------------- | ---------------------------------------------------------------------------------- |
+| `AGG_TRANSCRIPTION_PROVIDER`       | `local`                 | Transcription backend: `local` (faster-whisper) or `openai_api`                    |
+| `AGG_WHISPER_MODEL`                | `base`                  | Whisper model size for local transcription (`base`, `small`, `medium`, `large-v3`) |
+| `AGG_MAX_AUDIO_DURATION`           | `7200`                  | Maximum audio duration in seconds to transcribe (skip files longer than 2 hours)   |
+| `AGG_AUDIO_TEMP_DIR`               | `/tmp/aggregator-audio` | Temporary directory for audio downloads (cleaned after transcription)              |
+| `AGG_YOUTUBE_MAX_VIDEOS_PER_RUN`   | `10`                    | Maximum new videos to process per channel per pipeline run                         |
+| `AGG_PODCAST_MAX_EPISODES_PER_RUN` | `5`                     | Maximum new episodes to process per podcast per pipeline run                       |
 
 ### Academic & Scientific Sources
 
@@ -880,28 +880,28 @@ For arXiv sources, the pipeline flow extends step 2:
 
 Academic sources enrich the knowledge graph with new node and edge types:
 
-| Label | Properties | Mapped from |
-|-------|-----------|-------------|
+| Label                        | Properties                         | Mapped from                          |
+| ---------------------------- | ---------------------------------- | ------------------------------------ |
 | `Entity` (type=`university`) | `name`, `location`, `external_url` | Author affiliations, source metadata |
-| `Entity` (type=`journal`) | `name`, `external_url` | Paper publication venue |
+| `Entity` (type=`journal`)    | `name`, `external_url`             | Paper publication venue              |
 
-| Edge | From → To | Properties |
-|------|-----------|------------|
-| `AUTHORED_BY` | Article (paper) → Entity (person) | `affiliation`, `position` |
-| `AFFILIATED_WITH` | Entity (person) → Entity (university) | — |
-| `PUBLISHED_IN` | Article (paper) → Entity (journal) | `doi`, `volume`, `year` |
-| `CITES` | Article (paper) → Article (paper) | — |
+| Edge              | From → To                             | Properties                |
+| ----------------- | ------------------------------------- | ------------------------- |
+| `AUTHORED_BY`     | Article (paper) → Entity (person)     | `affiliation`, `position` |
+| `AFFILIATED_WITH` | Entity (person) → Entity (university) | —                         |
+| `PUBLISHED_IN`    | Article (paper) → Entity (journal)    | `doi`, `volume`, `year`   |
+| `CITES`           | Article (paper) → Article (paper)     | —                         |
 
 The `CITES` edge is created when arXiv papers reference other papers already in the database (matched by arXiv ID or DOI). This builds a **citation graph** within the knowledge graph, enabling queries like "which papers on AI ethics cite Vatican documents?"
 
 #### Safeguards
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `AGG_ARXIV_MAX_RESULTS_PER_QUERY` | `20` | Maximum papers to fetch per arXiv query per run |
-| `AGG_ARXIV_FETCH_INTERVAL` | `7 days` | How often to re-run arXiv queries (papers don't change frequently) |
-| `AGG_ARXIV_PDF_MAX_PAGES` | `50` | Skip PDF extraction for papers longer than this (use abstract only) |
-| `AGG_ARXIV_ABSTRACT_RELEVANCE_THRESHOLD` | `0.4` | Minimum abstract relevance to justify downloading the full PDF |
+| Setting                                  | Default  | Description                                                         |
+| ---------------------------------------- | -------- | ------------------------------------------------------------------- |
+| `AGG_ARXIV_MAX_RESULTS_PER_QUERY`        | `20`     | Maximum papers to fetch per arXiv query per run                     |
+| `AGG_ARXIV_FETCH_INTERVAL`               | `7 days` | How often to re-run arXiv queries (papers don't change frequently)  |
+| `AGG_ARXIV_PDF_MAX_PAGES`                | `50`     | Skip PDF extraction for papers longer than this (use abstract only) |
+| `AGG_ARXIV_ABSTRACT_RELEVANCE_THRESHOLD` | `0.4`    | Minimum abstract relevance to justify downloading the full PDF      |
 
 ### Scheduling
 
@@ -947,27 +947,27 @@ async def verify_api_key(key: str = Security(api_key_header)):
 
 ### Endpoints
 
-| Method | Route | Description |
-|--------|-------|-------------|
-| `GET` | `/api/search` | Hybrid search (FTS + semantic via RRF). Params: `q`, `tags[]`, `sources[]`, `from_date`, `to_date`, `language`, `content_type`, `min_relevance`, `limit`, `offset`. The API embeds the query text via Ollama before running the hybrid SQL query. |
-| `GET` | `/api/articles/{id}` | Single article with entities, tags, and related articles (via vector similarity). |
-| `GET` | `/api/tags` | All tags with article counts. Optional `limit` param. |
-| `GET` | `/api/entities` | Entities with filters: `type`, `q` (name search), `limit`, `offset`. |
-| `GET` | `/api/graph` | Knowledge graph data (nodes + edges) for visualization. Params: `center_id` (article or entity), `depth`, `limit`. Returns JSON suitable for D3.js force layout. |
-| `GET` | `/api/sources` | Active sources with article counts and last-fetched timestamps. |
-| `GET` | `/api/stats` | Dashboard stats: total articles, sources, entities, recent pipeline runs. |
+| Method | Route                | Description                                                                                                                                                                                                                                       |
+| ------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/api/search`        | Hybrid search (FTS + semantic via RRF). Params: `q`, `tags[]`, `sources[]`, `from_date`, `to_date`, `language`, `content_type`, `min_relevance`, `limit`, `offset`. The API embeds the query text via Ollama before running the hybrid SQL query. |
+| `GET`  | `/api/articles/{id}` | Single article with entities, tags, and related articles (via vector similarity).                                                                                                                                                                 |
+| `GET`  | `/api/tags`          | All tags with article counts. Optional `limit` param.                                                                                                                                                                                             |
+| `GET`  | `/api/entities`      | Entities with filters: `type`, `q` (name search), `limit`, `offset`.                                                                                                                                                                              |
+| `GET`  | `/api/graph`         | Knowledge graph data (nodes + edges) for visualization. Params: `center_id` (article or entity), `depth`, `limit`. Returns JSON suitable for D3.js force layout.                                                                                  |
+| `GET`  | `/api/sources`       | Active sources with article counts and last-fetched timestamps.                                                                                                                                                                                   |
+| `GET`  | `/api/stats`         | Dashboard stats: total articles, sources, entities, recent pipeline runs.                                                                                                                                                                         |
 
 ### Caching
 
 Responses include `Cache-Control` headers to reduce load:
 
-| Endpoint | Cache TTL | Rationale |
-|----------|-----------|-----------|
-| `/api/search` | 5 min | Balances freshness with performance for repeated queries |
-| `/api/articles/{id}` | 1 hour | Article content rarely changes after ingestion |
-| `/api/tags`, `/api/entities` | 15 min | Updated only when new articles are processed |
-| `/api/graph` | 15 min | Graph structure changes infrequently |
-| `/api/sources`, `/api/stats` | 5 min | Light queries, useful to keep fresh |
+| Endpoint                     | Cache TTL | Rationale                                                |
+| ---------------------------- | --------- | -------------------------------------------------------- |
+| `/api/search`                | 5 min     | Balances freshness with performance for repeated queries |
+| `/api/articles/{id}`         | 1 hour    | Article content rarely changes after ingestion           |
+| `/api/tags`, `/api/entities` | 15 min    | Updated only when new articles are processed             |
+| `/api/graph`                 | 15 min    | Graph structure changes infrequently                     |
+| `/api/sources`, `/api/stats` | 5 min     | Light queries, useful to keep fresh                      |
 
 The Next.js frontend benefits from these headers via `fetch()` with `next: { revalidate }` for ISR, matching the existing WPGraphQL pattern.
 
@@ -976,21 +976,21 @@ The Next.js frontend benefits from these headers via `fetch()` with `next: { rev
 Docker resource limits prevent the aggregation worker from starving the API during pipeline runs:
 
 ```yaml
-  # API server — guaranteed resources for serving requests
-  aggregator-api:
-    deploy:
-      resources:
-        reservations:
-          cpus: '2'
-          memory: 2G
+# API server — guaranteed resources for serving requests
+aggregator-api:
+  deploy:
+    resources:
+      reservations:
+        cpus: "2"
+        memory: 2G
 
-  # Worker — limited to prevent starvation during daily pipeline run
-  aggregator:
-    deploy:
-      resources:
-        limits:
-          cpus: '4'
-          memory: 8G
+# Worker — limited to prevent starvation during daily pipeline run
+aggregator:
+  deploy:
+    resources:
+      limits:
+        cpus: "4"
+        memory: 8G
 ```
 
 PostgreSQL's MVCC ensures readers (API) never block writers (worker) and vice versa. The daily pipeline runs for 1–2 hours with most time spent on network I/O (fetching, API calls); the remaining 22+ hours the worker is idle.
@@ -1025,15 +1025,15 @@ const AGGREGATOR_API_KEY = process.env.AGGREGATOR_API_KEY!;
 export async function researchQuery<T>(
   endpoint: string,
   params?: Record<string, string>,
-  options?: { revalidate?: number }
+  options?: { revalidate?: number },
 ): Promise<T> {
   const url = new URL(endpoint, AGGREGATOR_API_URL);
   if (params) {
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   }
   const res = await fetch(url.toString(), {
-    headers: { 'X-API-Key': AGGREGATOR_API_KEY },
-    next: { revalidate: options?.revalidate ?? 300 },  // 5 min ISR default
+    headers: { "X-API-Key": AGGREGATOR_API_KEY },
+    next: { revalidate: options?.revalidate ?? 300 }, // 5 min ISR default
   });
   if (!res.ok) throw new Error(`Aggregator API error: ${res.status}`);
   return res.json();
@@ -1041,16 +1041,18 @@ export async function researchQuery<T>(
 
 // Typed convenience functions
 export const searchArticles = (params: SearchParams) =>
-  researchQuery<SearchResponse>('/api/search', params, { revalidate: 300 });
+  researchQuery<SearchResponse>("/api/search", params, { revalidate: 300 });
 
 export const getArticle = (id: number) =>
-  researchQuery<ArticleDetail>(`/api/articles/${id}`, undefined, { revalidate: 3600 });
+  researchQuery<ArticleDetail>(`/api/articles/${id}`, undefined, {
+    revalidate: 3600,
+  });
 
 export const getTags = () =>
-  researchQuery<Tag[]>('/api/tags', undefined, { revalidate: 900 });
+  researchQuery<Tag[]>("/api/tags", undefined, { revalidate: 900 });
 
 export const getGraphData = (params: GraphParams) =>
-  researchQuery<GraphData>('/api/graph', params, { revalidate: 900 });
+  researchQuery<GraphData>("/api/graph", params, { revalidate: 900 });
 ```
 
 ### Knowledge Graph Visualization
@@ -1077,7 +1079,7 @@ services:
   aggregator-db:
     build:
       context: .
-      dockerfile: Dockerfile.db  # extends apache/age:PG16_latest, adds pgvector
+      dockerfile: Dockerfile.db # extends apache/age:PG16_latest, adds pgvector
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${AGG_DB_NAME:-aggregator}
@@ -1100,13 +1102,13 @@ services:
     environment:
       DATABASE_URL: postgresql://${AGG_DB_USER:-aggregator}:${AGG_DB_PASSWORD}@aggregator-db:5432/${AGG_DB_NAME:-aggregator}
       OLLAMA_BASE_URL: http://ollama:11434
-      AGG_API_KEYS: ${AGG_API_KEYS}  # comma-separated, supports key rotation
+      AGG_API_KEYS: ${AGG_API_KEYS} # comma-separated, supports key rotation
     ports:
-      - "443:8000"  # behind reverse proxy (Caddy/nginx) with TLS
+      - "443:8000" # behind reverse proxy (Caddy/nginx) with TLS
     deploy:
       resources:
         reservations:
-          cpus: '2'
+          cpus: "2"
           memory: 2G
 
   # Python worker for content aggregation
@@ -1129,14 +1131,14 @@ services:
       AGG_EMBEDDING_PROVIDER: ${AGG_EMBEDDING_PROVIDER:-ollama}
       OLLAMA_BASE_URL: http://ollama:11434
     # Crawl4AI uses Playwright which needs shared memory for Chromium
-    shm_size: '512m'
+    shm_size: "512m"
     # Temporary storage for audio downloads during transcription
     tmpfs:
       - /tmp/aggregator-audio:size=2G
     deploy:
       resources:
         limits:
-          cpus: '4'
+          cpus: "4"
           memory: 8G
 
   # Local embedding model server (nomic-embed-text, 768-dim, multilingual)
@@ -1146,7 +1148,12 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     # Pull the embedding model on first start
-    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull nomic-embed-text && wait"]
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "ollama serve & sleep 5 && ollama pull nomic-embed-text && wait",
+      ]
 
 volumes:
   aggregator_db_data:
@@ -1165,50 +1172,50 @@ docker compose up -d
 
 ### Dedicated Server (aggregator `.env`)
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `AGG_DB_NAME` | PostgreSQL database name | `aggregator` |
-| `AGG_DB_USER` | PostgreSQL user | `aggregator` |
-| `AGG_DB_PASSWORD` | PostgreSQL password | (required) |
-| `AGG_API_KEYS` | Comma-separated API keys for authenticating requests from the CDCF frontend | (required) |
-| `AI_PROVIDER` | AI backend: `claude` or `openai` | `claude` |
-| `ANTHROPIC_API_KEY` | Anthropic API key (if using Claude) | — |
-| `OPENAI_API_KEY` | OpenAI API key (if using OpenAI for classification or embeddings) | — |
-| `AGG_FETCH_INTERVAL` | Default fetch interval | `24h` |
-| `AGG_RELEVANCE_THRESHOLD` | Minimum relevance score to store | `0.3` |
-| `AGG_LINK_MAX_DEPTH` | Maximum crawl depth for link following | `2` |
-| `AGG_LINK_BATCH_SIZE` | Max discovered links to process per run | `50` |
-| `AGG_LINK_RATE_LIMIT` | Seconds between requests to the same domain | `2` |
-| `AGG_LINK_RELEVANCE_THRESHOLD` | Minimum relevance to ingest a discovered link | `0.4` |
-| `AGG_LINK_EXTRA_DOMAINS` | Comma-separated extra domains to allow for link following | — |
-| `AGG_SOURCE_AUTO_PROMOTE_CONFIDENCE` | Minimum AI confidence to auto-promote a discovered source | `0.8` |
-| `AGG_SOURCE_MIN_HITS` | Minimum articles from a domain before promotion is considered | `5` |
-| `AGG_SOURCE_MIN_AVG_RELEVANCE` | Minimum average relevance for auto-promotion | `0.6` |
-| `AGG_SOURCE_MAX_AUTO_PER_RUN` | Maximum sources to auto-promote per pipeline run | `3` |
-| `AGG_TRANSCRIPTION_PROVIDER` | Transcription backend: `local` (faster-whisper) or `openai_api` | `local` |
-| `AGG_WHISPER_MODEL` | Whisper model size for local transcription | `base` |
-| `AGG_MAX_AUDIO_DURATION` | Maximum audio duration in seconds to transcribe | `7200` |
-| `AGG_AUDIO_TEMP_DIR` | Temporary directory for audio downloads | `/tmp/aggregator-audio` |
-| `AGG_YOUTUBE_MAX_VIDEOS_PER_RUN` | Max new videos to process per channel per run | `10` |
-| `AGG_PODCAST_MAX_EPISODES_PER_RUN` | Max new episodes to process per podcast per run | `5` |
-| `AGG_ARXIV_MAX_RESULTS_PER_QUERY` | Max papers to fetch per arXiv query per run | `20` |
-| `AGG_ARXIV_FETCH_INTERVAL` | How often to re-run arXiv queries | `7 days` |
-| `AGG_ARXIV_PDF_MAX_PAGES` | Skip PDF extraction for papers longer than this | `50` |
-| `AGG_ARXIV_ABSTRACT_RELEVANCE_THRESHOLD` | Minimum abstract relevance to download full PDF | `0.4` |
-| `AGG_EMBEDDING_PROVIDER` | Embedding backend: `ollama` (local nomic-embed-text) or `openai` | `ollama` |
-| `AGG_EMBEDDING_MODEL` | Ollama model name (ignored when provider is `openai`) | `nomic-embed-text` |
-| `AGG_EMBEDDING_DIMENSIONS` | Vector dimensions (must match model output) | `768` |
-| `AGG_EMBEDDING_BATCH_SIZE` | Articles to embed per batch | `32` |
-| `AGG_CENTROID_MAX_DISTANCE` | Max cosine distance from corpus centroid before skipping AI classification | `0.65` |
-| `AGG_ENTITY_MERGE_THRESHOLD` | Minimum cosine similarity to auto-merge duplicate entities | `0.92` |
-| `AGG_ENTITY_REVIEW_THRESHOLD` | Minimum similarity to flag entity pair for manual review | `0.80` |
+| Variable                                 | Description                                                                 | Default                 |
+| ---------------------------------------- | --------------------------------------------------------------------------- | ----------------------- |
+| `AGG_DB_NAME`                            | PostgreSQL database name                                                    | `aggregator`            |
+| `AGG_DB_USER`                            | PostgreSQL user                                                             | `aggregator`            |
+| `AGG_DB_PASSWORD`                        | PostgreSQL password                                                         | (required)              |
+| `AGG_API_KEYS`                           | Comma-separated API keys for authenticating requests from the CDCF frontend | (required)              |
+| `AI_PROVIDER`                            | AI backend: `claude` or `openai`                                            | `claude`                |
+| `ANTHROPIC_API_KEY`                      | Anthropic API key (if using Claude)                                         | —                       |
+| `OPENAI_API_KEY`                         | OpenAI API key (if using OpenAI for classification or embeddings)           | —                       |
+| `AGG_FETCH_INTERVAL`                     | Default fetch interval                                                      | `24h`                   |
+| `AGG_RELEVANCE_THRESHOLD`                | Minimum relevance score to store                                            | `0.3`                   |
+| `AGG_LINK_MAX_DEPTH`                     | Maximum crawl depth for link following                                      | `2`                     |
+| `AGG_LINK_BATCH_SIZE`                    | Max discovered links to process per run                                     | `50`                    |
+| `AGG_LINK_RATE_LIMIT`                    | Seconds between requests to the same domain                                 | `2`                     |
+| `AGG_LINK_RELEVANCE_THRESHOLD`           | Minimum relevance to ingest a discovered link                               | `0.4`                   |
+| `AGG_LINK_EXTRA_DOMAINS`                 | Comma-separated extra domains to allow for link following                   | —                       |
+| `AGG_SOURCE_AUTO_PROMOTE_CONFIDENCE`     | Minimum AI confidence to auto-promote a discovered source                   | `0.8`                   |
+| `AGG_SOURCE_MIN_HITS`                    | Minimum articles from a domain before promotion is considered               | `5`                     |
+| `AGG_SOURCE_MIN_AVG_RELEVANCE`           | Minimum average relevance for auto-promotion                                | `0.6`                   |
+| `AGG_SOURCE_MAX_AUTO_PER_RUN`            | Maximum sources to auto-promote per pipeline run                            | `3`                     |
+| `AGG_TRANSCRIPTION_PROVIDER`             | Transcription backend: `local` (faster-whisper) or `openai_api`             | `local`                 |
+| `AGG_WHISPER_MODEL`                      | Whisper model size for local transcription                                  | `base`                  |
+| `AGG_MAX_AUDIO_DURATION`                 | Maximum audio duration in seconds to transcribe                             | `7200`                  |
+| `AGG_AUDIO_TEMP_DIR`                     | Temporary directory for audio downloads                                     | `/tmp/aggregator-audio` |
+| `AGG_YOUTUBE_MAX_VIDEOS_PER_RUN`         | Max new videos to process per channel per run                               | `10`                    |
+| `AGG_PODCAST_MAX_EPISODES_PER_RUN`       | Max new episodes to process per podcast per run                             | `5`                     |
+| `AGG_ARXIV_MAX_RESULTS_PER_QUERY`        | Max papers to fetch per arXiv query per run                                 | `20`                    |
+| `AGG_ARXIV_FETCH_INTERVAL`               | How often to re-run arXiv queries                                           | `7 days`                |
+| `AGG_ARXIV_PDF_MAX_PAGES`                | Skip PDF extraction for papers longer than this                             | `50`                    |
+| `AGG_ARXIV_ABSTRACT_RELEVANCE_THRESHOLD` | Minimum abstract relevance to download full PDF                             | `0.4`                   |
+| `AGG_EMBEDDING_PROVIDER`                 | Embedding backend: `ollama` (local nomic-embed-text) or `openai`            | `ollama`                |
+| `AGG_EMBEDDING_MODEL`                    | Ollama model name (ignored when provider is `openai`)                       | `nomic-embed-text`      |
+| `AGG_EMBEDDING_DIMENSIONS`               | Vector dimensions (must match model output)                                 | `768`                   |
+| `AGG_EMBEDDING_BATCH_SIZE`               | Articles to embed per batch                                                 | `32`                    |
+| `AGG_CENTROID_MAX_DISTANCE`              | Max cosine distance from corpus centroid before skipping AI classification  | `0.65`                  |
+| `AGG_ENTITY_MERGE_THRESHOLD`             | Minimum cosine similarity to auto-merge duplicate entities                  | `0.92`                  |
+| `AGG_ENTITY_REVIEW_THRESHOLD`            | Minimum similarity to flag entity pair for manual review                    | `0.80`                  |
 
 ### Plesk Server (CDCF `.env.local`)
 
-| Variable | Description |
-|----------|-------------|
+| Variable             | Description                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------- |
 | `AGGREGATOR_API_URL` | Base URL of the aggregator API (e.g. `https://aggregator.catholicdigitalcommons.org`) |
-| `AGGREGATOR_API_KEY` | API key for authenticating with the aggregator (must match one of `AGG_API_KEYS`) |
+| `AGGREGATOR_API_KEY` | API key for authenticating with the aggregator (must match one of `AGG_API_KEYS`)     |
 
 ## Phased Implementation
 
@@ -1364,196 +1371,196 @@ CLAUDE.md                     # Document aggregator integration
 
 #### English (EN)
 
-| Source | Type | URL |
-|--------|------|-----|
-| Vatican News | RSS | `https://www.vaticannews.va/en.rss.xml` |
-| Catholic News Agency (CNA) | RSS | `https://www.catholicnewsagency.com/feed` |
-| EWTN / National Catholic Register | RSS | `https://ncregister.com/feeds/general-news.xml` |
-| Our Sunday Visitor (OSV News) | RSS | `https://www.osv.com/RSS.aspx` |
-| America Magazine | RSS | `https://www.americamagazine.org/feed` |
-| National Catholic Reporter | RSS | `https://www.ncronline.org/rss.xml` |
-| The Pillar | RSS | `https://www.pillarcatholic.com/feed` |
-| Catholic World News | RSS | `https://feeds.feedburner.com/CatholicWorldNewsFeatureStories` |
-| Catholic Online | RSS | `https://www.catholic.org/xml/` |
-| Crux | RSS | `https://cruxnow.com/feed` |
-| ZENIT | RSS | `https://zenit.org/feed/` |
-| Catholic Herald | RSS | `https://catholicherald.co.uk/feed/` |
-| Aleteia | RSS | `https://aleteia.org/feed/` |
-| USCCB News | RSS | `https://www.usccb.org/subscribe/rss` |
-| ACI Africa | RSS | `https://www.aciafrica.org/rss/` |
+| Source                            | Type | URL                                                            |
+| --------------------------------- | ---- | -------------------------------------------------------------- |
+| Vatican News                      | RSS  | `https://www.vaticannews.va/en.rss.xml`                        |
+| Catholic News Agency (CNA)        | RSS  | `https://www.catholicnewsagency.com/feed`                      |
+| EWTN / National Catholic Register | RSS  | `https://ncregister.com/feeds/general-news.xml`                |
+| Our Sunday Visitor (OSV News)     | RSS  | `https://www.osv.com/RSS.aspx`                                 |
+| America Magazine                  | RSS  | `https://www.americamagazine.org/feed`                         |
+| National Catholic Reporter        | RSS  | `https://www.ncronline.org/rss.xml`                            |
+| The Pillar                        | RSS  | `https://www.pillarcatholic.com/feed`                          |
+| Catholic World News               | RSS  | `https://feeds.feedburner.com/CatholicWorldNewsFeatureStories` |
+| Catholic Online                   | RSS  | `https://www.catholic.org/xml/`                                |
+| Crux                              | RSS  | `https://cruxnow.com/feed`                                     |
+| ZENIT                             | RSS  | `https://zenit.org/feed/`                                      |
+| Catholic Herald                   | RSS  | `https://catholicherald.co.uk/feed/`                           |
+| Aleteia                           | RSS  | `https://aleteia.org/feed/`                                    |
+| USCCB News                        | RSS  | `https://www.usccb.org/subscribe/rss`                          |
+| ACI Africa                        | RSS  | `https://www.aciafrica.org/rss/`                               |
 
 #### Italian (IT)
 
-| Source | Type | URL |
-|--------|------|-----|
-| Vatican News Italiano | RSS | `https://www.vaticannews.va/it.rss.xml` |
-| Agenzia SIR | RSS | `https://www.agensir.it/feed/` |
-| ACI Stampa | RSS | `https://www.acistampa.com/rss` |
-| Aleteia Italiano | RSS | `https://it.aleteia.org/feed/` |
-| Zenit Italiano | RSS | `https://it.zenit.org/feed/` |
-| CEI (Conf. Episcopale Italiana) | RSS | `https://www.chiesacattolica.it/feed/` |
-| CEI Servizio Informativo | RSS | `https://servizioinformatico.chiesacattolica.it/feed/` |
+| Source                          | Type | URL                                                    |
+| ------------------------------- | ---- | ------------------------------------------------------ |
+| Vatican News Italiano           | RSS  | `https://www.vaticannews.va/it.rss.xml`                |
+| Agenzia SIR                     | RSS  | `https://www.agensir.it/feed/`                         |
+| ACI Stampa                      | RSS  | `https://www.acistampa.com/rss`                        |
+| Aleteia Italiano                | RSS  | `https://it.aleteia.org/feed/`                         |
+| Zenit Italiano                  | RSS  | `https://it.zenit.org/feed/`                           |
+| CEI (Conf. Episcopale Italiana) | RSS  | `https://www.chiesacattolica.it/feed/`                 |
+| CEI Servizio Informativo        | RSS  | `https://servizioinformatico.chiesacattolica.it/feed/` |
 
 #### Spanish (ES)
 
-| Source | Type | URL |
-|--------|------|-----|
-| Vatican News Español | RSS | `https://www.vaticannews.va/es.rss.xml` |
-| ACI Prensa | RSS | `https://www.aciprensa.com/rss/news` |
-| Aleteia Español | RSS | `https://es.aleteia.org/feed/` |
-| Zenit Español | RSS | `https://es.zenit.org/feed/` |
-| Vida Nueva | RSS | `https://www.vidanuevadigital.com/feed/` |
-| CEE (Conf. Episcopal Española) | RSS | `https://www.conferenciaepiscopal.es/feed/` |
+| Source                         | Type | URL                                         |
+| ------------------------------ | ---- | ------------------------------------------- |
+| Vatican News Español           | RSS  | `https://www.vaticannews.va/es.rss.xml`     |
+| ACI Prensa                     | RSS  | `https://www.aciprensa.com/rss/news`        |
+| Aleteia Español                | RSS  | `https://es.aleteia.org/feed/`              |
+| Zenit Español                  | RSS  | `https://es.zenit.org/feed/`                |
+| Vida Nueva                     | RSS  | `https://www.vidanuevadigital.com/feed/`    |
+| CEE (Conf. Episcopal Española) | RSS  | `https://www.conferenciaepiscopal.es/feed/` |
 
 #### Portuguese (PT)
 
-| Source | Type | URL |
-|--------|------|-----|
-| Vatican News Português | RSS | `https://www.vaticannews.va/pt.rss.xml` |
-| ACI Digital | RSS | `https://www.acidigital.com/rss/news` |
-| Aleteia Português | RSS | `https://pt.aleteia.org/feed/` |
-| Canção Nova | RSS | `https://noticias.cancaonova.com/feed/` |
-| CNBB (Brazil) | RSS | `https://www.cnbb.org.br/feed/` |
+| Source                 | Type | URL                                     |
+| ---------------------- | ---- | --------------------------------------- |
+| Vatican News Português | RSS  | `https://www.vaticannews.va/pt.rss.xml` |
+| ACI Digital            | RSS  | `https://www.acidigital.com/rss/news`   |
+| Aleteia Português      | RSS  | `https://pt.aleteia.org/feed/`          |
+| Canção Nova            | RSS  | `https://noticias.cancaonova.com/feed/` |
+| CNBB (Brazil)          | RSS  | `https://www.cnbb.org.br/feed/`         |
 
 #### French (FR)
 
-| Source | Type | URL |
-|--------|------|-----|
-| Vatican News Français | RSS | `https://www.vaticannews.va/fr.rss.xml` |
-| La Croix | RSS | `https://www.la-croix.com/RSS/UNIVERS` |
-| Aleteia Français | RSS | `https://fr.aleteia.org/feed/` |
-| Zenit Français | RSS | `https://fr.zenit.org/feed/` |
-| CEF (Conf. des Évêques de France) | RSS | `https://eglise.catholique.fr/feed/` |
+| Source                            | Type | URL                                     |
+| --------------------------------- | ---- | --------------------------------------- |
+| Vatican News Français             | RSS  | `https://www.vaticannews.va/fr.rss.xml` |
+| La Croix                          | RSS  | `https://www.la-croix.com/RSS/UNIVERS`  |
+| Aleteia Français                  | RSS  | `https://fr.aleteia.org/feed/`          |
+| Zenit Français                    | RSS  | `https://fr.zenit.org/feed/`            |
+| CEF (Conf. des Évêques de France) | RSS  | `https://eglise.catholique.fr/feed/`    |
 
 #### German (DE)
 
-| Source | Type | URL |
-|--------|------|-----|
-| Vatican News Deutsch | RSS | `https://www.vaticannews.va/de.rss.xml` |
-| CNA Deutsch | RSS | `https://de.catholicnewsagency.com/rss` |
-| Domradio.de | RSS | `https://www.domradio.de/rss.xml` |
+| Source               | Type | URL                                     |
+| -------------------- | ---- | --------------------------------------- |
+| Vatican News Deutsch | RSS  | `https://www.vaticannews.va/de.rss.xml` |
+| CNA Deutsch          | RSS  | `https://de.catholicnewsagency.com/rss` |
+| Domradio.de          | RSS  | `https://www.domradio.de/rss.xml`       |
 
 #### Polish (PL)
 
-| Source | Type | URL |
-|--------|------|-----|
-| Vatican News Polski | RSS | `https://www.vaticannews.va/pl.rss.xml` |
-| Aleteia Polski | RSS | `https://pl.aleteia.org/feed/` |
-| Deon.pl | RSS | `https://deon.pl/rss/` |
-| Niedziela.pl | RSS | `https://www.niedziela.pl/rss` |
+| Source              | Type | URL                                     |
+| ------------------- | ---- | --------------------------------------- |
+| Vatican News Polski | RSS  | `https://www.vaticannews.va/pl.rss.xml` |
+| Aleteia Polski      | RSS  | `https://pl.aleteia.org/feed/`          |
+| Deon.pl             | RSS  | `https://deon.pl/rss/`                  |
+| Niedziela.pl        | RSS  | `https://www.niedziela.pl/rss`          |
 
 #### Other Languages
 
-| Source | Type | URL | Language |
-|--------|------|-----|----------|
-| Vatican News Tiếng Việt | RSS | `https://www.vaticannews.va/vi.rss.xml` | VI |
-| Vatican News العربية | RSS | `https://www.vaticannews.va/ar.rss.xml` | AR |
-| Vatican News 中文 | RSS | `https://www.vaticannews.va/zh.rss.xml` | ZH |
+| Source                  | Type | URL                                     | Language |
+| ----------------------- | ---- | --------------------------------------- | -------- |
+| Vatican News Tiếng Việt | RSS  | `https://www.vaticannews.va/vi.rss.xml` | VI       |
+| Vatican News العربية    | RSS  | `https://www.vaticannews.va/ar.rss.xml` | AR       |
+| Vatican News 中文       | RSS  | `https://www.vaticannews.va/zh.rss.xml` | ZH       |
 
 #### Vatican Sources
 
-| Source | Type | URL | Language |
-|--------|------|-----|----------|
-| Holy See Documents | Vatican | `https://www.vatican.va/content/vatican/en.html` | EN |
-| Pontifical Academy for Life | Web | `https://www.academyforlife.va/content/pav/en/news.html` | EN |
-| Pontifical Academy of Sciences | Web | `https://www.pas.va/en/news.html` | EN |
-| Vatican Dicastery for Communication | Web | `https://www.dicasteriumcommunication.va/en.html` | EN |
-| RenAIssance Foundation (Rome Call for AI Ethics) | Web | `https://www.romecall.org/` | EN |
+| Source                                           | Type    | URL                                                      | Language |
+| ------------------------------------------------ | ------- | -------------------------------------------------------- | -------- |
+| Holy See Documents                               | Vatican | `https://www.vatican.va/content/vatican/en.html`         | EN       |
+| Pontifical Academy for Life                      | Web     | `https://www.academyforlife.va/content/pav/en/news.html` | EN       |
+| Pontifical Academy of Sciences                   | Web     | `https://www.pas.va/en/news.html`                        | EN       |
+| Vatican Dicastery for Communication              | Web     | `https://www.dicasteriumcommunication.va/en.html`        | EN       |
+| RenAIssance Foundation (Rome Call for AI Ethics) | Web     | `https://www.romecall.org/`                              | EN       |
 
 ### YouTube Channels
 
-| Source | Type | URL | Language |
-|--------|------|-----|----------|
-| Bishop Robert Barron | YouTube | `https://www.youtube.com/@BishopBarron` | EN |
-| Ascension Presents (Fr. Mike Schmitz) | YouTube | `https://www.youtube.com/@AscensionPresents` | EN |
-| Catholic Answers | YouTube | `https://www.youtube.com/@catholiccom` | EN |
-| EWTN | YouTube | `https://www.youtube.com/@EWTN` | EN |
-| Vatican News | YouTube | `https://www.youtube.com/@VaticanNews` | EN |
-| Breaking in the Habit | YouTube | `https://www.youtube.com/@BreakingInTheHabit` | EN |
-| The Thomistic Institute | YouTube | `https://www.youtube.com/@TheThomisticInstitute` | EN |
-| TV2000it | YouTube | `https://www.youtube.com/@TV2000it` | IT |
-| KTO TV | YouTube | `https://www.youtube.com/@KTOTV` | FR |
-| Collège des Bernardins | YouTube | `https://www.youtube.com/@Bernardins` | FR |
-| Le Jour du Seigneur | YouTube | `https://www.youtube.com/@lejourduseigneur` | FR |
-| EWTN Español | YouTube | `https://www.youtube.com/@EWTNEspanol` | ES |
-| Catholic.net | YouTube | `https://www.youtube.com/@catholicnet` | ES |
-| Desde la Fe | YouTube | `https://www.youtube.com/@desdelafe` | ES |
-| Vatican News Español | YouTube | `https://www.youtube.com/@VaticanNewsEs` | ES |
-| EWTN Deutschland | YouTube | `https://www.youtube.com/@EWTNde` | DE |
-| katholisch.de | YouTube | `https://www.youtube.com/@katholischde` | DE |
-| Vatican News Deutsch | YouTube | `https://www.youtube.com/@VaticanNewsDe` | DE |
-| Canção Nova | YouTube | `https://www.youtube.com/@CancaoNova` | PT |
-| Padre Paulo Ricardo | YouTube | `https://www.youtube.com/@padrepauloricardo` | PT |
-| TV Aparecida | YouTube | `https://www.youtube.com/@TVAparecida` | PT |
-| Vatican News Português | YouTube | `https://www.youtube.com/@VaticanNewsPt` | PT |
-| Vatican News Français | YouTube | `https://www.youtube.com/@VaticanNewsFr` | FR |
-| Langusta na Palmie | YouTube | `https://www.youtube.com/@LangustanaPalmie` | PL |
-| Stacja7 | YouTube | `https://www.youtube.com/@Stacja7` | PL |
-| Telewizja Trwam | YouTube | `https://www.youtube.com/@TelewizjaTrwam` | PL |
-| Radio Maryja | YouTube | `https://www.youtube.com/@RadioMaryja` | PL |
-| Vatican News Polski | YouTube | `https://www.youtube.com/@VaticanNewsPl` | PL |
-| CBCP Media Office | YouTube | `https://www.youtube.com/@CBCPMedia` | FIL/EN |
-| Télé Lumière / Noursat | YouTube | `https://www.youtube.com/@TeleLumiereNoursat` | AR |
-| Noursat | YouTube | `https://www.youtube.com/@Noursat` | AR |
-| Salt + Light Media | YouTube | `https://www.youtube.com/@SaltandLightMedia` | EN/FR |
+| Source                                | Type    | URL                                              | Language |
+| ------------------------------------- | ------- | ------------------------------------------------ | -------- |
+| Bishop Robert Barron                  | YouTube | `https://www.youtube.com/@BishopBarron`          | EN       |
+| Ascension Presents (Fr. Mike Schmitz) | YouTube | `https://www.youtube.com/@AscensionPresents`     | EN       |
+| Catholic Answers                      | YouTube | `https://www.youtube.com/@catholiccom`           | EN       |
+| EWTN                                  | YouTube | `https://www.youtube.com/@EWTN`                  | EN       |
+| Vatican News                          | YouTube | `https://www.youtube.com/@VaticanNews`           | EN       |
+| Breaking in the Habit                 | YouTube | `https://www.youtube.com/@BreakingInTheHabit`    | EN       |
+| The Thomistic Institute               | YouTube | `https://www.youtube.com/@TheThomisticInstitute` | EN       |
+| TV2000it                              | YouTube | `https://www.youtube.com/@TV2000it`              | IT       |
+| KTO TV                                | YouTube | `https://www.youtube.com/@KTOTV`                 | FR       |
+| Collège des Bernardins                | YouTube | `https://www.youtube.com/@Bernardins`            | FR       |
+| Le Jour du Seigneur                   | YouTube | `https://www.youtube.com/@lejourduseigneur`      | FR       |
+| EWTN Español                          | YouTube | `https://www.youtube.com/@EWTNEspanol`           | ES       |
+| Catholic.net                          | YouTube | `https://www.youtube.com/@catholicnet`           | ES       |
+| Desde la Fe                           | YouTube | `https://www.youtube.com/@desdelafe`             | ES       |
+| Vatican News Español                  | YouTube | `https://www.youtube.com/@VaticanNewsEs`         | ES       |
+| EWTN Deutschland                      | YouTube | `https://www.youtube.com/@EWTNde`                | DE       |
+| katholisch.de                         | YouTube | `https://www.youtube.com/@katholischde`          | DE       |
+| Vatican News Deutsch                  | YouTube | `https://www.youtube.com/@VaticanNewsDe`         | DE       |
+| Canção Nova                           | YouTube | `https://www.youtube.com/@CancaoNova`            | PT       |
+| Padre Paulo Ricardo                   | YouTube | `https://www.youtube.com/@padrepauloricardo`     | PT       |
+| TV Aparecida                          | YouTube | `https://www.youtube.com/@TVAparecida`           | PT       |
+| Vatican News Português                | YouTube | `https://www.youtube.com/@VaticanNewsPt`         | PT       |
+| Vatican News Français                 | YouTube | `https://www.youtube.com/@VaticanNewsFr`         | FR       |
+| Langusta na Palmie                    | YouTube | `https://www.youtube.com/@LangustanaPalmie`      | PL       |
+| Stacja7                               | YouTube | `https://www.youtube.com/@Stacja7`               | PL       |
+| Telewizja Trwam                       | YouTube | `https://www.youtube.com/@TelewizjaTrwam`        | PL       |
+| Radio Maryja                          | YouTube | `https://www.youtube.com/@RadioMaryja`           | PL       |
+| Vatican News Polski                   | YouTube | `https://www.youtube.com/@VaticanNewsPl`         | PL       |
+| CBCP Media Office                     | YouTube | `https://www.youtube.com/@CBCPMedia`             | FIL/EN   |
+| Télé Lumière / Noursat                | YouTube | `https://www.youtube.com/@TeleLumiereNoursat`    | AR       |
+| Noursat                               | YouTube | `https://www.youtube.com/@Noursat`               | AR       |
+| Salt + Light Media                    | YouTube | `https://www.youtube.com/@SaltandLightMedia`     | EN/FR    |
 
 ### Podcasts
 
-| Source | Type | Feed URL | Language |
-|--------|------|----------|----------|
-| The Catholic Talk Show | Podcast | `https://feeds.buzzsprout.com/180009.rss` | EN |
-| Pints with Aquinas | Podcast | `https://feeds.buzzsprout.com/25546.rss` | EN |
-| Catholic Stuff You Should Know | Podcast | `https://catholicstuffpodcast.com/feed/podcast` | EN |
-| Godsplaining | Podcast | `https://feeds.soundcloud.com/users/soundcloud:users:267228498/sounds.rss` | EN |
-| The Pillar Podcast | Podcast | `https://www.pillarcatholic.com/feed/podcast` | EN |
-| Jimmy Akin's Mysterious World | Podcast | `https://sqpn.com/category/podcasts/mysterious-world/feed/` | EN |
+| Source                         | Type    | Feed URL                                                                   | Language |
+| ------------------------------ | ------- | -------------------------------------------------------------------------- | -------- |
+| The Catholic Talk Show         | Podcast | `https://feeds.buzzsprout.com/180009.rss`                                  | EN       |
+| Pints with Aquinas             | Podcast | `https://feeds.buzzsprout.com/25546.rss`                                   | EN       |
+| Catholic Stuff You Should Know | Podcast | `https://catholicstuffpodcast.com/feed/podcast`                            | EN       |
+| Godsplaining                   | Podcast | `https://feeds.soundcloud.com/users/soundcloud:users:267228498/sounds.rss` | EN       |
+| The Pillar Podcast             | Podcast | `https://www.pillarcatholic.com/feed/podcast`                              | EN       |
+| Jimmy Akin's Mysterious World  | Podcast | `https://sqpn.com/category/podcasts/mysterious-world/feed/`                | EN       |
 
 ### Academic & Scientific
 
-| Source | Type | URL | Language | Notes |
-|--------|------|-----|----------|-------|
-| arXiv (AI Ethics) | arXiv | `https://export.arxiv.org/api/query` | EN | cs.AI + ethics/religion queries |
-| arXiv (Computers & Society) | arXiv | `https://export.arxiv.org/api/query` | EN | cs.CY category |
+| Source                      | Type  | URL                                  | Language | Notes                           |
+| --------------------------- | ----- | ------------------------------------ | -------- | ------------------------------- |
+| arXiv (AI Ethics)           | arXiv | `https://export.arxiv.org/api/query` | EN       | cs.AI + ethics/religion queries |
+| arXiv (Computers & Society) | arXiv | `https://export.arxiv.org/api/query` | EN       | cs.CY category                  |
 
 #### Universities — Confirmed RSS Feeds
 
-| Source | Type | URL | Language | Notes |
-|--------|------|-----|----------|-------|
-| Catholic University of America | RSS | `https://www.catholic.edu/news/rss.xml` | EN | |
-| University of Notre Dame | RSS | `https://news.nd.edu/feed/` | EN | |
-| Boston College | RSS | `https://www.bc.edu/content/bc-web/bcnews/rss.xml` | EN | |
-| McGrath Institute (Notre Dame) | RSS | `https://mcgrath.nd.edu/feed/` | EN | Church & technology intersection |
-| Fordham University | RSS | `https://now.fordham.edu/feed/` | EN | Jesuit |
-| Loyola University Chicago | RSS | `https://news.luc.edu/feed/` | EN | Jesuit |
-| Franciscan Univ. of Steubenville | RSS | `https://franciscan.edu/feed/` | EN | Franciscan TOR |
-| University of St. Thomas (Houston) | RSS | `https://news.stthom.edu/feed/` | EN | Basilian Fathers |
-| Pontifical Univ. of the Holy Cross (PUSC) | RSS | `https://www.pusc.it/feed/` | IT | Opus Dei, Rome |
-| Pontifical Athenaeum Regina Apostolorum | RSS | `https://www.upra.org/feed/` | IT | Legionaries of Christ, Rome |
-| Pontifical Antonianum University | RSS | `https://www.antonianum.eu/feed/` | IT | Franciscans OFM, Rome |
-| Sophia University (Tokyo) | RSS | `https://www.sophia.ac.jp/eng/feed/` | JA/EN | Jesuit |
-| Unisinos (Brazil) | RSS | `https://www.unisinos.br/noticias/feed/` | PT | Jesuit |
-| KU Leuven | RSS | `https://nieuws.kuleuven.be/en/rss` | NL/EN | Belgium |
-| Université Catholique de Lyon (UCLy) | RSS | `https://www.ucly.fr/feed/` | FR | France |
-| Universitas Katolik Parahyangan (UNPAR) | RSS | `https://unpar.ac.id/feed/` | ID | Indonesia |
-| Pontificia Universidad Católica del Perú (PUCP) | RSS | `https://www.pucp.edu.pe/feed/` | ES | Peru |
-| Assumption University (Thailand) | RSS | `https://www.au.edu/feed/` | EN/TH | Montfortians, Bangkok |
+| Source                                          | Type | URL                                                | Language | Notes                            |
+| ----------------------------------------------- | ---- | -------------------------------------------------- | -------- | -------------------------------- |
+| Catholic University of America                  | RSS  | `https://www.catholic.edu/news/rss.xml`            | EN       |                                  |
+| University of Notre Dame                        | RSS  | `https://news.nd.edu/feed/`                        | EN       |                                  |
+| Boston College                                  | RSS  | `https://www.bc.edu/content/bc-web/bcnews/rss.xml` | EN       |                                  |
+| McGrath Institute (Notre Dame)                  | RSS  | `https://mcgrath.nd.edu/feed/`                     | EN       | Church & technology intersection |
+| Fordham University                              | RSS  | `https://now.fordham.edu/feed/`                    | EN       | Jesuit                           |
+| Loyola University Chicago                       | RSS  | `https://news.luc.edu/feed/`                       | EN       | Jesuit                           |
+| Franciscan Univ. of Steubenville                | RSS  | `https://franciscan.edu/feed/`                     | EN       | Franciscan TOR                   |
+| University of St. Thomas (Houston)              | RSS  | `https://news.stthom.edu/feed/`                    | EN       | Basilian Fathers                 |
+| Pontifical Univ. of the Holy Cross (PUSC)       | RSS  | `https://www.pusc.it/feed/`                        | IT       | Opus Dei, Rome                   |
+| Pontifical Athenaeum Regina Apostolorum         | RSS  | `https://www.upra.org/feed/`                       | IT       | Legionaries of Christ, Rome      |
+| Pontifical Antonianum University                | RSS  | `https://www.antonianum.eu/feed/`                  | IT       | Franciscans OFM, Rome            |
+| Sophia University (Tokyo)                       | RSS  | `https://www.sophia.ac.jp/eng/feed/`               | JA/EN    | Jesuit                           |
+| Unisinos (Brazil)                               | RSS  | `https://www.unisinos.br/noticias/feed/`           | PT       | Jesuit                           |
+| KU Leuven                                       | RSS  | `https://nieuws.kuleuven.be/en/rss`                | NL/EN    | Belgium                          |
+| Université Catholique de Lyon (UCLy)            | RSS  | `https://www.ucly.fr/feed/`                        | FR       | France                           |
+| Universitas Katolik Parahyangan (UNPAR)         | RSS  | `https://unpar.ac.id/feed/`                        | ID       | Indonesia                        |
+| Pontificia Universidad Católica del Perú (PUCP) | RSS  | `https://www.pucp.edu.pe/feed/`                    | ES       | Peru                             |
+| Assumption University (Thailand)                | RSS  | `https://www.au.edu/feed/`                         | EN/TH    | Montfortians, Bangkok            |
 
 #### Universities — Web Scraping (no RSS feed)
 
-| Source | Type | URL | Language | Notes |
-|--------|------|-----|----------|-------|
-| Georgetown University | Web | `https://www.georgetown.edu/news/` | EN | Jesuit |
-| Pontifical Gregorian University | Web | `https://www.unigre.it/it/news/` | IT | Jesuit, Rome |
-| Catholic Univ. of the Sacred Heart (Milan) | Web | `https://www.unicatt.it/news` | IT | Largest Catholic university in the world |
-| Pontifical Lateran University | Web | `https://www.pul.va/category/news/` | IT | Rome |
-| Pontifical Urbaniana University | Web | `https://www.urbaniana.va/it/news-ed-eventi/news.html` | IT | Rome |
-| Universidad Pontificia Comillas | Web | `https://www.comillas.edu/en/news/` | ES | Jesuit, Madrid |
-| UCLouvain | Web | `https://uclouvain.be/en/news` | FR | Belgium |
-| Ateneo de Manila University | Web | `https://www.ateneo.edu/news` | EN/FIL | Jesuit, Philippines |
-| Fu Jen Catholic University | Web | `https://www.fju.edu.tw/` | ZH | SVD/Jesuit, Taiwan |
-| Universidade Católica Portuguesa | Web | `https://www.ucp.pt/` | PT | Portugal |
-| Catholic University of Korea | Web | `https://www.catholic.ac.kr/en/` | KO | South Korea |
-| Nanzan University | Web | `https://www.nanzan-u.ac.jp/English/` | JA | SVD, Japan |
-| Pontificia Universidad Católica de Chile | Web | `https://www.uc.cl/en/news/` | ES | Chile |
+| Source                                     | Type | URL                                                    | Language | Notes                                    |
+| ------------------------------------------ | ---- | ------------------------------------------------------ | -------- | ---------------------------------------- |
+| Georgetown University                      | Web  | `https://www.georgetown.edu/news/`                     | EN       | Jesuit                                   |
+| Pontifical Gregorian University            | Web  | `https://www.unigre.it/it/news/`                       | IT       | Jesuit, Rome                             |
+| Catholic Univ. of the Sacred Heart (Milan) | Web  | `https://www.unicatt.it/news`                          | IT       | Largest Catholic university in the world |
+| Pontifical Lateran University              | Web  | `https://www.pul.va/category/news/`                    | IT       | Rome                                     |
+| Pontifical Urbaniana University            | Web  | `https://www.urbaniana.va/it/news-ed-eventi/news.html` | IT       | Rome                                     |
+| Universidad Pontificia Comillas            | Web  | `https://www.comillas.edu/en/news/`                    | ES       | Jesuit, Madrid                           |
+| UCLouvain                                  | Web  | `https://uclouvain.be/en/news`                         | FR       | Belgium                                  |
+| Ateneo de Manila University                | Web  | `https://www.ateneo.edu/news`                          | EN/FIL   | Jesuit, Philippines                      |
+| Fu Jen Catholic University                 | Web  | `https://www.fju.edu.tw/`                              | ZH       | SVD/Jesuit, Taiwan                       |
+| Universidade Católica Portuguesa           | Web  | `https://www.ucp.pt/`                                  | PT       | Portugal                                 |
+| Catholic University of Korea               | Web  | `https://www.catholic.ac.kr/en/`                       | KO       | South Korea                              |
+| Nanzan University                          | Web  | `https://www.nanzan-u.ac.jp/English/`                  | JA       | SVD, Japan                               |
+| Pontificia Universidad Católica de Chile   | Web  | `https://www.uc.cl/en/news/`                           | ES       | Chile                                    |
 
 Sources are stored in the `sources` table and can be added/removed at any time without code changes.

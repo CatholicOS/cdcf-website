@@ -24,22 +24,22 @@
 
 ## File Structure
 
-| File | Action | Responsibility |
-|---|---|---|
-| `scripts/cdcf_queue_worker.lib.sh` | Create | Pure-ish helper functions: `in_maintenance`, `queue_is_empty`, `parse_processed`, `parse_domain_count`, `should_run_daily_tasks`, `process_one`, `run_daily_tasks` |
-| `scripts/cdcf_queue_worker.sh` | Modify | Env loading, banner, `source ./cdcf_queue_worker.lib.sh`, the main loop. Drops to ~60 lines |
-| `scripts/tests/helpers/shims/redis-cli` | Create | Shim that reads `SHIM_REDIS_OUTPUT` / `SHIM_REDIS_EXIT` env vars and acts accordingly |
-| `scripts/tests/helpers/shims/curl` | Create | Shim that emits a configured body + HTTP code |
-| `scripts/tests/helpers/shims/date` | Create (optional) | For `should_run_daily_tasks` — only if `date +%s` mocking is needed; usually env-var override is cleaner |
-| `scripts/tests/in_maintenance.bats` | Create | Three cases |
-| `scripts/tests/queue_is_empty.bats` | Create | Four cases |
-| `scripts/tests/parse_processed.bats` | Create | Five cases |
-| `scripts/tests/should_run_daily_tasks.bats` | Create | Four cases |
-| `scripts/tests/process_one.bats` | Create | Four cases |
-| `scripts/tests/README.md` | Create | bats-core invocation, shim convention, submodule pin |
-| `scripts/tests/bats/` | Submodule | bats-core vendored at a pinned commit |
-| `.github/workflows/test-worker.yml` | Create | CI: bats run on changes under `scripts/cdcf_queue_worker*` or `scripts/tests/**` |
-| `AGENTS.md` | Modify | Add `bats scripts/tests/` to "Build & Development Commands" |
+| File                                        | Action            | Responsibility                                                                                                                                                     |
+| ------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `scripts/cdcf_queue_worker.lib.sh`          | Create            | Pure-ish helper functions: `in_maintenance`, `queue_is_empty`, `parse_processed`, `parse_domain_count`, `should_run_daily_tasks`, `process_one`, `run_daily_tasks` |
+| `scripts/cdcf_queue_worker.sh`              | Modify            | Env loading, banner, `source ./cdcf_queue_worker.lib.sh`, the main loop. Drops to ~60 lines                                                                        |
+| `scripts/tests/helpers/shims/redis-cli`     | Create            | Shim that reads `SHIM_REDIS_OUTPUT` / `SHIM_REDIS_EXIT` env vars and acts accordingly                                                                              |
+| `scripts/tests/helpers/shims/curl`          | Create            | Shim that emits a configured body + HTTP code                                                                                                                      |
+| `scripts/tests/helpers/shims/date`          | Create (optional) | For `should_run_daily_tasks` — only if `date +%s` mocking is needed; usually env-var override is cleaner                                                           |
+| `scripts/tests/in_maintenance.bats`         | Create            | Three cases                                                                                                                                                        |
+| `scripts/tests/queue_is_empty.bats`         | Create            | Four cases                                                                                                                                                         |
+| `scripts/tests/parse_processed.bats`        | Create            | Five cases                                                                                                                                                         |
+| `scripts/tests/should_run_daily_tasks.bats` | Create            | Four cases                                                                                                                                                         |
+| `scripts/tests/process_one.bats`            | Create            | Four cases                                                                                                                                                         |
+| `scripts/tests/README.md`                   | Create            | bats-core invocation, shim convention, submodule pin                                                                                                               |
+| `scripts/tests/bats/`                       | Submodule         | bats-core vendored at a pinned commit                                                                                                                              |
+| `.github/workflows/test-worker.yml`         | Create            | CI: bats run on changes under `scripts/cdcf_queue_worker*` or `scripts/tests/**`                                                                                   |
+| `AGENTS.md`                                 | Modify            | Add `bats scripts/tests/` to "Build & Development Commands"                                                                                                        |
 
 ---
 
@@ -66,6 +66,7 @@ git worktree add ../cdcf-website-bats feat/bats-worker-suite
 ## Task 2: Extract helpers into a lib
 
 **Files:**
+
 - Create: `scripts/cdcf_queue_worker.lib.sh`
 - Modify: `scripts/cdcf_queue_worker.sh`
 
@@ -191,6 +192,7 @@ EOF
 ## Task 3: Vendor bats-core as a submodule
 
 **Files:**
+
 - Add submodule: `scripts/tests/bats/` from `https://github.com/bats-core/bats-core.git`
 
 - [ ] **Step 1: Add the submodule**
@@ -225,6 +227,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 4: Build the PATH-injected shims
 
 **Files:**
+
 - Create: `scripts/tests/helpers/shims/redis-cli`
 - Create: `scripts/tests/helpers/shims/curl`
 
@@ -283,15 +286,16 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 5: in_maintenance.bats
 
 **Files:**
+
 - Create: `scripts/tests/in_maintenance.bats`
 
 Cases:
 
-| # | SHIM_REDIS_OUTPUT | SHIM_REDIS_EXIT | Expected | Reason |
-|---|---|---|---|---|
-| 1 | `1` | 0 | function returns 0 (true) | key present |
-| 2 | `0` | 0 | function returns 1 (false) | key absent |
-| 3 | (any) | 1 | function returns 1 (false) | redis-cli failed → "not in maintenance" |
+| #   | SHIM_REDIS_OUTPUT | SHIM_REDIS_EXIT | Expected                   | Reason                                  |
+| --- | ----------------- | --------------- | -------------------------- | --------------------------------------- |
+| 1   | `1`               | 0               | function returns 0 (true)  | key present                             |
+| 2   | `0`               | 0               | function returns 1 (false) | key absent                              |
+| 3   | (any)             | 1               | function returns 1 (false) | redis-cli failed → "not in maintenance" |
 
 - [ ] **Step 1: Write the bats file**
 
@@ -337,12 +341,12 @@ Expect 3/3 green.
 
 Cases:
 
-| # | Setup | Expected |
-|---|---|---|
-| 1 | ZCARD=0, ZCOUNT=0 | returns 0 (empty) |
-| 2 | ZCARD=3, ZCOUNT=0 | returns 1 (work) |
-| 3 | ZCARD=0, ZCOUNT=2 | returns 1 (delayed work ready) |
-| 4 | first redis-cli call fails | returns 1 (safe fall-back to HTTP poll) |
+| #   | Setup                      | Expected                                |
+| --- | -------------------------- | --------------------------------------- |
+| 1   | ZCARD=0, ZCOUNT=0          | returns 0 (empty)                       |
+| 2   | ZCARD=3, ZCOUNT=0          | returns 1 (work)                        |
+| 3   | ZCARD=0, ZCOUNT=2          | returns 1 (delayed work ready)          |
+| 4   | first redis-cli call fails | returns 1 (safe fall-back to HTTP poll) |
 
 The shim's `SHIM_REDIS_OUTPUTS` mode (newline-separated, one per call) is needed here since `queue_is_empty` calls `redis-cli` twice. Extend the shim if needed to consume the list.
 
@@ -375,13 +379,13 @@ Tests using the multi-call mode set `SHIM_REDIS_STATE=$BATS_TEST_TMPDIR/redis-st
 
 Cases:
 
-| # | Input on stdin | Expected stdout |
-|---|---|---|
-| 1 | `{"processed": 5}` | `5` |
-| 2 | `{"processed": {"processed": 3}}` | `3` |
-| 3 | `{}` (no processed key) | `0` |
-| 4 | `not json` | `error` |
-| 5 | empty input | `error` |
+| #   | Input on stdin                    | Expected stdout |
+| --- | --------------------------------- | --------------- |
+| 1   | `{"processed": 5}`                | `5`             |
+| 2   | `{"processed": {"processed": 3}}` | `3`             |
+| 3   | `{}` (no processed key)           | `0`             |
+| 4   | `not json`                        | `error`         |
+| 5   | empty input                       | `error`         |
 
 - [ ] **Write + run + commit.**
 
@@ -393,12 +397,12 @@ Note: don't shim `python3` for these tests — the real JSON parser is the unit 
 
 Cases:
 
-| # | LAST_DAILY_RUN | DAILY_INTERVAL | Expected |
-|---|---|---|---|
-| 1 | 0 (never run) | 86400 | returns 0 (true) |
-| 2 | (now - 1 second) | 86400 | returns 1 (false) — not yet |
-| 3 | (now - 86400) — exact boundary | 86400 | returns 0 (true) |
-| 4 | LAST_DAILY_RUN=0, DAILY_INTERVAL=1 | (override) | returns 0 |
+| #   | LAST_DAILY_RUN                     | DAILY_INTERVAL | Expected                    |
+| --- | ---------------------------------- | -------------- | --------------------------- |
+| 1   | 0 (never run)                      | 86400          | returns 0 (true)            |
+| 2   | (now - 1 second)                   | 86400          | returns 1 (false) — not yet |
+| 3   | (now - 86400) — exact boundary     | 86400          | returns 0 (true)            |
+| 4   | LAST_DAILY_RUN=0, DAILY_INTERVAL=1 | (override)     | returns 0                   |
 
 - [ ] **Write + run + commit.** Use `printf -v NOW '%(%s)T' -1` in the test to compute "now" for the timestamps.
 
@@ -408,12 +412,12 @@ Cases:
 
 Cases:
 
-| # | SHIM_CURL_HTTP_CODE | SHIM_CURL_BODY | Expected log line |
-|---|---|---|---|
-| 1 | 200 | `{"processed": 5}` | `Processed 5 job(s)` |
-| 2 | 500 | `<html><body>boom</body></html>` | `WARNING: HTTP 500: boom` (HTML stripped) |
-| 3 | 000 | (empty) | `WARNING: request failed (connection error or timeout)` |
-| 4 | 200 | `not json` | `WARNING: invalid JSON response: not json` |
+| #   | SHIM_CURL_HTTP_CODE | SHIM_CURL_BODY                   | Expected log line                                       |
+| --- | ------------------- | -------------------------------- | ------------------------------------------------------- |
+| 1   | 200                 | `{"processed": 5}`               | `Processed 5 job(s)`                                    |
+| 2   | 500                 | `<html><body>boom</body></html>` | `WARNING: HTTP 500: boom` (HTML stripped)               |
+| 3   | 000                 | (empty)                          | `WARNING: request failed (connection error or timeout)` |
+| 4   | 200                 | `not json`                       | `WARNING: invalid JSON response: not json`              |
 
 Use `run --separate-stderr process_one` and assert against `$output` for the log line presence.
 
@@ -424,6 +428,7 @@ Use `run --separate-stderr process_one` and assert against `$output` for the log
 ## Task 10: CI workflow
 
 **Files:**
+
 - Create: `.github/workflows/test-worker.yml`
 
 - [ ] **Step 1: Write the workflow**
@@ -438,15 +443,15 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'scripts/cdcf_queue_worker*'
-      - 'scripts/tests/**'
-      - '.github/workflows/test-worker.yml'
+      - "scripts/cdcf_queue_worker*"
+      - "scripts/tests/**"
+      - ".github/workflows/test-worker.yml"
   push:
     branches: [main]
     paths:
-      - 'scripts/cdcf_queue_worker*'
-      - 'scripts/tests/**'
-      - '.github/workflows/test-worker.yml'
+      - "scripts/cdcf_queue_worker*"
+      - "scripts/tests/**"
+      - ".github/workflows/test-worker.yml"
 
 concurrency:
   group: test-worker-${{ github.event.pull_request.number || github.ref }}
@@ -476,12 +481,14 @@ Pin the action SHA at plan-execution time.
 ## Task 11: README + AGENTS.md updates
 
 **Files:**
+
 - Create: `scripts/tests/README.md`
 - Modify: `AGENTS.md`
 
 - [ ] **Step 1: `scripts/tests/README.md`**
 
 Short doc covering:
+
 - How to run: `scripts/tests/bats/bin/bats scripts/tests/`
 - The shim convention: PATH-injected fakes in `helpers/shims/`, configured per test via `SHIM_*` env vars
 - Adding a new test: source the lib in `setup_file`, write `@test` blocks

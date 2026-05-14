@@ -82,13 +82,13 @@ The three PRs touch entirely disjoint paths (modulo `CLAUDE.md` and `package.jso
 
 ## Shared conventions
 
-| Decision | Choice | Why |
-|---|---|---|
-| CI gating | Non-blocking — `continue-on-error: true` per workflow; not added to required-checks list | "Gate later" per the issue. Land tests, watch them stabilize, flip the gate in a follow-up. |
-| Coverage tooling | Install where free (`@vitest/coverage-v8`); no thresholds | Visibility without enforcement. Thresholds invite gaming and add CI friction before the suite is mature. |
-| Test runner invocation | One command per stack: `npm test` (root), `composer test` (each PHP tree), `bats scripts/tests/` (root) | Predictable for both humans and CI. |
-| Documentation | Update `CLAUDE.md` "Build & Development Commands" with the three invocations; add a brief "Testing" subsection per stack tree | Keeps the canonical onboarding doc accurate. |
-| File location | Each stack uses its native convention (co-located `*.test.ts`, `tests/` subdir for PHP & bash) | No artificial unification. |
+| Decision               | Choice                                                                                                                        | Why                                                                                                      |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| CI gating              | Non-blocking — `continue-on-error: true` per workflow; not added to required-checks list                                      | "Gate later" per the issue. Land tests, watch them stabilize, flip the gate in a follow-up.              |
+| Coverage tooling       | Install where free (`@vitest/coverage-v8`); no thresholds                                                                     | Visibility without enforcement. Thresholds invite gaming and add CI friction before the suite is mature. |
+| Test runner invocation | One command per stack: `npm test` (root), `composer test` (each PHP tree), `bats scripts/tests/` (root)                       | Predictable for both humans and CI.                                                                      |
+| Documentation          | Update `CLAUDE.md` "Build & Development Commands" with the three invocations; add a brief "Testing" subsection per stack tree | Keeps the canonical onboarding doc accurate.                                                             |
+| File location          | Each stack uses its native convention (co-located `*.test.ts`, `tests/` subdir for PHP & bash)                                | No artificial unification.                                                                               |
 
 ## Component 1 — Vitest (Next.js) — PR 1
 
@@ -106,10 +106,10 @@ The three PRs touch entirely disjoint paths (modulo `CLAUDE.md` and `package.jso
 
 Co-located, one file per source file under test.
 
-| File | Targets | Key cases |
-|---|---|---|
-| `lib/wordpress/client.test.ts` | `wpQuery()` | Happy path JSON response; `!res.ok` throws with status text; non-JSON `content-type` throws "WPGraphQL returned non-JSON"; GraphQL `errors[]` throws with concatenated messages; `revalidate`, `tags`, and `draft` headers/options forwarded to `fetch` correctly |
-| `lib/wordpress/api.test.ts` | `LOCALE_MAP`, `langCode()`, all exported `get*` functions | `langCode` returns mapped uppercase for known locales, `'EN'` for unknown; each `get*` has a happy path + `wpQuery`-throws path returning the documented fallback (`null`, `[]`); `getPage`/`getPostBySlug` English-fallback path when translation missing; mapping correctness for `getAllPages`, `getPostsForSitemap`, `getProjectsForSitemap`, `getChildPages` (the #57/#59 hot spots — assert `enUri`, `availableLocales`, translation slug shape, `hideFromBlog` filter) |
+| File                           | Targets                                                   | Key cases                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------ | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/wordpress/client.test.ts` | `wpQuery()`                                               | Happy path JSON response; `!res.ok` throws with status text; non-JSON `content-type` throws "WPGraphQL returned non-JSON"; GraphQL `errors[]` throws with concatenated messages; `revalidate`, `tags`, and `draft` headers/options forwarded to `fetch` correctly                                                                                                                                                                                                             |
+| `lib/wordpress/api.test.ts`    | `LOCALE_MAP`, `langCode()`, all exported `get*` functions | `langCode` returns mapped uppercase for known locales, `'EN'` for unknown; each `get*` has a happy path + `wpQuery`-throws path returning the documented fallback (`null`, `[]`); `getPage`/`getPostBySlug` English-fallback path when translation missing; mapping correctness for `getAllPages`, `getPostsForSitemap`, `getProjectsForSitemap`, `getChildPages` (the #57/#59 hot spots — assert `enUri`, `availableLocales`, translation slug shape, `hideFromBlog` filter) |
 
 ### Mocking strategy
 
@@ -132,6 +132,7 @@ Two PHP trees get their own `composer.json` + `phpunit.xml.dist`: the plugin (`w
 Brain Monkey unit-tests pure-PHP functions, so each route's logic must be callable outside its `register_rest_route` closure. The refactor pattern:
 
 **Before (current):**
+
 ```php
 register_rest_route('cdcf/v1', '/maintenance', [
     'methods' => 'POST',
@@ -143,6 +144,7 @@ register_rest_route('cdcf/v1', '/maintenance', [
 ```
 
 **After:**
+
 ```php
 register_rest_route('cdcf/v1', '/maintenance', [
     'methods' => 'POST',
@@ -167,16 +169,16 @@ Redis access in the maintenance handler stays as `new Redis()` instantiation ins
 
 #### `wordpress/plugins/cdcf-redis-translations/tests/`
 
-| File | Targets | Key cases |
-|---|---|---|
-| `MaintenanceHandlerTest.php` | `cdcf_handle_maintenance()`, `cdcf_maintenance_permission_check()` | `action: 'begin'` calls `setex` with clamped TTL and returns 200 with `{ok, until, duration}`; `action: 'end'` calls `del` and returns 200 with `{ok}`; invalid action returns 400 `WP_Error('invalid_action')`; missing PHP `Redis` class returns 500 `redis_unavailable`; `Redis::connect()` returns false → 500; `setex` returns false → 500 `redis_write_failed`; TTL clamp at boundaries — input 1 → 60, input 99999 → 600, input 300 → 300; `end` is idempotent (works whether or not key exists); permission check delegates to `current_user_can('manage_options')` |
-| `ProcessQueueHandlerTest.php` | `cdcf_handle_process_queue()` | `redis_queue()` not defined → 200 with `{processed: 0, error: 'redis_queue not available'}`; happy path delegates to `redis_queue()->get_job_processor()->process_jobs(['default'], $batch_size)` and returns 200 wrapping the result; `batch_size` clamping at boundaries — input 0 → 1, input 100 → 50, default omitted → 10; permission check delegates to `current_user_can('manage_options')` |
-| `EnqueueTranslationFallbackTest.php` | `cdcf_enqueue_translation()` (in `includes/functions.php`) | Redis-up: enqueues a translation job and skips `wp_schedule_single_event`; Redis-down (or `redis_queue()` not defined): falls back to `wp_schedule_single_event` exactly once with the right hook + args; arg shape passed downstream matches the documented contract |
+| File                                 | Targets                                                            | Key cases                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MaintenanceHandlerTest.php`         | `cdcf_handle_maintenance()`, `cdcf_maintenance_permission_check()` | `action: 'begin'` calls `setex` with clamped TTL and returns 200 with `{ok, until, duration}`; `action: 'end'` calls `del` and returns 200 with `{ok}`; invalid action returns 400 `WP_Error('invalid_action')`; missing PHP `Redis` class returns 500 `redis_unavailable`; `Redis::connect()` returns false → 500; `setex` returns false → 500 `redis_write_failed`; TTL clamp at boundaries — input 1 → 60, input 99999 → 600, input 300 → 300; `end` is idempotent (works whether or not key exists); permission check delegates to `current_user_can('manage_options')` |
+| `ProcessQueueHandlerTest.php`        | `cdcf_handle_process_queue()`                                      | `redis_queue()` not defined → 200 with `{processed: 0, error: 'redis_queue not available'}`; happy path delegates to `redis_queue()->get_job_processor()->process_jobs(['default'], $batch_size)` and returns 200 wrapping the result; `batch_size` clamping at boundaries — input 0 → 1, input 100 → 50, default omitted → 10; permission check delegates to `current_user_can('manage_options')`                                                                                                                                                                          |
+| `EnqueueTranslationFallbackTest.php` | `cdcf_enqueue_translation()` (in `includes/functions.php`)         | Redis-up: enqueues a translation job and skips `wp_schedule_single_event`; Redis-down (or `redis_queue()` not defined): falls back to `wp_schedule_single_event` exactly once with the right hook + args; arg shape passed downstream matches the documented contract                                                                                                                                                                                                                                                                                                       |
 
 #### `wordpress/themes/cdcf-headless/tests/`
 
-| File | Targets | Key cases |
-|---|---|---|
+| File                          | Targets                                                                                  | Key cases                                                                                                                                                                                                                                   |
+| ----------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `RelationshipHandlerTest.php` | `cdcf_handle_relationship_get()`, `cdcf_handle_relationship_post()`, permission callback | GET returns ACF field as JSON; GET with missing `post_id` or `field` → 400; POST with non-array `value` → 400; POST writes ACF field via `update_field` and returns the new value; permission delegates to `current_user_can('edit_posts')` |
 
 ### Test bootstrap
@@ -256,12 +258,12 @@ should_run_daily_tasks() {
 
 Each `.bats` file `source`s the lib at the top, sets up shims, runs cases.
 
-| File | Targets | Key cases |
-|---|---|---|
-| `in_maintenance.bats` | `in_maintenance()` | redis-cli returns `1` on stdout → function returns 0; returns `0` → function returns 1; redis-cli exits non-zero → function returns 1 (the "Redis-down means not in maintenance" policy from #62) |
-| `parse_processed.bats` | `parse_processed()` | Valid `{processed: 5}` → `5`; valid `{processed: {processed: 3}}` → `3`; missing `processed` → `0`; invalid JSON → `error`; empty input → `error` |
-| `should_run_daily_tasks.bats` | `should_run_daily_tasks()` | `LAST_DAILY_RUN=0` → returns 0 (true); `LAST_DAILY_RUN=NOW` → returns 1 (false); `LAST_DAILY_RUN=NOW-86400` exact boundary → returns 0; `DAILY_INTERVAL` overridden via env |
-| `process_one.bats` | `process_one()` | curl returns 200 + valid JSON → "Processed N job(s)" log line; HTTP 500 with HTML body → "WARNING: HTTP 500: …" with HTML stripped; curl exits with `http_code=000` → "WARNING: request failed (connection error or timeout)"; invalid JSON in 200 response → "WARNING: invalid JSON response: …" |
+| File                          | Targets                    | Key cases                                                                                                                                                                                                                                                                                         |
+| ----------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `in_maintenance.bats`         | `in_maintenance()`         | redis-cli returns `1` on stdout → function returns 0; returns `0` → function returns 1; redis-cli exits non-zero → function returns 1 (the "Redis-down means not in maintenance" policy from #62)                                                                                                 |
+| `parse_processed.bats`        | `parse_processed()`        | Valid `{processed: 5}` → `5`; valid `{processed: {processed: 3}}` → `3`; missing `processed` → `0`; invalid JSON → `error`; empty input → `error`                                                                                                                                                 |
+| `should_run_daily_tasks.bats` | `should_run_daily_tasks()` | `LAST_DAILY_RUN=0` → returns 0 (true); `LAST_DAILY_RUN=NOW` → returns 1 (false); `LAST_DAILY_RUN=NOW-86400` exact boundary → returns 0; `DAILY_INTERVAL` overridden via env                                                                                                                       |
+| `process_one.bats`            | `process_one()`            | curl returns 200 + valid JSON → "Processed N job(s)" log line; HTTP 500 with HTML body → "WARNING: HTTP 500: …" with HTML stripped; curl exits with `http_code=000` → "WARNING: request failed (connection error or timeout)"; invalid JSON in 200 response → "WARNING: invalid JSON response: …" |
 
 ### Shimming external commands
 
@@ -287,13 +289,13 @@ Steps: checkout with `submodules: recursive` → ensure `python3` is on PATH →
 
 ## Failure modes and operational notes
 
-| # | Scenario | Behavior |
-|---|---|---|
-| 1 | A new test is flaky | CI is non-blocking — flake does not block merges. The follow-up gating issue must address flake budget before flipping the gate. |
-| 2 | The handler refactor (PR 2) breaks a route in production | Each refactored handler has unit-test coverage of all its branches before the closure swap. Pre-merge manual smoke against the dev Docker stack is in the verification plan. |
-| 3 | The worker refactor (PR 3) breaks the daemon | The main script's behavior is unchanged — only the source structure changes. Pre-merge manual run against the dev stack confirms output is unchanged. |
-| 4 | Three PRs land at slightly different times and one breaks `npm test` / `composer test` invocation in `CLAUDE.md` | Only PR 1 touches `package.json`; PR 2 and PR 3 add their own commands which work independently of each other. `CLAUDE.md` updates per-PR are additive — last-merger reconciles if needed. |
-| 5 | Bats submodule pinning breaks if upstream renames a tag | Vendor a specific commit SHA, not a tag. Document in `scripts/tests/README.md`. |
+| #   | Scenario                                                                                                         | Behavior                                                                                                                                                                                   |
+| --- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | A new test is flaky                                                                                              | CI is non-blocking — flake does not block merges. The follow-up gating issue must address flake budget before flipping the gate.                                                           |
+| 2   | The handler refactor (PR 2) breaks a route in production                                                         | Each refactored handler has unit-test coverage of all its branches before the closure swap. Pre-merge manual smoke against the dev Docker stack is in the verification plan.               |
+| 3   | The worker refactor (PR 3) breaks the daemon                                                                     | The main script's behavior is unchanged — only the source structure changes. Pre-merge manual run against the dev stack confirms output is unchanged.                                      |
+| 4   | Three PRs land at slightly different times and one breaks `npm test` / `composer test` invocation in `CLAUDE.md` | Only PR 1 touches `package.json`; PR 2 and PR 3 add their own commands which work independently of each other. `CLAUDE.md` updates per-PR are additive — last-merger reconciles if needed. |
+| 5   | Bats submodule pinning breaks if upstream renames a tag                                                          | Vendor a specific commit SHA, not a tag. Document in `scripts/tests/README.md`.                                                                                                            |
 
 ## Verification plan
 

@@ -34,14 +34,14 @@ scripts/.venv/bin/pip install -r scripts/requirements.txt
 
 The client reads credentials automatically from the project root. The override file is `.env.local` for `--target local` (default) or `.env.production` for `--target production`; in both cases `.env` is loaded first as a base.
 
-| Variable | Override file | Description |
-|----------|------|-------------|
-| `WP_REST_URL` | override | WordPress REST base URL — host-perspective. Local: `http://localhost:8000/wp-json`. Production: `https://cms.catholicdigitalcommons.org/wp-json`. |
-| `WP_GRAPHQL_URL` | override | WPGraphQL endpoint — host-perspective. Local: `http://localhost:8000/graphql`. Production: `https://cms.catholicdigitalcommons.org/graphql`. |
-| `WP_APP_USERNAME` | override | WordPress Application Password username |
-| `WP_APP_PASSWORD` | override | WordPress Application Password |
-| `WP_PREVIEW_SECRET` | override | Shared secret for Next.js preview/revalidation (differs between local and prod) |
-| `NEXTJS_URL` | override | Next.js base URL (defaults to `http://localhost:3000` for `--target local`) |
+| Variable            | Override file | Description                                                                                                                                       |
+| ------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WP_REST_URL`       | override      | WordPress REST base URL — host-perspective. Local: `http://localhost:8000/wp-json`. Production: `https://cms.catholicdigitalcommons.org/wp-json`. |
+| `WP_GRAPHQL_URL`    | override      | WPGraphQL endpoint — host-perspective. Local: `http://localhost:8000/graphql`. Production: `https://cms.catholicdigitalcommons.org/graphql`.      |
+| `WP_APP_USERNAME`   | override      | WordPress Application Password username                                                                                                           |
+| `WP_APP_PASSWORD`   | override      | WordPress Application Password                                                                                                                    |
+| `WP_PREVIEW_SECRET` | override      | Shared secret for Next.js preview/revalidation (differs between local and prod)                                                                   |
+| `NEXTJS_URL`        | override      | Next.js base URL (defaults to `http://localhost:3000` for `--target local`)                                                                       |
 
 For production targeting, copy `.env.production.example` to `.env.production` and fill in the live values. The file is gitignored.
 
@@ -138,12 +138,12 @@ python scripts/cdcf_api.py create-academic-collaboration \
 
 ##### Team Member Council Types
 
-| Council | `--council` value | Linked to | Notes |
-|---------|-------------------|-----------|-------|
-| Board | `team_members` | About page `team_members` field | |
-| Ecclesial Council | `ecclesial_council` | About page `ecclesial_council` field | |
-| Technical Council | `technical_council` | About page `technical_council` field | |
-| Academic Council | `academic_council` | Academic collaboration `collab_governance` field | Requires `--collab-post-id` |
+| Council           | `--council` value   | Linked to                                        | Notes                       |
+| ----------------- | ------------------- | ------------------------------------------------ | --------------------------- |
+| Board             | `team_members`      | About page `team_members` field                  |                             |
+| Ecclesial Council | `ecclesial_council` | About page `ecclesial_council` field             |                             |
+| Technical Council | `technical_council` | About page `technical_council` field             |                             |
+| Academic Council  | `academic_council`  | Academic collaboration `collab_governance` field | Requires `--collab-post-id` |
 
 #### Public Submissions
 

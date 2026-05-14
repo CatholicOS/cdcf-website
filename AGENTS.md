@@ -60,6 +60,7 @@ Headless CMS: Next.js 15 (App Router) frontend fetches content from WordPress vi
 ### WordPress Theme (`wordpress/themes/cdcf-headless/`)
 
 `functions.php` registers everything programmatically:
+
 - **CPTs:** project, team_member, sponsor, community_channel, local_group, stat_item (all with `show_in_graphql: true`, `has_archive: false`)
 - **ACF field groups:** Shared (hero, cta) + per-template (homeFields, aboutFields, etc.) + per-CPT
 - **Page templates:** Home, About, Projects, Community, Blog, Contact
@@ -90,17 +91,17 @@ Uses `@import 'tailwindcss'` (not `@tailwind` directives). Custom utilities via 
 
 All endpoints require Application Password authentication. Most endpoints require `edit_posts` capability; `/process-queue` and `/maintenance` require `manage_options` (administrator) — see the row notes where capability differs.
 
-| Method | Route | Description |
-|--------|-------|-------------|
-| `GET` | `/relationship` | Read an ACF relationship field (`post_id`, `field`) |
-| `POST` | `/relationship` | Update an ACF relationship field (`post_id`, `field`, `value[]`) |
-| `POST` | `/translate` | Translate a post to a target language via OpenAI (`source_id`, `target_lang`, optional `post_id`) |
-| `POST` | `/update-disposable-domains` | Download latest disposable email domain blocklist from GitHub (called daily by Redis worker) |
-| `POST` | `/team-member` | Create a team member with auto-translation and About page linking (see below) |
-| `POST` | `/community-channel` | Create a community channel with auto-translation and Community page linking (see below) |
-| `POST` | `/local-group` | Create a local group with auto-translation and Community page linking (see below) |
-| `POST` | `/maintenance` | Pause or resume the cdcf-queue-worker by setting/clearing a Redis flag. Body: `action` is `"begin"` or `"end"`; optional `duration_seconds` is clamped server-side to 60–600. Requires administrator (`manage_options`) capability. |
-| `POST` | `/academic-collaboration` | Create an academic collaboration with auto-translation and Community page linking (see below) |
+| Method | Route                        | Description                                                                                                                                                                                                                         |
+| ------ | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/relationship`              | Read an ACF relationship field (`post_id`, `field`)                                                                                                                                                                                 |
+| `POST` | `/relationship`              | Update an ACF relationship field (`post_id`, `field`, `value[]`)                                                                                                                                                                    |
+| `POST` | `/translate`                 | Translate a post to a target language via OpenAI (`source_id`, `target_lang`, optional `post_id`)                                                                                                                                   |
+| `POST` | `/update-disposable-domains` | Download latest disposable email domain blocklist from GitHub (called daily by Redis worker)                                                                                                                                        |
+| `POST` | `/team-member`               | Create a team member with auto-translation and About page linking (see below)                                                                                                                                                       |
+| `POST` | `/community-channel`         | Create a community channel with auto-translation and Community page linking (see below)                                                                                                                                             |
+| `POST` | `/local-group`               | Create a local group with auto-translation and Community page linking (see below)                                                                                                                                                   |
+| `POST` | `/maintenance`               | Pause or resume the cdcf-queue-worker by setting/clearing a Redis flag. Body: `action` is `"begin"` or `"end"`; optional `duration_seconds` is clamped server-side to 60–600. Requires administrator (`manage_options`) capability. |
+| `POST` | `/academic-collaboration`    | Create an academic collaboration with auto-translation and Community page linking (see below)                                                                                                                                       |
 
 ### `POST /team-member`
 
@@ -206,6 +207,7 @@ See `docs/python-api-client.md` for full documentation of all commands and libra
 **NEVER read `.env.local` directly — it contains secrets.** Use the Python API client (`scripts/cdcf_api.py`) to interact with the CMS, which loads credentials internally.
 
 Required in `.env.local` (Next.js) or `.env` (Docker Compose):
+
 - `WP_GRAPHQL_URL` — GraphQL endpoint, host-perspective (e.g. `http://localhost:8000/graphql` in dev). The dockerized `nextjs` service in `docker-compose.yml` overrides this to `http://wordpress/graphql` for its own runtime when `--profile production` is active.
 - `WP_REST_URL` — WordPress REST base URL, same host-perspective convention as above (used by `npm run dev` on the host and by `scripts/cdcf_api.py`)
 - `WP_APP_USERNAME`, `WP_APP_PASSWORD` — WordPress Application Password (used by the Python client)
