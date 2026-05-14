@@ -13,9 +13,12 @@ npm run test:watch        # Vitest in watch mode
 npm run test:coverage     # Vitest with v8 coverage
 npm start                 # Start production server
 docker compose up --build # Full stack: WordPress + MariaDB + Next.js + Nginx
+scripts/tests/bats/bin/bats scripts/tests/   # Queue-worker bash unit tests (bats-core)
 ```
 
-`npm test` covers the Next.js data layer (`lib/wordpress/*` — GraphQL client + per-template `get*` helpers). CI runs it non-blocking on PRs that touch `lib/**`, `package.json`, or `vitest.config.ts`. WP/plugin and bash-worker tests are tracked separately under #63.
+`npm test` covers the Next.js data layer (`lib/wordpress/*` — GraphQL client + per-template `get*` helpers). CI runs it non-blocking on PRs that touch `lib/**`, `package.json`, or `vitest.config.ts`. WP/plugin tests are tracked separately under #63.
+
+`scripts/tests/bats/bin/bats scripts/tests/` covers the queue-worker helpers (`scripts/cdcf_queue_worker.lib.sh`). bats-core is vendored as a git submodule at `scripts/tests/bats/`, so fresh checkouts need `git clone --recurse-submodules` (or `git submodule update --init --recursive` after a plain clone). CI runs it non-blocking on PRs that touch `scripts/cdcf_queue_worker*` or `scripts/tests/**`. See `scripts/tests/README.md` for the shim convention and how to add a new test.
 
 ## Architecture Overview
 
