@@ -1,0 +1,50 @@
+name: bats (queue worker)
+
+# Runs the bats-core suite over scripts/cdcf_queue_worker.lib.sh helpers.
+# Non-blocking for now (continue-on-error) per #63: land tests, watch
+# them stabilize, then flip the gate in a follow-up.
+#
+# All interpolations are repo-controlled identifiers used as concurrency-
+# group keys, not shelled out. No untrusted github.event.* inputs.
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/cdcf_queue_worker*'
+      - 'scripts/tests/**'
+      - '.github/workflows/test-worker.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/cdcf_queue_worker*'
+      - 'scripts/tests/**'
+      - '.github/workflows/test-worker.yml'
+
+concurrency:
+  group: test-worker-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bats:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout code (with bats-core submodule)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: recursive
+
+      - name: Verify python3 is available
+        # parse_processed / parse_domain_count tests use the real python3
+        # interpreter — they exercise the actual JSON parser, not a shim.
+        run: |
+          which python3
+          python3 --version
+
+      - name: Run bats
+        run: scripts/tests/bats/bin/bats scripts/tests/
