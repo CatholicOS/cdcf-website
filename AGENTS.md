@@ -133,11 +133,12 @@ Creates an English `academic_collaboration` post, translates it to all 5 languag
 A Python client library and CLI that wraps all `cdcf/v1` REST endpoints and WPGraphQL queries. It reads credentials from env files internally so secrets are never exposed. Credential loading is target-aware:
 
 - Default / `--target local` — merges `.env` then `.env.local` (localhost docker-compose stack)
+- `--target staging` — merges `.env` then `.env.staging` (staging frontend; today shares the production WP backend)
 - `--target production` — merges `.env` then `.env.production` (live `cms.catholicdigitalcommons.org`)
 
-Default is `local`. Pass `--target production` to act against the live CMS — for example to revalidate a production Next.js path or fix a content typo on the live site. The `.env.production` file is gitignored; the example template is `.env.production.example`.
+Default is `local`. Pass `--target production` (or `--target staging`) to act against the live or staging sites — for example to revalidate a path or fix a content typo. The override files are gitignored; the example templates are `.env.<target>.example`.
 
-**IMPORTANT: NEVER read, cat, or access `.env.local` or `.env.production` directly.** They contain secrets (API keys, passwords). Always use the Python client instead, which loads credentials internally.
+**IMPORTANT: NEVER read, cat, or access `.env.local`, `.env.staging`, or `.env.production` directly.** They contain secrets (API keys, passwords). Always use the Python client instead, which loads credentials internally.
 
 **Always use the CLI interface** (`scripts/.venv/bin/python scripts/cdcf_api.py <command>`) — never try to import `cdcf_api` directly in inline Python (`python -c`), as the module is not on `PYTHONPATH` and will fail with `ModuleNotFoundError`. If you need programmatic access beyond what the CLI offers, run: `scripts/.venv/bin/python -c "import sys; sys.path.insert(0, 'scripts'); from cdcf_api import CdcfClient; ..."`
 
