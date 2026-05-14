@@ -318,6 +318,17 @@ jobs:
               echo "Worker paused: $(cat /tmp/maint-begin.json)"
               exit 0
             fi
+            # HTTP 404 means the maintenance endpoint isn't deployed yet —
+            # which is exactly the case during the bootstrap deploy that
+            # first introduces it (or any time the plugin is uninstalled).
+            # Retrying won't change that, so proceed without the pause.
+            # Skipping is worse than baseline for FPM stress but the only
+            # way to get the endpoint onto production is to let this deploy
+            # finish.
+            if [ "$STATUS" = "404" ]; then
+              echo "::warning::Maintenance endpoint returned 404; proceeding without pause. Expected on the bootstrap deploy that introduces the endpoint."
+              exit 0
+            fi
             echo "Maintenance begin attempt $attempt failed (HTTP $STATUS)"
             [ "$attempt" -lt 3 ] && sleep 5
           done
