@@ -9,6 +9,9 @@
     "start": "next start",
     "lint": "eslint .",
     "lint:api": "redocly lint --config .redocly.yaml",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "generate-icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
@@ -27,11 +30,13 @@
     "@types/node": "^25.7.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vitest/coverage-v8": "^4.1.6",
     "eslint": "^9.22.0",
     "eslint-config-next": "^16.2.4",
     "postcss": "^8.5.14",
     "tailwindcss": "^4.3.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
   },
   "overrides": {
     "postcss": "^8.5.14"
