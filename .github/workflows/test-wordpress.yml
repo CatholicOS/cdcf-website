@@ -1,0 +1,60 @@
+name: PHPUnit (WordPress plugin + theme)
+
+# Runs the PHPUnit + Brain Monkey suites over the WordPress plugin
+# and theme trees. Non-blocking for now (continue-on-error) per #63:
+# land tests, watch them stabilise, then flip the gate in a follow-up.
+#
+# All interpolations are repo-controlled identifiers used as concurrency-
+# group keys or as `working-directory`, never shelled out. No untrusted
+# github.event.* inputs.
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'wordpress/plugins/cdcf-redis-translations/**'
+      - 'wordpress/themes/cdcf-headless/**'
+      - '.github/workflows/test-wordpress.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'wordpress/plugins/cdcf-redis-translations/**'
+      - 'wordpress/themes/cdcf-headless/**'
+      - '.github/workflows/test-wordpress.yml'
+
+concurrency:
+  group: test-wordpress-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  phpunit:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        tree:
+          - plugins/cdcf-redis-translations
+          - themes/cdcf-headless
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@cf4cade2721090509a6f9af308010fd118fde9b6 # v2.35.2
+        with:
+          php-version: '8.3'
+          tools: composer
+          coverage: none
+
+      - name: Install dependencies
+        working-directory: wordpress/${{ matrix.tree }}
+        run: composer install --no-interaction --no-progress
+
+      - name: Run PHPUnit
+        working-directory: wordpress/${{ matrix.tree }}
+        run: vendor/bin/phpunit
