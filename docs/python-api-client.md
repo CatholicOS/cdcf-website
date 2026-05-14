@@ -1,6 +1,13 @@
 # CDCF Python API Client
 
-Python client library and CLI for the CDCF CMS REST API and WPGraphQL. Wraps all `cdcf/v1` WordPress endpoints, the Next.js revalidation endpoint, and GraphQL translation queries, reading credentials from `.env.local` and `.env` so secrets are never exposed to callers.
+Python client library and CLI for the CDCF CMS REST API and WPGraphQL. Wraps all `cdcf/v1` WordPress endpoints, the Next.js revalidation endpoint, and GraphQL translation queries, reading credentials from env files so secrets are never exposed to callers.
+
+Credential loading is **target-aware**:
+
+- `target="local"` (default) — merges `.env` then `.env.local`. Points at the local docker-compose stack.
+- `target="production"` — merges `.env` then `.env.production`. Points at the live `cms.catholicdigitalcommons.org` and `catholicdigitalcommons.org`.
+
+The library accepts the target via constructor (`CdcfClient(target="production")`); the CLI accepts it as a top-level flag (`scripts/cdcf_api.py --target production <command> …`).
 
 ## Setup
 
@@ -24,16 +31,18 @@ scripts/.venv/bin/pip install -r scripts/requirements.txt
 
 ## Environment Variables
 
-The client reads credentials automatically from the project root:
+The client reads credentials automatically from the project root. The override file is `.env.local` for `--target local` (default) or `.env.production` for `--target production`; in both cases `.env` is loaded first as a base.
 
-| Variable | File | Description |
+| Variable | Override file | Description |
 |----------|------|-------------|
-| `WP_REST_URL` | `.env.local` | WordPress REST base URL (e.g. `https://cms.catholicdigitalcommons.org/wp-json`) |
-| `WP_GRAPHQL_URL` | `.env.local` | WPGraphQL endpoint (e.g. `https://cms.catholicdigitalcommons.org/graphql`) |
-| `WP_APP_USERNAME` | `.env.local` | WordPress Application Password username |
-| `WP_APP_PASSWORD` | `.env.local` | WordPress Application Password |
-| `WP_PREVIEW_SECRET` | `.env` | Shared secret for Next.js preview/revalidation |
-| `NEXTJS_URL` | `.env.local` | Next.js base URL (defaults to `http://localhost:3000`) |
+| `WP_REST_URL` | override | WordPress REST base URL (e.g. `https://cms.catholicdigitalcommons.org/wp-json`) |
+| `WP_GRAPHQL_URL` | override | WPGraphQL endpoint (e.g. `https://cms.catholicdigitalcommons.org/graphql`) |
+| `WP_APP_USERNAME` | override | WordPress Application Password username |
+| `WP_APP_PASSWORD` | override | WordPress Application Password |
+| `WP_PREVIEW_SECRET` | override | Shared secret for Next.js preview/revalidation (differs between local and prod) |
+| `NEXTJS_URL` | override | Next.js base URL (defaults to `http://localhost:3000` for `--target local`) |
+
+For production targeting, copy `.env.production.example` to `.env.production` and fill in the live values. The file is gitignored.
 
 ## CLI Usage
 
@@ -245,7 +254,8 @@ For scripts inside the `scripts/` directory, import directly:
 ```python
 from cdcf_api import CdcfClient
 
-client = CdcfClient()
+client = CdcfClient()                       # local stack
+# client = CdcfClient(target="production")  # live CMS
 
 # Read all meta/ACF fields for a post
 meta = client.get_meta(post_id=702, post_type="team_member")
