@@ -24,7 +24,15 @@ function cdcf_process_queue_permission_check(): bool {
  */
 function cdcf_handle_process_queue(WP_REST_Request $request) {
     if (function_exists('redis_queue') === false) {
-        return new WP_REST_Response(['processed' => 0, 'error' => 'redis_queue not available'], 200);
+        // The redis-queue plugin is a hard dependency: without it, this
+        // endpoint can do nothing useful, so 503 is the semantically
+        // correct response (and lets monitoring distinguish a missing
+        // dependency from a queue with zero pending jobs).
+        return new WP_Error(
+            'redis_queue_unavailable',
+            'redis_queue plugin is not active',
+            ['status' => 503]
+        );
     }
     ignore_user_abort(true);
     $batch_size = (int) ($request['batch_size'] ?? 10);

@@ -42,7 +42,7 @@ final class ProcessQueueHandlerTest extends TestCase
         $this->assertTrue(cdcf_process_queue_permission_check());
     }
 
-    public function test_redis_queue_unavailable_returns_200_with_error_payload(): void
+    public function test_redis_queue_unavailable_returns_503(): void
     {
         // Brain Monkey stubs from other tests may have eval-declared
         // redis_queue() in the symbol table; force function_exists to
@@ -54,10 +54,9 @@ final class ProcessQueueHandlerTest extends TestCase
         $req = new WP_REST_Request();
         $response = cdcf_handle_process_queue($req);
 
-        $this->assertInstanceOf(WP_REST_Response::class, $response);
-        $this->assertSame(200, $response->get_status());
-        $this->assertSame(0, $response->get_data()['processed']);
-        $this->assertSame('redis_queue not available', $response->get_data()['error']);
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('redis_queue_unavailable', $response->get_error_code());
+        $this->assertSame(503, $response->get_error_data()['status']);
     }
 
     public function test_happy_path_delegates_to_processor_with_default_batch_10(): void
