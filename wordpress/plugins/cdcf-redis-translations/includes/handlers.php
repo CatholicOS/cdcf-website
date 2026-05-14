@@ -8,7 +8,9 @@
  * its register_rest_route() calls.
  */
 
-defined('ABSPATH') || exit;
+if (defined('ABSPATH') === false) {
+    return;
+}
 
 /**
  * Permission callback for /cdcf/v1/process-queue.
@@ -21,7 +23,7 @@ function cdcf_process_queue_permission_check(): bool {
  * Handler for POST /cdcf/v1/process-queue.
  */
 function cdcf_handle_process_queue(WP_REST_Request $request) {
-    if (!function_exists('redis_queue')) {
+    if (function_exists('redis_queue') === false) {
         return new WP_REST_Response(['processed' => 0, 'error' => 'redis_queue not available'], 200);
     }
     ignore_user_abort(true);
