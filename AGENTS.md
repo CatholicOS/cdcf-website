@@ -5,14 +5,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Development Commands
 
 ```bash
-npm run dev          # Start Next.js dev server (localhost:3000)
-npm run build        # Production build (catches TypeScript errors)
-npm run lint         # ESLint with Next.js rules
-npm start            # Start production server
-docker compose up --build   # Full stack: WordPress + MariaDB + Next.js + Nginx
+npm run dev               # Start Next.js dev server (localhost:3000)
+npm run build             # Production build (catches TypeScript errors)
+npm run lint              # ESLint with Next.js rules
+npm test                  # Vitest suite over lib/wordpress/* (data layer)
+npm run test:watch        # Vitest in watch mode
+npm run test:coverage     # Vitest with v8 coverage
+npm start                 # Start production server
+docker compose up --build # Full stack: WordPress + MariaDB + Next.js + Nginx
 ```
 
-No test runner is configured. Use `npm run build` to verify type-correctness.
+`npm test` covers the Next.js data layer (`lib/wordpress/*` — GraphQL client + per-template `get*` helpers). CI runs it non-blocking on PRs that touch `lib/**`, `package.json`, or `vitest.config.ts`. WP/plugin and bash-worker tests are tracked separately under #63.
 
 ## Architecture Overview
 
