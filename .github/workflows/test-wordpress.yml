@@ -48,6 +48,13 @@ jobs:
         uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # v2.37.1
         with:
           php-version: '8.3'
+          # `:redis` removes the redis extension from the test runtime.
+          # The MaintenanceHandlerTest cases use Mockery::mock('overload:Redis')
+          # which requires the target class to be undefined at the moment
+          # the mock is created. shivammathur/setup-php installs php-redis
+          # by default on Ubuntu, so the C-extension Redis class is already
+          # loaded and the overload throws "class already exists".
+          extensions: ':redis'
           tools: composer
           coverage: none
 
