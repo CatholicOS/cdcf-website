@@ -49,8 +49,8 @@ final class MaintenanceHandlerTest extends TestCase
         $response = cdcf_handle_maintenance($req);
 
         $this->assertInstanceOf(WP_Error::class, $response);
-        $this->assertSame('invalid_action', $response->code);
-        $this->assertSame(400, $response->data['status']);
+        $this->assertSame('invalid_action', $response->get_error_code());
+        $this->assertSame(400, $response->get_error_data()['status']);
     }
 
     #[RunInSeparateProcess]
@@ -71,9 +71,9 @@ final class MaintenanceHandlerTest extends TestCase
         $response = cdcf_handle_maintenance($req);
 
         $this->assertInstanceOf(WP_REST_Response::class, $response);
-        $this->assertTrue($response->data['ok']);
-        $this->assertSame(300, $response->data['duration']);
-        $this->assertSame(200, $response->status);
+        $this->assertTrue($response->get_data()['ok']);
+        $this->assertSame(300, $response->get_data()['duration']);
+        $this->assertSame(200, $response->get_status());
     }
 
     #[RunInSeparateProcess]
@@ -94,7 +94,7 @@ final class MaintenanceHandlerTest extends TestCase
         $response = cdcf_handle_maintenance($req);
 
         $this->assertInstanceOf(WP_REST_Response::class, $response);
-        $this->assertSame(60, $response->data['duration']);
+        $this->assertSame(60, $response->get_data()['duration']);
     }
 
     #[RunInSeparateProcess]
@@ -115,7 +115,7 @@ final class MaintenanceHandlerTest extends TestCase
         $response = cdcf_handle_maintenance($req);
 
         $this->assertInstanceOf(WP_REST_Response::class, $response);
-        $this->assertSame(600, $response->data['duration']);
+        $this->assertSame(600, $response->get_data()['duration']);
     }
 
     #[RunInSeparateProcess]
@@ -136,10 +136,10 @@ final class MaintenanceHandlerTest extends TestCase
         $response = cdcf_handle_maintenance($req);
 
         $this->assertInstanceOf(WP_REST_Response::class, $response);
-        $this->assertSame(300, $response->data['duration']);
-        $this->assertIsInt($response->data['until']);
-        $this->assertGreaterThanOrEqual(time() + 300 - 5, $response->data['until']);
-        $this->assertLessThanOrEqual(time() + 300 + 5, $response->data['until']);
+        $this->assertSame(300, $response->get_data()['duration']);
+        $this->assertIsInt($response->get_data()['until']);
+        $this->assertGreaterThanOrEqual(time() + 300 - 5, $response->get_data()['until']);
+        $this->assertLessThanOrEqual(time() + 300 + 5, $response->get_data()['until']);
     }
 
     #[RunInSeparateProcess]
@@ -159,8 +159,8 @@ final class MaintenanceHandlerTest extends TestCase
         $response = cdcf_handle_maintenance($req);
 
         $this->assertInstanceOf(WP_REST_Response::class, $response);
-        $this->assertTrue($response->data['ok']);
-        $this->assertSame(200, $response->status);
+        $this->assertTrue($response->get_data()['ok']);
+        $this->assertSame(200, $response->get_status());
     }
 
     #[RunInSeparateProcess]
@@ -182,7 +182,7 @@ final class MaintenanceHandlerTest extends TestCase
         $response = cdcf_handle_maintenance($req);
 
         $this->assertInstanceOf(WP_REST_Response::class, $response);
-        $this->assertTrue($response->data['ok']);
+        $this->assertTrue($response->get_data()['ok']);
     }
 
     #[RunInSeparateProcess]
@@ -197,8 +197,8 @@ final class MaintenanceHandlerTest extends TestCase
         $response = cdcf_handle_maintenance($req);
 
         $this->assertInstanceOf(WP_Error::class, $response);
-        $this->assertSame('redis_unavailable', $response->code);
-        $this->assertSame(500, $response->data['status']);
+        $this->assertSame('redis_unavailable', $response->get_error_code());
+        $this->assertSame(500, $response->get_error_data()['status']);
     }
 
     #[RunInSeparateProcess]
@@ -214,8 +214,8 @@ final class MaintenanceHandlerTest extends TestCase
         $response = cdcf_handle_maintenance($req);
 
         $this->assertInstanceOf(WP_Error::class, $response);
-        $this->assertSame('redis_unavailable', $response->code);
-        $this->assertSame(500, $response->data['status']);
+        $this->assertSame('redis_unavailable', $response->get_error_code());
+        $this->assertSame(500, $response->get_error_data()['status']);
     }
 
     #[RunInSeparateProcess]
@@ -232,7 +232,7 @@ final class MaintenanceHandlerTest extends TestCase
         $response = cdcf_handle_maintenance($req);
 
         $this->assertInstanceOf(WP_Error::class, $response);
-        $this->assertSame('redis_write_failed', $response->code);
-        $this->assertSame(500, $response->data['status']);
+        $this->assertSame('redis_write_failed', $response->get_error_code());
+        $this->assertSame(500, $response->get_error_data()['status']);
     }
 }

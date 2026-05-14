@@ -55,9 +55,9 @@ final class ProcessQueueHandlerTest extends TestCase
         $response = cdcf_handle_process_queue($req);
 
         $this->assertInstanceOf(WP_REST_Response::class, $response);
-        $this->assertSame(200, $response->status);
-        $this->assertSame(0, $response->data['processed']);
-        $this->assertSame('redis_queue not available', $response->data['error']);
+        $this->assertSame(200, $response->get_status());
+        $this->assertSame(0, $response->get_data()['processed']);
+        $this->assertSame('redis_queue not available', $response->get_data()['error']);
     }
 
     public function test_happy_path_delegates_to_processor_with_default_batch_10(): void
@@ -81,8 +81,8 @@ final class ProcessQueueHandlerTest extends TestCase
         $response = cdcf_handle_process_queue($req);
 
         $this->assertInstanceOf(WP_REST_Response::class, $response);
-        $this->assertSame(200, $response->status);
-        $this->assertSame(['processed' => 3, 'failed' => 0], $response->data['processed']);
+        $this->assertSame(200, $response->get_status());
+        $this->assertSame(['processed' => 3, 'failed' => 0], $response->get_data()['processed']);
     }
 
     public function test_batch_size_clamped_low_to_one(): void
