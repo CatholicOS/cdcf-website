@@ -147,6 +147,12 @@ sudo chmod +x /usr/local/bin/cdcf_queue_worker.sh
 sudo systemctl restart cdcf-queue-worker
 ```
 
+## Empty-queue fast path
+
+Before firing the parallel HTTP fan-out each cycle, the worker peeks at Redis directly (`ZCARD redis_queue:queue:default` + `ZCOUNT redis_queue:delayed -inf <now>`). If both are zero, the cycle short-circuits and sleeps without hitting WordPress. Daily housekeeping (`run_daily_tasks`) still runs.
+
+This means: when there is no translation work, the worker generates **zero** POSTs to `/wp-json/cdcf/v1/process-queue`. When new work is enqueued (via `cdcf_enqueue_translation()`), the worker resumes within `POLL_INTERVAL` seconds. If `redis-cli` itself fails, the worker falls back to the HTTP poll — the queue endpoint can return richer error info than redis-cli on real outages.
+
 ## Maintenance mode
 
 The worker can be paused via a Redis flag. While the flag is set, the worker skips both `process_one` and `run_daily_tasks` and just sleeps `POLL_INTERVAL` seconds per cycle. This is used by the production deploy workflow to prevent the worker's parallel POSTs from competing with deploy-time WP traffic for FPM workers.

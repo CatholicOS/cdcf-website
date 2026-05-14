@@ -151,6 +151,25 @@ in_maintenance() {
     [ "$result" = "1" ]
 }
 
+# ─── Queue-depth fast path ───────────────────────────────────────────
+# Returns 0 (true) when there is nothing to process *right now* — i.e.
+# no immediate jobs in the default queue and no delayed jobs whose
+# eligibility time has arrived. Returns 1 when work is available, and
+# also returns 1 if redis-cli fails so an outage falls back to the
+# existing HTTP poll (the safe path — the endpoint can tell us more
+# than redis-cli can in error scenarios).
+#
+# Queue layout per Soderlind\RedisQueue:
+#   redis_queue:queue:default → sorted set, immediate jobs
+#   redis_queue:delayed       → sorted set, score = unix ts when eligible
+queue_is_empty() {
+    local now immediate delayed
+    now=$(date +%s)
+    immediate=$(redis-cli -h 127.0.0.1 -p 6379 -n 0 ZCARD redis_queue:queue:default 2>/dev/null) || return 1
+    delayed=$(redis-cli -h 127.0.0.1 -p 6379 -n 0 ZCOUNT redis_queue:delayed -inf "$now" 2>/dev/null) || return 1
+    [ $((immediate + delayed)) = "0" ]
+}
+
 # ─── Queue processing ────────────────────────────────────────────────
 
 # process_one fires a single REST call and logs the result.
@@ -222,6 +241,18 @@ while true; do
     fi
 
     run_daily_tasks
+
+    # Fast path: if Redis says the queue is empty, skip the HTTP fan-out.
+    # The 5-parallel polls would otherwise hit PHP-FPM every POLL_INTERVAL
+    # seconds even when there is no work — which is most of the time —
+    # and that traffic is what produces the baseline 504 bursts when the
+    # VPS is under transient pressure from neighbour workloads (e.g.
+    # Imunify360 scans, MediaWiki JobQueue activity on the same host).
+    # New translation work resumes within POLL_INTERVAL of being enqueued.
+    if queue_is_empty; then
+        sleep "${POLL_INTERVAL}"
+        continue
+    fi
 
     if [ "$CONCURRENCY" -le 1 ]; then
         process_one
