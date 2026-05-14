@@ -1,0 +1,18 @@
+#!/bin/bash
+# Test shim for curl.
+#
+# Reads SHIM_CURL_BODY (response body to print) and SHIM_CURL_HTTP_CODE
+# (HTTP status to append on its own line when -w '\n%{http_code}' is
+# passed). Defaults: empty body, 200.
+#
+# The shim only supports the call shape the worker uses:
+#   curl -s -w '\n%{http_code}' ... -X POST ... -d ...
+#
+# All arguments are ignored. To exercise curl-level failure (the
+# "connection error or timeout" branch in process_one), set
+# SHIM_CURL_HTTP_CODE=000 and leave SHIM_CURL_BODY empty.
+set -u
+
+printf '%s\n' "${SHIM_CURL_BODY:-}"
+printf '%s' "${SHIM_CURL_HTTP_CODE:-200}"
+exit "${SHIM_CURL_EXIT:-0}"
