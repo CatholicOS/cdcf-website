@@ -13,9 +13,20 @@ npm run test:watch        # Vitest in watch mode
 npm run test:coverage     # Vitest with v8 coverage
 npm start                 # Start production server
 docker compose up --build # Full stack: WordPress + MariaDB + Next.js + Nginx
+
+# WordPress plugin / theme tests (PHPUnit + Brain Monkey + Mockery).
+# The two trees are independent — each has its own composer.json,
+# vendor/, and phpunit.xml.dist. vendor/ is gitignored; composer.lock
+# + composer.json are checked in.
+composer install --working-dir=wordpress/plugins/cdcf-redis-translations
+composer test    --working-dir=wordpress/plugins/cdcf-redis-translations
+composer install --working-dir=wordpress/themes/cdcf-headless
+composer test    --working-dir=wordpress/themes/cdcf-headless
 ```
 
-`npm test` covers the Next.js data layer (`lib/wordpress/*` — GraphQL client + per-template `get*` helpers). CI runs it non-blocking on PRs that touch `lib/**`, `package.json`, or `vitest.config.ts`. WP/plugin and bash-worker tests are tracked separately under #63.
+`npm test` covers the Next.js data layer (`lib/wordpress/*` — GraphQL client + per-template `get*` helpers). CI runs it non-blocking on PRs that touch `lib/**`, `package.json`, or `vitest.config.ts`.
+
+`composer test` (per WordPress tree) covers the `/cdcf/v1/*` REST handlers: maintenance + process-queue + the translation-enqueue fallback in the plugin, and the relationship GET/POST endpoints in the theme. CI runs both non-blocking on PRs that touch the respective tree. The bash-worker tests are still tracked separately under #63.
 
 ## Architecture Overview
 
