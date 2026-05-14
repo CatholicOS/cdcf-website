@@ -232,7 +232,7 @@ EOF
 
 - [ ] **Step 3: .gitignore for the plugin tree**
 
-```
+```text
 /vendor/
 /.phpunit.cache/
 /.phpunit.result.cache

@@ -278,7 +278,7 @@ Entity-to-entity relationships (`RELATED_TO`, `CO_OCCURS_WITH`) are inferred by 
 
 ### Directory Structure
 
-```
+```text
 aggregator/
 ├── __init__.py
 ├── __main__.py           # Entry point: `python -m aggregator`
@@ -316,7 +316,7 @@ aggregator/
 
 ### Pipeline Flow
 
-```
+```text
 1. Load active sources from `sources` table
 2. For each source due for refresh:
    a. Fetch new items (RSS → feedparser, web → Crawl4AI)
@@ -344,7 +344,7 @@ aggregator/
 
 After the initial fetch-and-classify pass, the pipeline runs a **link-following step** that discovers and crawls outbound links found within article content.
 
-```
+```text
 4. Link-following pass:
    a. For each newly ingested article:
       i.   Extract all outbound URLs from content_html
@@ -387,7 +387,7 @@ Links to social media (Twitter/X, Facebook, Instagram), generic platforms (Mediu
 
 As the aggregator follows links and ingests articles, it tracks which external domains consistently produce relevant content. When a domain crosses a confidence threshold, it is automatically promoted to a crawlable source — enabling the system to organically grow its source list over time.
 
-```
+```text
 5. Source discovery pass:
    a. Aggregate stats from recently ingested articles by domain:
       - Count of articles ingested from this domain
@@ -537,7 +537,7 @@ This reduces AI API costs by filtering obviously irrelevant articles (e.g. a gen
 
 After new entities are extracted, the pipeline runs a disambiguation pass:
 
-```
+```text
 3. Entity disambiguation pass:
    a. For each newly created entity:
       i.   Generate embedding from name + type + description
@@ -770,7 +770,7 @@ class Transcriber:
 
 For multimedia sources, the pipeline flow is extended:
 
-```
+```text
 2. For each source due for refresh:
    a. Fetch new items:
       - RSS → feedparser
@@ -858,7 +858,7 @@ The AI classifier handles these like any other source, but the `content_type='ar
 
 For arXiv sources, the pipeline flow extends step 2:
 
-```
+```text
 2. For each source due for refresh:
    a. Fetch new items:
       - RSS → feedparser
@@ -1278,7 +1278,7 @@ docker compose up -d
 
 #### Dedicated Server (aggregator repo)
 
-```
+```text
 aggregator/
 ├── docker-compose.yml        # Full stack: DB + API + worker + Ollama
 ├── Dockerfile                # Python worker (fetchers, AI, transcription)
@@ -1337,7 +1337,7 @@ aggregator/
 
 #### CDCF Website (this repo)
 
-```
+```text
 src/app/[lang]/research/
 ├── page.tsx
 └── [id]/page.tsx
@@ -1358,7 +1358,7 @@ src/lib/research/
 
 ### Modified Files (this repo)
 
-```
+```text
 .env.example                  # Add AGGREGATOR_API_URL, AGGREGATOR_API_KEY
 src/i18n/routing.ts           # (no change needed — /research is locale-aware by default)
 messages/*.json               # Add research.* translation keys

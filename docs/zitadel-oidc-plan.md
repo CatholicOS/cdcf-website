@@ -219,7 +219,7 @@ Existing auth methods (cookies, Application Passwords) are checked first and rem
 
 Production env overrides:
 
-```
+```text
 ZITADEL_EXTERNAL_DOMAIN=auth.catholicdigitalcommons.org
 ZITADEL_EXTERNAL_PORT=443
 ZITADEL_EXTERNAL_SECURE=true

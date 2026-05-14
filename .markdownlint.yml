@@ -42,6 +42,8 @@ MD033:
     - ol
     - kbd
     - style
+    - details
+    - summary
 
 # Emphasis used as heading — allowed (bolded labels in lists).
 MD036: false

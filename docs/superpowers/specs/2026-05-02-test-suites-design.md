@@ -31,7 +31,7 @@ The bar is "would a test catch the regression next time someone touches this cod
 
 Three independent test suites, one per stack, each living under its own tree so the three implementation PRs do not conflict.
 
-```
+```text
 cdcf-website/
 ├── lib/wordpress/
 │   ├── api.ts

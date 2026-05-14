@@ -25,7 +25,7 @@ Pause the queue worker for the duration of a production deploy so its parallel P
 
 Three components, each with one job. State lives in a single Redis key with a TTL.
 
-```
+```text
 ┌────────────────────────┐    POST /cdcf/v1/maintenance       ┌──────────────────────────┐
 │ GitHub Actions deploy  │ ──── {action:begin,duration:300} ─▶│ WP plugin                │
 │ (.github/workflows/    │                                    │ (cdcf-redis-translations)│

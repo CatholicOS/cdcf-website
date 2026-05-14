@@ -123,7 +123,7 @@ npm start
 
 ## Project Structure
 
-```
+```text
 cdcf-website/
 ├── app/
 │   ├── [lang]/                    # i18n dynamic segment
@@ -267,7 +267,7 @@ This project uses a **dual i18n system**:
 
 WordPress is configured to redirect preview links to the Next.js draft mode endpoint:
 
-```
+```text
 GET /api/preview?secret=YOUR_SECRET&slug=about&type=page
 ```
 

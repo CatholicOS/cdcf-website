@@ -4,7 +4,7 @@ The CDCF Redis Queue Worker processes AI translation jobs asynchronously. When c
 
 ## Architecture
 
-```
+```text
 REST API (create post)
   |
   |--> cdcf_enqueue_translation()
@@ -195,7 +195,7 @@ The TTL is server-clamped to `[60, 600]` seconds. If `end` is never called, the 
 
 The worker logs exactly one line per transition, never per cycle:
 
-```
+```text
 2026-05-02T12:00:00+00:00 Entering maintenance mode (worker paused)
 2026-05-02T12:02:30+00:00 Exiting maintenance mode (worker resumed)
 2026-05-02T12:02:45+00:00 Processed 3 job(s)
