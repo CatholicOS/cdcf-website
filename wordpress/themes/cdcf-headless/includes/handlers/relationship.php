@@ -21,11 +21,15 @@ function cdcf_relationship_permission_check(): bool {
  * GET /cdcf/v1/relationship — read an ACF relationship field.
  */
 function cdcf_rest_get_relationship(WP_REST_Request $request) {
-    $post_id = $request['post_id'];
+    $post_id = absint($request['post_id']);
     $field   = $request['field'];
 
     if (!function_exists('get_field')) {
         return new WP_Error('acf_missing', 'ACF is not active.', ['status' => 500]);
+    }
+
+    if (!$post_id || !get_post($post_id)) {
+        return new WP_Error('post_not_found', 'Post not found.', ['status' => 404]);
     }
 
     $acf_field = acf_get_field($field);
@@ -41,7 +45,7 @@ function cdcf_rest_get_relationship(WP_REST_Request $request) {
  * POST /cdcf/v1/relationship — update an ACF relationship field.
  */
 function cdcf_rest_update_relationship(WP_REST_Request $request) {
-    $post_id = $request['post_id'];
+    $post_id = absint($request['post_id']);
     $field   = $request['field'];
     $value   = $request['value'];
 
@@ -49,13 +53,24 @@ function cdcf_rest_update_relationship(WP_REST_Request $request) {
         return new WP_Error('acf_missing', 'ACF is not active.', ['status' => 500]);
     }
 
+    if (!$post_id || !get_post($post_id)) {
+        return new WP_Error('post_not_found', 'Post not found.', ['status' => 404]);
+    }
+
     $acf_field = acf_get_field($field);
     if (!$acf_field || $acf_field['type'] !== 'relationship') {
         return new WP_Error('invalid_field', 'Field is not a relationship field.', ['status' => 400]);
     }
 
-    // Sanitize to array of integers.
-    $value = array_map('absint', array_filter($value));
+    // Sanitize to array of positive integers. absint() coerces first so
+    // non-numeric inputs (e.g. "abc") become 0 and then get filtered,
+    // rather than sneaking through as 0 in the stored field.
+    $value = array_values(
+        array_filter(
+            array_map('absint', (array) $value),
+            static fn(int $v): bool => $v > 0
+        )
+    );
     update_field($field, $value, $post_id);
 
     return rest_ensure_response(['post_id' => $post_id, 'field' => $field, 'value' => $value, 'updated' => true]);

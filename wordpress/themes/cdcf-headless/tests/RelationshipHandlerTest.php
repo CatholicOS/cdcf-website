@@ -20,6 +20,12 @@ final class RelationshipHandlerTest extends TestCase
         // The WP core implementation just returns its argument when
         // already a JSON-serialisable value; reproduce that here.
         Functions\when('rest_ensure_response')->returnArg(1);
+        // absint() and get_post() are reached by both handlers' new
+        // post-existence guard. Default to a coercion that mirrors
+        // WordPress and a non-null post; tests that want to exercise
+        // the missing-post path override with justReturn(null).
+        Functions\when('absint')->alias(fn($v) => abs((int) $v));
+        Functions\when('get_post')->alias(fn($id) => (object) ['ID' => (int) $id]);
     }
 
     protected function tearDown(): void
@@ -198,18 +204,16 @@ final class RelationshipHandlerTest extends TestCase
     public function test_post_sanitizes_value_to_positive_integers(): void
     {
         Functions\when('acf_get_field')->justReturn(['type' => 'relationship']);
-        Functions\when('absint')->alias(fn($v) => abs((int) $v));
-        // The handler does `array_map('absint', array_filter($value))` so:
-        //   - array_filter removes 0 (drops index 2, keeping 0, 1, 3)
-        //   - array_map preserves those keys but coerces values to abs ints
-        // Expectation matches that exact shape — including the gap at
-        // key 2 — so future refactors that change the sanitisation
-        // pipeline are caught.
+        // The handler's new pipeline:
+        //   array_values(array_filter(array_map('absint', (array)$value), > 0))
+        //   so absint coerces every element first, then anything <=0 is
+        //   filtered, then array_values reindexes. Result is a packed
+        //   [0..n-1] array with no gaps.
         Functions\expect('update_field')
             ->once()
             ->with(
                 'technical_council',
-                [0 => 101, 1 => 102, 3 => 103],
+                [101, 102, 103],
                 5
             );
         Functions\when('function_exists')->alias(fn(string $name): bool => true);
@@ -217,12 +221,85 @@ final class RelationshipHandlerTest extends TestCase
         $req = new WP_REST_Request();
         $req->set_param('post_id', 5);
         $req->set_param('field', 'technical_council');
-        // 0 is filtered out by array_filter; "-102" becomes 102 via absint; "103" stays 103.
+        // 0 is dropped (not positive); "-102" → absint → 102; "103" → 103.
         $req->set_param('value', [101, '-102', 0, '103']);
 
         $response = cdcf_rest_update_relationship($req);
 
         $this->assertTrue($response['updated']);
-        $this->assertSame([101, 102, 103], array_values($response['value']));
+        $this->assertSame([101, 102, 103], $response['value']);
+    }
+
+    public function test_post_drops_non_numeric_input(): void
+    {
+        Functions\when('acf_get_field')->justReturn(['type' => 'relationship']);
+        // Non-numeric strings like "abc" used to sneak through as 0
+        // (array_filter ran before absint). With the new ordering they
+        // hit absint first → 0, and array_filter > 0 drops them. Pin
+        // that explicitly.
+        Functions\expect('update_field')
+            ->once()
+            ->with('technical_council', [42], 5);
+        Functions\when('function_exists')->alias(fn(string $name): bool => true);
+
+        $req = new WP_REST_Request();
+        $req->set_param('post_id', 5);
+        $req->set_param('field', 'technical_council');
+        $req->set_param('value', [42, 'abc', null, false]);
+
+        $response = cdcf_rest_update_relationship($req);
+
+        $this->assertSame([42], $response['value']);
+    }
+
+    // ─── Post-existence guard (#4) ────────────────────────────────
+
+    public function test_get_returns_404_when_post_does_not_exist(): void
+    {
+        Functions\when('function_exists')->alias(fn(string $name): bool => true);
+        Functions\when('get_post')->justReturn(null);
+
+        $req = new WP_REST_Request();
+        $req->set_param('post_id', 99999);
+        $req->set_param('field', 'technical_council');
+
+        $response = cdcf_rest_get_relationship($req);
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('post_not_found', $response->get_error_code());
+        $this->assertSame(404, $response->get_error_data()['status']);
+    }
+
+    public function test_get_returns_404_when_post_id_is_zero_or_missing(): void
+    {
+        Functions\when('function_exists')->alias(fn(string $name): bool => true);
+
+        $req = new WP_REST_Request();
+        // No post_id param at all → absint(null) → 0 → 404.
+        $req->set_param('field', 'technical_council');
+
+        $response = cdcf_rest_get_relationship($req);
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('post_not_found', $response->get_error_code());
+    }
+
+    public function test_post_returns_404_when_post_does_not_exist(): void
+    {
+        Functions\when('function_exists')->alias(fn(string $name): bool => true);
+        Functions\when('get_post')->justReturn(null);
+        // update_field must not be called when the post is missing.
+        Functions\expect('update_field')->never();
+
+        $req = new WP_REST_Request();
+        $req->set_param('post_id', 99999);
+        $req->set_param('field', 'technical_council');
+        $req->set_param('value', [101]);
+
+        $response = cdcf_rest_update_relationship($req);
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('post_not_found', $response->get_error_code());
+        $this->assertSame(404, $response->get_error_data()['status']);
     }
 }
