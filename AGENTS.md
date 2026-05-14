@@ -191,8 +191,8 @@ See `docs/python-api-client.md` for full documentation of all commands and libra
 **NEVER read `.env.local` directly — it contains secrets.** Use the Python API client (`scripts/cdcf_api.py`) to interact with the CMS, which loads credentials internally.
 
 Required in `.env.local` (Next.js) or `.env` (Docker Compose):
-- `WP_GRAPHQL_URL` — GraphQL endpoint (e.g. `http://wordpress/graphql`)
-- `WP_REST_URL` — WordPress REST base URL (used by the Python client)
+- `WP_GRAPHQL_URL` — GraphQL endpoint, host-perspective (e.g. `http://localhost:8000/graphql` in dev). The dockerized `nextjs` service in `docker-compose.yml` overrides this to `http://wordpress/graphql` for its own runtime when `--profile production` is active.
+- `WP_REST_URL` — WordPress REST base URL, same host-perspective convention as above (used by `npm run dev` on the host and by `scripts/cdcf_api.py`)
 - `WP_APP_USERNAME`, `WP_APP_PASSWORD` — WordPress Application Password (used by the Python client)
 - `WP_PREVIEW_SECRET` — Shared secret for preview + revalidation
 - `WP_DB_ROOT_PASSWORD`, `WP_DB_NAME`, `WP_DB_USER`, `WP_DB_PASSWORD` — Database config

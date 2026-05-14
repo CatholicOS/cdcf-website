@@ -35,8 +35,8 @@ The client reads credentials automatically from the project root. The override f
 
 | Variable | Override file | Description |
 |----------|------|-------------|
-| `WP_REST_URL` | override | WordPress REST base URL (e.g. `https://cms.catholicdigitalcommons.org/wp-json`) |
-| `WP_GRAPHQL_URL` | override | WPGraphQL endpoint (e.g. `https://cms.catholicdigitalcommons.org/graphql`) |
+| `WP_REST_URL` | override | WordPress REST base URL — host-perspective. Local: `http://localhost:8000/wp-json`. Production: `https://cms.catholicdigitalcommons.org/wp-json`. |
+| `WP_GRAPHQL_URL` | override | WPGraphQL endpoint — host-perspective. Local: `http://localhost:8000/graphql`. Production: `https://cms.catholicdigitalcommons.org/graphql`. |
 | `WP_APP_USERNAME` | override | WordPress Application Password username |
 | `WP_APP_PASSWORD` | override | WordPress Application Password |
 | `WP_PREVIEW_SECRET` | override | Shared secret for Next.js preview/revalidation (differs between local and prod) |
