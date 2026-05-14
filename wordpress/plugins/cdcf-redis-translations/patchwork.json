@@ -1,0 +1,5 @@
+{
+    "redefinable-internals": [
+        "ignore_user_abort"
+    ]
+}
