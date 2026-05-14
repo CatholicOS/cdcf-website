@@ -6,6 +6,7 @@ credentials from env files so callers never handle secrets directly.
 
 Credential loading is target-aware:
   target="local"      (default) → merges .env then .env.local
+  target="staging"              → merges .env then .env.staging
   target="production"           → merges .env then .env.production
 
 Usage as library:
@@ -32,11 +33,18 @@ from dotenv import dotenv_values
 class CdcfClient:
     """Client for the CDCF CMS REST API and WPGraphQL."""
 
+    TARGET_ENV_FILES = {
+        "local": ".env.local",
+        "staging": ".env.staging",
+        "production": ".env.production",
+    }
+
     def __init__(self, project_root: str | None = None, target: str = "local"):
-        if target not in ("local", "production"):
-            raise ValueError(f"target must be 'local' or 'production', got {target!r}")
+        if target not in self.TARGET_ENV_FILES:
+            valid = ", ".join(sorted(self.TARGET_ENV_FILES))
+            raise ValueError(f"target must be one of {{{valid}}}, got {target!r}")
         self.target = target
-        override_filename = ".env.local" if target == "local" else ".env.production"
+        override_filename = self.TARGET_ENV_FILES[target]
 
         root = Path(project_root) if project_root else Path(__file__).resolve().parent.parent
         env_base = dotenv_values(root / ".env")
@@ -395,10 +403,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--target",
-        choices=["local", "production"],
+        choices=sorted(CdcfClient.TARGET_ENV_FILES),
         default="local",
         help="Which env file to load credentials from. "
-             "'local' (default) reads .env.local; 'production' reads .env.production.",
+             "'local' (default) reads .env.local; 'staging' reads .env.staging; "
+             "'production' reads .env.production.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 

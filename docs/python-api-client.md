@@ -5,9 +5,10 @@ Python client library and CLI for the CDCF CMS REST API and WPGraphQL. Wraps all
 Credential loading is **target-aware**:
 
 - `target="local"` (default) — merges `.env` then `.env.local`. Points at the local docker-compose stack.
+- `target="staging"` — merges `.env` then `.env.staging`. Points at the staging frontend (today shares the production WP backend).
 - `target="production"` — merges `.env` then `.env.production`. Points at the live `cms.catholicdigitalcommons.org` and `catholicdigitalcommons.org`.
 
-The library accepts the target via constructor (`CdcfClient(target="production")`); the CLI accepts it as a top-level flag (`scripts/cdcf_api.py --target production <command> …`).
+The library accepts the target via constructor (`CdcfClient(target="production")`); the CLI accepts it as a top-level flag (`scripts/cdcf_api.py --target staging <command> …`).
 
 ## Setup
 
@@ -35,8 +36,8 @@ The client reads credentials automatically from the project root. The override f
 
 | Variable | Override file | Description |
 |----------|------|-------------|
-| `WP_REST_URL` | override | WordPress REST base URL (e.g. `https://cms.catholicdigitalcommons.org/wp-json`) |
-| `WP_GRAPHQL_URL` | override | WPGraphQL endpoint (e.g. `https://cms.catholicdigitalcommons.org/graphql`) |
+| `WP_REST_URL` | override | WordPress REST base URL — host-perspective. Local: `http://localhost:8000/wp-json`. Production: `https://cms.catholicdigitalcommons.org/wp-json`. |
+| `WP_GRAPHQL_URL` | override | WPGraphQL endpoint — host-perspective. Local: `http://localhost:8000/graphql`. Production: `https://cms.catholicdigitalcommons.org/graphql`. |
 | `WP_APP_USERNAME` | override | WordPress Application Password username |
 | `WP_APP_PASSWORD` | override | WordPress Application Password |
 | `WP_PREVIEW_SECRET` | override | Shared secret for Next.js preview/revalidation (differs between local and prod) |

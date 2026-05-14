@@ -133,11 +133,12 @@ Creates an English `academic_collaboration` post, translates it to all 5 languag
 A Python client library and CLI that wraps all `cdcf/v1` REST endpoints and WPGraphQL queries. It reads credentials from env files internally so secrets are never exposed. Credential loading is target-aware:
 
 - Default / `--target local` — merges `.env` then `.env.local` (localhost docker-compose stack)
+- `--target staging` — merges `.env` then `.env.staging` (staging frontend; today shares the production WP backend)
 - `--target production` — merges `.env` then `.env.production` (live `cms.catholicdigitalcommons.org`)
 
-Default is `local`. Pass `--target production` to act against the live CMS — for example to revalidate a production Next.js path or fix a content typo on the live site. The `.env.production` file is gitignored; the example template is `.env.production.example`.
+Default is `local`. Pass `--target production` (or `--target staging`) to act against the live or staging sites — for example to revalidate a path or fix a content typo. The override files are gitignored; the example templates are `.env.<target>.example`.
 
-**IMPORTANT: NEVER read, cat, or access `.env.local` or `.env.production` directly.** They contain secrets (API keys, passwords). Always use the Python client instead, which loads credentials internally.
+**IMPORTANT: NEVER read, cat, or access `.env.local`, `.env.staging`, or `.env.production` directly.** They contain secrets (API keys, passwords). Always use the Python client instead, which loads credentials internally.
 
 **Always use the CLI interface** (`scripts/.venv/bin/python scripts/cdcf_api.py <command>`) — never try to import `cdcf_api` directly in inline Python (`python -c`), as the module is not on `PYTHONPATH` and will fail with `ModuleNotFoundError`. If you need programmatic access beyond what the CLI offers, run: `scripts/.venv/bin/python -c "import sys; sys.path.insert(0, 'scripts'); from cdcf_api import CdcfClient; ..."`
 
@@ -191,8 +192,8 @@ See `docs/python-api-client.md` for full documentation of all commands and libra
 **NEVER read `.env.local` directly — it contains secrets.** Use the Python API client (`scripts/cdcf_api.py`) to interact with the CMS, which loads credentials internally.
 
 Required in `.env.local` (Next.js) or `.env` (Docker Compose):
-- `WP_GRAPHQL_URL` — GraphQL endpoint (e.g. `http://wordpress/graphql`)
-- `WP_REST_URL` — WordPress REST base URL (used by the Python client)
+- `WP_GRAPHQL_URL` — GraphQL endpoint, host-perspective (e.g. `http://localhost:8000/graphql` in dev). The dockerized `nextjs` service in `docker-compose.yml` overrides this to `http://wordpress/graphql` for its own runtime when `--profile production` is active.
+- `WP_REST_URL` — WordPress REST base URL, same host-perspective convention as above (used by `npm run dev` on the host and by `scripts/cdcf_api.py`)
 - `WP_APP_USERNAME`, `WP_APP_PASSWORD` — WordPress Application Password (used by the Python client)
 - `WP_PREVIEW_SECRET` — Shared secret for preview + revalidation
 - `WP_DB_ROOT_PASSWORD`, `WP_DB_NAME`, `WP_DB_USER`, `WP_DB_PASSWORD` — Database config

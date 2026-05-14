@@ -28,10 +28,13 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
+# env files — ignore everything except .example templates
 .env
-.env*.local
-.env.production
+.env.*
+!.env.*.example
+# also catch vim swap files for the above
+.*.env.*.sw?
+..env.*.sw?
 
 # vercel
 .vercel

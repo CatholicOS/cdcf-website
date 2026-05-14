@@ -109,17 +109,22 @@ services:
       - cli
 
   nextjs:
+    # When Next.js runs inside the compose network it must reach WordPress
+    # via the docker DNS name `wordpress`, not localhost. The host-side
+    # values in .env.local (http://localhost:8000/...) would not resolve
+    # here, so the URLs are hard-coded to the container-perspective ones.
     build:
       context: .
       args:
-        WP_GRAPHQL_URL: ${WP_GRAPHQL_URL}
+        WP_GRAPHQL_URL: http://wordpress/graphql
     image: cdcf-website:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - WP_GRAPHQL_URL=${WP_GRAPHQL_URL}
+      - WP_GRAPHQL_URL=http://wordpress/graphql
+      - WP_REST_URL=http://wordpress/wp-json
       - WP_PREVIEW_SECRET=${WP_PREVIEW_SECRET}
     profiles:
       - production
