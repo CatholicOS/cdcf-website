@@ -25,7 +25,7 @@ function cdcf_handle_process_queue(WP_REST_Request $request) {
         return new WP_REST_Response(['processed' => 0, 'error' => 'redis_queue not available'], 200);
     }
     ignore_user_abort(true);
-    $batch_size = intval($request['batch_size'] ?? 10);
+    $batch_size = (int) ($request['batch_size'] ?? 10);
     $batch_size = max(1, min($batch_size, 50));
     $processor = redis_queue()->get_job_processor();
     $result = $processor->process_jobs(['default'], $batch_size);
