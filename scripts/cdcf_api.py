@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 """CDCF CMS API client library and CLI.
 
-Wraps all REST API endpoints from the CDCF headless CMS,
-reading credentials from .env.local and .env so that callers
-never need to handle secrets directly.
+Wraps all REST API endpoints from the CDCF headless CMS, reading
+credentials from env files so callers never handle secrets directly.
+
+Credential loading is target-aware:
+  target="local"      (default) → merges .env then .env.local
+  target="production"           → merges .env then .env.production
 
 Usage as library:
     from cdcf_api import CdcfClient
-    client = CdcfClient()
-    result = client.get_relationship(post_id=5, field="team_members")
+    client = CdcfClient()                       # localhost
+    client = CdcfClient(target="production")    # production CMS
 
-Usage as CLI:
+Usage as CLI (top-level --target flag, defaults to local):
     python scripts/cdcf_api.py get-relationship --post-id 5 --field team_members
-    python scripts/cdcf_api.py create-team-member --title "Jane" --content "<p>Bio</p>" --council technical_council
+    python scripts/cdcf_api.py --target production revalidate --path /it/simbolismo-del-logo
 """
 
 import argparse
@@ -29,11 +32,16 @@ from dotenv import dotenv_values
 class CdcfClient:
     """Client for the CDCF CMS REST API and WPGraphQL."""
 
-    def __init__(self, project_root: str | None = None):
+    def __init__(self, project_root: str | None = None, target: str = "local"):
+        if target not in ("local", "production"):
+            raise ValueError(f"target must be 'local' or 'production', got {target!r}")
+        self.target = target
+        override_filename = ".env.local" if target == "local" else ".env.production"
+
         root = Path(project_root) if project_root else Path(__file__).resolve().parent.parent
-        env_local = dotenv_values(root / ".env.local")
-        env_file = dotenv_values(root / ".env")
-        env = {**env_file, **env_local}
+        env_base = dotenv_values(root / ".env")
+        env_override = dotenv_values(root / override_filename)
+        env = {**env_base, **env_override}
 
         self.wp_rest_url = env.get("WP_REST_URL", "").rstrip("/")
         self.wp_graphql_url = env.get("WP_GRAPHQL_URL", "")
@@ -42,14 +50,14 @@ class CdcfClient:
         self.wp_auth = (wp_username, wp_password) if wp_username and wp_password else None
         self.preview_secret = env.get("WP_PREVIEW_SECRET", "")
 
-        # Derive Next.js base URL: if WP_REST_URL is http://localhost:8000/wp-json,
-        # Next.js is at http://localhost:3000. For production, use NEXTJS_URL if set.
-        self.nextjs_url = env.get("NEXTJS_URL", "http://localhost:3000").rstrip("/")
+        # Next.js base URL: localhost in dev, the public site in production.
+        default_nextjs = "http://localhost:3000" if target == "local" else ""
+        self.nextjs_url = env.get("NEXTJS_URL", default_nextjs).rstrip("/")
 
         if not self.wp_rest_url:
-            raise ValueError("WP_REST_URL not found in .env.local or .env")
+            raise ValueError(f"WP_REST_URL not found in {override_filename} or .env")
         if not self.wp_graphql_url:
-            raise ValueError("WP_GRAPHQL_URL not found in .env.local or .env")
+            raise ValueError(f"WP_GRAPHQL_URL not found in {override_filename} or .env")
 
     def _wp_url(self, path: str) -> str:
         return f"{self.wp_rest_url}/{path.lstrip('/')}"
@@ -385,6 +393,13 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="cdcf_api",
         description="CLI for the CDCF CMS REST API",
     )
+    parser.add_argument(
+        "--target",
+        choices=["local", "production"],
+        default="local",
+        help="Which env file to load credentials from. "
+             "'local' (default) reads .env.local; 'production' reads .env.production.",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     # get-relationship
@@ -703,7 +718,7 @@ def main():
     parser = _build_parser()
     args = parser.parse_args()
     try:
-        client = CdcfClient()
+        client = CdcfClient(target=args.target)
         result = _run_cli(args, client)
         print(json.dumps(result, indent=2, ensure_ascii=False))
     except requests.HTTPError as exc:

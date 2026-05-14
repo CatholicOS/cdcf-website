@@ -130,9 +130,14 @@ Creates an English `academic_collaboration` post, translates it to all 5 languag
 
 ## Python API Client (`scripts/cdcf_api.py`)
 
-A Python client library and CLI that wraps all `cdcf/v1` REST endpoints and WPGraphQL queries. It reads credentials from `.env.local` and `.env` internally so secrets are never exposed.
+A Python client library and CLI that wraps all `cdcf/v1` REST endpoints and WPGraphQL queries. It reads credentials from env files internally so secrets are never exposed. Credential loading is target-aware:
 
-**IMPORTANT: NEVER read, cat, or access `.env.local` directly.** This file contains secrets (API keys, passwords). Always use the Python client instead, which loads credentials internally.
+- Default / `--target local` — merges `.env` then `.env.local` (localhost docker-compose stack)
+- `--target production` — merges `.env` then `.env.production` (live `cms.catholicdigitalcommons.org`)
+
+Default is `local`. Pass `--target production` to act against the live CMS — for example to revalidate a production Next.js path or fix a content typo on the live site. The `.env.production` file is gitignored; the example template is `.env.production.example`.
+
+**IMPORTANT: NEVER read, cat, or access `.env.local` or `.env.production` directly.** They contain secrets (API keys, passwords). Always use the Python client instead, which loads credentials internally.
 
 **Always use the CLI interface** (`scripts/.venv/bin/python scripts/cdcf_api.py <command>`) — never try to import `cdcf_api` directly in inline Python (`python -c`), as the module is not on `PYTHONPATH` and will fail with `ModuleNotFoundError`. If you need programmatic access beyond what the CLI offers, run: `scripts/.venv/bin/python -c "import sys; sys.path.insert(0, 'scripts'); from cdcf_api import CdcfClient; ..."`
 
@@ -168,8 +173,11 @@ scripts/.venv/bin/python scripts/cdcf_api.py rest-post cdcf/v1/update-disposable
 scripts/.venv/bin/python scripts/cdcf_api.py rest-post cdcf/v1/flush-opcache
 scripts/.venv/bin/python scripts/cdcf_api.py rest-get wp/v2/posts --params '{"per_page": 5}'
 
-# Cache revalidation
+# Cache revalidation (local stack)
 scripts/.venv/bin/python scripts/cdcf_api.py revalidate --path /about
+
+# Cache revalidation against the live production site
+scripts/.venv/bin/python scripts/cdcf_api.py --target production revalidate --path /it/simbolismo-del-logo
 
 # Pause/resume the queue worker (used by the deploy workflow)
 scripts/.venv/bin/python scripts/cdcf_api.py maintenance --action begin --duration 300
