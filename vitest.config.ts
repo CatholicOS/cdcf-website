@@ -9,7 +9,7 @@ export default defineConfig({
       provider: 'v8',
       include: ['lib/wordpress/**/*.ts'],
       exclude: ['lib/wordpress/**/*.test.ts'],
-      reporter: ['text', 'html'],
+      reporter: ['text', 'html', 'lcov'],
     },
   },
 })

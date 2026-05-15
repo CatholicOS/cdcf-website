@@ -5,6 +5,7 @@
 [![TypeScript](https://img.shields.io/github/package-json/dependency-version/CatholicOS/cdcf-website/dev/typescript?label=TypeScript&logo=typescript&color=3178C6&logoColor=white)](https://www.typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/github/package-json/dependency-version/CatholicOS/cdcf-website/dev/tailwindcss?label=Tailwind%20CSS&logo=tailwindcss&color=06B6D4&logoColor=white)](https://tailwindcss.com)
 [![PR Build](https://github.com/CatholicOS/cdcf-website/actions/workflows/pr-build.yml/badge.svg)](https://github.com/CatholicOS/cdcf-website/actions/workflows/pr-build.yml)
+[![codecov](https://codecov.io/gh/CatholicOS/cdcf-website/graph/badge.svg)](https://codecov.io/gh/CatholicOS/cdcf-website)
 
 The official website for the **Catholic Digital Commons Foundation (CDCF)**, built with Next.js and headless WordPress. This site serves as the public-facing portal for the foundation, showcasing projects, community resources, news, and governance information.
 

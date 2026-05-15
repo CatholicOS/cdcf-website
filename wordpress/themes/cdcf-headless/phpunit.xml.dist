@@ -11,4 +11,10 @@
             <directory>tests</directory>
         </testsuite>
     </testsuites>
+    <source>
+        <include>
+            <file>functions.php</file>
+            <directory>includes</directory>
+        </include>
+    </source>
 </phpunit>
