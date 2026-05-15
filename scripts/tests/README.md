@@ -26,21 +26,22 @@ scripts/tests/bats/bin/bats scripts/tests/in_maintenance.bats
 
 External commands the helpers call (`redis-cli`, `curl`) are mocked by PATH-injected fakes in `helpers/shims/`. Each test prepends `helpers/shims` to `PATH` in its `setup()` and configures the shim via per-test env vars:
 
-| Shim      | Env var               | Purpose                                                                 |
-|-----------|-----------------------|-------------------------------------------------------------------------|
-| redis-cli | `SHIM_REDIS_OUTPUT`   | stdout for the single-call case                                         |
-| redis-cli | `SHIM_REDIS_EXIT`     | exit code for the single-call case                                      |
-| redis-cli | `SHIM_REDIS_OUTPUTS`  | newline-separated list of outputs for multi-call helpers (e.g. `queue_is_empty`) |
+| Shim      | Env var               | Purpose                                                                                                |
+| --------- | --------------------- | ------------------------------------------------------------------------------------------------------ |
+| redis-cli | `SHIM_REDIS_OUTPUT`   | stdout for the single-call case                                                                        |
+| redis-cli | `SHIM_REDIS_EXIT`     | exit code for the single-call case                                                                     |
+| redis-cli | `SHIM_REDIS_OUTPUTS`  | newline-separated list of outputs for multi-call helpers (e.g. `queue_is_empty`)                       |
 | redis-cli | `SHIM_REDIS_STATE`    | path to the per-test state file the shim pops outputs from (typically `$BATS_TEST_TMPDIR/redis-state`) |
-| curl      | `SHIM_CURL_BODY`      | response body                                                           |
-| curl      | `SHIM_CURL_HTTP_CODE` | status code echoed on the last line when `-w '\n%{http_code}'` is passed |
-| curl      | `SHIM_CURL_EXIT`      | exit code (defaults to 0; the worker treats `HTTP_CODE=000` as the failure signal regardless) |
+| curl      | `SHIM_CURL_BODY`      | response body                                                                                          |
+| curl      | `SHIM_CURL_HTTP_CODE` | status code echoed on the last line when `-w '\n%{http_code}'` is passed                               |
+| curl      | `SHIM_CURL_EXIT`      | exit code (defaults to 0; the worker treats `HTTP_CODE=000` as the failure signal regardless)          |
 
 The shims **ignore the actual argv** — every helper passes a fixed call shape, so we don't bother asserting on flags. If a future test needs to verify argv, wrap the shim or add a more elaborate fake.
 
 ## Adding a new test
 
 1. Create `scripts/tests/<helper>.bats`. The file's `setup()` should both prepend the shim PATH and source the lib:
+
    ```bash
    setup() {
        PATH="$BATS_TEST_DIRNAME/helpers/shims:$PATH"
@@ -49,6 +50,7 @@ The shims **ignore the actual argv** — every helper passes a fixed call shape,
        source "$BATS_TEST_DIRNAME/../cdcf_queue_worker.lib.sh"
    }
    ```
+
 2. Write `@test "<name>" { ... }` blocks using `run <helper>` to capture status + output. Use `<<<` or `< /dev/null` for stdin.
 3. Use `setup()` (per-test), not `setup_file()` — `setup_file()` runs in a different process where the sourced functions are not visible.
 4. Run just your new file (`scripts/tests/bats/bin/bats scripts/tests/<helper>.bats`) before running the whole suite.
