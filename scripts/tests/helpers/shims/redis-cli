@@ -1,0 +1,41 @@
+#!/bin/bash
+# Test shim for redis-cli.
+#
+# Configuration via env vars:
+#
+#   Single-call mode (the common case — one invocation per test):
+#     SHIM_REDIS_OUTPUT — string to print on stdout (default: empty)
+#     SHIM_REDIS_EXIT   — integer exit code (default: 0)
+#
+#   Multi-call mode (for helpers like queue_is_empty that call
+#   redis-cli more than once in one invocation):
+#     SHIM_REDIS_OUTPUTS — newline-separated list of outputs; each call
+#                          consumes one line in order, popped from a
+#                          per-test state file at $SHIM_REDIS_STATE.
+#                          SHIM_REDIS_EXIT still applies if set.
+#     SHIM_REDIS_STATE   — path to the state file (the caller sets this
+#                          to something like $BATS_TEST_TMPDIR/redis-state
+#                          so concurrent tests do not stomp on each
+#                          other).
+#
+# The shim ignores all of redis-cli's actual arguments — tests that
+# need to assert on the call shape can wrap this shim or use a different
+# fake. For the current suite, every helper passes a fixed argv shape
+# (-h 127.0.0.1 -p 6379 -n 0 <CMD> ...) so we don't bother.
+set -u
+
+if [ -n "${SHIM_REDIS_OUTPUTS:-}" ]; then
+    state="${SHIM_REDIS_STATE:-/tmp/shim-redis-state.$$}"
+    # Seed the state file on first call (idempotent — only seeded if missing).
+    if [ ! -f "$state" ]; then
+        printf '%s\n' "$SHIM_REDIS_OUTPUTS" > "$state"
+    fi
+    # Pop the first line.
+    line=$(head -n1 "$state")
+    tail -n +2 "$state" > "$state.tmp" && mv "$state.tmp" "$state"
+    printf '%s' "$line"
+    exit "${SHIM_REDIS_EXIT:-0}"
+fi
+
+printf '%s' "${SHIM_REDIS_OUTPUT:-}"
+exit "${SHIM_REDIS_EXIT:-0}"

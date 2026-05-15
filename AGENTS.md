@@ -22,11 +22,15 @@ composer install --working-dir=wordpress/plugins/cdcf-redis-translations
 composer test    --working-dir=wordpress/plugins/cdcf-redis-translations
 composer install --working-dir=wordpress/themes/cdcf-headless
 composer test    --working-dir=wordpress/themes/cdcf-headless
+
+scripts/tests/bats/bin/bats scripts/tests/   # Queue-worker bash unit tests (bats-core)
 ```
 
 `npm test` covers the Next.js data layer (`lib/wordpress/*` — GraphQL client + per-template `get*` helpers). CI runs it non-blocking on PRs that touch `lib/**`, `package.json`, or `vitest.config.ts`.
 
-`composer test` (per WordPress tree) covers the `/cdcf/v1/*` REST handlers: maintenance + process-queue + the translation-enqueue fallback in the plugin, and the relationship GET/POST endpoints in the theme. CI runs both non-blocking on PRs that touch the respective tree. The bash-worker tests are still tracked separately under #63.
+`composer test` (per WordPress tree) covers the `/cdcf/v1/*` REST handlers: maintenance + process-queue + the translation-enqueue fallback in the plugin, and the relationship GET/POST endpoints in the theme. CI runs both non-blocking on PRs that touch the respective tree.
+
+`scripts/tests/bats/bin/bats scripts/tests/` covers the queue-worker helpers (`scripts/cdcf_queue_worker.lib.sh`). bats-core is vendored as a git submodule at `scripts/tests/bats/`, so fresh checkouts need `git clone --recurse-submodules` (or `git submodule update --init --recursive` after a plain clone). CI runs it non-blocking on PRs that touch `scripts/cdcf_queue_worker*` or `scripts/tests/**`. See `scripts/tests/README.md` for the shim convention and how to add a new test.
 
 ## Architecture Overview
 
