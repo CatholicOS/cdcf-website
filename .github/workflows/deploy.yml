@@ -499,7 +499,11 @@ jobs:
               -H 'Accept-Language: it-IT,it;q=0.9,en;q=0.8' \
               "$SITE_URL/")
             IT_STATUS=$(echo "$IT_HEADERS" | head -n1 | awk '{print $2}')
-            IT_LOCATION=$(echo "$IT_HEADERS" | grep -i '^location:' | sed 's/^[Ll]ocation: //' | tr -d '\r')
+            # `|| true` because grep returns 1 when the response has no
+            # Location header (the happy 200 case), which would otherwise
+            # abort the step under the GitHub-Actions-default bash flags
+            # `-e -o pipefail`. Want IT_LOCATION="" instead.
+            IT_LOCATION=$(echo "$IT_HEADERS" | grep -i '^location:' | sed 's/^[Ll]ocation: //' | tr -d '\r' || true)
 
             if [ "$IT_STATUS" = "200" ] || [ "$IT_STATUS" = "307" ]; then
               if [ -n "$IT_LOCATION" ]; then
