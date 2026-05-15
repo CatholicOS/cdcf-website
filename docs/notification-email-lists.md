@@ -8,11 +8,11 @@ All submission/referral notification emails currently go to the single WordPress
 
 Three endpoints send admin notification emails in `functions.php`:
 
-| Endpoint | Line | Subject |
-|----------|------|---------|
-| `POST /cdcf/v1/refer-local-group` | ~1467 | `[CDCF] New Local Group Referral: {name}` |
+| Endpoint                                | Line  | Subject                                         |
+| --------------------------------------- | ----- | ----------------------------------------------- |
+| `POST /cdcf/v1/refer-local-group`       | ~1467 | `[CDCF] New Local Group Referral: {name}`       |
 | `POST /cdcf/v1/refer-community-project` | ~1639 | `[CDCF] New Community Project Referral: {name}` |
-| `POST /cdcf/v1/submit-project` | ~1894 | `[CDCF] New Project Submission: {name}` |
+| `POST /cdcf/v1/submit-project`          | ~1894 | `[CDCF] New Project Submission: {name}`         |
 
 Each uses the same pattern:
 
@@ -71,6 +71,7 @@ The notification recipient can be any email address, but a mailing list is ideal
 - **Multiple recipients** — one address, many subscribers
 
 Options for mailing list providers:
+
 - **Google Groups** — free, easy setup, good for small teams
 - **Mailman / GNU Mailman** — self-hosted, full-featured, free
 - **Listmonk** — self-hosted, modern UI, open source
