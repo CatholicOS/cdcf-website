@@ -1,0 +1,17 @@
+---
+# Codacy repository configuration.
+# Docs: https://docs.codacy.com/repositories-configure/codacy-configuration-file/
+
+# Paths Codacy should not analyse. PHPUnit bootstraps and stubs use
+# patterns (require_once, ! operator on class_exists guards, etc.)
+# that Codacy's default PHP rulesets flag noisily; tests are dev-only,
+# not shipped to production, and should not gate PR review.
+exclude_paths:
+  - 'wordpress/plugins/cdcf-redis-translations/tests/**'
+  - 'wordpress/plugins/cdcf-redis-translations/vendor/**'
+  - 'wordpress/plugins/cdcf-redis-translations/.phpunit.cache/**'
+  - 'wordpress/plugins/cdcf-redis-translations/.phpunit.result.cache'
+  - 'wordpress/themes/cdcf-headless/tests/**'
+  - 'wordpress/themes/cdcf-headless/vendor/**'
+  - 'wordpress/themes/cdcf-headless/.phpunit.cache/**'
+  - 'wordpress/themes/cdcf-headless/.phpunit.result.cache'

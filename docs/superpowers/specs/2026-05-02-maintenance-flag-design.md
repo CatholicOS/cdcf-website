@@ -6,7 +6,7 @@
 
 ## Problem
 
-Production deploys to `cms.catholicdigitalcommons.org` cause a 504 wave on the WP REST API (262 504s on the Apr 29 deploy day vs ~10/day baseline). Investigation in #41 traced the cause to PHP-FPM pool saturation: tarball extraction triggers OPcache invalidation, plugin activation runs synchronous hooks, and the `cdcf-queue-worker` is *simultaneously* firing `CONCURRENCY=5` parallel POSTs every `POLL_INTERVAL=15s` that each kick off OpenAI translation jobs lasting seconds.
+Production deploys to `cms.catholicdigitalcommons.org` cause a 504 wave on the WP REST API (262 504s on the Apr 29 deploy day vs ~10/day baseline). Investigation in #41 traced the cause to PHP-FPM pool saturation: tarball extraction triggers OPcache invalidation, plugin activation runs synchronous hooks, and the `cdcf-queue-worker` is _simultaneously_ firing `CONCURRENCY=5` parallel POSTs every `POLL_INTERVAL=15s` that each kick off OpenAI translation jobs lasting seconds.
 
 The combination saturates Plesk's small (5–10 worker) FPM pool, causing nginx `fastcgi_read_timeout` to fire on subsequent requests.
 
@@ -25,7 +25,7 @@ Pause the queue worker for the duration of a production deploy so its parallel P
 
 Three components, each with one job. State lives in a single Redis key with a TTL.
 
-```
+```text
 ┌────────────────────────┐    POST /cdcf/v1/maintenance       ┌──────────────────────────┐
 │ GitHub Actions deploy  │ ──── {action:begin,duration:300} ─▶│ WP plugin                │
 │ (.github/workflows/    │                                    │ (cdcf-redis-translations)│
@@ -47,8 +47,8 @@ Redis on the production VPS is loopback-only with `protected-mode yes`. No extra
 
 ### Redis key
 
-| Key | Type | Value | TTL |
-|---|---|---|---|
+| Key                      | Type   | Value                                                       | TTL                                                          |
+| ------------------------ | ------ | ----------------------------------------------------------- | ------------------------------------------------------------ |
 | `cdcf:maintenance:until` | string | `1` (sentinel; value is unused — only key presence matters) | requested duration in seconds, server-clamped to `[60, 600]` |
 
 ## Components
@@ -58,6 +58,7 @@ Redis on the production VPS is loopback-only with `protected-mode yes`. No extra
 Lives in `wordpress/plugins/cdcf-redis-translations/cdcf-redis-translations.php` next to the existing `/process-queue` route.
 
 **Auth & gating:**
+
 - `permission_callback`: `current_user_can('manage_options')` — same gate as `/process-queue`
 - HTTP Basic via WP Application Password — standard for `cdcf/v1`
 - Server-side TTL clamp `[60, 600]` — if credentials leak, worst case is a 10-minute pause per call
@@ -65,16 +66,16 @@ Lives in `wordpress/plugins/cdcf-redis-translations/cdcf-redis-translations.php`
 **Request body:**
 
 ```json
-{ "action": "begin", "duration_seconds": 300 }   // or "end"
+{ "action": "begin", "duration_seconds": 300 } // or "end"
 ```
 
 **Behavior:**
 
-| `action` | Steps | Response |
-|---|---|---|
-| `begin` | Clamp `duration_seconds` to `[60, 600]`; open fresh `Redis()` to `127.0.0.1:6379`; `SETEX cdcf:maintenance:until $n 1` | `200 {"ok":true,"until":<unix-ts>,"duration":<n>}` |
-| `end` | Open fresh `Redis()`; `DEL cdcf:maintenance:until` | `200 {"ok":true}` |
-| (other) | — | `400 {"code":"invalid_action","message":"action must be 'begin' or 'end'"}` |
+| `action` | Steps                                                                                                                  | Response                                                                    |
+| -------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `begin`  | Clamp `duration_seconds` to `[60, 600]`; open fresh `Redis()` to `127.0.0.1:6379`; `SETEX cdcf:maintenance:until $n 1` | `200 {"ok":true,"until":<unix-ts>,"duration":<n>}`                          |
+| `end`    | Open fresh `Redis()`; `DEL cdcf:maintenance:until`                                                                     | `200 {"ok":true}`                                                           |
+| (other)  | —                                                                                                                      | `400 {"code":"invalid_action","message":"action must be 'begin' or 'end'"}` |
 
 **Connection:** open a fresh PhpRedis connection inside the endpoint (`new Redis(); $r->connect('127.0.0.1', 6379, 1.0);`). Three lines, no coupling to the redis-queue plugin's internals. The connection cost is sub-millisecond on loopback. If `Redis` extension is not available or `connect()` fails, return `500 {"code":"redis_unavailable","message":...}`.
 
@@ -93,6 +94,7 @@ in_maintenance() {
 ```
 
 Exit-code semantics:
+
 - Key present → stdout `1` → function returns 0 (true → "in maintenance")
 - Key absent → stdout `0` → function returns 1 (false → "not in maintenance")
 - `redis-cli` non-zero exit (Redis unreachable, etc.) → function returns 1 (false → "not in maintenance")
@@ -127,7 +129,7 @@ Daily tasks (`run_daily_tasks`) are also skipped while paused — they hit FPM, 
 
 Two new steps, both production-only (gated `if: env.ENVIRONMENT == 'production'` like the existing WP-touching steps):
 
-**Begin step** — placed *before* "Extract WP theme and plugin bundles" (the first FPM stressor):
+**Begin step** — placed _before_ "Extract WP theme and plugin bundles" (the first FPM stressor):
 
 ```yaml
 - name: Pause queue worker for deploy
@@ -160,7 +162,7 @@ Two new steps, both production-only (gated `if: env.ENVIRONMENT == 'production'`
 
 If we cannot pause the worker, abort the deploy. The whole point of #62 is to mitigate FPM stress; deploying without the pause defeats the purpose.
 
-**End step** — placed *after* "Activate plugins", with `if: always()` so it fires even if extraction or activation failed:
+**End step** — placed _after_ "Activate plugins", with `if: always()` so it fires even if extraction or activation failed:
 
 ```yaml
 - name: Resume queue worker after deploy
@@ -204,18 +206,18 @@ Wraps `POST /cdcf/v1/maintenance`. `--duration` defaults to 300 and is only rele
 
 ## Failure modes
 
-| # | Scenario | Behavior | Notes |
-|---|----------|----------|-------|
-| 1 | `begin` POST fails (3 retries exhausted) | Deploy step exits 1, deploy aborts | Pre-empt FPM stress |
-| 2 | Deploy job killed mid-flight | Key TTL expires after ≤300s | Self-heal via TTL |
-| 3 | `end` POST fails | Log warning, do **not** fail deploy | Best-effort; TTL self-heals |
-| 4 | Redis down when `begin` fires | Endpoint returns 500, deploy retries then aborts | Same as #1 |
-| 5 | Redis dies mid-deploy | Worker treats Redis errors as "not in maintenance" → resumes | Best-effort; queue is dead anyway |
-| 6 | Worker mid-call when `begin` fires | In-flight curl continues; next cycle pauses | Acceptable — single in-flight job |
-| 7 | Multiple `begin` calls | Each `SETEX` replaces the prior TTL — no stacking | Per design |
-| 8 | `end` called with no key set | `DEL` no-op, endpoint returns 200 | Idempotent |
-| 9 | Deploy takes >300s | Worker resumes mid-deploy, reverts to current FPM-stress for tail | Mitigation: bump default to 600 if observed; not for v1 |
-| 10 | Two deploys racing | Already prevented by existing `concurrency: deploy-${env}` block | No new concern |
+| #   | Scenario                                 | Behavior                                                          | Notes                                                   |
+| --- | ---------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------- |
+| 1   | `begin` POST fails (3 retries exhausted) | Deploy step exits 1, deploy aborts                                | Pre-empt FPM stress                                     |
+| 2   | Deploy job killed mid-flight             | Key TTL expires after ≤300s                                       | Self-heal via TTL                                       |
+| 3   | `end` POST fails                         | Log warning, do **not** fail deploy                               | Best-effort; TTL self-heals                             |
+| 4   | Redis down when `begin` fires            | Endpoint returns 500, deploy retries then aborts                  | Same as #1                                              |
+| 5   | Redis dies mid-deploy                    | Worker treats Redis errors as "not in maintenance" → resumes      | Best-effort; queue is dead anyway                       |
+| 6   | Worker mid-call when `begin` fires       | In-flight curl continues; next cycle pauses                       | Acceptable — single in-flight job                       |
+| 7   | Multiple `begin` calls                   | Each `SETEX` replaces the prior TTL — no stacking                 | Per design                                              |
+| 8   | `end` called with no key set             | `DEL` no-op, endpoint returns 200                                 | Idempotent                                              |
+| 9   | Deploy takes >300s                       | Worker resumes mid-deploy, reverts to current FPM-stress for tail | Mitigation: bump default to 600 if observed; not for v1 |
+| 10  | Two deploys racing                       | Already prevented by existing `concurrency: deploy-${env}` block  | No new concern                                          |
 
 ## Security model
 
@@ -230,23 +232,23 @@ No `X-Maintenance-Secret` shared-secret header. The four layers above are suffic
 
 ### Plugin endpoint (manual curl on staging or prod)
 
-| Test | Expected |
-|---|---|
-| `begin` with `duration_seconds: 300` | 200, `duration:300`, `redis-cli TTL` ≈ 300 |
-| `begin` with `duration_seconds: 1` | 200, `duration:60` (clamped) |
-| `begin` with `duration_seconds: 99999` | 200, `duration:600` (clamped) |
-| `end` | 200, `redis-cli EXISTS` → 0 |
-| `end` again (idempotent) | 200 |
-| `{"action":"foo"}` | 400 |
-| Unauthenticated | 401 |
-| Authenticated as non-admin | 403 |
+| Test                                   | Expected                                   |
+| -------------------------------------- | ------------------------------------------ |
+| `begin` with `duration_seconds: 300`   | 200, `duration:300`, `redis-cli TTL` ≈ 300 |
+| `begin` with `duration_seconds: 1`     | 200, `duration:60` (clamped)               |
+| `begin` with `duration_seconds: 99999` | 200, `duration:600` (clamped)              |
+| `end`                                  | 200, `redis-cli EXISTS` → 0                |
+| `end` again (idempotent)               | 200                                        |
+| `{"action":"foo"}`                     | 400                                        |
+| Unauthenticated                        | 401                                        |
+| Authenticated as non-admin             | 403                                        |
 
 ### Worker check (manual on the VPS)
 
 - `redis-cli SETEX cdcf:maintenance:until 60 1` → tail journal → "Entering maintenance mode" within `POLL_INTERVAL`s, then silence
 - `redis-cli DEL cdcf:maintenance:until` → "Exiting maintenance mode" within `POLL_INTERVAL`s, then normal "Processed N job(s)" lines resume
 - Re-set the key while paused → no duplicate "Entering" line
-- `sudo systemctl stop redis-server` briefly while *not* paused → worker keeps trying `process-queue` (does not spuriously enter maintenance) → `sudo systemctl start redis-server`
+- `sudo systemctl stop redis-server` briefly while _not_ paused → worker keeps trying `process-queue` (does not spuriously enter maintenance) → `sudo systemctl start redis-server`
 
 ### End-to-end deploy
 

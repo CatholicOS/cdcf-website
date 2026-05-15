@@ -13,6 +13,7 @@
 **Issue:** #62. Related: #41 (root-cause), #61 (idempotent activation), #63 (test suites follow-up).
 
 **Important project context:**
+
 - No test runner is configured (per `CLAUDE.md`). Verification in this plan is manual: curl + `redis-cli` + `journalctl` checks. A test-suite follow-up is tracked separately as #63.
 - The deploy SSH user is chrooted on the VPS — it cannot run `redis-cli` directly. All maintenance-flag operations from the deploy workflow must go through HTTP to the WP REST endpoint.
 - Redis on the production VPS is loopback-only with `protected-mode yes`. No extra env vars needed by the plugin or the worker.
@@ -21,14 +22,14 @@
 
 ## File Structure
 
-| File | Action | Responsibility |
-|---|---|---|
-| `wordpress/plugins/cdcf-redis-translations/cdcf-redis-translations.php` | Modify | Register `POST /cdcf/v1/maintenance` route alongside existing `/process-queue` route |
-| `scripts/cdcf_queue_worker.sh` | Modify | Add `in_maintenance()` helper; wrap main loop with state-tracked maintenance check |
-| `.github/workflows/deploy.yml` | Modify | Add "Pause queue worker for deploy" step before `Extract WP theme and plugin bundles`, "Resume queue worker after deploy" step (with `if: always()`) after `Activate plugins` |
-| `scripts/cdcf_api.py` | Modify | Add `CdcfClient.maintenance()` method; add `maintenance` subparser; add dispatch case in `_run_cli` |
-| `docs/redis-queue-worker.md` | Modify | Add "Maintenance mode" section explaining flag, manual control, expected logs, deploy-time verification |
-| `CLAUDE.md` | Modify | Add `POST /cdcf/v1/maintenance` row to REST endpoints table; document new `maintenance` CLI subcommand |
+| File                                                                    | Action | Responsibility                                                                                                                                                                |
+| ----------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `wordpress/plugins/cdcf-redis-translations/cdcf-redis-translations.php` | Modify | Register `POST /cdcf/v1/maintenance` route alongside existing `/process-queue` route                                                                                          |
+| `scripts/cdcf_queue_worker.sh`                                          | Modify | Add `in_maintenance()` helper; wrap main loop with state-tracked maintenance check                                                                                            |
+| `.github/workflows/deploy.yml`                                          | Modify | Add "Pause queue worker for deploy" step before `Extract WP theme and plugin bundles`, "Resume queue worker after deploy" step (with `if: always()`) after `Activate plugins` |
+| `scripts/cdcf_api.py`                                                   | Modify | Add `CdcfClient.maintenance()` method; add `maintenance` subparser; add dispatch case in `_run_cli`                                                                           |
+| `docs/redis-queue-worker.md`                                            | Modify | Add "Maintenance mode" section explaining flag, manual control, expected logs, deploy-time verification                                                                       |
+| `CLAUDE.md`                                                             | Modify | Add `POST /cdcf/v1/maintenance` row to REST endpoints table; document new `maintenance` CLI subcommand                                                                        |
 
 No new files are created — the new endpoint goes in the existing plugin file (kept small at <100 lines after the change), following the same convention as the existing `/process-queue` route.
 
@@ -51,6 +52,7 @@ git checkout -b feat/maintenance-flag
 ```bash
 git status
 ```
+
 Expected: "On branch feat/maintenance-flag", "nothing to commit, working tree clean" (the spec at `docs/superpowers/specs/2026-05-02-maintenance-flag-design.md` may show as untracked — that's fine, leave it untracked).
 
 ---
@@ -58,6 +60,7 @@ Expected: "On branch feat/maintenance-flag", "nothing to commit, working tree cl
 ## Task 2: Add `POST /cdcf/v1/maintenance` endpoint
 
 **Files:**
+
 - Modify: `wordpress/plugins/cdcf-redis-translations/cdcf-redis-translations.php` (append new `register_rest_route` call inside the existing `rest_api_init` callback)
 
 - [ ] **Step 1: Add the route registration**
@@ -194,6 +197,7 @@ EOF
 ## Task 3: Worker — add `in_maintenance()` and wrap the main loop
 
 **Files:**
+
 - Modify: `scripts/cdcf_queue_worker.sh` (add helper above the main `while true` loop; wrap loop body with state-tracked check)
 
 - [ ] **Step 1: Add `in_maintenance()` helper above the main loop**
@@ -331,6 +335,7 @@ EOF
 ## Task 4: Deploy workflow — add begin/end steps
 
 **Files:**
+
 - Modify: `.github/workflows/deploy.yml`
 
 The new "Pause" step goes immediately before the existing `- name: Extract WP theme and plugin bundles` step (currently around line 298). The new "Resume" step goes immediately after the existing `- name: Activate plugins` step (currently the last step in the file).
@@ -340,34 +345,34 @@ The new "Pause" step goes immediately before the existing `- name: Extract WP th
 Insert this step **immediately before** the `- name: Extract WP theme and plugin bundles` block:
 
 ```yaml
-      - name: Pause queue worker for deploy
-        if: env.ENVIRONMENT == 'production'
-        # When staging gets its own WP backend, also gate this step on
-        # env.ENVIRONMENT == 'staging' and route to the staging WP REST URL.
-        # Today staging shares the production backend, so only production
-        # deploys touch FPM hard enough to need the pause.
-        env:
-          WP_REST_URL: ${{ vars.WP_REST_URL }}
-          WP_APP_USERNAME: ${{ secrets.WP_APP_USERNAME }}
-          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
-        run: |
-          AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
-          for attempt in 1 2 3; do
-            STATUS=$(curl -sS -o /tmp/maint-begin.json -w '%{http_code}' \
-              --connect-timeout 10 --max-time 30 \
-              -X POST "$WP_REST_URL/cdcf/v1/maintenance" \
-              -H "Authorization: Basic $AUTH" \
-              -H "Content-Type: application/json" \
-              -d '{"action":"begin","duration_seconds":300}')
-            if [ "$STATUS" = "200" ]; then
-              echo "Worker paused: $(cat /tmp/maint-begin.json)"
-              exit 0
-            fi
-            echo "Maintenance begin attempt $attempt failed (HTTP $STATUS)"
-            [ "$attempt" -lt 3 ] && sleep 5
-          done
-          echo "::error::Failed to pause queue worker; aborting deploy."
-          exit 1
+- name: Pause queue worker for deploy
+  if: env.ENVIRONMENT == 'production'
+  # When staging gets its own WP backend, also gate this step on
+  # env.ENVIRONMENT == 'staging' and route to the staging WP REST URL.
+  # Today staging shares the production backend, so only production
+  # deploys touch FPM hard enough to need the pause.
+  env:
+    WP_REST_URL: ${{ vars.WP_REST_URL }}
+    WP_APP_USERNAME: ${{ secrets.WP_APP_USERNAME }}
+    WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+  run: |
+    AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
+    for attempt in 1 2 3; do
+      STATUS=$(curl -sS -o /tmp/maint-begin.json -w '%{http_code}' \
+        --connect-timeout 10 --max-time 30 \
+        -X POST "$WP_REST_URL/cdcf/v1/maintenance" \
+        -H "Authorization: Basic $AUTH" \
+        -H "Content-Type: application/json" \
+        -d '{"action":"begin","duration_seconds":300}')
+      if [ "$STATUS" = "200" ]; then
+        echo "Worker paused: $(cat /tmp/maint-begin.json)"
+        exit 0
+      fi
+      echo "Maintenance begin attempt $attempt failed (HTTP $STATUS)"
+      [ "$attempt" -lt 3 ] && sleep 5
+    done
+    echo "::error::Failed to pause queue worker; aborting deploy."
+    exit 1
 ```
 
 - [ ] **Step 2: Add the "Resume queue worker after deploy" step**
@@ -375,31 +380,31 @@ Insert this step **immediately before** the `- name: Extract WP theme and plugin
 Append this step **after** the existing `- name: Activate plugins` block (it must be the last step in the job, since `if: always()` should fire even if earlier steps failed):
 
 ```yaml
-      - name: Resume queue worker after deploy
-        if: always() && env.ENVIRONMENT == 'production'
-        env:
-          WP_REST_URL: ${{ vars.WP_REST_URL }}
-          WP_APP_USERNAME: ${{ secrets.WP_APP_USERNAME }}
-          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
-        run: |
-          AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
-          for attempt in 1 2 3; do
-            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' \
-              --connect-timeout 10 --max-time 30 \
-              -X POST "$WP_REST_URL/cdcf/v1/maintenance" \
-              -H "Authorization: Basic $AUTH" \
-              -H "Content-Type: application/json" \
-              -d '{"action":"end"}')
-            if [ "$STATUS" = "200" ]; then
-              echo "Worker resumed."
-              exit 0
-            fi
-            echo "Maintenance end attempt $attempt failed (HTTP $STATUS)"
-            [ "$attempt" -lt 3 ] && sleep 5
-          done
-          # Don't exit 1 here — the TTL self-heals within 600s and failing
-          # this step would mask the real outcome of the deploy.
-          echo "::warning::Failed to resume queue worker; will self-heal via TTL within 600s."
+- name: Resume queue worker after deploy
+  if: always() && env.ENVIRONMENT == 'production'
+  env:
+    WP_REST_URL: ${{ vars.WP_REST_URL }}
+    WP_APP_USERNAME: ${{ secrets.WP_APP_USERNAME }}
+    WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+  run: |
+    AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
+    for attempt in 1 2 3; do
+      STATUS=$(curl -sS -o /dev/null -w '%{http_code}' \
+        --connect-timeout 10 --max-time 30 \
+        -X POST "$WP_REST_URL/cdcf/v1/maintenance" \
+        -H "Authorization: Basic $AUTH" \
+        -H "Content-Type: application/json" \
+        -d '{"action":"end"}')
+      if [ "$STATUS" = "200" ]; then
+        echo "Worker resumed."
+        exit 0
+      fi
+      echo "Maintenance end attempt $attempt failed (HTTP $STATUS)"
+      [ "$attempt" -lt 3 ] && sleep 5
+    done
+    # Don't exit 1 here — the TTL self-heals within 600s and failing
+    # this step would mask the real outcome of the deploy.
+    echo "::warning::Failed to resume queue worker; will self-heal via TTL within 600s."
 ```
 
 - [ ] **Step 3: Lint the workflow file**
@@ -429,6 +434,7 @@ EOF
 ## Task 5: Python CLI — `maintenance` subcommand
 
 **Files:**
+
 - Modify: `scripts/cdcf_api.py` (add client method, subparser, dispatch case)
 
 - [ ] **Step 1: Add `maintenance()` method to `CdcfClient`**
@@ -480,6 +486,7 @@ In the `_run_cli` function, add an `if cmd == "maintenance"` branch alongside th
 ```bash
 scripts/.venv/bin/python scripts/cdcf_api.py maintenance --help
 ```
+
 Expected: argparse usage block showing `--action` and `--duration`.
 
 - [ ] **Step 5: Verify against a live endpoint (requires Task 2 deployed)**
@@ -515,6 +522,7 @@ EOF
 ## Task 6: Documentation updates
 
 **Files:**
+
 - Modify: `docs/redis-queue-worker.md` (add "Maintenance mode" section)
 - Modify: `CLAUDE.md` (add REST table row + CLI subcommand example)
 
@@ -522,7 +530,7 @@ EOF
 
 Insert this section between the existing "Updating the worker script" and "Troubleshooting" sections:
 
-```markdown
+````markdown
 ## Maintenance mode
 
 The worker can be paused via a Redis flag. While the flag is set, the worker skips both `process_one` and `run_daily_tasks` and just sleeps `POLL_INTERVAL` seconds per cycle. This is used by the production deploy workflow to prevent the worker's parallel POSTs from competing with deploy-time WP traffic for FPM workers.
@@ -544,6 +552,7 @@ curl -u "$WP_APP_USERNAME:$WP_APP_PASSWORD" \
   -H "Content-Type: application/json" \
   -d '{"action":"end"}'
 ```
+````
 
 Or via the Python CLI:
 
@@ -565,7 +574,7 @@ The TTL is server-clamped to `[60, 600]` seconds. If `end` is never called, the 
 
 The worker logs exactly one line per transition, never per cycle:
 
-```
+```text
 2026-05-02T12:00:00+00:00 Entering maintenance mode (worker paused)
 2026-05-02T12:02:30+00:00 Exiting maintenance mode (worker resumed)
 2026-05-02T12:02:45+00:00 Processed 3 job(s)
@@ -579,7 +588,8 @@ journalctl -u cdcf-queue-worker -f
 # Compare 504 counts in the WP access log before/after the deploy day
 # to baseline (~10/day; bad days hit 200+).
 ```
-```
+
+````text
 
 - [ ] **Step 2: Update `CLAUDE.md` REST endpoints table**
 
@@ -587,7 +597,7 @@ Find the table starting with `| Method | Route | Description |`. Add this row (a
 
 ```markdown
 | `POST` | `/maintenance` | Pause or resume the cdcf-queue-worker by setting/clearing a Redis flag (`{action: "begin"|"end", duration_seconds?: 60-600}`) |
-```
+````
 
 - [ ] **Step 3: Add CLI example to `CLAUDE.md`**
 
@@ -668,6 +678,7 @@ EOF
 - [ ] **Step 3: Confirm PR opened**
 
 The previous command prints the PR URL. Open it in the browser (or `gh pr view`) and confirm:
+
 - All five commits are present (Task 2 plugin endpoint, Task 3 worker, Task 4 workflow, Task 5 CLI, Task 6 docs)
 - CI checks start running
 
@@ -692,16 +703,20 @@ gh pr merge --merge --delete-branch
 After the merge lands on main and the next production deploy runs (either automatically via release publish or via `gh workflow run deploy.yml -f environment=production`):
 
 1. **Tail worker journal during the deploy:**
+
    ```bash
    ssh <user>@<vps-host> "journalctl -u cdcf-queue-worker -f"
    ```
+
    Expect one "Entering maintenance mode" line and one "Exiting maintenance mode" line, bracketing the deploy. Anything else (no transition lines, multiple sets, "Entering" with no matching "Exiting") indicates a problem.
 
 2. **Compare 504 counts:**
+
    ```bash
    # Adjust path/grep to match your access log layout
    ssh <user>@<vps-host> "grep ' 504 ' /var/log/nginx/cms.catholicdigitalcommons.org_access.log | wc -l"
    ```
+
    Compare against Apr 29 baseline of 262. Expect a substantial drop.
 
 3. **Confirm the deploy log shows begin + end:**

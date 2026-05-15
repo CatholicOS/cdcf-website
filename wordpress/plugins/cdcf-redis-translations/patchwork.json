@@ -1,0 +1,7 @@
+{
+    "redefinable-internals": [
+        "error_log",
+        "function_exists",
+        "ignore_user_abort"
+    ]
+}

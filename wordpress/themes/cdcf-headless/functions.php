@@ -303,15 +303,18 @@ add_action('acf/init', function () {
 //
 // GET  /wp-json/cdcf/v1/relationship?post_id=5&field=technical_council
 // POST /wp-json/cdcf/v1/relationship  { post_id: 5, field: "technical_council", value: [255, 256] }
+//
+// Handler bodies live in includes/handlers/relationship.php so they
+// can be unit-tested in isolation (Brain Monkey + Mockery).
+
+require_once __DIR__ . '/includes/handlers/relationship.php';
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/relationship', [
         [
             'methods'             => 'GET',
             'callback'            => 'cdcf_rest_get_relationship',
-            'permission_callback' => function () {
-                return current_user_can('edit_posts');
-            },
+            'permission_callback' => 'cdcf_relationship_permission_check',
             'args' => [
                 'post_id' => ['required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint'],
                 'field'   => ['required' => true, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
@@ -320,9 +323,7 @@ add_action('rest_api_init', function () {
         [
             'methods'             => 'POST',
             'callback'            => 'cdcf_rest_update_relationship',
-            'permission_callback' => function () {
-                return current_user_can('edit_posts');
-            },
+            'permission_callback' => 'cdcf_relationship_permission_check',
             'args' => [
                 'post_id' => ['required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint'],
                 'field'   => ['required' => true, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
@@ -331,44 +332,6 @@ add_action('rest_api_init', function () {
         ],
     ]);
 });
-
-function cdcf_rest_get_relationship(WP_REST_Request $request) {
-    $post_id = $request['post_id'];
-    $field   = $request['field'];
-
-    if (!function_exists('get_field')) {
-        return new WP_Error('acf_missing', 'ACF is not active.', ['status' => 500]);
-    }
-
-    $acf_field = acf_get_field($field);
-    if (!$acf_field || $acf_field['type'] !== 'relationship') {
-        return new WP_Error('invalid_field', 'Field is not a relationship field.', ['status' => 400]);
-    }
-
-    $value = get_field($field, $post_id, false); // raw IDs
-    return rest_ensure_response(['post_id' => $post_id, 'field' => $field, 'value' => $value ?: []]);
-}
-
-function cdcf_rest_update_relationship(WP_REST_Request $request) {
-    $post_id = $request['post_id'];
-    $field   = $request['field'];
-    $value   = $request['value'];
-
-    if (!function_exists('update_field')) {
-        return new WP_Error('acf_missing', 'ACF is not active.', ['status' => 500]);
-    }
-
-    $acf_field = acf_get_field($field);
-    if (!$acf_field || $acf_field['type'] !== 'relationship') {
-        return new WP_Error('invalid_field', 'Field is not a relationship field.', ['status' => 400]);
-    }
-
-    // Sanitize to array of integers.
-    $value = array_map('absint', array_filter($value));
-    update_field($field, $value, $post_id);
-
-    return rest_ensure_response(['post_id' => $post_id, 'field' => $field, 'value' => $value, 'updated' => true]);
-}
 
 // ─── REST endpoint for linking Polylang translations ─────────────────
 //

@@ -17,12 +17,12 @@ When an admin publishes a public-submission post (`project`, `community_project`
 
 ## Decisions
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| When to publish translations | Auto-publish as worker finishes each language | Reuses existing `cdcf_process_translation` behavior (line 3560-3562: source `publish` → translation `publish`) |
-| When to create translation drafts | Lazily, at approval (publish transition) | Avoids orphan drafts when admin rejects/trashes submissions |
-| Scope | All three CPTs: `project`, `community_project`, `local_group` | Same gap exists in all three submission flows |
-| Gating | Only fire for posts with submitter meta | Doesn't surprise admins who manually create posts in wp-admin |
+| Decision                          | Choice                                                        | Rationale                                                                                                      |
+| --------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| When to publish translations      | Auto-publish as worker finishes each language                 | Reuses existing `cdcf_process_translation` behavior (line 3560-3562: source `publish` → translation `publish`) |
+| When to create translation drafts | Lazily, at approval (publish transition)                      | Avoids orphan drafts when admin rejects/trashes submissions                                                    |
+| Scope                             | All three CPTs: `project`, `community_project`, `local_group` | Same gap exists in all three submission flows                                                                  |
+| Gating                            | Only fire for posts with submitter meta                       | Doesn't surprise admins who manually create posts in wp-admin                                                  |
 
 ## Architecture
 
@@ -35,11 +35,14 @@ Returns `true` if the source (EN) post has either `_submission_submitter_email` 
 
 **`cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_type): void`**
 Build the Polylang translation map once before the loop:
+
 ```php
 $translations = pll_get_post_translations($en_post_id);
 $translations['en'] = $en_post_id;
 ```
+
 Then for each `lang` in `['it', 'es', 'fr', 'pt', 'de']`:
+
 1. If `!empty($translations[$lang])` → skip (translation already linked, possibly from a partial earlier run).
 2. Otherwise:
    - `wp_insert_post(['post_type' => $post_type, 'post_status' => 'draft', 'post_title' => <EN title>])`
@@ -77,6 +80,7 @@ Priority `20` so it runs after all priority-10 `transition_post_status` hooks (s
 **Submission (unchanged):** User submits form → Next.js → `POST /cdcf/v1/submit-project` → EN post created with `status=pending`, `lang=en`, submitter meta set, admin notified by email.
 
 **Approval (new):**
+
 1. Admin clicks Publish in wp-admin on the EN post.
 2. WordPress fires `transition_post_status` (`pending|draft → publish`).
 3. Existing hook (priority 10) notifies Next.js to revalidate the sitemap.
@@ -90,15 +94,15 @@ Priority `20` so it runs after all priority-10 `transition_post_status` hooks (s
 
 ## Edge Cases
 
-| Case | Behavior |
-|---|---|
-| Admin manually creates a project in wp-admin | Submitter meta absent → gate skips it. No surprise translation. |
-| Admin re-publishes after unpublishing | `pll_get_post` returns existing translations → loop skips them all. No duplicate work. |
-| Worker fails for one language | That translation stays `draft`. Visible in admin's standard draft list. Admin can re-trigger via existing `/cdcf/v1/translate` endpoint. |
-| Source post unpublished while worker is running | Worker's auto-publish check evaluates `$source->post_status === 'publish'` at worker run time — translation correctly stays `draft`. |
-| Polylang inactive | Helper logs and returns early. Publish action succeeds; no translations created. |
-| Featured image / ACF fields | Already handled by `cdcf_process_translation` — no extra work in the new code. |
-| Recursion | Creating draft posts does not fire `* → publish`, so the hook doesn't re-enter. Worker promoting a translation to `publish` is not a public submission (no submitter meta on the translation, but `cdcf_get_source_post_id` resolves to EN which does have meta — however `pll_get_post` will then return all five translations including the one being promoted, so the loop is a no-op). |
+| Case                                            | Behavior                                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Admin manually creates a project in wp-admin    | Submitter meta absent → gate skips it. No surprise translation.                                                                                                                                                                                                                                                                                                                            |
+| Admin re-publishes after unpublishing           | `pll_get_post` returns existing translations → loop skips them all. No duplicate work.                                                                                                                                                                                                                                                                                                     |
+| Worker fails for one language                   | That translation stays `draft`. Visible in admin's standard draft list. Admin can re-trigger via existing `/cdcf/v1/translate` endpoint.                                                                                                                                                                                                                                                   |
+| Source post unpublished while worker is running | Worker's auto-publish check evaluates `$source->post_status === 'publish'` at worker run time — translation correctly stays `draft`.                                                                                                                                                                                                                                                       |
+| Polylang inactive                               | Helper logs and returns early. Publish action succeeds; no translations created.                                                                                                                                                                                                                                                                                                           |
+| Featured image / ACF fields                     | Already handled by `cdcf_process_translation` — no extra work in the new code.                                                                                                                                                                                                                                                                                                             |
+| Recursion                                       | Creating draft posts does not fire `* → publish`, so the hook doesn't re-enter. Worker promoting a translation to `publish` is not a public submission (no submitter meta on the translation, but `cdcf_get_source_post_id` resolves to EN which does have meta — however `pll_get_post` will then return all five translations including the one being promoted, so the loop is a no-op). |
 
 ## Verification (Manual)
 

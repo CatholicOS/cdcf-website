@@ -1,0 +1,60 @@
+# markdownlint configuration for CDCF.
+#
+# Codacy's markdownlint engine reads this file (alongside the standard
+# locations `.markdownlint.json`, `.markdownlint.yaml`) and uses it
+# instead of the org-level default ruleset.
+#
+# The config matches the convention used across other CatholicOS repos,
+# with one local override: MD013 (line-length) is disabled outright
+# because the documentation in this repo (AGENTS.md, the docs/
+# tree, docs/superpowers/plans/, docs/superpowers/specs/) is long-form
+# wiki-style prose where reflowing at any fixed width makes diffs
+# harder to read for negligible benefit.
+
+# Line length — disabled. Wiki-style docs don't benefit from hard wraps.
+MD013: false
+
+# Duplicate headings — only flag when siblings under the same parent.
+MD024:
+  siblings_only: true
+
+# Single H1 — front matter without title is permitted.
+MD025:
+  front_matter_title: ""
+
+# Ordered list numbering — accept either all 1. or sequential.
+MD029:
+  style: one_or_ordered
+
+# Inline HTML — limit to the elements we actually use in prose.
+MD033:
+  allowed_elements:
+    - img
+    - a
+    - table
+    - thead
+    - tbody
+    - tr
+    - th
+    - td
+    - li
+    - ul
+    - ol
+    - kbd
+    - style
+    - details
+    - summary
+
+# Emphasis used as heading — allowed (bolded labels in lists).
+MD036: false
+
+# First line must be a heading — allowed (front matter, intro paragraphs).
+MD041: false
+
+# Code block style — fenced (```), not indented.
+MD046:
+  style: fenced
+
+# Table pipe alignment — require aligned pipes for readability.
+MD060:
+  style: aligned
