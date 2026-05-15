@@ -10,6 +10,9 @@
 
 # testing
 /coverage
+# PHPUnit coverage outputs (one per WordPress tree)
+wordpress/plugins/*/coverage.xml
+wordpress/themes/*/coverage.xml
 
 # next.js
 /.next/

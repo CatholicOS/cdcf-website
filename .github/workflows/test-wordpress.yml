@@ -56,12 +56,35 @@ jobs:
           # loaded and the overload throws "class already exists".
           extensions: ':redis'
           tools: composer
-          coverage: none
+          # PCOV is faster than Xdebug for coverage and ignores the
+          # `:redis` removal — it's a separate extension.
+          coverage: pcov
 
       - name: Install dependencies
         working-directory: wordpress/${{ matrix.tree }}
         run: composer install --no-interaction --no-progress
 
-      - name: Run PHPUnit
+      - name: Run PHPUnit with coverage
         working-directory: wordpress/${{ matrix.tree }}
-        run: vendor/bin/phpunit
+        run: vendor/bin/phpunit --coverage-clover=coverage.xml
+
+      - name: Derive Codecov flag from matrix tree
+        # `plugins/cdcf-redis-translations` -> `wordpress-plugin`
+        # `themes/cdcf-headless`            -> `wordpress-theme`
+        id: flag
+        env:
+          MATRIX_TREE: ${{ matrix.tree }}
+        run: |
+          case "$MATRIX_TREE" in
+            plugins/*) echo "name=wordpress-plugin" >> "$GITHUB_OUTPUT" ;;
+            themes/*)  echo "name=wordpress-theme"  >> "$GITHUB_OUTPUT" ;;
+            *) echo "Unknown matrix tree: $MATRIX_TREE" >&2; exit 1 ;;
+          esac
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: wordpress/${{ matrix.tree }}/coverage.xml
+          flags: ${{ steps.flag.outputs.name }}
+          fail_ci_if_error: false

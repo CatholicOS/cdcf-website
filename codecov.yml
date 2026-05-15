@@ -1,0 +1,47 @@
+# Codecov configuration for cdcf-website
+#
+# Posture: coverage is informational, not blocking. The three test
+# suites (Vitest, PHPUnit ×2, bats) are wired as non-blocking CI checks
+# (continue-on-error) per #63 — Codecov here adds visibility, not gating.
+# See #91 for the rollout plan.
+
+codecov:
+  # Don't make Codecov status checks block on the upstream CI being green —
+  # the test workflows are themselves continue-on-error, so this would
+  # otherwise leave the Codecov status hung.
+  require_ci_to_pass: false
+
+coverage:
+  status:
+    project:
+      default:
+        # `informational` posts the status but never fails the check.
+        informational: true
+    patch:
+      default:
+        informational: true
+
+# Each test suite runs in its own workflow with its own path filter, so
+# any given PR usually only re-uploads one of the three flags. Carryforward
+# tells Codecov to reuse the most recent upload for any flag the current
+# commit didn't refresh, instead of treating the missing flag as 0% and
+# tanking the project number.
+flag_management:
+  default_rules:
+    carryforward: true
+  individual_flags:
+    - name: nextjs
+      paths:
+        - lib/wordpress/
+    - name: wordpress-plugin
+      paths:
+        - wordpress/plugins/cdcf-redis-translations/
+    - name: wordpress-theme
+      paths:
+        - wordpress/themes/cdcf-headless/
+
+comment:
+  layout: 'diff, flags, files'
+  # Post the comment even on PRs that don't change covered code, so the
+  # reviewer always sees the per-flag table.
+  require_changes: false

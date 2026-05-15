@@ -11,4 +11,10 @@
             <directory>tests</directory>
         </testsuite>
     </testsuites>
+    <source>
+        <include>
+            <file>cdcf-redis-translations.php</file>
+            <directory>includes</directory>
+        </include>
+    </source>
 </phpunit>
