@@ -447,3 +447,85 @@ jobs:
           # Don't exit 1 here — the TTL self-heals within 600s and failing
           # this step would mask the real outcome of the deploy.
           echo "::warning::Failed to resume queue worker; will self-heal via TTL within 600s."
+
+      - name: Smoke-test the deployed site (English + Italian)
+        # Minimal canary: confirm the just-deployed Next.js process is
+        # reachable on the public URL and that locale routing produces
+        # sane responses for both the default locale (rewrite path) and
+        # at least one non-default locale (redirect path). Catches the
+        # specific failure mode the next-intl 4.11.0 upgrade produced
+        # (locale redirects with the upstream Node.js port leaking into
+        # the Location header), plus any future outage where the public
+        # URL stops responding entirely.
+        env:
+          SITE_URL: ${{ env.RESOLVED_SITE_URL }}
+        run: |
+          set -e
+
+          if [ -z "$SITE_URL" ]; then
+            echo "::error::SITE_URL is empty — Resolve step should have set RESOLVED_SITE_URL."
+            exit 1
+          fi
+          echo "Smoke testing $SITE_URL"
+
+          # Extract the expected public-facing host (without port) so we
+          # can validate any Location header points back at us cleanly.
+          EXPECTED_HOST=$(echo "$SITE_URL" | awk -F/ '{print $3}' | awk -F: '{print $1}')
+
+          # English check: expect 200 OK. Internal middleware rewrites
+          # / to /en, so there is no Location header on the response.
+          for attempt in 1 2 3; do
+            EN_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' \
+              --connect-timeout 10 --max-time 30 \
+              -H 'Accept-Language: en-US,en;q=0.9' \
+              "$SITE_URL/")
+            if [ "$EN_STATUS" = "200" ]; then
+              echo "EN smoke: HTTP 200 OK"
+              break
+            fi
+            echo "EN smoke attempt $attempt: HTTP $EN_STATUS"
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::English smoke test failed — GET / returned $EN_STATUS (expected 200)"
+              exit 1
+            fi
+            sleep 5
+          done
+
+          # Italian check: expect 200 OR 307. If 307, validate the
+          # Location header has the expected hostname AND no explicit
+          # port (catches the upstream-port-leak class of bugs).
+          for attempt in 1 2 3; do
+            IT_HEADERS=$(curl -sS -I --connect-timeout 10 --max-time 30 \
+              -H 'Accept-Language: it-IT,it;q=0.9,en;q=0.8' \
+              "$SITE_URL/")
+            IT_STATUS=$(echo "$IT_HEADERS" | head -n1 | awk '{print $2}')
+            # `|| true` because grep returns 1 when the response has no
+            # Location header (the happy 200 case), which would otherwise
+            # abort the step under the GitHub-Actions-default bash flags
+            # `-e -o pipefail`. Want IT_LOCATION="" instead.
+            IT_LOCATION=$(echo "$IT_HEADERS" | grep -i '^location:' | sed 's/^[Ll]ocation: //' | tr -d '\r' || true)
+
+            if [ "$IT_STATUS" = "200" ] || [ "$IT_STATUS" = "307" ]; then
+              if [ -n "$IT_LOCATION" ]; then
+                IT_LOC_HOST_PORT=$(echo "$IT_LOCATION" | awk -F/ '{print $3}')
+                IT_LOC_HOST=$(echo "$IT_LOC_HOST_PORT" | awk -F: '{print $1}')
+                IT_LOC_PORT=$(echo "$IT_LOC_HOST_PORT" | awk -F: '{print $2}')
+                if [ "$IT_LOC_HOST" != "$EXPECTED_HOST" ]; then
+                  echo "::error::IT smoke test failed — Location host '$IT_LOC_HOST' does not match expected '$EXPECTED_HOST' (full Location: $IT_LOCATION)"
+                  exit 1
+                fi
+                if [ -n "$IT_LOC_PORT" ]; then
+                  echo "::error::IT smoke test failed — Location carries an explicit port ':$IT_LOC_PORT' (the upstream-port-leak failure mode); full Location: $IT_LOCATION"
+                  exit 1
+                fi
+              fi
+              echo "IT smoke: HTTP $IT_STATUS -> ${IT_LOCATION:-<internal rewrite>}"
+              break
+            fi
+            echo "IT smoke attempt $attempt: HTTP $IT_STATUS"
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Italian smoke test failed — GET / returned $IT_STATUS (expected 200 or 307)"
+              exit 1
+            fi
+            sleep 5
+          done
