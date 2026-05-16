@@ -36,7 +36,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitest/coverage-v8": "^4.1.6",
     "eslint": "^9.22.0",
-    "eslint-config-next": "^16.2.4",
+    "eslint-config-next": "^16.2.6",
     "markdownlint-cli2": "^0.22.1",
     "postcss": "^8.5.14",
     "prettier": "^3.8.3",
