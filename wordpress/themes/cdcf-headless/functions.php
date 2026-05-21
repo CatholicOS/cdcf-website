@@ -101,6 +101,8 @@ add_action('init', function () {
         'labels' => [
             'name'          => __('Projects', 'cdcf-headless'),
             'singular_name' => __('Project', 'cdcf-headless'),
+            'menu_name'     => __('CDCF Projects', 'cdcf-headless'),
+            'all_items'     => __('CDCF Projects', 'cdcf-headless'),
         ],
         'public'       => true,
         'show_in_rest'  => true,
@@ -109,6 +111,7 @@ add_action('init', function () {
         'graphql_plural_name' => 'projects',
         'supports'     => ['title', 'editor', 'thumbnail', 'excerpt', 'custom-fields'],
         'menu_icon'    => 'dashicons-portfolio',
+        'show_in_menu' => 'cdcf-projects',
         'has_archive'  => false,
         'rewrite'      => ['slug' => 'projects'],
     ]);
@@ -118,6 +121,8 @@ add_action('init', function () {
         'labels' => [
             'name'          => __('Team Members', 'cdcf-headless'),
             'singular_name' => __('Team Member', 'cdcf-headless'),
+            'add_new'       => __('Add New Team Member', 'cdcf-headless'),
+            'add_new_item'  => __('Add New Team Member', 'cdcf-headless'),
         ],
         'public'       => true,
         'show_in_rest'  => true,
@@ -158,6 +163,7 @@ add_action('init', function () {
         'graphql_plural_name' => 'communityChannels',
         'supports'     => ['title', 'custom-fields'],
         'menu_icon'    => 'dashicons-networking',
+        'show_in_menu' => 'cdcf-community',
         'has_archive'  => false,
     ]);
 
@@ -174,6 +180,7 @@ add_action('init', function () {
         'graphql_plural_name' => 'localGroups',
         'supports'     => ['title', 'custom-fields'],
         'menu_icon'    => 'dashicons-location',
+        'show_in_menu' => 'cdcf-community',
         'has_archive'  => false,
     ]);
 
@@ -190,6 +197,7 @@ add_action('init', function () {
         'graphql_plural_name' => 'academicCollaborations',
         'supports'     => ['title', 'editor', 'thumbnail', 'custom-fields'],
         'menu_icon'    => 'dashicons-welcome-learn-more',
+        'show_in_menu' => 'cdcf-community',
         'has_archive'  => false,
     ]);
 
@@ -206,6 +214,7 @@ add_action('init', function () {
         'graphql_plural_name' => 'communityProjects',
         'supports'     => ['title', 'editor', 'thumbnail', 'excerpt', 'custom-fields'],
         'menu_icon'    => 'dashicons-portfolio',
+        'show_in_menu' => 'cdcf-projects',
         'has_archive'  => false,
     ]);
 
@@ -239,6 +248,179 @@ add_action('init', function () {
         'hierarchical'        => false,
     ]);
 });
+
+// ─── Admin sidebar grouping: Projects + Community parents ───────────
+//
+// The "Projects" parent groups the project + community_project CPTs;
+// "Community" groups community_channel, local_group, and acad_collab.
+// Each CPT's show_in_menu points at one of the parent slugs below.
+// Clicking a parent redirects to its first child's list screen.
+
+add_action('admin_menu', function () {
+    $projects_hook = add_menu_page(
+        __('Projects', 'cdcf-headless'),
+        __('Projects', 'cdcf-headless'),
+        'edit_posts',
+        'cdcf-projects',
+        '__return_null',
+        'dashicons-portfolio',
+        25
+    );
+    $community_hook = add_menu_page(
+        __('Community', 'cdcf-headless'),
+        __('Community', 'cdcf-headless'),
+        'edit_posts',
+        'cdcf-community',
+        '__return_null',
+        'dashicons-networking',
+        26
+    );
+
+    add_action("load-{$projects_hook}", function () {
+        wp_safe_redirect(admin_url('edit.php?post_type=project'));
+        exit;
+    });
+    add_action("load-{$community_hook}", function () {
+        wp_safe_redirect(admin_url('edit.php?post_type=community_channel'));
+        exit;
+    });
+}, 9);
+
+// Remove the auto-injected duplicate first submenu item that mirrors
+// each parent (WP adds one labeled with the parent's menu_title at
+// render time). Run late so it executes after CPT submenus register.
+add_action('admin_menu', function () {
+    remove_submenu_page('cdcf-projects', 'cdcf-projects');
+    remove_submenu_page('cdcf-community', 'cdcf-community');
+}, 999);
+
+// ─── Team Members: council submenus (Board / Ecclesial / Technical) ─
+//
+// team_member posts have no council meta of their own — categorization
+// lives inverse on the About page's three ACF relationship fields:
+//   team_members      → Board of Directors
+//   ecclesial_council → Ecclesial Advisory Council
+//   technical_council → Technical Advisory Council
+//
+// Each submenu links to edit.php?post_type=team_member&cdcf_council=…
+// The pre_get_posts filter below resolves cdcf_council to the current
+// admin language's About page and restricts post__in to its members.
+
+const CDCF_COUNCIL_MAP = [
+    'board'     => 'team_members',
+    'ecclesial' => 'ecclesial_council',
+    'technical' => 'technical_council',
+];
+
+add_action('admin_menu', function () {
+    $parent = 'edit.php?post_type=team_member';
+    $councils = [
+        'board'     => __('Board of Directors', 'cdcf-headless'),
+        'ecclesial' => __('Ecclesial Advisory Council', 'cdcf-headless'),
+        'technical' => __('Technical Advisory Council', 'cdcf-headless'),
+    ];
+    foreach ($councils as $slug => $label) {
+        add_submenu_page(
+            $parent,
+            $label,
+            $label,
+            'edit_posts',
+            $parent . '&cdcf_council=' . $slug
+        );
+    }
+}, 11);
+
+add_action('pre_get_posts', function ($query) {
+    if (!is_admin() || !$query->is_main_query()) {
+        return;
+    }
+    if ($query->get('post_type') !== 'team_member') {
+        return;
+    }
+    $council = isset($_GET['cdcf_council']) ? sanitize_key($_GET['cdcf_council']) : '';
+    if (!isset(CDCF_COUNCIL_MAP[$council])) {
+        return;
+    }
+    if (!function_exists('get_field')) {
+        return;
+    }
+
+    $field_name = CDCF_COUNCIL_MAP[$council];
+    $about_id   = cdcf_get_about_page_id_for_admin_lang();
+    if (!$about_id) {
+        $query->set('post__in', [0]);
+        return;
+    }
+
+    $ids = get_field($field_name, $about_id, false);
+    if (!is_array($ids) || empty($ids)) {
+        $query->set('post__in', [0]);
+        return;
+    }
+
+    $query->set('post__in', array_map('intval', $ids));
+    $query->set('orderby', 'post__in');
+});
+
+// Highlight the correct submenu when filtering by cdcf_council; WP would
+// otherwise mark the default "All Team Members" entry as active because
+// it strips unknown query args when matching $submenu_file.
+add_filter('submenu_file', function ($submenu_file) {
+    if (($_GET['post_type'] ?? '') !== 'team_member') {
+        return $submenu_file;
+    }
+    $council = isset($_GET['cdcf_council']) ? sanitize_key($_GET['cdcf_council']) : '';
+    if (!isset(CDCF_COUNCIL_MAP[$council])) {
+        return $submenu_file;
+    }
+    return 'edit.php?post_type=team_member&cdcf_council=' . $council;
+});
+
+// ─── Polylang: seed each admin's language filter to the default lang ─
+//
+// Polylang renders each translation as its own row in admin list tables,
+// so a page with 6 translations shows as 6 rows. On each admin user's
+// first wp-admin visit after this code lands, set Polylang's per-user
+// content filter (pll_filter_content) to the site's default language so
+// translation groups collapse to a single row. Users keep full control
+// via Polylang's switcher in the toolbar — including "All languages" —
+// since we only seed the default once and never override later choices.
+
+add_action('admin_init', function () {
+    if (!function_exists('pll_default_language')) {
+        return;
+    }
+    $user_id = get_current_user_id();
+    if (!$user_id) {
+        return;
+    }
+    if (get_user_meta($user_id, '_cdcf_pll_default_filter_seeded', true)) {
+        return;
+    }
+    update_user_meta($user_id, 'pll_filter_content', pll_default_language());
+    update_user_meta($user_id, '_cdcf_pll_default_filter_seeded', '1');
+});
+
+function cdcf_get_about_page_id_for_admin_lang(): int {
+    $about_pages = get_pages([
+        'meta_key'   => '_wp_page_template',
+        'meta_value' => 'templates/about.php',
+    ]);
+    if (empty($about_pages)) {
+        return 0;
+    }
+
+    $current = function_exists('pll_current_language') ? pll_current_language('slug') : 'en';
+    foreach ([$current, 'en'] as $lang) {
+        foreach ($about_pages as $page) {
+            $page_lang = function_exists('pll_get_post_language') ? pll_get_post_language($page->ID, 'slug') : 'en';
+            if ($page_lang === $lang) {
+                return (int) $page->ID;
+            }
+        }
+    }
+    return (int) $about_pages[0]->ID;
+}
 
 // ─── Register ACF fields as REST-writable post meta ─────────────────
 //
@@ -4352,7 +4534,7 @@ function cdcf_render_referral_submitter_meta_box(WP_Post $post): void {
  * Add a pending-count bubble to the Local Groups menu item.
  */
 add_action('admin_menu', function () {
-    global $menu;
+    global $menu, $submenu;
 
     $count = wp_count_posts('local_group')->pending ?? 0;
     if ($count < 1) {
@@ -4364,14 +4546,25 @@ add_action('admin_menu', function () {
         $count
     );
 
+    // Bubble the parent "Community" item (shown when sidebar is collapsed)
     foreach ($menu as &$item) {
-        // $item[2] is the menu slug; for CPTs it's "edit.php?post_type=<slug>"
-        if ($item[2] === 'edit.php?post_type=local_group') {
+        if ($item[2] === 'cdcf-community') {
             $item[0] .= $bubble;
             break;
         }
     }
-});
+    unset($item);
+
+    // Bubble the Local Groups submenu entry
+    if (!empty($submenu['cdcf-community'])) {
+        foreach ($submenu['cdcf-community'] as &$sub) {
+            if ($sub[2] === 'edit.php?post_type=local_group') {
+                $sub[0] .= $bubble;
+                break;
+            }
+        }
+    }
+}, 50);
 
 /**
  * Dashboard widget showing pending local group referrals.
@@ -4648,7 +4841,7 @@ function cdcf_render_project_submitter_meta_box(WP_Post $post): void {
  * Add a pending-count bubble to the Projects menu item.
  */
 add_action('admin_menu', function () {
-    global $menu;
+    global $menu, $submenu;
 
     $count = wp_count_posts('project')->pending ?? 0;
     if ($count < 1) {
@@ -4661,12 +4854,22 @@ add_action('admin_menu', function () {
     );
 
     foreach ($menu as &$item) {
-        if ($item[2] === 'edit.php?post_type=project') {
+        if ($item[2] === 'cdcf-projects') {
             $item[0] .= $bubble;
             break;
         }
     }
-});
+    unset($item);
+
+    if (!empty($submenu['cdcf-projects'])) {
+        foreach ($submenu['cdcf-projects'] as &$sub) {
+            if ($sub[2] === 'edit.php?post_type=project') {
+                $sub[0] .= $bubble;
+                break;
+            }
+        }
+    }
+}, 50);
 
 /**
  * Dashboard widget showing pending project submissions.
