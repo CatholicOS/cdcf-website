@@ -101,6 +101,8 @@ add_action('init', function () {
         'labels' => [
             'name'          => __('Projects', 'cdcf-headless'),
             'singular_name' => __('Project', 'cdcf-headless'),
+            'menu_name'     => __('CDCF Projects', 'cdcf-headless'),
+            'all_items'     => __('CDCF Projects', 'cdcf-headless'),
         ],
         'public'       => true,
         'show_in_rest'  => true,
@@ -109,6 +111,7 @@ add_action('init', function () {
         'graphql_plural_name' => 'projects',
         'supports'     => ['title', 'editor', 'thumbnail', 'excerpt', 'custom-fields'],
         'menu_icon'    => 'dashicons-portfolio',
+        'show_in_menu' => 'cdcf-projects',
         'has_archive'  => false,
         'rewrite'      => ['slug' => 'projects'],
     ]);
@@ -158,6 +161,7 @@ add_action('init', function () {
         'graphql_plural_name' => 'communityChannels',
         'supports'     => ['title', 'custom-fields'],
         'menu_icon'    => 'dashicons-networking',
+        'show_in_menu' => 'cdcf-community',
         'has_archive'  => false,
     ]);
 
@@ -174,6 +178,7 @@ add_action('init', function () {
         'graphql_plural_name' => 'localGroups',
         'supports'     => ['title', 'custom-fields'],
         'menu_icon'    => 'dashicons-location',
+        'show_in_menu' => 'cdcf-community',
         'has_archive'  => false,
     ]);
 
@@ -190,6 +195,7 @@ add_action('init', function () {
         'graphql_plural_name' => 'academicCollaborations',
         'supports'     => ['title', 'editor', 'thumbnail', 'custom-fields'],
         'menu_icon'    => 'dashicons-welcome-learn-more',
+        'show_in_menu' => 'cdcf-community',
         'has_archive'  => false,
     ]);
 
@@ -206,6 +212,7 @@ add_action('init', function () {
         'graphql_plural_name' => 'communityProjects',
         'supports'     => ['title', 'editor', 'thumbnail', 'excerpt', 'custom-fields'],
         'menu_icon'    => 'dashicons-portfolio',
+        'show_in_menu' => 'cdcf-projects',
         'has_archive'  => false,
     ]);
 
@@ -239,6 +246,51 @@ add_action('init', function () {
         'hierarchical'        => false,
     ]);
 });
+
+// ─── Admin sidebar grouping: Projects + Community parents ───────────
+//
+// The "Projects" parent groups the project + community_project CPTs;
+// "Community" groups community_channel, local_group, and acad_collab.
+// Each CPT's show_in_menu points at one of the parent slugs below.
+// Clicking a parent redirects to its first child's list screen.
+
+add_action('admin_menu', function () {
+    $projects_hook = add_menu_page(
+        __('Projects', 'cdcf-headless'),
+        __('Projects', 'cdcf-headless'),
+        'edit_posts',
+        'cdcf-projects',
+        '__return_null',
+        'dashicons-portfolio',
+        25
+    );
+    $community_hook = add_menu_page(
+        __('Community', 'cdcf-headless'),
+        __('Community', 'cdcf-headless'),
+        'edit_posts',
+        'cdcf-community',
+        '__return_null',
+        'dashicons-networking',
+        26
+    );
+
+    add_action("load-{$projects_hook}", function () {
+        wp_safe_redirect(admin_url('edit.php?post_type=project'));
+        exit;
+    });
+    add_action("load-{$community_hook}", function () {
+        wp_safe_redirect(admin_url('edit.php?post_type=community_channel'));
+        exit;
+    });
+}, 9);
+
+// Remove the auto-injected duplicate first submenu item that mirrors
+// each parent (WP adds one labeled with the parent's menu_title at
+// render time). Run late so it executes after CPT submenus register.
+add_action('admin_menu', function () {
+    remove_submenu_page('cdcf-projects', 'cdcf-projects');
+    remove_submenu_page('cdcf-community', 'cdcf-community');
+}, 999);
 
 // ─── Register ACF fields as REST-writable post meta ─────────────────
 //
@@ -4352,7 +4404,7 @@ function cdcf_render_referral_submitter_meta_box(WP_Post $post): void {
  * Add a pending-count bubble to the Local Groups menu item.
  */
 add_action('admin_menu', function () {
-    global $menu;
+    global $menu, $submenu;
 
     $count = wp_count_posts('local_group')->pending ?? 0;
     if ($count < 1) {
@@ -4364,14 +4416,25 @@ add_action('admin_menu', function () {
         $count
     );
 
+    // Bubble the parent "Community" item (shown when sidebar is collapsed)
     foreach ($menu as &$item) {
-        // $item[2] is the menu slug; for CPTs it's "edit.php?post_type=<slug>"
-        if ($item[2] === 'edit.php?post_type=local_group') {
+        if ($item[2] === 'cdcf-community') {
             $item[0] .= $bubble;
             break;
         }
     }
-});
+    unset($item);
+
+    // Bubble the Local Groups submenu entry
+    if (!empty($submenu['cdcf-community'])) {
+        foreach ($submenu['cdcf-community'] as &$sub) {
+            if ($sub[2] === 'edit.php?post_type=local_group') {
+                $sub[0] .= $bubble;
+                break;
+            }
+        }
+    }
+}, 50);
 
 /**
  * Dashboard widget showing pending local group referrals.
@@ -4648,7 +4711,7 @@ function cdcf_render_project_submitter_meta_box(WP_Post $post): void {
  * Add a pending-count bubble to the Projects menu item.
  */
 add_action('admin_menu', function () {
-    global $menu;
+    global $menu, $submenu;
 
     $count = wp_count_posts('project')->pending ?? 0;
     if ($count < 1) {
@@ -4661,12 +4724,22 @@ add_action('admin_menu', function () {
     );
 
     foreach ($menu as &$item) {
-        if ($item[2] === 'edit.php?post_type=project') {
+        if ($item[2] === 'cdcf-projects') {
             $item[0] .= $bubble;
             break;
         }
     }
-});
+    unset($item);
+
+    if (!empty($submenu['cdcf-projects'])) {
+        foreach ($submenu['cdcf-projects'] as &$sub) {
+            if ($sub[2] === 'edit.php?post_type=project') {
+                $sub[0] .= $bubble;
+                break;
+            }
+        }
+    }
+}, 50);
 
 /**
  * Dashboard widget showing pending project submissions.
