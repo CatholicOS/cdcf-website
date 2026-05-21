@@ -17,7 +17,7 @@ services:
       - redis_data:/data
 
   wordpress:
-    image: wordpress:6-php8.4-apache
+    image: wordpress:beta-7.0-php8.4-apache
     restart: unless-stopped
     depends_on:
       - db
