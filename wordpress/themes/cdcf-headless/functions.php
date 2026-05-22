@@ -611,6 +611,12 @@ add_action('rest_api_init', function () {
 // Creates a pending local_group post and sends an admin notification email.
 //
 // POST /wp-json/cdcf/v1/refer-local-group (public — no auth required)
+//
+// Handler bodies live in includes/handlers/ so they can be
+// unit-tested in isolation (Brain Monkey + Mockery).
+
+require_once __DIR__ . '/includes/handlers/refer-local-group.php';
+require_once __DIR__ . '/includes/handlers/send-verification-code.php';
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/refer-local-group', [
@@ -747,196 +753,9 @@ function cdcf_is_spam_content(string $text): bool {
     return $score >= 5;
 }
 
-function cdcf_rest_send_verification_code(WP_REST_Request $request) {
-    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+// cdcf_rest_send_verification_code() lives in includes/handlers/send-verification-code.php
 
-    // IP rate limit: max 5 code requests per hour.
-    $ip_key   = 'cdcf_verify_' . md5($ip);
-    $ip_count = (int) get_transient($ip_key);
-    if ($ip_count >= 5) {
-        return new WP_Error('rate_limited', 'Too many requests. Please try again later.', ['status' => 429]);
-    }
-    set_transient($ip_key, $ip_count + 1, HOUR_IN_SECONDS);
-
-    // Honeypot — silent success so bots don't adapt.
-    if (!empty($request['honeypot'])) {
-        return rest_ensure_response(['success' => true]);
-    }
-
-    // Timing check — too fast means bot.
-    $elapsed = (int) $request['elapsed_ms'];
-    if ($elapsed > 0 && $elapsed < 3000) {
-        return rest_ensure_response(['success' => true]);
-    }
-
-    // DNSBL check.
-    if (cdcf_check_ip_rbl($ip)) {
-        return new WP_Error('forbidden', 'Request blocked.', ['status' => 403]);
-    }
-
-    // Validate email format.
-    if (!is_email($request['submitter_email'])) {
-        return new WP_Error('invalid_email', 'Please provide a valid email address.', ['status' => 400]);
-    }
-
-    // Disposable email check.
-    if (cdcf_is_disposable_email($request['submitter_email'])) {
-        return new WP_Error('disposable_email', 'Please use a permanent email address.', ['status' => 400]);
-    }
-
-    // Content spam scoring — silent success so bots don't adapt.
-    if (cdcf_is_spam_content($request['description'] . ' ' . $request['group_name'])) {
-        return rest_ensure_response(['success' => true]);
-    }
-
-    // Email send rate limit: max 3 codes per hour per email.
-    $email       = $request['submitter_email'];
-    $sends_key   = 'cdcf_code_sends_' . md5($email);
-    $sends_count = (int) get_transient($sends_key);
-    if ($sends_count >= 3) {
-        return new WP_Error('rate_limited', 'Too many code requests for this email. Please try again later.', ['status' => 429]);
-    }
-    set_transient($sends_key, $sends_count + 1, HOUR_IN_SECONDS);
-
-    // Generate 6-digit code and store in transient (10 min TTL).
-    $code         = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-    $code_key     = 'cdcf_email_code_' . md5($email);
-    set_transient($code_key, ['code' => $code, 'attempts' => 0], 600);
-
-    // Send the code via email.
-    $subject = '[CDCF] Your verification code';
-    $body    = sprintf(
-        "Your verification code is: %s\n\n" .
-        "Enter this code in the referral form to complete your submission.\n" .
-        "This code expires in 10 minutes.\n\n" .
-        "If you did not request this code, you can safely ignore this email.",
-        $code
-    );
-
-    $sent = wp_mail($email, $subject, $body);
-    if (!$sent) {
-        return new WP_Error('mail_failed', 'Failed to send verification email. Please try again.', ['status' => 500]);
-    }
-
-    return rest_ensure_response(['success' => true]);
-}
-
-function cdcf_rest_refer_local_group(WP_REST_Request $request) {
-    // Rate limiting via transients: 3 submissions per hour per IP (defense-in-depth).
-    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    $transient_key = 'cdcf_refer_' . md5($ip);
-    $count = (int) get_transient($transient_key);
-
-    if ($count >= 3) {
-        return new WP_Error(
-            'rate_limited',
-            'Too many submissions. Please try again later.',
-            ['status' => 429]
-        );
-    }
-
-    set_transient($transient_key, $count + 1, HOUR_IN_SECONDS);
-
-    // Layer 5: IP DNSBL check.
-    if (cdcf_check_ip_rbl($ip)) {
-        return new WP_Error('forbidden', 'Request blocked.', ['status' => 403]);
-    }
-
-    // Validate email format.
-    if (!is_email($request['submitter_email'])) {
-        return new WP_Error('invalid_email', 'Please provide a valid email address.', ['status' => 400]);
-    }
-
-    // Layer 6: Disposable email check.
-    if (cdcf_is_disposable_email($request['submitter_email'])) {
-        return new WP_Error('disposable_email', 'Please use a permanent email address.', ['status' => 400]);
-    }
-
-    // Layer 7: Content spam scoring — silent success so bots don't adapt.
-    if (cdcf_is_spam_content($request['description'] . ' ' . $request['group_name'])) {
-        return rest_ensure_response(['success' => true, 'post_id' => 0]);
-    }
-
-    // Verify email verification code.
-    $email    = $request['submitter_email'];
-    $code_key = 'cdcf_email_code_' . md5($email);
-    $stored   = get_transient($code_key);
-
-    if (!$stored) {
-        return new WP_Error('code_expired', 'Verification code has expired. Please request a new one.', ['status' => 400]);
-    }
-
-    if ($stored['attempts'] >= 5) {
-        delete_transient($code_key);
-        return new WP_Error('too_many_attempts', 'Too many incorrect attempts. Please request a new code.', ['status' => 429]);
-    }
-
-    if ($request['verification_code'] !== $stored['code']) {
-        $stored['attempts']++;
-        set_transient($code_key, $stored, 600);
-        return new WP_Error('invalid_code', 'Invalid verification code. Please check and try again.', ['status' => 400]);
-    }
-
-    // Code is valid — delete it (single use).
-    delete_transient($code_key);
-
-    // Create a pending local_group post.
-    $post_id = wp_insert_post([
-        'post_type'   => 'local_group',
-        'post_status' => 'pending',
-        'post_title'  => $request['group_name'],
-    ]);
-
-    if (is_wp_error($post_id) || !$post_id) {
-        return new WP_Error('insert_failed', 'Failed to create referral.', ['status' => 500]);
-    }
-
-    // Assign English language so Polylang can link translations later.
-    if (function_exists('pll_set_post_language')) {
-        pll_set_post_language($post_id, 'en');
-    }
-
-    // Set ACF fields if ACF is active.
-    if (function_exists('update_field')) {
-        update_field('group_description', $request['description'], $post_id);
-        update_field('group_url', $request['url'], $post_id);
-        if ($request['location']) {
-            update_field('group_location', $request['location'], $post_id);
-        }
-    }
-
-    // Store submitter info as private post meta.
-    update_post_meta($post_id, '_referral_submitter_name', $request['submitter_name']);
-    update_post_meta($post_id, '_referral_submitter_email', $request['submitter_email']);
-
-    // Send admin notification email.
-    $admin_email = get_option('admin_email');
-    $edit_link   = admin_url("post.php?post={$post_id}&action=edit");
-    $subject     = sprintf('[CDCF] New Local Group Referral: %s', $request['group_name']);
-    $body        = sprintf(
-        "A new local group referral has been submitted for review.\n\n" .
-        "Group Name: %s\n" .
-        "Location: %s\n" .
-        "URL: %s\n" .
-        "Description:\n%s\n\n" .
-        "Submitted by: %s (%s)\n\n" .
-        "Review and approve it here:\n%s",
-        $request['group_name'],
-        $request['location'] ?: '(not provided)',
-        $request['url'],
-        $request['description'],
-        $request['submitter_name'],
-        $request['submitter_email'],
-        $edit_link
-    );
-
-    wp_mail($admin_email, $subject, $body);
-
-    return rest_ensure_response([
-        'success' => true,
-        'post_id' => $post_id,
-    ]);
-}
+// cdcf_rest_refer_local_group() lives in includes/handlers/refer-local-group.php
 
 // ─── Public Community Project Referral Endpoint ──────────────────────
 //
@@ -944,6 +763,12 @@ function cdcf_rest_refer_local_group(WP_REST_Request $request) {
 // Creates a pending community_project post and sends an admin notification email.
 //
 // POST /wp-json/cdcf/v1/refer-community-project (public — no auth required)
+//
+// Handler body lives in includes/handlers/refer-community-project.php.
+// The shared /send-code handler was already required above for
+// /refer-local-group; no second require needed here.
+
+require_once __DIR__ . '/includes/handlers/refer-community-project.php';
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/refer-community-project', [
@@ -982,135 +807,7 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-function cdcf_rest_refer_community_project(WP_REST_Request $request) {
-    // Rate limiting via transients: 3 submissions per hour per IP (defense-in-depth).
-    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    $transient_key = 'cdcf_refer_cp_' . md5($ip);
-    $count = (int) get_transient($transient_key);
-
-    if ($count >= 3) {
-        return new WP_Error(
-            'rate_limited',
-            'Too many submissions. Please try again later.',
-            ['status' => 429]
-        );
-    }
-
-    set_transient($transient_key, $count + 1, HOUR_IN_SECONDS);
-
-    // IP DNSBL check.
-    if (cdcf_check_ip_rbl($ip)) {
-        return new WP_Error('forbidden', 'Request blocked.', ['status' => 403]);
-    }
-
-    // Validate email format.
-    if (!is_email($request['submitter_email'])) {
-        return new WP_Error('invalid_email', 'Please provide a valid email address.', ['status' => 400]);
-    }
-
-    // Disposable email check.
-    if (cdcf_is_disposable_email($request['submitter_email'])) {
-        return new WP_Error('disposable_email', 'Please use a permanent email address.', ['status' => 400]);
-    }
-
-    // Content spam scoring — silent success so bots don't adapt.
-    if (cdcf_is_spam_content($request['description'] . ' ' . $request['project_name'])) {
-        return rest_ensure_response(['success' => true, 'post_id' => 0]);
-    }
-
-    // Verify email verification code.
-    $email    = $request['submitter_email'];
-    $code_key = 'cdcf_email_code_' . md5($email);
-    $stored   = get_transient($code_key);
-
-    if (!$stored) {
-        return new WP_Error('code_expired', 'Verification code has expired. Please request a new one.', ['status' => 400]);
-    }
-
-    if ($stored['attempts'] >= 5) {
-        delete_transient($code_key);
-        return new WP_Error('too_many_attempts', 'Too many incorrect attempts. Please request a new code.', ['status' => 429]);
-    }
-
-    if ($request['verification_code'] !== $stored['code']) {
-        $stored['attempts']++;
-        set_transient($code_key, $stored, 600);
-        return new WP_Error('invalid_code', 'Invalid verification code. Please check and try again.', ['status' => 400]);
-    }
-
-    // Code is valid — delete it (single use).
-    delete_transient($code_key);
-
-    // Create a pending community_project post.
-    $post_id = wp_insert_post([
-        'post_type'    => 'community_project',
-        'post_status'  => 'pending',
-        'post_title'   => $request['project_name'],
-        'post_content' => $request['description'],
-    ]);
-
-    if (is_wp_error($post_id) || !$post_id) {
-        return new WP_Error('insert_failed', 'Failed to create referral.', ['status' => 500]);
-    }
-
-    // Assign English language so Polylang can link translations later.
-    if (function_exists('pll_set_post_language')) {
-        pll_set_post_language($post_id, 'en');
-    }
-
-    // Set ACF fields if ACF is active.
-    if (function_exists('update_field')) {
-        if ($request['category']) {
-            update_field('project_category', $request['category'], $post_id);
-        }
-        if ($request['project_url']) {
-            update_field('project_url', $request['project_url'], $post_id);
-        }
-        if ($request['github_url']) {
-            update_field('project_github_url', $request['github_url'], $post_id);
-        }
-    }
-
-    // Assign project tags.
-    $tags = array_filter(array_map('sanitize_text_field', (array) $request['tags']));
-    if (!empty($tags)) {
-        wp_set_object_terms($post_id, $tags, 'project_tag');
-    }
-
-    // Store submitter info as private post meta.
-    update_post_meta($post_id, '_referral_submitter_name', $request['submitter_name']);
-    update_post_meta($post_id, '_referral_submitter_email', $request['submitter_email']);
-
-    // Send admin notification email.
-    $admin_email = get_option('admin_email');
-    $edit_link   = admin_url("post.php?post={$post_id}&action=edit");
-    $subject     = sprintf('[CDCF] New Community Project Referral: %s', $request['project_name']);
-    $body        = sprintf(
-        "A new community project referral has been submitted for review.\n\n" .
-        "Project Name: %s\n" .
-        "Category: %s\n" .
-        "Project URL: %s\n" .
-        "GitHub URL: %s\n" .
-        "Description:\n%s\n\n" .
-        "Submitted by: %s (%s)\n\n" .
-        "Review and approve it here:\n%s",
-        $request['project_name'],
-        $request['category'] ?: '(not provided)',
-        $request['project_url'] ?: '(not provided)',
-        $request['github_url'] ?: '(not provided)',
-        $request['description'],
-        $request['submitter_name'],
-        $request['submitter_email'],
-        $edit_link
-    );
-
-    wp_mail($admin_email, $subject, $body);
-
-    return rest_ensure_response([
-        'success' => true,
-        'post_id' => $post_id,
-    ]);
-}
+// cdcf_rest_refer_community_project() lives in includes/handlers/refer-community-project.php
 
 // ─── Public Project Submission Endpoint ───────────────────────────────
 //
@@ -1118,6 +815,13 @@ function cdcf_rest_refer_community_project(WP_REST_Request $request) {
 // Creates a pending project post and sends an admin notification email.
 //
 // POST /wp-json/cdcf/v1/submit-project (public — no auth required)
+//
+// Handler bodies live in includes/handlers/. /submit-project/send-code
+// has its own helper (separate IP-rate-limit transient prefix) — see
+// the docblock in submit-project-send-code.php.
+
+require_once __DIR__ . '/includes/handlers/submit-project.php';
+require_once __DIR__ . '/includes/handlers/submit-project-send-code.php';
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/submit-project', [
@@ -1156,216 +860,9 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-function cdcf_rest_submit_project_send_code(WP_REST_Request $request) {
-    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+// cdcf_rest_submit_project_send_code() lives in includes/handlers/submit-project-send-code.php
 
-    // IP rate limit: max 5 code requests per hour.
-    $ip_key   = 'cdcf_projv_' . md5($ip);
-    $ip_count = (int) get_transient($ip_key);
-    if ($ip_count >= 5) {
-        return new WP_Error('rate_limited', 'Too many requests. Please try again later.', ['status' => 429]);
-    }
-    set_transient($ip_key, $ip_count + 1, HOUR_IN_SECONDS);
-
-    // Honeypot — silent success so bots don't adapt.
-    if (!empty($request['honeypot'])) {
-        return rest_ensure_response(['success' => true]);
-    }
-
-    // Timing check — too fast means bot.
-    $elapsed = (int) $request['elapsed_ms'];
-    if ($elapsed > 0 && $elapsed < 3000) {
-        return rest_ensure_response(['success' => true]);
-    }
-
-    // DNSBL check.
-    if (cdcf_check_ip_rbl($ip)) {
-        return new WP_Error('forbidden', 'Request blocked.', ['status' => 403]);
-    }
-
-    // Validate email format.
-    if (!is_email($request['submitter_email'])) {
-        return new WP_Error('invalid_email', 'Please provide a valid email address.', ['status' => 400]);
-    }
-
-    // Disposable email check.
-    if (cdcf_is_disposable_email($request['submitter_email'])) {
-        return new WP_Error('disposable_email', 'Please use a permanent email address.', ['status' => 400]);
-    }
-
-    // Content spam scoring — silent success so bots don't adapt.
-    if (cdcf_is_spam_content($request['description'] . ' ' . $request['project_name'])) {
-        return rest_ensure_response(['success' => true]);
-    }
-
-    // Email send rate limit: max 3 codes per hour per email.
-    $email       = $request['submitter_email'];
-    $sends_key   = 'cdcf_code_sends_' . md5($email);
-    $sends_count = (int) get_transient($sends_key);
-    if ($sends_count >= 3) {
-        return new WP_Error('rate_limited', 'Too many code requests for this email. Please try again later.', ['status' => 429]);
-    }
-    set_transient($sends_key, $sends_count + 1, HOUR_IN_SECONDS);
-
-    // Generate 6-digit code and store in transient (10 min TTL).
-    $code     = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-    $code_key = 'cdcf_email_code_' . md5($email);
-    set_transient($code_key, ['code' => $code, 'attempts' => 0], 600);
-
-    // Send the code via email.
-    $subject = '[CDCF] Your verification code';
-    $body    = sprintf(
-        "Your verification code is: %s\n\n" .
-        "Enter this code in the project submission form to complete your submission.\n" .
-        "This code expires in 10 minutes.\n\n" .
-        "If you did not request this code, you can safely ignore this email.",
-        $code
-    );
-
-    $sent = wp_mail($email, $subject, $body);
-    if (!$sent) {
-        return new WP_Error('mail_failed', 'Failed to send verification email. Please try again.', ['status' => 500]);
-    }
-
-    return rest_ensure_response(['success' => true]);
-}
-
-function cdcf_rest_submit_project(WP_REST_Request $request) {
-    // Rate limiting via transients: 3 submissions per hour per IP (defense-in-depth).
-    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    $transient_key = 'cdcf_projsub_' . md5($ip);
-    $count = (int) get_transient($transient_key);
-
-    if ($count >= 3) {
-        return new WP_Error(
-            'rate_limited',
-            'Too many submissions. Please try again later.',
-            ['status' => 429]
-        );
-    }
-
-    set_transient($transient_key, $count + 1, HOUR_IN_SECONDS);
-
-    // IP DNSBL check.
-    if (cdcf_check_ip_rbl($ip)) {
-        return new WP_Error('forbidden', 'Request blocked.', ['status' => 403]);
-    }
-
-    // Validate email format.
-    if (!is_email($request['submitter_email'])) {
-        return new WP_Error('invalid_email', 'Please provide a valid email address.', ['status' => 400]);
-    }
-
-    // Disposable email check.
-    if (cdcf_is_disposable_email($request['submitter_email'])) {
-        return new WP_Error('disposable_email', 'Please use a permanent email address.', ['status' => 400]);
-    }
-
-    // Content spam scoring — silent success so bots don't adapt.
-    if (cdcf_is_spam_content($request['description'] . ' ' . $request['project_name'])) {
-        return rest_ensure_response(['success' => true, 'post_id' => 0]);
-    }
-
-    // Verify email verification code.
-    $email    = $request['submitter_email'];
-    $code_key = 'cdcf_email_code_' . md5($email);
-    $stored   = get_transient($code_key);
-
-    if (!$stored) {
-        return new WP_Error('code_expired', 'Verification code has expired. Please request a new one.', ['status' => 400]);
-    }
-
-    if ($stored['attempts'] >= 5) {
-        delete_transient($code_key);
-        return new WP_Error('too_many_attempts', 'Too many incorrect attempts. Please request a new code.', ['status' => 429]);
-    }
-
-    if ($request['verification_code'] !== $stored['code']) {
-        $stored['attempts']++;
-        set_transient($code_key, $stored, 600);
-        return new WP_Error('invalid_code', 'Invalid verification code. Please check and try again.', ['status' => 400]);
-    }
-
-    // Code is valid — delete it (single use).
-    delete_transient($code_key);
-
-    // Create a pending project post.
-    $post_id = wp_insert_post([
-        'post_type'    => 'project',
-        'post_status'  => 'pending',
-        'post_title'   => $request['project_name'],
-        'post_content' => $request['description'],
-    ]);
-
-    if (is_wp_error($post_id) || !$post_id) {
-        return new WP_Error('insert_failed', 'Failed to create project submission.', ['status' => 500]);
-    }
-
-    // Assign English language so Polylang can link translations later.
-    if (function_exists('pll_set_post_language')) {
-        pll_set_post_language($post_id, 'en');
-    }
-
-    // Sanitise repo URLs.
-    $repo_urls = array_values(array_filter(array_map('esc_url_raw', (array) $request['repo_urls'])));
-
-    // Set ACF fields if ACF is active.
-    if (function_exists('update_field')) {
-        update_field('project_url', $request['url'], $post_id);
-        update_field('project_status', 'incubating', $post_id);
-        if (!empty($request['category'])) {
-            update_field('project_category', $request['category'], $post_id);
-        }
-        if (!empty($repo_urls)) {
-            update_field('project_repo_url', $repo_urls[0], $post_id);
-        }
-    }
-
-    // Store all repo URLs as private meta (JSON-encoded array) for the meta box.
-    if (!empty($repo_urls)) {
-        update_post_meta($post_id, '_submission_repo_urls', wp_json_encode($repo_urls));
-    }
-
-    // Assign project tags.
-    $tags = array_filter(array_map('sanitize_text_field', (array) $request['tags']));
-    if (!empty($tags)) {
-        wp_set_object_terms($post_id, $tags, 'project_tag');
-    }
-
-    // Store submitter info as private post meta.
-    update_post_meta($post_id, '_submission_submitter_name', $request['submitter_name']);
-    update_post_meta($post_id, '_submission_submitter_email', $request['submitter_email']);
-
-    // Send admin notification email.
-    $admin_email = get_option('admin_email');
-    $edit_link   = admin_url("post.php?post={$post_id}&action=edit");
-    $subject     = sprintf('[CDCF] New Project Submission: %s', $request['project_name']);
-
-    $repo_list = !empty($repo_urls) ? implode("\n  ", $repo_urls) : '(none provided)';
-    $body = sprintf(
-        "A new project has been submitted for review.\n\n" .
-        "Project Name: %s\n" .
-        "Website: %s\n" .
-        "Repositories:\n  %s\n" .
-        "Description:\n%s\n\n" .
-        "Submitted by: %s (%s)\n\n" .
-        "Review and approve it here:\n%s",
-        $request['project_name'],
-        $request['url'],
-        $repo_list,
-        $request['description'],
-        $request['submitter_name'],
-        $request['submitter_email'],
-        $edit_link
-    );
-
-    wp_mail($admin_email, $subject, $body);
-
-    return rest_ensure_response([
-        'success' => true,
-        'post_id' => $post_id,
-    ]);
-}
+// cdcf_rest_submit_project() lives in includes/handlers/submit-project.php
 
 // ─── ACF Field Groups (registered programmatically) ──────────────────
 
