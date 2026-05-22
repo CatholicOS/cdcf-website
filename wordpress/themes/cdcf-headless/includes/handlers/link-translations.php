@@ -38,7 +38,13 @@ function cdcf_rest_link_translations(WP_REST_Request $request) {
     foreach ($translations as $lang => $post_id) {
         pll_set_post_language($post_id, $lang);
     }
-    pll_save_post_translations($translations);
+    if (pll_save_post_translations($translations) === false) {
+        return new WP_Error(
+            'link_failed',
+            'Polylang refused to save the translation group.',
+            ['status' => 500]
+        );
+    }
 
     return rest_ensure_response([
         'success'      => true,

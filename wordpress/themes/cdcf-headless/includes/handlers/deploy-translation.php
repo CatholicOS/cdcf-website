@@ -39,12 +39,15 @@ function cdcf_rest_deploy_translation(WP_REST_Request $request) {
     $post_id = $translations[$target_lang] ?? 0;
 
     if ($post_id) {
-        wp_update_post([
+        $update_result = wp_update_post([
             'ID'           => $post_id,
             'post_title'   => $title ?: $source->post_title,
             'post_content' => $content,
             'post_status'  => $source->post_status,
         ]);
+        if (is_wp_error($update_result) || !$update_result) {
+            return new WP_Error('update_failed', 'Failed to update existing translation post.', ['status' => 500]);
+        }
     } else {
         $insert_args = [
             'post_type'    => $source->post_type,

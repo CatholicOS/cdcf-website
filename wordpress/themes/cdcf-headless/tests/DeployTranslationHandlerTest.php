@@ -164,6 +164,36 @@ final class DeployTranslationHandlerTest extends TestCase
         $this->assertSame('Translation deployed.', $response['message']);
     }
 
+    public function test_returns_500_when_wp_update_post_returns_zero(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->makeSourcePost());
+        Functions\when('pll_get_post_translations')->justReturn(['en' => 100, 'it' => 500]);
+        Functions\when('wp_update_post')->justReturn(0);
+        Functions\expect('wp_insert_post')->never();
+        $this->allowAllFunctionsToExist();
+
+        $response = cdcf_rest_deploy_translation($this->makeRequest());
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('update_failed', $response->get_error_code());
+        $this->assertSame(500, $response->get_error_data()['status']);
+    }
+
+    public function test_returns_500_when_wp_update_post_returns_wp_error(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->makeSourcePost());
+        Functions\when('pll_get_post_translations')->justReturn(['en' => 100, 'it' => 500]);
+        Functions\when('wp_update_post')->justReturn(new WP_Error('db_update', 'DB down'));
+        $this->allowAllFunctionsToExist();
+
+        $response = cdcf_rest_deploy_translation($this->makeRequest());
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('update_failed', $response->get_error_code());
+    }
+
     public function test_existing_update_falls_back_to_source_title_when_title_blank(): void
     {
         $this->stubCommonFunctions();

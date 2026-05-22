@@ -83,8 +83,14 @@ final class FlushOpcacheHandlerTest extends TestCase
 
     public function test_returns_all_three_flushes_when_opcache_available(): void
     {
-        Functions\when('flush_rewrite_rules')->justReturn(null);
-        Functions\when('rest_ensure_response')->returnArg(1);
+        // Use expect (not when) so the tests fail loudly if the handler
+        // ever stops calling these — the return value alone wouldn't
+        // catch that regression for rest_ensure_response, since the
+        // handler could return the same array shape directly.
+        Functions\expect('flush_rewrite_rules')->once();
+        Functions\expect('rest_ensure_response')
+            ->once()
+            ->andReturnUsing(static fn(array $payload): array => $payload);
         Functions\when('function_exists')->alias(static fn(string $name): bool => true);
 
         $response = cdcf_rest_flush_opcache(new WP_REST_Request());
@@ -94,8 +100,14 @@ final class FlushOpcacheHandlerTest extends TestCase
 
     public function test_returns_only_rewrite_rules_when_opcache_unavailable(): void
     {
-        Functions\when('flush_rewrite_rules')->justReturn(null);
-        Functions\when('rest_ensure_response')->returnArg(1);
+        // Use expect (not when) so the tests fail loudly if the handler
+        // ever stops calling these — the return value alone wouldn't
+        // catch that regression for rest_ensure_response, since the
+        // handler could return the same array shape directly.
+        Functions\expect('flush_rewrite_rules')->once();
+        Functions\expect('rest_ensure_response')
+            ->once()
+            ->andReturnUsing(static fn(array $payload): array => $payload);
         Functions\when('function_exists')->alias(
             static fn(string $name): bool => !in_array($name, ['opcache_invalidate', 'opcache_reset'], true)
         );
@@ -107,8 +119,14 @@ final class FlushOpcacheHandlerTest extends TestCase
 
     public function test_returns_invalidate_and_rewrite_rules_when_only_invalidate_available(): void
     {
-        Functions\when('flush_rewrite_rules')->justReturn(null);
-        Functions\when('rest_ensure_response')->returnArg(1);
+        // Use expect (not when) so the tests fail loudly if the handler
+        // ever stops calling these — the return value alone wouldn't
+        // catch that regression for rest_ensure_response, since the
+        // handler could return the same array shape directly.
+        Functions\expect('flush_rewrite_rules')->once();
+        Functions\expect('rest_ensure_response')
+            ->once()
+            ->andReturnUsing(static fn(array $payload): array => $payload);
         Functions\when('function_exists')->alias(
             static fn(string $name): bool => $name !== 'opcache_reset'
         );
@@ -130,8 +148,14 @@ final class FlushOpcacheHandlerTest extends TestCase
             );
         }
 
-        Functions\when('flush_rewrite_rules')->justReturn(null);
-        Functions\when('rest_ensure_response')->returnArg(1);
+        // Use expect (not when) so the tests fail loudly if the handler
+        // ever stops calling these — the return value alone wouldn't
+        // catch that regression for rest_ensure_response, since the
+        // handler could return the same array shape directly.
+        Functions\expect('flush_rewrite_rules')->once();
+        Functions\expect('rest_ensure_response')
+            ->once()
+            ->andReturnUsing(static fn(array $payload): array => $payload);
         Functions\when('function_exists')->alias(static fn(string $name): bool => true);
 
         cdcf_rest_flush_opcache(new WP_REST_Request());

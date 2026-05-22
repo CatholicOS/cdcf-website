@@ -111,6 +111,21 @@ final class LinkTranslationsHandlerTest extends TestCase
         $this->assertSame(400, $response->get_error_data()['status']);
     }
 
+    public function test_returns_500_when_pll_save_post_translations_fails(): void
+    {
+        $this->stubPolylangAndCorePost();
+        Functions\when('pll_save_post_translations')->justReturn(false);
+        $this->allowAllFunctionsToExist();
+
+        $response = cdcf_rest_link_translations($this->makeRequest([
+            'translations' => ['en' => 10, 'it' => 11],
+        ]));
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('link_failed', $response->get_error_code());
+        $this->assertSame(500, $response->get_error_data()['status']);
+    }
+
     public function test_happy_path_sets_language_on_each_post_and_links_group(): void
     {
         $this->stubPolylangAndCorePost();
