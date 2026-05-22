@@ -30,7 +30,7 @@ export default function AuthorCard({ profile }: { profile: AuthorProfile }) {
           {profile.name}
         </Link>
       </h2>
-      {profile.role && <p className="text-sm text-gray-500">{profile.role}</p>}
+      {profile.title && <p className="text-sm text-gray-500">{profile.title}</p>}
 
       {excerpt && (
         <p className="mt-3 flex-1 text-sm leading-relaxed text-gray-600">{excerpt}</p>

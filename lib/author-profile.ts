@@ -8,7 +8,9 @@ import type { WPAuthor, WPTeamMember } from './wordpress/types'
 export interface AuthorProfile {
   name: string
   slug: string
-  role: string | null
+  /** The team_member "title" field (e.g. "AI Specialist"), matching how
+   *  team-member cards render elsewhere. Null when unset or no team_member. */
+  title: string | null
   /** Bio markup. From team_member it is rich HTML; from the core user field it
    *  is the plain Biographical Info wrapped in a paragraph. */
   bioHtml: string | null
@@ -111,10 +113,7 @@ export function resolveAuthorProfile(
 ): AuthorProfile {
   const name = authorDisplayName(author)
 
-  const role =
-    teamMember?.teamMemberFields?.memberRole ||
-    teamMember?.teamMemberFields?.memberTitle ||
-    null
+  const title = teamMember?.teamMemberFields?.memberTitle || null
 
   const tmImage = teamMember?.featuredImage?.node
   const image = tmImage
@@ -143,7 +142,7 @@ export function resolveAuthorProfile(
   return {
     name,
     slug: deriveAuthorSlug(author),
-    role,
+    title,
     bioHtml,
     image,
     links,

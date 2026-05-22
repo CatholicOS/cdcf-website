@@ -82,7 +82,7 @@ export default async function AuthorPage({ params }: AuthorPageProps) {
       name: profile.name,
       url: authorUrl,
       ...(profile.image && { image: profile.image.url }),
-      ...(profile.role && { jobTitle: profile.role }),
+      ...(profile.title && { jobTitle: profile.title }),
       ...(paragraphs.length && {
         description: paragraphs.join(' ').slice(0, 250),
       }),
@@ -119,8 +119,8 @@ export default async function AuthorPage({ params }: AuthorPageProps) {
 
         <div>
           <h1 className="cdcf-heading text-3xl sm:text-4xl">{profile.name}</h1>
-          {profile.role && (
-            <p className="mt-1 text-lg text-gray-500">{profile.role}</p>
+          {profile.title && (
+            <p className="mt-1 text-lg text-gray-500">{profile.title}</p>
           )}
           <div className="mt-3">
             <SocialLinks

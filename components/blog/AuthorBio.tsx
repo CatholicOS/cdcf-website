@@ -36,7 +36,9 @@ export default async function AuthorBio({ profile }: { profile: AuthorProfile })
           >
             {profile.name}
           </Link>
-          {profile.role && <p className="text-sm text-gray-500">{profile.role}</p>}
+          {profile.title && (
+            <p className="text-sm text-gray-500">{profile.title}</p>
+          )}
           {excerpt && (
             <p className="mt-2 text-sm leading-relaxed text-gray-600">{excerpt}</p>
           )}
