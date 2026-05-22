@@ -47,6 +47,34 @@ final class TeamMemberCouncilFilterTest extends TestCase
         return $q;
     }
 
+    // ─── admin_menu submenu registration ──────────────────────────
+
+    public function test_submenu_registration_adds_three_council_entries_under_team_member(): void
+    {
+        // Pass-through translator so the labels survive intact.
+        Functions\when('__')->returnArg(1);
+
+        $calls = [];
+        Functions\when('add_submenu_page')->alias(
+            function (string $parent, string $page_title, string $menu_title, string $cap, string $slug)
+            use (&$calls) {
+                $calls[] = [$parent, $menu_title, $cap, $slug];
+                return 'hook_' . $slug;
+            }
+        );
+
+        cdcf_register_team_member_council_submenus();
+
+        $this->assertSame(
+            [
+                ['edit.php?post_type=team_member', 'Board of Directors',          'edit_posts', 'edit.php?post_type=team_member&cdcf_council=board'],
+                ['edit.php?post_type=team_member', 'Ecclesial Advisory Council',  'edit_posts', 'edit.php?post_type=team_member&cdcf_council=ecclesial'],
+                ['edit.php?post_type=team_member', 'Technical Advisory Council',  'edit_posts', 'edit.php?post_type=team_member&cdcf_council=technical'],
+            ],
+            $calls
+        );
+    }
+
     // ─── pre_get_posts callback: early-return guards ──────────────
 
     public function test_filter_skips_when_not_in_admin(): void
