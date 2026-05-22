@@ -19,6 +19,11 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: wpHost,
       },
+      // Author avatars fall back to Gravatar when no team_member photo is set.
+      {
+        protocol: 'https',
+        hostname: '*.gravatar.com',
+      },
     ],
   },
   async rewrites() {
