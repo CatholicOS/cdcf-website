@@ -69,5 +69,25 @@ if (!class_exists('WP_REST_Request')) {
         }
     }
 }
+if (!class_exists('WP_REST_Response')) {
+    class WP_REST_Response {
+        public mixed $data;
+        public int $status;
+
+        public function __construct(mixed $data = null, int $status = 200) {
+            $this->data = $data;
+            $this->status = $status;
+        }
+
+        public function get_data(): mixed {
+            return $this->data;
+        }
+
+        public function get_status(): int {
+            return $this->status;
+        }
+    }
+}
 
 require_once __DIR__ . '/../includes/handlers/relationship.php';
+require_once __DIR__ . '/../includes/handlers/team-member.php';
