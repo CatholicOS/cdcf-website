@@ -11,24 +11,22 @@
 // POST /wp-json/cdcf/v1/flush-opcache (Application Password auth)
 // Invalidates OPcache for this file so new CPT registrations take effect
 // after deploy without waiting for the OPcache TTL.
+//
+// Handler body lives in includes/handlers/flush-opcache.php so it can
+// be unit-tested in isolation (Brain Monkey + Mockery). The CDCF_FUNCTIONS_FILE
+// constant captures the runtime path to this file so the extracted
+// handler can pass it to opcache_invalidate().
+
+if (!defined('CDCF_FUNCTIONS_FILE')) {
+    define('CDCF_FUNCTIONS_FILE', __FILE__);
+}
+
+require_once __DIR__ . '/includes/handlers/flush-opcache.php';
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/flush-opcache', [
         'methods'             => 'POST',
-        'callback'            => function () {
-            $flushed = [];
-            if (function_exists('opcache_invalidate')) {
-                opcache_invalidate(__FILE__, true);
-                $flushed[] = 'functions.php';
-            }
-            if (function_exists('opcache_reset')) {
-                opcache_reset();
-                $flushed[] = 'full-reset';
-            }
-            flush_rewrite_rules();
-            $flushed[] = 'rewrite-rules';
-            return rest_ensure_response(['flushed' => $flushed]);
-        },
+        'callback'            => 'cdcf_rest_flush_opcache',
         'permission_callback' => function () {
             return current_user_can('manage_options');
         },
@@ -427,36 +425,7 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-function cdcf_rest_link_translations(WP_REST_Request $request) {
-    if (!function_exists('pll_set_post_language') || !function_exists('pll_save_post_translations')) {
-        return new WP_Error('polylang_missing', 'Polylang is not active.', ['status' => 500]);
-    }
-
-    $translations = $request['translations'];
-    if (!is_array($translations) || count($translations) < 2) {
-        return new WP_Error('invalid_translations', 'Provide at least 2 language => post_id pairs.', ['status' => 400]);
-    }
-
-    // Validate all posts exist.
-    foreach ($translations as $lang => $post_id) {
-        $post_id = (int) $post_id;
-        if (!get_post($post_id)) {
-            return new WP_Error('invalid_post', "Post {$post_id} does not exist.", ['status' => 400]);
-        }
-        $translations[$lang] = $post_id;
-    }
-
-    // Set language on each post and link them.
-    foreach ($translations as $lang => $post_id) {
-        pll_set_post_language($post_id, $lang);
-    }
-    pll_save_post_translations($translations);
-
-    return rest_ensure_response([
-        'success'      => true,
-        'translations' => $translations,
-    ]);
-}
+require_once __DIR__ . '/includes/handlers/link-translations.php';
 
 // ─── REST endpoint for updating project status across translations ───
 //
@@ -480,46 +449,7 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-function cdcf_rest_update_project_status(WP_REST_Request $request) {
-    if (!function_exists('update_field')) {
-        return new WP_Error('acf_missing', 'ACF is not active.', ['status' => 500]);
-    }
-
-    $post_id = $request['post_id'];
-    $status  = $request['status'];
-
-    $allowed = ['incubating', 'active', 'archived'];
-    if (!in_array($status, $allowed, true)) {
-        return new WP_Error('invalid_status', 'status must be one of: ' . implode(', ', $allowed), ['status' => 400]);
-    }
-
-    $post = get_post($post_id);
-    if (!$post || $post->post_type !== 'project') {
-        return new WP_Error('invalid_post', 'Post not found or is not a project.', ['status' => 404]);
-    }
-
-    // Collect all translation IDs (including the given post itself).
-    $post_ids = [$post_id];
-    if (function_exists('pll_get_post_translations')) {
-        $translations = pll_get_post_translations($post_id);
-        $post_ids = array_values($translations);
-        if (!in_array($post_id, $post_ids, true)) {
-            $post_ids[] = $post_id;
-        }
-    }
-
-    $updated = [];
-    foreach ($post_ids as $pid) {
-        update_field('project_status', $status, $pid);
-        $updated[] = $pid;
-    }
-
-    return rest_ensure_response([
-        'success'      => true,
-        'status'       => $status,
-        'updated_posts' => $updated,
-    ]);
-}
+require_once __DIR__ . '/includes/handlers/project-status.php';
 
 // ─── REST endpoint for creating a team member with translations ──────
 //
@@ -3132,6 +3062,7 @@ add_action('cdcf_async_translate', 'cdcf_process_translation', 10, 3);
 // unit-tested in isolation (Brain Monkey + Mockery).
 
 require_once __DIR__ . '/includes/handlers/translate.php';
+require_once __DIR__ . '/includes/handlers/deploy-translation.php';
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/translate', [
@@ -3152,70 +3083,7 @@ add_action('rest_api_init', function () {
         'permission_callback' => function () {
             return current_user_can('edit_posts');
         },
-        'callback' => function (WP_REST_Request $request) {
-            $source_id   = intval($request['source_id'] ?? 0);
-            $target_lang = sanitize_text_field($request['target_lang'] ?? '');
-            $title       = sanitize_text_field($request['title'] ?? '');
-            $content     = wp_kses_post($request['content'] ?? '');
-
-            if (!$source_id || !$target_lang || !$content) {
-                return new WP_Error('missing_params', 'Missing source_id, target_lang, or content.', ['status' => 400]);
-            }
-
-            if (!function_exists('pll_set_post_language')) {
-                return new WP_Error('polylang_missing', 'Polylang is not active.', ['status' => 500]);
-            }
-
-            $source = get_post($source_id);
-            if (!$source) {
-                return new WP_Error('not_found', 'Source post not found.', ['status' => 404]);
-            }
-
-            // Check if a translation already exists for this language.
-            $translations = pll_get_post_translations($source_id);
-            $post_id = $translations[$target_lang] ?? 0;
-
-            if ($post_id) {
-                wp_update_post([
-                    'ID'           => $post_id,
-                    'post_title'   => $title ?: $source->post_title,
-                    'post_content' => $content,
-                    'post_status'  => $source->post_status,
-                ]);
-            } else {
-                $insert_args = [
-                    'post_type'    => $source->post_type,
-                    'post_status'  => $source->post_status,
-                    'post_title'   => $title ?: $source->post_title,
-                    'post_content' => $content,
-                ];
-
-                // Propagate parent: use the parent's translation in the target language.
-                if ($source->post_parent) {
-                    $parent_translation = pll_get_post($source->post_parent, $target_lang);
-                    if ($parent_translation) {
-                        $insert_args['post_parent'] = $parent_translation;
-                    }
-                }
-
-                $post_id = wp_insert_post($insert_args);
-
-                if (is_wp_error($post_id) || !$post_id) {
-                    return new WP_Error('insert_failed', 'Failed to create translation post.', ['status' => 500]);
-                }
-
-                pll_set_post_language($post_id, $target_lang);
-                $source_lang = pll_get_post_language($source_id);
-                $translations[$source_lang] = $source_id;
-                $translations[$target_lang] = $post_id;
-                pll_save_post_translations($translations);
-            }
-
-            return rest_ensure_response([
-                'post_id' => $post_id,
-                'message' => 'Translation deployed.',
-            ]);
-        },
+        'callback' => 'cdcf_rest_deploy_translation',
         'args' => [
             'source_id'   => ['required' => true,  'type' => 'integer', 'sanitize_callback' => 'absint'],
             'target_lang' => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
