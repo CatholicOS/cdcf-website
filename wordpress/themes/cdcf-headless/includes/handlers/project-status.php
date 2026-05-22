@@ -43,15 +43,33 @@ function cdcf_rest_update_project_status(WP_REST_Request $request) {
         }
     }
 
-    $updated = [];
+    // ACF's update_field() returns false BOTH on real failure and when the
+    // new value already matches the stored value. Read first so we can
+    // report "unchanged" separately from "failed" — clients consume this
+    // shape to drive their own retry / status UI.
+    $updated_posts   = [];
+    $unchanged_posts = [];
+    $failed_posts    = [];
     foreach ($post_ids as $pid) {
-        update_field('project_status', $status, $pid);
-        $updated[] = $pid;
+        if (get_field('project_status', $pid) === $status) {
+            $unchanged_posts[] = $pid;
+            continue;
+        }
+        if (update_field('project_status', $status, $pid)) {
+            $updated_posts[] = $pid;
+        } else {
+            $failed_posts[] = [
+                'post_id' => $pid,
+                'reason'  => 'update_field returned false',
+            ];
+        }
     }
 
     return rest_ensure_response([
-        'success'      => true,
-        'status'       => $status,
-        'updated_posts' => $updated,
+        'success'         => count($failed_posts) === 0,
+        'status'          => $status,
+        'updated_posts'   => $updated_posts,
+        'unchanged_posts' => $unchanged_posts,
+        'failed_posts'    => $failed_posts,
     ]);
 }
