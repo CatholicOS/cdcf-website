@@ -385,4 +385,103 @@ abstract class CommunityHandlerTestBase extends TestCase
         $this->assertSame(700, $data['translations']['en']);
         $this->assertSame(701, $data['translations']['es']);
     }
+
+    // ─── Write-failure / unchanged branches (#109) ────────────────────
+
+    public function test_happy_path_populates_updated_posts_with_every_community_page(): void
+    {
+        // Pins the new updated/unchanged/failed partition on the happy
+        // path: every Community-page translation lands in updated_posts.
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(1000);
+        $this->stubCommunityPageHappy(150, [
+            'en' => 150, 'it' => 151, 'es' => 152, 'fr' => 153, 'pt' => 154, 'de' => 155,
+        ]);
+        Functions\when('update_field')->justReturn(true);
+        $this->allowAllFunctionsToExist();
+
+        $response = $this->invokeHandler($this->makeRequest());
+
+        $data = $response->get_data();
+        $this->assertSame([150, 151, 152, 153, 154, 155], $data['updated_posts']);
+        $this->assertSame([], $data['unchanged_posts']);
+        $this->assertSame([], $data['failed_posts']);
+        $this->assertTrue($data['success']);
+    }
+
+    public function test_already_present_pages_go_into_unchanged_posts(): void
+    {
+        // EN Community page already lists post 1100; the loop's
+        // in_array check skips the update — that page lands in
+        // unchanged_posts (not failed_posts).
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(1100);
+
+        Functions\when('get_pages')->justReturn([(object) ['ID' => 200]]);
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 200, 'it' => 201, 'es' => 202, 'fr' => 203, 'pt' => 204, 'de' => 205,
+        ]);
+        Functions\when('get_field')->alias(
+            static fn(string $f, int $id) => $id === 200 ? [1100] : []
+        );
+        Functions\when('update_field')->justReturn(true);
+        $this->allowAllFunctionsToExist();
+
+        $response = $this->invokeHandler($this->makeRequest());
+
+        $data = $response->get_data();
+        $this->assertSame([200], $data['unchanged_posts']);
+        $this->assertSame([201, 202, 203, 204, 205], $data['updated_posts']);
+        $this->assertTrue($data['success']);
+    }
+
+    public function test_failed_update_field_lands_in_failed_posts_and_tips_success_false(): void
+    {
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(1200);
+        $this->stubCommunityPageHappy(250, [
+            'en' => 250, 'it' => 251, 'es' => 252, 'fr' => 253, 'pt' => 254, 'de' => 255,
+        ]);
+        // Setup writes succeed; community-page loop writes all fail.
+        $field = $this->getRelationshipField();
+        Functions\when('update_field')->alias(
+            static fn(string $name): bool => $name !== $field
+        );
+        $this->allowAllFunctionsToExist();
+
+        $response = $this->invokeHandler($this->makeRequest());
+
+        $data = $response->get_data();
+        $this->assertSame([], $data['updated_posts']);
+        $this->assertCount(6, $data['failed_posts']);
+        $this->assertSame(
+            ['post_id' => 250, 'reason' => 'update_field returned false'],
+            $data['failed_posts'][0]
+        );
+        $this->assertFalse($data['success']);
+    }
+
+    public function test_setup_write_failure_records_error_and_tips_success_false(): void
+    {
+        // Every update_field call fails (setup writes + community-page
+        // loop). The setup-write failures populate errors[]; the loop
+        // failures populate failed_posts. success goes false on either.
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(1300);
+        $this->stubCommunityPageHappy(300, [
+            'en' => 300, 'it' => 301, 'es' => 302, 'fr' => 303, 'pt' => 304, 'de' => 305,
+        ]);
+        Functions\when('update_field')->justReturn(false);
+        $this->allowAllFunctionsToExist();
+
+        $response = $this->invokeHandler($this->makeRequest());
+
+        $data = $response->get_data();
+        // At least one English-post setup write failed → errors non-empty.
+        $this->assertNotEmpty($data['errors']);
+        // Every community-page loop write failed → failed_posts has 6.
+        $this->assertCount(6, $data['failed_posts']);
+        $this->assertFalse($data['success']);
+    }
 }
