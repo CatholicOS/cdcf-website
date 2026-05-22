@@ -54,7 +54,12 @@ function cdcf_rest_send_verification_code(WP_REST_Request $request) {
     }
 
     // Content spam scoring — silent success so bots don't adapt.
-    if (cdcf_is_spam_content($request['description'] . ' ' . $request['group_name'])) {
+    // This handler is shared between /refer-local-group/send-code
+    // (which posts `group_name`) and /refer-community-project/send-code
+    // (which posts `project_name`). Prefer project_name when present so
+    // both routes feed the spam scorer the full submission text.
+    $name = $request['project_name'] ?? $request['group_name'] ?? '';
+    if (cdcf_is_spam_content($request['description'] . ' ' . $name)) {
         return rest_ensure_response(['success' => true]);
     }
 

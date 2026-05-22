@@ -155,6 +155,7 @@ abstract class SendCodeHandlerTestBase extends TestCase
 
         $this->assertInstanceOf(WP_Error::class, $response);
         $this->assertSame('disposable_email', $response->get_error_code());
+        $this->assertSame(400, $response->get_error_data()['status']);
     }
 
     public function test_returns_silent_success_when_content_scores_as_spam(): void
