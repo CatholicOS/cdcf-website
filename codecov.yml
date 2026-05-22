@@ -1,6 +1,6 @@
 # Codecov configuration for cdcf-website
 #
-# Posture: coverage is informational, not blocking. The three test
+# Posture: coverage is informational, not blocking. The four test
 # suites (Vitest, PHPUnit ×2, bats) are wired as non-blocking CI checks
 # (continue-on-error) per #63 — Codecov here adds visibility, not gating.
 # See #91 for the rollout plan.
@@ -22,7 +22,7 @@ coverage:
         informational: true
 
 # Each test suite runs in its own workflow with its own path filter, so
-# any given PR usually only re-uploads one of the three flags. Carryforward
+# any given PR usually only re-uploads one of the four flags. Carryforward
 # tells Codecov to reuse the most recent upload for any flag the current
 # commit didn't refresh, instead of treating the missing flag as 0% and
 # tanking the project number.
@@ -39,6 +39,10 @@ flag_management:
     - name: wordpress-theme
       paths:
         - wordpress/themes/cdcf-headless/
+    - name: worker
+      paths:
+        - scripts/cdcf_queue_worker.sh
+        - scripts/cdcf_queue_worker.lib.sh
 
 comment:
   layout: 'diff, flags, files'
