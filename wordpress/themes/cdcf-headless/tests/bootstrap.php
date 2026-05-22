@@ -136,6 +136,7 @@ if (!defined('CDCF_FUNCTIONS_FILE')) {
     define('CDCF_FUNCTIONS_FILE', '/tmp/cdcf-test-functions.php');
 }
 
+require_once __DIR__ . '/../includes/security.php';
 require_once __DIR__ . '/../includes/handlers/relationship.php';
 require_once __DIR__ . '/../includes/handlers/team-member.php';
 require_once __DIR__ . '/../includes/handlers/community-channel.php';
