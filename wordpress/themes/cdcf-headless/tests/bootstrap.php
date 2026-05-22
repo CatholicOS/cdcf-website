@@ -121,6 +121,15 @@ if (!defined('CDCF_DISPOSABLE_DOMAINS_FILE')) {
     );
 }
 
+// The flush-opcache handler passes CDCF_FUNCTIONS_FILE to
+// opcache_invalidate(). Define a dummy value so the
+// "opcache-available" branch can be exercised in tests; the call
+// itself is stubbed via Brain Monkey, so the value never reaches a
+// real opcache call.
+if (!defined('CDCF_FUNCTIONS_FILE')) {
+    define('CDCF_FUNCTIONS_FILE', '/tmp/cdcf-test-functions.php');
+}
+
 require_once __DIR__ . '/../includes/handlers/relationship.php';
 require_once __DIR__ . '/../includes/handlers/team-member.php';
 require_once __DIR__ . '/../includes/handlers/community-channel.php';
@@ -128,6 +137,10 @@ require_once __DIR__ . '/../includes/handlers/local-group.php';
 require_once __DIR__ . '/../includes/handlers/academic-collaboration.php';
 require_once __DIR__ . '/../includes/handlers/update-disposable-domains.php';
 require_once __DIR__ . '/../includes/handlers/translate.php';
+require_once __DIR__ . '/../includes/handlers/deploy-translation.php';
+require_once __DIR__ . '/../includes/handlers/link-translations.php';
+require_once __DIR__ . '/../includes/handlers/project-status.php';
+require_once __DIR__ . '/../includes/handlers/flush-opcache.php';
 require_once __DIR__ . '/../includes/admin/team-member-council.php';
 require_once __DIR__ . '/../includes/admin/polylang-default-seed.php';
 
