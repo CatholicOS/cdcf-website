@@ -595,6 +595,12 @@ if (!defined('CDCF_DISPOSABLE_DOMAINS_FILE')) {
 
 require_once __DIR__ . '/includes/handlers/update-disposable-domains.php';
 
+// Spam-protection helpers (cdcf_check_ip_rbl, cdcf_is_disposable_email,
+// cdcf_is_spam_content) used by every public-submission endpoint below.
+// Required here — after CDCF_DISPOSABLE_DOMAINS_FILE is defined — so
+// the disposable-domain lookup can read the blocklist file path.
+require_once __DIR__ . '/includes/security.php';
+
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/update-disposable-domains', [
         'methods'             => 'POST',
@@ -651,107 +657,8 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-// ── Spam-protection helpers for public referral endpoint ──
-
-/**
- * Check whether an IP is listed in DNS-based Real-time Blackhole Lists.
- * Returns true if the IP is listed on any checked RBL.
- * Results are cached in a transient for 1 hour.
- */
-function cdcf_check_ip_rbl(string $ip): bool {
-    if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-        return false; // Only IPv4 is supported by DNSBL lookups.
-    }
-
-    $cache_key = 'cdcf_rbl_' . md5($ip);
-    $cached    = get_transient($cache_key);
-    if ($cached !== false) {
-        return $cached === 'listed';
-    }
-
-    $reversed = implode('.', array_reverse(explode('.', $ip)));
-    $rbls     = ['zen.spamhaus.org', 'bl.spamcop.net'];
-    $listed   = false;
-
-    foreach ($rbls as $rbl) {
-        if (checkdnsrr("{$reversed}.{$rbl}", 'A')) {
-            $listed = true;
-            break;
-        }
-    }
-
-    set_transient($cache_key, $listed ? 'listed' : 'clean', HOUR_IN_SECONDS);
-    return $listed;
-}
-
-/**
- * Check whether an email address uses a known disposable/throwaway domain.
- */
-function cdcf_is_disposable_email(string $email): bool {
-    $domain = strtolower(substr(strrchr($email, '@'), 1));
-    if (!$domain) {
-        return false;
-    }
-
-    static $domains = null;
-    if ($domains === null) {
-        $file = CDCF_DISPOSABLE_DOMAINS_FILE;
-        if (!file_exists($file)) {
-            return false;
-        }
-        $domains = array_flip(array_filter(array_map('trim', file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES))));
-    }
-
-    return isset($domains[$domain]);
-}
-
-/**
- * Score text content for spam indicators. Returns true if likely spam (score >= 5).
- */
-function cdcf_is_spam_content(string $text): bool {
-    $score = 0;
-
-    // Excessive URLs (> 2)
-    $url_count = preg_match_all('#https?://#i', $text);
-    if ($url_count > 2) {
-        $score += 2;
-    }
-
-    // Common spam keywords
-    $spam_keywords = [
-        'viagra', 'cialis', 'casino', 'lottery', 'poker', 'blackjack',
-        'buy now', 'free money', 'click here', 'act now', 'limited time',
-        'nigerian prince', 'wire transfer', 'cryptocurrency offer',
-    ];
-    $lower = strtolower($text);
-    foreach ($spam_keywords as $kw) {
-        if (str_contains($lower, $kw)) {
-            $score += 3;
-        }
-    }
-
-    // HTML/script injection attempts
-    if (preg_match('/<\s*(script|iframe|object|embed|form|style)\b/i', $text)) {
-        $score += 10;
-    }
-
-    // Excessive email addresses in content (> 1)
-    $email_count = preg_match_all('/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/i', $text);
-    if ($email_count > 1) {
-        $score += 2;
-    }
-
-    // Non-Latin script ratio (> 50% suggests gibberish or Cyrillic spam)
-    $total_chars = mb_strlen(preg_replace('/\s+/', '', $text));
-    if ($total_chars > 0) {
-        $latin_chars = preg_match_all('/[\x20-\x7E\xC0-\xFF]/u', $text);
-        if ($latin_chars / $total_chars < 0.5) {
-            $score += 2;
-        }
-    }
-
-    return $score >= 5;
-}
+// Spam-protection helpers (cdcf_check_ip_rbl, cdcf_is_disposable_email,
+// cdcf_is_spam_content) live in includes/security.php, required above.
 
 // cdcf_rest_send_verification_code() lives in includes/handlers/send-verification-code.php
 

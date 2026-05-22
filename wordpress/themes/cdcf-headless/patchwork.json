@@ -2,6 +2,7 @@
     "redefinable-internals": [
         "function_exists",
         "file_put_contents",
-        "rename"
+        "rename",
+        "checkdnsrr"
     ]
 }
