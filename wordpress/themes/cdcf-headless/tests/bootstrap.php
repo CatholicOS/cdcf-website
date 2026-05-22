@@ -88,6 +88,24 @@ if (!class_exists('WP_REST_Response')) {
         }
     }
 }
+if (!class_exists('WP_Query')) {
+    class WP_Query {
+        public bool $main_query = true;
+        public array $vars = [];
+
+        public function is_main_query(): bool {
+            return $this->main_query;
+        }
+
+        public function get(string $key, $default = null): mixed {
+            return $this->vars[$key] ?? $default;
+        }
+
+        public function set(string $key, $value): void {
+            $this->vars[$key] = $value;
+        }
+    }
+}
 
 // Path used by the disposable-domains handler. Redirect to the test
 // tmp dir so the handler's file_put_contents / rename happen in
@@ -110,6 +128,8 @@ require_once __DIR__ . '/../includes/handlers/local-group.php';
 require_once __DIR__ . '/../includes/handlers/academic-collaboration.php';
 require_once __DIR__ . '/../includes/handlers/update-disposable-domains.php';
 require_once __DIR__ . '/../includes/handlers/translate.php';
+require_once __DIR__ . '/../includes/admin/team-member-council.php';
+require_once __DIR__ . '/../includes/admin/polylang-default-seed.php';
 
 // Shared base class for the three Community-page handler tests. PHPUnit
 // doesn't autoload test files via PSR-4, so concrete subclasses can only
