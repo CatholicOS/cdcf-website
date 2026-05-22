@@ -181,9 +181,14 @@ final class RelationshipHandlerTest extends TestCase
         Functions\when('acf_get_field')->justReturn(['type' => 'relationship']);
         // absint() is a WP helper — stub it as PHP's (int)abs.
         Functions\when('absint')->alias(fn($v) => abs((int) $v));
+        // andReturn(true) is required now that the handler checks the
+        // return value (#109): a Mockery expect() with no explicit
+        // andReturn defaults to null, which the handler treats as a
+        // failed write and converts to a 500.
         Functions\expect('update_field')
             ->once()
-            ->with('technical_council', [101, 102, 103], 5);
+            ->with('technical_council', [101, 102, 103], 5)
+            ->andReturn(true);
         Functions\when('function_exists')->alias(fn(string $name): bool => true);
 
         $req = new WP_REST_Request();
@@ -215,7 +220,8 @@ final class RelationshipHandlerTest extends TestCase
                 'technical_council',
                 [101, 102, 103],
                 5
-            );
+            )
+            ->andReturn(true);
         Functions\when('function_exists')->alias(fn(string $name): bool => true);
 
         $req = new WP_REST_Request();
@@ -239,7 +245,8 @@ final class RelationshipHandlerTest extends TestCase
         // that explicitly.
         Functions\expect('update_field')
             ->once()
-            ->with('technical_council', [42], 5);
+            ->with('technical_council', [42], 5)
+            ->andReturn(true);
         Functions\when('function_exists')->alias(fn(string $name): bool => true);
 
         $req = new WP_REST_Request();
@@ -250,6 +257,27 @@ final class RelationshipHandlerTest extends TestCase
         $response = cdcf_rest_update_relationship($req);
 
         $this->assertSame([42], $response['value']);
+    }
+
+    public function test_post_returns_500_when_update_field_returns_false(): void
+    {
+        // ACF's update_field returns false on real persistence failure.
+        // Surface as 500 so silent failures don't masquerade as success
+        // to the API client (#109).
+        Functions\when('acf_get_field')->justReturn(['type' => 'relationship']);
+        Functions\when('update_field')->justReturn(false);
+        Functions\when('function_exists')->alias(fn(string $name): bool => true);
+
+        $req = new WP_REST_Request();
+        $req->set_param('post_id', 5);
+        $req->set_param('field', 'technical_council');
+        $req->set_param('value', [101, 102]);
+
+        $response = cdcf_rest_update_relationship($req);
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('update_failed', $response->get_error_code());
+        $this->assertSame(500, $response->get_error_data()['status']);
     }
 
     // ─── Post-existence guard (#4) ────────────────────────────────
