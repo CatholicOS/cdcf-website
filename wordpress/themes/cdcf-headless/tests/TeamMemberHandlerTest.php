@@ -540,6 +540,65 @@ final class TeamMemberHandlerTest extends TestCase
         $this->assertSame([800, 801], $linked);
     }
 
+    // ─── About-page language-resolution fallback paths ────────────
+
+    public function test_about_council_falls_back_to_pll_get_post_when_no_language_match(): void
+    {
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(1400);
+
+        // get_pages returns a single page, but pll_get_post_language
+        // reports its slug as 'it' (not 'en'), so the language-match
+        // loop fails and the handler must fall back to pll_get_post().
+        Functions\when('get_pages')->justReturn([(object) ['ID' => 80]]);
+        Functions\when('pll_get_post_language')->justReturn('it');
+        Functions\when('pll_get_post')->justReturn(85);  // EN About page resolved via fallback
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 85, 'it' => 86, 'es' => 87, 'fr' => 88, 'pt' => 89, 'de' => 90,
+        ]);
+        Functions\when('get_field')->justReturn([]);
+
+        $linked = [];
+        Functions\when('update_field')->alias(
+            function (string $field, array $value, int $about_id) use (&$linked): bool {
+                $linked[] = $about_id;
+                return true;
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        $req = $this->makeRequest(['council' => 'technical_council']);
+
+        $response = cdcf_rest_create_team_member($req);
+
+        // All 6 languages get linked via the fallback-resolved EN page.
+        $this->assertSame([85, 86, 87, 88, 89, 90], $linked);
+        $this->assertSame([], $response->get_data()['errors']);
+    }
+
+    public function test_about_council_records_error_when_no_english_translation_resolvable(): void
+    {
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(1500);
+
+        Functions\when('get_pages')->justReturn([(object) ['ID' => 80]]);
+        Functions\when('pll_get_post_language')->justReturn('it');
+        // Fallback also fails — pll_get_post returns 0 (no EN translation).
+        Functions\when('pll_get_post')->justReturn(0);
+        Functions\expect('update_field')->never();
+        Functions\expect('pll_get_post_translations')->never();
+        $this->allowAllFunctionsToExist();
+
+        $req = $this->makeRequest(['council' => 'technical_council']);
+
+        $response = cdcf_rest_create_team_member($req);
+
+        $this->assertContains(
+            'Could not find the English About page.',
+            $response->get_data()['errors']
+        );
+    }
+
     // ─── Idempotency: existing member must not be re-appended ─────
 
     public function test_about_council_skips_update_when_member_already_present(): void
