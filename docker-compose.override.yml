@@ -5,3 +5,13 @@ services:
   wordpress:
     ports:
       - "8000:80"
+    environment:
+      # Dev-only: WordPress gates Application Passwords on
+      # is_ssl() || wp_get_environment_type() === 'local'. Over plain
+      # http://localhost they'd be disabled, breaking authenticated
+      # REST/GraphQL and headless draft preview. 'local' enables them.
+      WP_ENVIRONMENT_TYPE: local
+      # Expose the preview/revalidate secret to the theme, which falls back to
+      # getenv('WP_PREVIEW_SECRET') when CDCF_PREVIEW_SECRET isn't defined
+      # (it's only define()'d in wp-config on production).
+      WP_PREVIEW_SECRET: ${WP_PREVIEW_SECRET}

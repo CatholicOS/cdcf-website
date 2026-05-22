@@ -2448,7 +2448,7 @@ add_filter('preview_post_link', function ($preview_link, $post) {
 
     $secret = defined('CDCF_PREVIEW_SECRET')
         ? CDCF_PREVIEW_SECRET
-        : '';
+        : (getenv('WP_PREVIEW_SECRET') ?: '');
 
     // Polylang language (slug form, e.g. "en", "it"); empty if Polylang is off.
     $lang = function_exists('pll_get_post_language')
@@ -3672,7 +3672,7 @@ add_action('transition_post_status', function ($new_status, $old_status, $post) 
 
     $secret = defined('CDCF_PREVIEW_SECRET')
         ? CDCF_PREVIEW_SECRET
-        : '';
+        : (getenv('WP_PREVIEW_SECRET') ?: '');
 
     if (empty($secret)) {
         return;
