@@ -136,7 +136,21 @@ if (!defined('CDCF_FUNCTIONS_FILE')) {
     define('CDCF_FUNCTIONS_FILE', '/tmp/cdcf-test-functions.php');
 }
 
+// Constants the translation orchestrator consults — defined in
+// functions.php in production but declared here for the unit tests
+// since functions.php itself isn't loaded under PHPUnit.
+if (!defined('CDCF_TRANSLATABLE_ACF_TYPES')) {
+    define('CDCF_TRANSLATABLE_ACF_TYPES', ['text', 'textarea', 'wysiwyg']);
+}
+if (!defined('CDCF_LOCALE_NAMES')) {
+    define('CDCF_LOCALE_NAMES', [
+        'en' => 'English', 'it' => 'Italian', 'es' => 'Spanish',
+        'fr' => 'French',  'pt' => 'Portuguese', 'de' => 'German',
+    ]);
+}
+
 require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../includes/translation.php';
 require_once __DIR__ . '/../includes/handlers/relationship.php';
 require_once __DIR__ . '/../includes/handlers/team-member.php';
 require_once __DIR__ . '/../includes/handlers/community-channel.php';
