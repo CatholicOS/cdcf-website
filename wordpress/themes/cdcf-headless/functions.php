@@ -296,131 +296,23 @@ add_action('admin_menu', function () {
 
 // ─── Team Members: council submenus (Board / Ecclesial / Technical) ─
 //
-// team_member posts have no council meta of their own — categorization
-// lives inverse on the About page's three ACF relationship fields:
-//   team_members      → Board of Directors
-//   ecclesial_council → Ecclesial Advisory Council
-//   technical_council → Technical Advisory Council
-//
-// Each submenu links to edit.php?post_type=team_member&cdcf_council=…
-// The pre_get_posts filter below resolves cdcf_council to the current
-// admin language's About page and restricts post__in to its members.
+// Hook bodies live in includes/admin/team-member-council.php so they
+// can be unit-tested in isolation (Brain Monkey + Mockery).
 
-const CDCF_COUNCIL_MAP = [
-    'board'     => 'team_members',
-    'ecclesial' => 'ecclesial_council',
-    'technical' => 'technical_council',
-];
+require_once __DIR__ . '/includes/admin/team-member-council.php';
 
-add_action('admin_menu', function () {
-    $parent = 'edit.php?post_type=team_member';
-    $councils = [
-        'board'     => __('Board of Directors', 'cdcf-headless'),
-        'ecclesial' => __('Ecclesial Advisory Council', 'cdcf-headless'),
-        'technical' => __('Technical Advisory Council', 'cdcf-headless'),
-    ];
-    foreach ($councils as $slug => $label) {
-        add_submenu_page(
-            $parent,
-            $label,
-            $label,
-            'edit_posts',
-            $parent . '&cdcf_council=' . $slug
-        );
-    }
-}, 11);
-
-add_action('pre_get_posts', function ($query) {
-    if (!is_admin() || !$query->is_main_query()) {
-        return;
-    }
-    if ($query->get('post_type') !== 'team_member') {
-        return;
-    }
-    $council = isset($_GET['cdcf_council']) ? sanitize_key($_GET['cdcf_council']) : '';
-    if (!isset(CDCF_COUNCIL_MAP[$council])) {
-        return;
-    }
-    if (!function_exists('get_field')) {
-        return;
-    }
-
-    $field_name = CDCF_COUNCIL_MAP[$council];
-    $about_id   = cdcf_get_about_page_id_for_admin_lang();
-    if (!$about_id) {
-        $query->set('post__in', [0]);
-        return;
-    }
-
-    $ids = get_field($field_name, $about_id, false);
-    if (!is_array($ids) || empty($ids)) {
-        $query->set('post__in', [0]);
-        return;
-    }
-
-    $query->set('post__in', array_map('intval', $ids));
-    $query->set('orderby', 'post__in');
-});
-
-// Highlight the correct submenu when filtering by cdcf_council; WP would
-// otherwise mark the default "All Team Members" entry as active because
-// it strips unknown query args when matching $submenu_file.
-add_filter('submenu_file', function ($submenu_file) {
-    if (($_GET['post_type'] ?? '') !== 'team_member') {
-        return $submenu_file;
-    }
-    $council = isset($_GET['cdcf_council']) ? sanitize_key($_GET['cdcf_council']) : '';
-    if (!isset(CDCF_COUNCIL_MAP[$council])) {
-        return $submenu_file;
-    }
-    return 'edit.php?post_type=team_member&cdcf_council=' . $council;
-});
+add_action('admin_menu', 'cdcf_register_team_member_council_submenus', 11);
+add_action('pre_get_posts', 'cdcf_filter_team_member_council_query');
+add_filter('submenu_file', 'cdcf_highlight_team_member_council_submenu');
 
 // ─── Polylang: seed each admin's language filter to the default lang ─
 //
-// Polylang renders each translation as its own row in admin list tables,
-// so a page with 6 translations shows as 6 rows. On each admin user's
-// first wp-admin visit after this code lands, set Polylang's per-user
-// content filter (pll_filter_content) to the site's default language so
-// translation groups collapse to a single row. Users keep full control
-// via Polylang's switcher in the toolbar — including "All languages" —
-// since we only seed the default once and never override later choices.
+// Hook body lives in includes/admin/polylang-default-seed.php so it can
+// be unit-tested in isolation (Brain Monkey + Mockery).
 
-add_action('admin_init', function () {
-    if (!function_exists('pll_default_language')) {
-        return;
-    }
-    $user_id = get_current_user_id();
-    if (!$user_id) {
-        return;
-    }
-    if (get_user_meta($user_id, '_cdcf_pll_default_filter_seeded', true)) {
-        return;
-    }
-    update_user_meta($user_id, 'pll_filter_content', pll_default_language());
-    update_user_meta($user_id, '_cdcf_pll_default_filter_seeded', '1');
-});
+require_once __DIR__ . '/includes/admin/polylang-default-seed.php';
 
-function cdcf_get_about_page_id_for_admin_lang(): int {
-    $about_pages = get_pages([
-        'meta_key'   => '_wp_page_template',
-        'meta_value' => 'templates/about.php',
-    ]);
-    if (empty($about_pages)) {
-        return 0;
-    }
-
-    $current = function_exists('pll_current_language') ? pll_current_language('slug') : 'en';
-    foreach ([$current, 'en'] as $lang) {
-        foreach ($about_pages as $page) {
-            $page_lang = function_exists('pll_get_post_language') ? pll_get_post_language($page->ID, 'slug') : 'en';
-            if ($page_lang === $lang) {
-                return (int) $page->ID;
-            }
-        }
-    }
-    return (int) $about_pages[0]->ID;
-}
+add_action('admin_init', 'cdcf_seed_polylang_default_language');
 
 // ─── Register ACF fields as REST-writable post meta ─────────────────
 //
