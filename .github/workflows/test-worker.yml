@@ -82,6 +82,11 @@ jobs:
         # if: always() so coverage uploads even when a bats test fails.
         # `fail_ci_if_error: false` matches the policy used by the other
         # test workflows — Codecov outages don't fail the build.
+        # `disable_search: true` stops the action from auto-discovering
+        # additional coverage files in the workspace — without it, the
+        # per-bats-file kcov outputs and bats-core's own report.xml from
+        # the submodule get uploaded alongside the merged cobertura.xml
+        # and pollute the worker flag's numbers.
         if: always()
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
@@ -89,3 +94,4 @@ jobs:
           files: coverage/merged/kcov-merged/cobertura.xml
           flags: worker
           fail_ci_if_error: false
+          disable_search: true
