@@ -91,3 +91,11 @@ if (!class_exists('WP_REST_Response')) {
 
 require_once __DIR__ . '/../includes/handlers/relationship.php';
 require_once __DIR__ . '/../includes/handlers/team-member.php';
+require_once __DIR__ . '/../includes/handlers/community-channel.php';
+require_once __DIR__ . '/../includes/handlers/local-group.php';
+require_once __DIR__ . '/../includes/handlers/academic-collaboration.php';
+
+// Shared base class for the three Community-page handler tests. PHPUnit
+// doesn't autoload test files via PSR-4, so concrete subclasses can only
+// find their parent if it's been required up-front.
+require_once __DIR__ . '/CommunityHandlerTestBase.php';
