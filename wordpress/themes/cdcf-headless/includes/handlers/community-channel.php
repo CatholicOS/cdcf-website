@@ -20,7 +20,14 @@ function cdcf_rest_create_community_channel(WP_REST_Request $request) {
         return new WP_Error('acf_missing', 'ACF is not active.', ['status' => 500]);
     }
 
-    $errors = [];
+    // String messages for non-persistence problems (missing parent posts,
+    // missing translations) AND for failed setup writes on the English
+    // post. Per-post persistence outcomes for the Community-page loop
+    // live in the three arrays below — see #109.
+    $errors          = [];
+    $updated_posts   = [];
+    $unchanged_posts = [];
+    $failed_posts    = [];
 
     // ── 1. Create the English post ──
 
@@ -36,11 +43,17 @@ function cdcf_rest_create_community_channel(WP_REST_Request $request) {
 
     pll_set_post_language($en_post_id, 'en');
 
-    // Set ACF fields on English post.
-    update_field('channel_description', $request['channel_description'], $en_post_id);
-    update_field('channel_url', $request['channel_url'], $en_post_id);
-    if ($request['channel_icon']) {
-        update_field('channel_icon', $request['channel_icon'], $en_post_id);
+    // Set ACF fields on English post. update_field() returns false on real
+    // persistence failure (#109) — surface in $errors so the client can
+    // distinguish a half-populated post from a fully-populated one.
+    if (!update_field('channel_description', $request['channel_description'], $en_post_id)) {
+        $errors[] = 'Failed to set channel_description on English post.';
+    }
+    if (!update_field('channel_url', $request['channel_url'], $en_post_id)) {
+        $errors[] = 'Failed to set channel_url on English post.';
+    }
+    if ($request['channel_icon'] && !update_field('channel_icon', $request['channel_icon'], $en_post_id)) {
+        $errors[] = 'Failed to set channel_icon on English post.';
     }
 
     // ── 2. Create translation drafts and enqueue background translations ──
@@ -119,10 +132,19 @@ function cdcf_rest_create_community_channel(WP_REST_Request $request) {
                     $current = [];
                 }
 
-                // Append the new channel ID if not already present.
-                if (!in_array($channel_id, $current)) {
-                    $current[] = $channel_id;
-                    update_field('channels', $current, $community_page_id);
+                if (in_array($channel_id, $current)) {
+                    // Channel already linked — nothing to write (#109).
+                    $unchanged_posts[] = $community_page_id;
+                    continue;
+                }
+                $current[] = $channel_id;
+                if (update_field('channels', $current, $community_page_id)) {
+                    $updated_posts[] = $community_page_id;
+                } else {
+                    $failed_posts[] = [
+                        'post_id' => $community_page_id,
+                        'reason'  => 'update_field returned false',
+                    ];
                 }
             }
         } else {
@@ -133,10 +155,13 @@ function cdcf_rest_create_community_channel(WP_REST_Request $request) {
     }
 
     return new WP_REST_Response([
-        'success'      => true,
-        'en_post_id'   => $en_post_id,
-        'translations' => $translations,
-        'queue'        => $queue,
-        'errors'       => $errors,
+        'success'         => count($failed_posts) === 0 && count($errors) === 0,
+        'en_post_id'      => $en_post_id,
+        'translations'    => $translations,
+        'queue'           => $queue,
+        'updated_posts'   => $updated_posts,
+        'unchanged_posts' => $unchanged_posts,
+        'failed_posts'    => $failed_posts,
+        'errors'          => $errors,
     ], 202);
 }
