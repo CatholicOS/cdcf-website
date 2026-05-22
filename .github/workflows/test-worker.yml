@@ -1,8 +1,10 @@
 name: bats (queue worker)
 
-# Runs the bats-core suite over scripts/cdcf_queue_worker.lib.sh helpers.
-# Non-blocking for now (continue-on-error) per #63: land tests, watch
-# them stabilize, then flip the gate in a follow-up.
+# Runs the bats-core suite over scripts/cdcf_queue_worker.lib.sh helpers,
+# instruments them with kcov, and uploads cobertura coverage to Codecov
+# under the `worker` flag (refs #91 Phase 2). Non-blocking for now
+# (continue-on-error) per #63: land tests, watch them stabilize, then
+# flip the gate in a follow-up.
 #
 # All interpolations are repo-controlled identifiers used as concurrency-
 # group keys, not shelled out. No untrusted github.event.* inputs.
@@ -46,5 +48,40 @@ jobs:
           which python3
           python3 --version
 
-      - name: Run bats
-        run: scripts/tests/bats/bin/bats scripts/tests/
+      - name: Install kcov
+        # kcov instruments bash scripts and emits cobertura.xml for Codecov.
+        # Available in the Ubuntu apt archive; no PPA needed.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends kcov
+
+      - name: Run bats under kcov
+        # kcov struggles with bats' run-in-subshell test helper unless each
+        # .bats file is invoked separately, so we loop and merge. The
+        # include pattern restricts measurement to the worker scripts —
+        # bats internals, shims, and python helpers are excluded.
+        run: |
+          mkdir -p coverage
+          fail=0
+          for f in scripts/tests/*.bats; do
+            name=$(basename "$f" .bats)
+            kcov \
+              --include-pattern=cdcf_queue_worker \
+              --bash-dont-parse-binary-dir \
+              "coverage/${name}" \
+              scripts/tests/bats/bin/bats "$f" || fail=$?
+          done
+          kcov --merge coverage/merged coverage/*/
+          exit "${fail}"
+
+      - name: Upload coverage to Codecov (worker flag)
+        # if: always() so coverage uploads even when a bats test fails.
+        # `fail_ci_if_error: false` matches the policy used by the other
+        # test workflows — Codecov outages don't fail the build.
+        if: always()
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/merged/kcov-merged/cobertura.xml
+          flags: worker
+          fail_ci_if_error: false
