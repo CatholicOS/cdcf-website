@@ -1,5 +1,7 @@
 {
     "redefinable-internals": [
-        "function_exists"
+        "function_exists",
+        "file_put_contents",
+        "rename"
     ]
 }

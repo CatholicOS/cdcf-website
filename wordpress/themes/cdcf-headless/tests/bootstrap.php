@@ -89,11 +89,26 @@ if (!class_exists('WP_REST_Response')) {
     }
 }
 
+// Path used by the disposable-domains handler. Redirect to the test
+// tmp dir so the handler's file_put_contents / rename happen in
+// scratch space rather than overwriting the real blocklist file. The
+// path is process-scoped via getmypid() so parallel PHPUnit runs (CI
+// matrices, paratest, multiple devs on the same machine) and the
+// existing #[RunInSeparateProcess] test's forked child don't collide
+// on the same tmp file.
+if (!defined('CDCF_DISPOSABLE_DOMAINS_FILE')) {
+    define(
+        'CDCF_DISPOSABLE_DOMAINS_FILE',
+        sys_get_temp_dir() . '/cdcf-test-disposable-domains-' . getmypid() . '.txt'
+    );
+}
+
 require_once __DIR__ . '/../includes/handlers/relationship.php';
 require_once __DIR__ . '/../includes/handlers/team-member.php';
 require_once __DIR__ . '/../includes/handlers/community-channel.php';
 require_once __DIR__ . '/../includes/handlers/local-group.php';
 require_once __DIR__ . '/../includes/handlers/academic-collaboration.php';
+require_once __DIR__ . '/../includes/handlers/update-disposable-domains.php';
 
 // Shared base class for the three Community-page handler tests. PHPUnit
 // doesn't autoload test files via PSR-4, so concrete subclasses can only
