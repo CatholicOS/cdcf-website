@@ -340,6 +340,9 @@ const POST_CARD_FIELDS = `
 // out of the public post queries to avoid coupling blog rendering to it.
 const AUTHOR_FIELDS = `
   name
+  nickname
+  firstName
+  lastName
   slug
   description
   url

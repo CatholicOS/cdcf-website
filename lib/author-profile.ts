@@ -66,10 +66,51 @@ export function bioPlainText(bioHtml: string | null): string {
   return bioParagraphs(bioHtml).join(' ')
 }
 
+/**
+ * Human-readable author name, preferring (in order) nickname, display name,
+ * first + last, and finally the nicename. We never surface the WordPress
+ * username (login) here.
+ */
+export function authorDisplayName(author: WPAuthor): string {
+  const fullName = [author.firstName, author.lastName]
+    .filter((part) => part && part.trim())
+    .join(' ')
+    .trim()
+  return (
+    author.nickname?.trim() ||
+    author.name?.trim() ||
+    fullName ||
+    author.slug
+  )
+}
+
+function slugify(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '') // strip diacritics
+    .replace(/['’]/g, '') // drop straight/smart apostrophes (D'Orazio → dorazio)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/**
+ * URL slug for an author, derived from the display-name chain so the public URL
+ * never contains the WordPress nicename/login. Falls back to the nicename only
+ * if the derived value is empty (effectively never, since display_name is
+ * always set). Author pages resolve this by matching, since WPGraphQL cannot
+ * look a user up by a derived slug.
+ */
+export function deriveAuthorSlug(author: WPAuthor): string {
+  return slugify(authorDisplayName(author)) || author.slug
+}
+
 export function resolveAuthorProfile(
   author: WPAuthor,
   teamMember: WPTeamMember | null
 ): AuthorProfile {
+  const name = authorDisplayName(author)
+
   const role =
     teamMember?.teamMemberFields?.memberRole ||
     teamMember?.teamMemberFields?.memberTitle ||
@@ -77,9 +118,9 @@ export function resolveAuthorProfile(
 
   const tmImage = teamMember?.featuredImage?.node
   const image = tmImage
-    ? { url: tmImage.sourceUrl, alt: tmImage.altText || author.name }
+    ? { url: tmImage.sourceUrl, alt: tmImage.altText || name }
     : author.avatar?.url
-      ? { url: author.avatar.url, alt: author.name }
+      ? { url: author.avatar.url, alt: name }
       : null
 
   // Prefer the (translatable) team_member content; fall back to the user's
@@ -100,8 +141,8 @@ export function resolveAuthorProfile(
   }
 
   return {
-    name: author.name,
-    slug: author.slug,
+    name,
+    slug: deriveAuthorSlug(author),
     role,
     bioHtml,
     image,

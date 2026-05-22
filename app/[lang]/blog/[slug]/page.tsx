@@ -92,9 +92,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const image = post.featuredImage?.node
 
   // Resolve the (locale-aware) author profile for the byline link + bio card.
-  const authorSlug = post.author?.node?.slug
-  const authorProfile = authorSlug ? await getAuthorProfile(authorSlug, lang) : null
-  const authorName = post.author?.node?.name
+  // The nicename is used only to fetch; links use the derived, login-free slug.
+  const authorNicename = post.author?.node?.slug
+  const authorProfile = authorNicename
+    ? await getAuthorProfile(authorNicename, lang)
+    : null
+  const authorName = authorProfile?.name ?? post.author?.node?.name
 
   // BlogPosting structured data (https://schema.org/BlogPosting), per Google's
   // Article structured-data technical guidelines.
@@ -112,7 +115,9 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       author: {
         '@type': 'Person',
         name: authorName,
-        ...(authorSlug && { url: absoluteUrl(lang, `blog/authors/${authorSlug}`) }),
+        ...(authorProfile && {
+          url: absoluteUrl(lang, `blog/authors/${authorProfile.slug}`),
+        }),
       },
     }),
     publisher: {
@@ -158,9 +163,9 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           {authorName && (
             <>
               <span>&middot;</span>
-              {authorSlug ? (
+              {authorProfile ? (
                 <Link
-                  href={`/blog/authors/${authorSlug}`}
+                  href={`/blog/authors/${authorProfile.slug}`}
                   className="font-medium text-cdcf-navy transition-colors hover:text-cdcf-gold"
                 >
                   {authorName}

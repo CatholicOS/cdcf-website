@@ -2,8 +2,12 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { setRequestLocale, getTranslations } from 'next-intl/server'
-import { getAuthorProfile, getPostsByAuthor } from '@/lib/wordpress/api'
-import { bioParagraphs } from '@/lib/author-profile'
+import {
+  getAuthorByDerivedSlug,
+  getPostsByAuthor,
+  getTeamMemberProfile,
+} from '@/lib/wordpress/api'
+import { bioParagraphs, resolveAuthorProfile } from '@/lib/author-profile'
 import { Link } from '@/src/i18n/navigation'
 import BlogFeed from '@/components/sections/BlogFeed'
 import SocialLinks from '@/components/blog/SocialLinks'
@@ -24,15 +28,16 @@ export async function generateMetadata({
   params,
 }: AuthorPageProps): Promise<Metadata> {
   const { lang, slug } = await params
-  const profile = await getAuthorProfile(slug, lang)
-  if (!profile) return {}
+  const author = await getAuthorByDerivedSlug(slug)
+  if (!author) return {}
 
+  const profile = resolveAuthorProfile(author, null)
   const description = bioParagraphs(profile.bioHtml).join(' ').slice(0, 160)
 
   return {
     title: profile.name,
     description: description || undefined,
-    alternates: { canonical: absoluteUrl(lang, `blog/authors/${slug}`) },
+    alternates: { canonical: absoluteUrl(lang, `blog/authors/${profile.slug}`) },
   }
 }
 
@@ -40,19 +45,29 @@ export default async function AuthorPage({ params }: AuthorPageProps) {
   const { lang, slug } = await params
   setRequestLocale(lang)
 
-  const [profile, t] = await Promise.all([
-    getAuthorProfile(slug, lang),
+  const [author, t] = await Promise.all([
+    getAuthorByDerivedSlug(slug),
     getTranslations('authors'),
   ])
 
-  if (!profile) {
+  if (!author) {
     notFound()
   }
 
-  const posts = await getPostsByAuthor(slug, lang, 50)
+  const teamMemberId =
+    author.authorProfile?.authorTeamMember?.nodes?.[0]?.databaseId ?? null
+  // author.slug is the WP nicename — the key the posts query filters on.
+  const [teamMember, posts] = await Promise.all([
+    teamMemberId
+      ? getTeamMemberProfile(teamMemberId, lang)
+      : Promise.resolve(null),
+    getPostsByAuthor(author.slug, lang, 50),
+  ])
+
+  const profile = resolveAuthorProfile(author, teamMember)
   const paragraphs = bioParagraphs(profile.bioHtml)
 
-  const authorUrl = absoluteUrl(lang, `blog/authors/${slug}`)
+  const authorUrl = absoluteUrl(lang, `blog/authors/${profile.slug}`)
   const sameAs = [
     profile.links.website,
     profile.links.linkedin,

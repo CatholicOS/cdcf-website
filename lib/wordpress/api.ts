@@ -27,7 +27,7 @@ import type {
   WPSponsor,
   WPTeamMember,
 } from './types'
-import { resolveAuthorProfile, type AuthorProfile } from '../author-profile'
+import { deriveAuthorSlug, resolveAuthorProfile, type AuthorProfile } from '../author-profile'
 
 interface FetchOptions {
   tags?: string[]
@@ -242,6 +242,24 @@ export async function getAuthorProfile(
     : null
 
   return resolveAuthorProfile(author, teamMember)
+}
+
+/**
+ * Find an author by their *derived* (display-name) slug, used by the author
+ * page. WPGraphQL can't look users up by a derived slug, so we match it against
+ * the author list; the WP nicename is accepted as a fallback so any pre-existing
+ * links still resolve. Returns the WPAuthor (callers need its nicename to fetch
+ * the author's posts) or null when no author matches.
+ */
+export async function getAuthorByDerivedSlug(
+  slug: string
+): Promise<WPAuthor | null> {
+  const authors = await getAuthors()
+  return (
+    authors.find((author) => deriveAuthorSlug(author) === slug) ??
+    authors.find((author) => author.slug === slug) ??
+    null
+  )
 }
 
 export async function getProjects(

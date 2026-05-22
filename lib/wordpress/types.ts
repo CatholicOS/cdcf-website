@@ -159,6 +159,11 @@ export interface WPPost {
 // translated; core fields are the fallback. See lib/author-profile.ts.
 export interface WPAuthor {
   name: string
+  nickname: string | null
+  firstName: string | null
+  lastName: string | null
+  /** WordPress user_nicename. Used only for internal lookups — never rendered
+   *  in a public URL, since it can leak login info. See lib/author-profile.ts. */
   slug: string
   description: string | null
   url: string | null
