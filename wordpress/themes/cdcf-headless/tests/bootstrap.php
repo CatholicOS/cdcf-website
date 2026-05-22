@@ -109,6 +109,7 @@ require_once __DIR__ . '/../includes/handlers/community-channel.php';
 require_once __DIR__ . '/../includes/handlers/local-group.php';
 require_once __DIR__ . '/../includes/handlers/academic-collaboration.php';
 require_once __DIR__ . '/../includes/handlers/update-disposable-domains.php';
+require_once __DIR__ . '/../includes/handlers/translate.php';
 
 // Shared base class for the three Community-page handler tests. PHPUnit
 // doesn't autoload test files via PSR-4, so concrete subclasses can only
