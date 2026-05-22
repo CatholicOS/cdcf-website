@@ -239,7 +239,13 @@ final class TeamMemberHandlerTest extends TestCase
             ],
             $linked
         );
-        $this->assertSame([], $response->get_data()['errors']);
+        $data = $response->get_data();
+        $this->assertSame([], $data['errors']);
+        // All six About-page translations partitioned into updated_posts (#109).
+        $this->assertSame([50, 51, 52, 53, 54, 55], $data['updated_posts']);
+        $this->assertSame([], $data['unchanged_posts']);
+        $this->assertSame([], $data['failed_posts']);
+        $this->assertTrue($data['success']);
     }
 
     public function test_about_council_appends_to_existing_relationship_without_duplicating(): void
@@ -629,10 +635,16 @@ final class TeamMemberHandlerTest extends TestCase
             'collab_post_id' => 900,
         ]);
 
-        cdcf_rest_create_team_member($req);
+        $response = cdcf_rest_create_team_member($req);
 
         // EN (900) skipped; the other five collab translations get linked.
         $this->assertSame([901, 902, 903, 904, 905], $linked);
+        // Partition: EN goes to unchanged_posts, the rest to updated_posts (#109).
+        $data = $response->get_data();
+        $this->assertSame([900], $data['unchanged_posts']);
+        $this->assertSame([901, 902, 903, 904, 905], $data['updated_posts']);
+        $this->assertSame([], $data['failed_posts']);
+        $this->assertTrue($data['success']);
     }
 
     public function test_about_council_skips_update_when_member_already_present(): void
@@ -662,10 +674,132 @@ final class TeamMemberHandlerTest extends TestCase
 
         $req = $this->makeRequest(['council' => 'team_members']);
 
-        cdcf_rest_create_team_member($req);
+        $response = cdcf_rest_create_team_member($req);
 
         // EN (90) is skipped because the member already exists in the
         // relationship; the other five languages get the update.
         $this->assertSame([91, 92, 93, 94, 95], $linked);
+        $data = $response->get_data();
+        $this->assertSame([90], $data['unchanged_posts']);
+        $this->assertSame([91, 92, 93, 94, 95], $data['updated_posts']);
+        $this->assertTrue($data['success']);
+    }
+
+    // ─── Write-failure tracking (#109) ────────────────────────────────
+
+    public function test_council_loop_records_failed_posts_when_update_field_returns_false(): void
+    {
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(2000);
+
+        Functions\when('get_pages')->justReturn([(object) ['ID' => 100]]);
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 100, 'it' => 101, 'es' => 102, 'fr' => 103, 'pt' => 104, 'de' => 105,
+        ]);
+        Functions\when('get_field')->justReturn([]);
+        // Every council-loop update_field fails. Setup writes don't fire
+        // because the request omits member_title etc.
+        Functions\when('update_field')->justReturn(false);
+        $this->allowAllFunctionsToExist();
+
+        $req = $this->makeRequest(['council' => 'team_members']);
+
+        $response = cdcf_rest_create_team_member($req);
+
+        $data = $response->get_data();
+        $this->assertSame([], $data['updated_posts']);
+        $this->assertCount(6, $data['failed_posts']);
+        $this->assertSame(
+            ['post_id' => 100, 'reason' => 'update_field returned false'],
+            $data['failed_posts'][0]
+        );
+        // Any failed post in the loop tips success false (#109).
+        $this->assertFalse($data['success']);
+    }
+
+    public function test_setup_update_field_failure_records_error_in_response(): void
+    {
+        // Setup writes target the English post (en_post_id) and are
+        // field-level — per the #109 contract they surface in errors[]
+        // (string messages) rather than failed_posts (per-post tracking).
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(2100);
+        // member_role fails; the other three setup writes succeed.
+        Functions\when('update_field')->alias(
+            static fn(string $field): bool => $field !== 'member_role'
+        );
+        $this->allowAllFunctionsToExist();
+
+        $req = $this->makeRequest([
+            'member_title'        => 'AI Specialist',
+            'member_role'         => 'Engineer',
+            'member_linkedin_url' => 'https://linkedin.com/in/x',
+            'member_github_url'   => 'https://github.com/x',
+        ]);
+
+        $response = cdcf_rest_create_team_member($req);
+
+        $data = $response->get_data();
+        $this->assertContains(
+            'Failed to set member_role on English post.',
+            $data['errors']
+        );
+        // Any error in errors[] also tips success false (#109).
+        $this->assertFalse($data['success']);
+    }
+
+    public function test_set_post_thumbnail_failure_records_error_in_response(): void
+    {
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(2200);
+        Functions\when('set_post_thumbnail')->justReturn(false);
+        $this->allowAllFunctionsToExist();
+
+        $req = $this->makeRequest(['featured_image_id' => 12345]);
+
+        $response = cdcf_rest_create_team_member($req);
+
+        $data = $response->get_data();
+        $this->assertContains(
+            'Failed to set featured image on English post.',
+            $data['errors']
+        );
+        $this->assertFalse($data['success']);
+    }
+
+    public function test_mixed_outcomes_partition_council_loop_correctly(): void
+    {
+        // Three-way partition in one go: EN already present (unchanged),
+        // ES write fails (failed), the other four succeed (updated).
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(2300);
+
+        Functions\when('get_pages')->justReturn([(object) ['ID' => 110]]);
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 110, 'it' => 111, 'es' => 112, 'fr' => 113, 'pt' => 114, 'de' => 115,
+        ]);
+        // EN About page already lists member 2300; the others start empty.
+        Functions\when('get_field')->alias(
+            static fn(string $field, int $id) => $id === 110 ? [2300] : []
+        );
+        Functions\when('update_field')->alias(
+            static fn(string $field, array $value, int $about_id) => $about_id !== 112
+        );
+        $this->allowAllFunctionsToExist();
+
+        $req = $this->makeRequest(['council' => 'team_members']);
+
+        $response = cdcf_rest_create_team_member($req);
+
+        $data = $response->get_data();
+        $this->assertSame([111, 113, 114, 115], $data['updated_posts']);
+        $this->assertSame([110], $data['unchanged_posts']);
+        $this->assertSame(
+            [['post_id' => 112, 'reason' => 'update_field returned false']],
+            $data['failed_posts']
+        );
+        $this->assertFalse($data['success']);
     }
 }
