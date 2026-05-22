@@ -47,7 +47,12 @@ function cdcf_rest_update_disposable_domains(WP_REST_Request $request) {
     $tmp = $file . '.tmp.' . getmypid();
     $written = file_put_contents($tmp, $body);
     if ($written === false) {
-        @unlink($tmp); // nosemgrep: $tmp is a locally-constructed temp filename, not user input.
+        // file_put_contents may or may not have created the file
+        // depending on where it failed; guard the cleanup explicitly
+        // so unlink doesn't warn on a missing path.
+        if (file_exists($tmp)) {
+            unlink($tmp);
+        }
         return new WP_REST_Response([
             'success' => false,
             'error'   => 'Failed to write temp file',
@@ -57,17 +62,22 @@ function cdcf_rest_update_disposable_domains(WP_REST_Request $request) {
     // Flush to disk before renaming. Best-effort: fopen mode must allow
     // write access ('r+' rather than 'r') so fsync has a syncable stream
     // — on PHP 8.4 fsync() on a read-only handle emits a runtime warning.
-    // The @ suppresses the warning on filesystems that don't support
-    // fsync at all (e.g. tmpfs / WSL drvfs in dev); durability degrades
-    // gracefully to "whatever the OS decides to flush".
+    // Filesystems that don't support fsync at all (e.g. tmpfs / WSL
+    // drvfs in dev) also emit a warning; scope a no-op error handler
+    // around the call so durability degrades gracefully to "whatever
+    // the OS decides to flush" without polluting stderr.
     $fh = fopen($tmp, 'r+');
     if ($fh) {
-        @fsync($fh); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+        set_error_handler(static fn (): bool => true);
+        fsync($fh);
+        restore_error_handler();
         fclose($fh);
     }
 
     if (!rename($tmp, $file)) {
-        @unlink($tmp); // nosemgrep: $tmp is a locally-constructed temp filename, not user input.
+        if (file_exists($tmp)) {
+            unlink($tmp);
+        }
         return new WP_REST_Response([
             'success' => false,
             'error'   => 'Failed to rename temp file to disposable-domains.txt',
