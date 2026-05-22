@@ -760,72 +760,23 @@ add_action('rest_api_init', function () {
 // Downloads the latest disposable email domain blocklist from the
 // disposable-email-domains community list on GitHub and writes it to
 // the theme directory.
+//
+// Handler body lives in includes/handlers/update-disposable-domains.php
+// so it can be unit-tested in isolation (Brain Monkey + Mockery). The
+// target file path is read from the CDCF_DISPOSABLE_DOMAINS_FILE
+// constant so tests can redirect writes to a tmp path via the test
+// bootstrap.
+
+if (!defined('CDCF_DISPOSABLE_DOMAINS_FILE')) {
+    define('CDCF_DISPOSABLE_DOMAINS_FILE', __DIR__ . '/disposable-domains.txt');
+}
+
+require_once __DIR__ . '/includes/handlers/update-disposable-domains.php';
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/update-disposable-domains', [
         'methods'             => 'POST',
-        'callback'            => function () {
-            $url  = 'https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/master/disposable_email_blocklist.conf';
-            $file = __DIR__ . '/disposable-domains.txt';
-
-            $response = wp_remote_get($url, ['timeout' => 30]);
-            if (is_wp_error($response)) {
-                return new WP_REST_Response([
-                    'success' => false,
-                    'error'   => $response->get_error_message(),
-                ], 502);
-            }
-
-            $code = wp_remote_retrieve_response_code($response);
-            if ($code !== 200) {
-                return new WP_REST_Response([
-                    'success' => false,
-                    'error'   => "GitHub returned HTTP {$code}",
-                ], 502);
-            }
-
-            $body    = wp_remote_retrieve_body($response);
-            $domains = array_filter(array_map('trim', explode("\n", $body)));
-            $count   = count($domains);
-
-            if ($count < 100) {
-                return new WP_REST_Response([
-                    'success' => false,
-                    'error'   => "Downloaded list suspiciously small ({$count} domains), aborting.",
-                ], 422);
-            }
-
-            $tmp = $file . '.tmp.' . getmypid();
-            $written = file_put_contents($tmp, $body);
-            if ($written === false) {
-                @unlink($tmp); // nosemgrep: $tmp is a locally-constructed temp filename, not user input.
-                return new WP_REST_Response([
-                    'success' => false,
-                    'error'   => 'Failed to write temp file',
-                ], 500);
-            }
-
-            // Flush to disk before renaming.
-            $fh = fopen($tmp, 'r');
-            if ($fh) {
-                fsync($fh);
-                fclose($fh);
-            }
-
-            if (!rename($tmp, $file)) {
-                @unlink($tmp); // nosemgrep: $tmp is a locally-constructed temp filename, not user input.
-                return new WP_REST_Response([
-                    'success' => false,
-                    'error'   => 'Failed to rename temp file to disposable-domains.txt',
-                ], 500);
-            }
-
-            return rest_ensure_response([
-                'success' => true,
-                'domains' => $count,
-                'bytes'   => $written,
-            ]);
-        },
+        'callback'            => 'cdcf_rest_update_disposable_domains',
         'permission_callback' => function () {
             return current_user_can('edit_posts');
         },
