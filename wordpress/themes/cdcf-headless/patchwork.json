@@ -3,6 +3,8 @@
         "function_exists",
         "file_put_contents",
         "rename",
-        "checkdnsrr"
+        "checkdnsrr",
+        "sleep",
+        "error_log"
     ]
 }
