@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { setRequestLocale } from 'next-intl/server'
-import { getPage, getPostBySlug, getPosts, getProjects, getSponsors, getChildPages } from '@/lib/wordpress/api'
+import { getPage, getPagePreview, getPostBySlug, getPosts, getProjects, getSponsors, getChildPages } from '@/lib/wordpress/api'
+import { getPreviewTarget, previewMatchesSlug } from '@/lib/wordpress/preview'
 import PageRenderer from '@/components/sections/PageRenderer'
 
 interface PageProps {
@@ -26,7 +27,15 @@ export default async function CatchAllPage({ params }: PageProps) {
 
   const pageSlug = slug?.join('/') || '/'
 
-  const page = await getPage(pageSlug, lang)
+  // In a preview session for a page/CPT (anything but a blog post), render the
+  // draft by id; otherwise fall through to the normal published lookup.
+  const preview = await getPreviewTarget()
+  const usePreview =
+    !!preview && preview.type !== 'post' && previewMatchesSlug(preview, pageSlug)
+
+  const page = usePreview
+    ? await getPagePreview(preview.id)
+    : await getPage(pageSlug, lang)
 
   if (!page) {
     notFound()

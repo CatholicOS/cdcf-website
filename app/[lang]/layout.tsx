@@ -6,6 +6,7 @@ import { Inter, Merriweather, Playfair_Display } from 'next/font/google'
 import { locales } from '@/src/i18n/routing'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import PreviewBanner from '@/components/PreviewBanner'
 import '@/css/globals.css'
 
 const inter = Inter({
@@ -94,6 +95,7 @@ export default async function LangLayout({
     <html lang={lang} className={`${inter.variable} ${merriweather.variable} ${playfairDisplay.variable}`} suppressHydrationWarning>
       <body className="flex min-h-screen flex-col bg-white font-sans text-gray-900 antialiased">
         <NextIntlClientProvider messages={messages}>
+          <PreviewBanner />
           <Header />
           <main className="flex-1">{children}</main>
           <Footer />

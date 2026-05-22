@@ -3,7 +3,9 @@ import {
   GET_ACADEMIC_COLLABORATION_BY_SLUG,
   GET_ALL_PAGES,
   GET_CHILD_PAGES,
+  GET_PAGE_BY_ID,
   GET_PAGE_BY_SLUG,
+  GET_POST_BY_ID,
   GET_POST_BY_SLUG,
   GET_POSTS,
   GET_POSTS_FOR_SITEMAP,
@@ -83,6 +85,44 @@ export async function getPostBySlug(
     return null
   } catch (error) {
     console.error('Failed to fetch post:', error)
+    return null
+  }
+}
+
+/**
+ * Fetch a page by database id with draft auth, for preview rendering.
+ * Returns the exact post being edited (no translation fallback) including
+ * unpublished drafts. See lib/wordpress/preview.ts.
+ */
+export async function getPagePreview(id: number): Promise<WPPage | null> {
+  try {
+    const data = await wpQuery<{ page: WPPage | null }>(
+      GET_PAGE_BY_ID,
+      { id: String(id) },
+      { draft: true }
+    )
+    return data.page ?? null
+  } catch (error) {
+    console.error('Failed to fetch page preview:', error)
+    return null
+  }
+}
+
+/**
+ * Fetch a post by database id with draft auth, for preview rendering.
+ * Returns the exact post being edited (no translation fallback) including
+ * unpublished drafts. See lib/wordpress/preview.ts.
+ */
+export async function getPostPreview(id: number): Promise<WPPost | null> {
+  try {
+    const data = await wpQuery<{ post: WPPost | null }>(
+      GET_POST_BY_ID,
+      { id: String(id) },
+      { draft: true }
+    )
+    return data.post ?? null
+  } catch (error) {
+    console.error('Failed to fetch post preview:', error)
     return null
   }
 }

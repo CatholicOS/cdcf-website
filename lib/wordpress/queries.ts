@@ -190,6 +190,121 @@ const SPONSOR_FIELDS = `
   }
 `
 
+// ─── Page fields ─────────────────────────────────────────────────────
+// Shared by the public slug query (under `translation`) and the by-id
+// preview query, so both render through the same PageRenderer pipeline.
+
+const PAGE_FIELDS = `
+  databaseId
+  title
+  slug
+  content
+  template {
+    templateName
+  }
+  ${HERO_FRAGMENT}
+  ${CTA_FRAGMENT}
+  aboutFields {
+    teamMembers(first: 50) {
+      nodes {
+        ... on TeamMember {
+          ${TEAM_MEMBER_FIELDS}
+        }
+      }
+    }
+    ecclesialCouncil(first: 50) {
+      nodes {
+        ... on TeamMember {
+          ${TEAM_MEMBER_FIELDS}
+        }
+      }
+    }
+    technicalCouncil(first: 50) {
+      nodes {
+        ... on TeamMember {
+          ${TEAM_MEMBER_FIELDS}
+        }
+      }
+    }
+    governanceColumns
+  }
+  projectsPageFields {
+    showFilters
+    gridColumns
+    communityProjects(first: 50) {
+      nodes {
+        ... on CommunityProject {
+          ${COMMUNITY_PROJECT_FIELDS}
+        }
+      }
+    }
+  }
+  communityFields {
+    channels(first: 50) {
+      nodes {
+        ... on CommunityChannel {
+          ${CHANNEL_FIELDS}
+        }
+      }
+    }
+    localGroups(first: 50) {
+      nodes {
+        ... on LocalGroup {
+          ${LOCAL_GROUP_FIELDS}
+        }
+      }
+    }
+    members(first: 50) {
+      nodes {
+        ... on TeamMember {
+          ${TEAM_MEMBER_FIELDS}
+        }
+      }
+    }
+    academicCollaborations(first: 50) {
+      nodes {
+        ... on AcademicCollaboration {
+          ${ACADEMIC_COLLABORATION_CARD_FIELDS}
+        }
+      }
+    }
+  }
+  blogFields {
+    maxPosts
+  }
+  contactFields {
+    contactBody
+  }
+`
+
+// ─── Post fields ─────────────────────────────────────────────────────
+// Shared by the public slug query (under `translation`) and the by-id
+// preview query.
+
+const POST_FIELDS = `
+  databaseId
+  title
+  slug
+  date
+  content
+  excerpt
+  featuredImage {
+    node {
+      ${IMAGE_FRAGMENT}
+    }
+  }
+  author {
+    node {
+      name
+    }
+  }
+  tags {
+    nodes {
+      name
+    }
+  }
+`
+
 // ─── Page query ──────────────────────────────────────────────────────
 
 export const GET_PAGE_BY_SLUG = `
@@ -202,87 +317,28 @@ export const GET_PAGE_BY_SLUG = `
         templateName
       }
       translation(language: $language) {
-        databaseId
-        title
-        slug
-        content
-        template {
-          templateName
-        }
-        ${HERO_FRAGMENT}
-        ${CTA_FRAGMENT}
-        aboutFields {
-          teamMembers(first: 50) {
-            nodes {
-              ... on TeamMember {
-                ${TEAM_MEMBER_FIELDS}
-              }
-            }
-          }
-          ecclesialCouncil(first: 50) {
-            nodes {
-              ... on TeamMember {
-                ${TEAM_MEMBER_FIELDS}
-              }
-            }
-          }
-          technicalCouncil(first: 50) {
-            nodes {
-              ... on TeamMember {
-                ${TEAM_MEMBER_FIELDS}
-              }
-            }
-          }
-          governanceColumns
-        }
-        projectsPageFields {
-          showFilters
-          gridColumns
-          communityProjects(first: 50) {
-            nodes {
-              ... on CommunityProject {
-                ${COMMUNITY_PROJECT_FIELDS}
-              }
-            }
-          }
-        }
-        communityFields {
-          channels(first: 50) {
-            nodes {
-              ... on CommunityChannel {
-                ${CHANNEL_FIELDS}
-              }
-            }
-          }
-          localGroups(first: 50) {
-            nodes {
-              ... on LocalGroup {
-                ${LOCAL_GROUP_FIELDS}
-              }
-            }
-          }
-          members(first: 50) {
-            nodes {
-              ... on TeamMember {
-                ${TEAM_MEMBER_FIELDS}
-              }
-            }
-          }
-          academicCollaborations(first: 50) {
-            nodes {
-              ... on AcademicCollaboration {
-                ${ACADEMIC_COLLABORATION_CARD_FIELDS}
-              }
-            }
-          }
-        }
-        blogFields {
-          maxPosts
-        }
-        contactFields {
-          contactBody
-        }
+        ${PAGE_FIELDS}
       }
+    }
+  }
+`
+
+// ─── Preview queries (by database id, draft-capable) ─────────────────
+// Drafts have no public URI/slug until first publish, so preview must
+// look posts up by database id with an authenticated request.
+
+export const GET_PAGE_BY_ID = `
+  query GetPageById($id: ID!) {
+    page(id: $id, idType: DATABASE_ID) {
+      ${PAGE_FIELDS}
+    }
+  }
+`
+
+export const GET_POST_BY_ID = `
+  query GetPostById($id: ID!) {
+    post(id: $id, idType: DATABASE_ID) {
+      ${POST_FIELDS}
     }
   }
 `
@@ -361,26 +417,7 @@ export const GET_POST_BY_SLUG = `
   query GetPostBySlug($slug: ID!, $language: LanguageCodeEnum!) {
     post(id: $slug, idType: SLUG) {
       translation(language: $language) {
-        title
-        slug
-        date
-        content
-        excerpt
-        featuredImage {
-          node {
-            ${IMAGE_FRAGMENT}
-          }
-        }
-        author {
-          node {
-            name
-          }
-        }
-        tags {
-          nodes {
-            name
-          }
-        }
+        ${POST_FIELDS}
       }
     }
   }

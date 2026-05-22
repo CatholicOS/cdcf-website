@@ -19,8 +19,20 @@ export async function wpQuery<T = unknown>(
     'Content-Type': 'application/json',
   }
 
-  if (draft && token) {
-    headers['Authorization'] = `Bearer ${token}`
+  // Draft/preview requests must authenticate so WPGraphQL returns
+  // unpublished content. An explicit bearer token wins; otherwise fall back
+  // to the server-only WordPress Application Password (Basic auth). The
+  // theme opts the /graphql endpoint into app-password auth via the
+  // `application_password_is_api_request` filter.
+  if (draft) {
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    } else if (process.env.WP_APP_USERNAME && process.env.WP_APP_PASSWORD) {
+      const creds = Buffer.from(
+        `${process.env.WP_APP_USERNAME}:${process.env.WP_APP_PASSWORD}`
+      ).toString('base64')
+      headers['Authorization'] = `Basic ${creds}`
+    }
   }
 
   const res = await fetch(GRAPHQL_URL, {

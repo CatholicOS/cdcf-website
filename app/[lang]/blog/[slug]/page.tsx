@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { setRequestLocale, getTranslations } from 'next-intl/server'
-import { getPostBySlug } from '@/lib/wordpress/api'
+import { getPostBySlug, getPostPreview } from '@/lib/wordpress/api'
+import { getPreviewTarget, previewMatchesSlug } from '@/lib/wordpress/preview'
 import { stripHtml } from '@/lib/strip-html'
 import { Link } from '@/src/i18n/navigation'
 import ShareButtons from '@/components/blog/ShareButtons'
@@ -58,8 +59,14 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { lang, slug } = await params
   setRequestLocale(lang)
 
+  // In a preview session, render the draft post by id (it may have no usable
+  // slug yet); otherwise fall through to the normal published lookup.
+  const preview = await getPreviewTarget()
+  const usePreview =
+    preview?.type === 'post' && previewMatchesSlug(preview, slug)
+
   const [post, t] = await Promise.all([
-    getPostBySlug(slug, lang),
+    usePreview ? getPostPreview(preview.id) : getPostBySlug(slug, lang),
     getTranslations('blog'),
   ])
 

@@ -2419,17 +2419,41 @@ add_filter('preview_post_link', function ($preview_link, $post) {
         ? CDCF_PREVIEW_SECRET
         : '';
 
-    $slug = $post->post_name;
-    $type = $post->post_type;
+    // Polylang language (slug form, e.g. "en", "it"); empty if Polylang is off.
+    $lang = function_exists('pll_get_post_language')
+        ? pll_get_post_language($post->ID, 'slug')
+        : '';
 
-    return sprintf(
-        '%s/api/preview?secret=%s&slug=%s&type=%s',
-        $frontend,
-        urlencode($secret),
-        urlencode($slug),
-        urlencode($type)
+    // Pass the database id, not just the slug: a never-published draft has no
+    // post_name yet, but the frontend can always resolve it by id.
+    return add_query_arg(
+        [
+            'secret' => $secret,
+            'id'     => $post->ID,
+            'type'   => $post->post_type,
+            'slug'   => $post->post_name,
+            'lang'   => $lang,
+        ],
+        $frontend . '/api/preview'
     );
 }, 10, 2);
+
+// ─── Application Password auth for WPGraphQL ─────────────────────────
+// WordPress core only honours Application Passwords on requests it considers
+// "API requests" (REST and XML-RPC). WPGraphQL's /graphql endpoint is neither,
+// so without this the headless frontend cannot authenticate to fetch draft /
+// preview content. Opt /graphql in so Basic-auth app passwords work there too.
+add_filter('application_password_is_api_request', function ($is_api_request) {
+    if ($is_api_request) {
+        return true;
+    }
+
+    $uri = isset($_SERVER['REQUEST_URI'])
+        ? wp_unslash($_SERVER['REQUEST_URI'])
+        : '';
+
+    return is_string($uri) && strpos($uri, '/graphql') !== false;
+});
 
 // ─── Theme setup ─────────────────────────────────────────────────────
 
