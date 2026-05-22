@@ -32,7 +32,11 @@ concurrency:
 
 jobs:
   bats:
-    runs-on: ubuntu-latest
+    # Pinned to 22.04 because kcov was dropped from Ubuntu noble (24.04)
+    # universe. When 22.04 retires, either switch back to ubuntu-latest
+    # and build kcov from source (~1-2 min overhead) or pick up a future
+    # runner image that ships kcov preinstalled.
+    runs-on: ubuntu-22.04
     continue-on-error: true
 
     steps:
