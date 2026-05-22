@@ -146,13 +146,49 @@ final class UpdateDisposableDomainsHandlerTest extends TestCase
 
     // ─── Filesystem failure paths ─────────────────────────────────
     //
-    // The "Failed to write temp file" and "Failed to rename" branches
-    // are defensive guards around file_put_contents() and rename().
-    // Testing them cleanly would require either Patchwork's
-    // redefinable-internals (to stub the PHP built-ins) or a separate
-    // process to redefine CDCF_DISPOSABLE_DOMAINS_FILE to an unwritable
-    // location. Given they're simple two-line error-response branches
-    // around well-understood PHP behavior, the test-infrastructure
-    // cost outweighs the coverage gain. Tracked for follow-up if the
-    // numbers ever matter enough.
+    // file_put_contents and rename are listed in patchwork.json's
+    // redefinable-internals so Brain Monkey can stub them in here.
+
+    public function test_returns_500_when_file_put_contents_fails(): void
+    {
+        $body = $this->bodyWithDomains(150);
+        Functions\when('is_wp_error')->alias(static fn($v): bool => $v instanceof WP_Error);
+        Functions\when('wp_remote_get')->justReturn(['response_stub' => true]);
+        Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
+        Functions\when('wp_remote_retrieve_body')->justReturn($body);
+        Functions\when('file_put_contents')->justReturn(false);
+        // rename must not be reached — if file_put_contents fails, the
+        // handler should bail out before attempting the rename.
+        Functions\expect('rename')->never();
+
+        $response = cdcf_rest_update_disposable_domains($this->makeRequest());
+
+        $this->assertInstanceOf(WP_REST_Response::class, $response);
+        $this->assertSame(500, $response->get_status());
+        $data = $response->get_data();
+        $this->assertFalse($data['success']);
+        $this->assertSame('Failed to write temp file', $data['error']);
+    }
+
+    public function test_returns_500_when_rename_fails(): void
+    {
+        $body = $this->bodyWithDomains(150);
+        Functions\when('is_wp_error')->alias(static fn($v): bool => $v instanceof WP_Error);
+        Functions\when('wp_remote_get')->justReturn(['response_stub' => true]);
+        Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
+        Functions\when('wp_remote_retrieve_body')->justReturn($body);
+        // Let file_put_contents run for real so the .tmp.* file exists
+        // when the cleanup branch tries to unlink it.
+        Functions\when('rename')->justReturn(false);
+
+        $response = cdcf_rest_update_disposable_domains($this->makeRequest());
+
+        $this->assertSame(500, $response->get_status());
+        $this->assertSame(
+            'Failed to rename temp file to disposable-domains.txt',
+            $response->get_data()['error']
+        );
+        // Cleanup ran — the .tmp.* sibling shouldn't still be sitting around.
+        $this->assertEmpty(glob(CDCF_DISPOSABLE_DOMAINS_FILE . '.tmp.*'));
+    }
 }
