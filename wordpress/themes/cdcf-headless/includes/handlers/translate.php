@@ -29,6 +29,11 @@ function cdcf_rest_translate(WP_REST_Request $request) {
         return new WP_Error('polylang_missing', 'Polylang is not active.', ['status' => 500]);
     }
 
+    // String messages for any best-effort side-effect writes that fail
+    // after the translation post has been created. The primary success
+    // signal (post_id + enqueued queue) is unchanged — see #109.
+    $errors = [];
+
     // Resolve or auto-create translation post.
     if (!$post_id) {
         $source = get_post($source_id);
@@ -66,13 +71,18 @@ function cdcf_rest_translate(WP_REST_Request $request) {
             }
 
             if ($source->post_type === 'attachment') {
+                // Best-effort copy of attachment plumbing meta to the
+                // new translation post. update_post_meta() returns false
+                // on real persistence failure — surface in errors[] so
+                // the client can detect that the translation post will
+                // be missing its source file pointer (#109).
                 $attached_file = get_post_meta($source_id, '_wp_attached_file', true);
-                if ($attached_file) {
-                    update_post_meta($post_id, '_wp_attached_file', $attached_file);
+                if ($attached_file && !update_post_meta($post_id, '_wp_attached_file', $attached_file)) {
+                    $errors[] = 'Failed to copy _wp_attached_file to translation post.';
                 }
                 $attachment_meta = get_post_meta($source_id, '_wp_attachment_metadata', true);
-                if ($attachment_meta) {
-                    update_post_meta($post_id, '_wp_attachment_metadata', $attachment_meta);
+                if ($attachment_meta && !update_post_meta($post_id, '_wp_attachment_metadata', $attachment_meta)) {
+                    $errors[] = 'Failed to copy _wp_attachment_metadata to translation post.';
                 }
             }
 
@@ -98,5 +108,6 @@ function cdcf_rest_translate(WP_REST_Request $request) {
         'post_id' => $post_id,
         'queue'   => $queue,
         'message' => 'Translation queued.',
+        'errors'  => $errors,
     ], 202);
 }
