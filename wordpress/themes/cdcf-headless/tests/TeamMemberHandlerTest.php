@@ -601,6 +601,40 @@ final class TeamMemberHandlerTest extends TestCase
 
     // ─── Idempotency: existing member must not be re-appended ─────
 
+    public function test_academic_council_skips_update_when_member_already_present(): void
+    {
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(1600);
+
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 900, 'it' => 901, 'es' => 902, 'fr' => 903, 'pt' => 904, 'de' => 905,
+        ]);
+        // EN collab post already lists member 1600; the other languages
+        // start empty. The handler should skip update_field for EN.
+        Functions\when('get_field')->alias(
+            static fn(string $field, int $id) => $id === 900 ? [1600] : []
+        );
+
+        $linked = [];
+        Functions\when('update_field')->alias(
+            function (string $field, array $value, int $collab_id) use (&$linked): bool {
+                $linked[] = $collab_id;
+                return true;
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        $req = $this->makeRequest([
+            'council'        => 'academic_council',
+            'collab_post_id' => 900,
+        ]);
+
+        cdcf_rest_create_team_member($req);
+
+        // EN (900) skipped; the other five collab translations get linked.
+        $this->assertSame([901, 902, 903, 904, 905], $linked);
+    }
+
     public function test_about_council_skips_update_when_member_already_present(): void
     {
         $this->stubCommonFunctions();
