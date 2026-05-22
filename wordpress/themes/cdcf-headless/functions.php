@@ -867,7 +867,7 @@ function cdcf_is_disposable_email(string $email): bool {
 
     static $domains = null;
     if ($domains === null) {
-        $file = __DIR__ . '/disposable-domains.txt';
+        $file = CDCF_DISPOSABLE_DOMAINS_FILE;
         if (!file_exists($file)) {
             return false;
         }
