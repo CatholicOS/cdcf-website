@@ -54,11 +54,16 @@ final class AcademicCollaborationHandlerTest extends CommunityHandlerTestBase
             'en' => 50, 'it' => 51, 'es' => 52, 'fr' => 53, 'pt' => 54, 'de' => 55,
         ]);
 
+        // Record EVERY invocation, not just the last per key — using
+        // $optionalWrites[$field] = ... would silently mask a regression
+        // where the handler calls update_field for the same field more
+        // than once (e.g. by also writing it inside the translation
+        // loop). Asserting on a list of writes per key catches that.
         $optionalWrites = [];
         Functions\when('update_field')->alias(
             function (string $field, $value, int $post_id) use (&$optionalWrites): bool {
                 if (in_array($field, ['collab_department', 'collab_location', 'collab_website_url'], true)) {
-                    $optionalWrites[$field] = [$value, $post_id];
+                    $optionalWrites[$field][] = [$value, $post_id];
                 }
                 return true;
             }
@@ -71,12 +76,12 @@ final class AcademicCollaborationHandlerTest extends CommunityHandlerTestBase
             'collab_website_url' => 'https://nd.edu/cdcf',
         ]));
 
-        // All three optional fields written exactly once, on the EN post.
+        // Each optional field written exactly once, on the EN post.
         $this->assertSame(
             [
-                'collab_department'  => ['McGrath Institute', 3000],
-                'collab_location'    => ['Notre Dame, IN', 3000],
-                'collab_website_url' => ['https://nd.edu/cdcf', 3000],
+                'collab_department'  => [['McGrath Institute', 3000]],
+                'collab_location'    => [['Notre Dame, IN', 3000]],
+                'collab_website_url' => [['https://nd.edu/cdcf', 3000]],
             ],
             $optionalWrites
         );
