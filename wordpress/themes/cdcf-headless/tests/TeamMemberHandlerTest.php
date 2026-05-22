@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Brain\Monkey;
 use Brain\Monkey\Functions;
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -348,5 +350,229 @@ final class TeamMemberHandlerTest extends TestCase
             'academic_council requires collab_post_id parameter.',
             $response->get_data()['errors']
         );
+    }
+
+    // ─── Meta + asset side-effects on the English post ────────────
+
+    public function test_writes_member_meta_fields_when_provided(): void
+    {
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(700);
+
+        $metaWrites = [];
+        Functions\when('update_field')->alias(
+            function (string $field, $value, int $post_id) use (&$metaWrites): bool {
+                $metaWrites[] = [$field, $value, $post_id];
+                return true;
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        $req = $this->makeRequest([
+            'member_title'        => 'AI Specialist',
+            'member_role'         => 'Engineer',
+            'member_linkedin_url' => 'https://linkedin.com/in/jane',
+            'member_github_url'   => 'https://github.com/jane',
+        ]);
+
+        cdcf_rest_create_team_member($req);
+
+        // Only the four meta fields should be written, all targeting the
+        // English post ID. No relationship-linking writes because no
+        // council was provided.
+        $this->assertSame(
+            [
+                ['member_title',        'AI Specialist',                700],
+                ['member_role',         'Engineer',                     700],
+                ['member_linkedin_url', 'https://linkedin.com/in/jane', 700],
+                ['member_github_url',   'https://github.com/jane',      700],
+            ],
+            $metaWrites
+        );
+    }
+
+    public function test_sets_featured_image_when_provided(): void
+    {
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(800);
+        Functions\expect('set_post_thumbnail')->once()->with(800, 12345);
+        $this->allowAllFunctionsToExist();
+
+        $req = $this->makeRequest(['featured_image_id' => 12345]);
+
+        $response = cdcf_rest_create_team_member($req);
+
+        // PHPUnit strict mode treats Mockery expectations as
+        // not-an-assertion; pin the response sanity-check explicitly so
+        // the test isn't flagged risky.
+        $this->assertInstanceOf(WP_REST_Response::class, $response);
+        $this->assertSame(800, $response->get_data()['en_post_id']);
+    }
+
+    // ─── Translation-loop edge cases ──────────────────────────────
+
+    public function test_translation_insert_failure_records_error_and_continues(): void
+    {
+        $this->stubCommonFunctions();
+        // First call (EN post) succeeds; second call (it translation)
+        // fails returning 0; remaining four translations succeed.
+        $calls = 0;
+        $ids = [900, 0, 901, 902, 903, 904];
+        Functions\when('wp_insert_post')->alias(function () use (&$calls, $ids): int {
+            return $ids[$calls++];
+        });
+        $this->allowAllFunctionsToExist();
+
+        $req = $this->makeRequest([]);
+
+        $response = cdcf_rest_create_team_member($req);
+
+        $data = $response->get_data();
+        $this->assertContains('it: Failed to create translation post.', $data['errors']);
+        // EN + 4 successful translations; `it` is dropped from the map.
+        $this->assertArrayNotHasKey('it', $data['translations']);
+        $this->assertSame(900, $data['translations']['en']);
+        $this->assertSame(901, $data['translations']['es']);
+    }
+
+    /**
+     * Runs in a separate process so cdcf_enqueue_translation is NOT
+     * already eval-declared by an earlier test's stubCommonFunctions().
+     * Brain Monkey caches its eval-declared functions in PHP's symbol
+     * table for the rest of the process, which would make the
+     * "function_exists returns false" branch unreachable here otherwise.
+     */
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function test_falls_back_to_wp_cron_when_enqueue_helper_missing(): void
+    {
+        // Stub every function the handler probes via function_exists,
+        // EXCEPT cdcf_enqueue_translation. In a fresh process, PHP's
+        // native function_exists then returns true for the stubbed ones
+        // (Brain Monkey eval-declared them) and false for the missing
+        // one — no function_exists override needed. Overriding
+        // function_exists at all would re-introduce the chicken-and-egg
+        // problem of Brain Monkey skipping declarations.
+        Functions\when('is_wp_error')->alias(static fn($v): bool => $v instanceof WP_Error);
+        Functions\when('wp_kses_post')->returnArg(1);
+        Functions\when('sanitize_text_field')->returnArg(1);
+        Functions\when('pll_set_post_language')->justReturn(true);
+        Functions\when('pll_save_post_translations')->justReturn(true);
+        Functions\when('update_field')->justReturn(true);
+        Functions\when('get_field')->justReturn(false);
+        $this->stubInsertingPostsFrom(1000);
+        Functions\expect('wp_schedule_single_event')->times(5)->andReturn(true);
+        Functions\expect('spawn_cron')->times(5)->andReturnNull();
+
+        $req = $this->makeRequest([]);
+
+        $response = cdcf_rest_create_team_member($req);
+
+        $this->assertSame('wp-cron', $response->get_data()['queue']);
+    }
+
+    // ─── Missing-translation paths on both council branches ───────
+
+    public function test_about_council_skips_languages_without_translation(): void
+    {
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(1100);
+
+        Functions\when('get_pages')->justReturn([(object) ['ID' => 70]]);
+        Functions\when('pll_get_post_language')->justReturn('en');
+        // No `it` or `de` translation of the About page — those languages
+        // should be skipped with an error recorded, but EN/ES/FR/PT
+        // should still be linked.
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 70, 'es' => 72, 'fr' => 73, 'pt' => 74,
+        ]);
+        Functions\when('get_field')->justReturn([]);
+
+        $linked = [];
+        Functions\when('update_field')->alias(
+            function (string $field, array $value, int $about_id) use (&$linked): bool {
+                $linked[] = $about_id;
+                return true;
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        $req = $this->makeRequest(['council' => 'team_members']);
+
+        $response = cdcf_rest_create_team_member($req);
+
+        $errors = $response->get_data()['errors'];
+        $this->assertContains('it: No About page translation found.', $errors);
+        $this->assertContains('de: No About page translation found.', $errors);
+        // Exactly the four About pages with a known translation got linked.
+        $this->assertSame([70, 72, 73, 74], $linked);
+    }
+
+    public function test_academic_council_skips_languages_without_collab_translation(): void
+    {
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(1200);
+        // EN + IT translations exist; the other four are missing.
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 800, 'it' => 801,
+        ]);
+        Functions\when('get_field')->justReturn([]);
+
+        $linked = [];
+        Functions\when('update_field')->alias(
+            function (string $field, array $value, int $collab_id) use (&$linked): bool {
+                $linked[] = $collab_id;
+                return true;
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        $req = $this->makeRequest([
+            'council'        => 'academic_council',
+            'collab_post_id' => 800,
+        ]);
+
+        $response = cdcf_rest_create_team_member($req);
+
+        $errors = $response->get_data()['errors'];
+        $this->assertContains('es: No academic collaboration translation found.', $errors);
+        $this->assertContains('de: No academic collaboration translation found.', $errors);
+        $this->assertSame([800, 801], $linked);
+    }
+
+    // ─── Idempotency: existing member must not be re-appended ─────
+
+    public function test_about_council_skips_update_when_member_already_present(): void
+    {
+        $this->stubCommonFunctions();
+        $this->stubInsertingPostsFrom(1300);
+
+        Functions\when('get_pages')->justReturn([(object) ['ID' => 90]]);
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 90, 'it' => 91, 'es' => 92, 'fr' => 93, 'pt' => 94, 'de' => 95,
+        ]);
+        // EN About page already lists member 1300 (the about-to-be-inserted
+        // member); every other language starts empty.
+        Functions\when('get_field')->alias(
+            static fn(string $field, int $id) => $id === 90 ? [1300] : []
+        );
+
+        $linked = [];
+        Functions\when('update_field')->alias(
+            function (string $field, array $value, int $about_id) use (&$linked): bool {
+                $linked[] = $about_id;
+                return true;
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        $req = $this->makeRequest(['council' => 'team_members']);
+
+        cdcf_rest_create_team_member($req);
+
+        // EN (90) is skipped because the member already exists in the
+        // relationship; the other five languages get the update.
+        $this->assertSame([91, 92, 93, 94, 95], $linked);
     }
 }
