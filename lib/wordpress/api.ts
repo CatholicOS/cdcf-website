@@ -2,19 +2,32 @@ import { wpQuery } from './client'
 import {
   GET_ACADEMIC_COLLABORATION_BY_SLUG,
   GET_ALL_PAGES,
+  GET_AUTHORS,
+  GET_AUTHOR_BY_SLUG,
   GET_CHILD_PAGES,
   GET_PAGE_BY_ID,
   GET_PAGE_BY_SLUG,
   GET_POST_BY_ID,
   GET_POST_BY_SLUG,
   GET_POSTS,
+  GET_POSTS_BY_AUTHOR,
+  GET_TEAM_MEMBER_BY_ID,
   GET_POSTS_FOR_SITEMAP,
   GET_PROJECTS,
   GET_PROJECTS_FOR_SITEMAP,
   GET_PROJECT_BY_SLUG,
   GET_SPONSORS,
 } from './queries'
-import type { WPAcademicCollaboration, WPPage, WPPost, WPProject, WPSponsor } from './types'
+import type {
+  WPAcademicCollaboration,
+  WPAuthor,
+  WPPage,
+  WPPost,
+  WPProject,
+  WPSponsor,
+  WPTeamMember,
+} from './types'
+import { resolveAuthorProfile, type AuthorProfile } from '../author-profile'
 
 interface FetchOptions {
   tags?: string[]
@@ -142,6 +155,93 @@ export async function getPosts(
     console.error('Failed to fetch posts:', error)
     return []
   }
+}
+
+export async function getPostsByAuthor(
+  authorSlug: string,
+  locale: string,
+  count: number = 50
+): Promise<WPPost[]> {
+  try {
+    const data = await wpQuery<{ posts: { nodes: WPPost[] } }>(
+      GET_POSTS_BY_AUTHOR,
+      { authorName: authorSlug, language: langCode(locale), first: count }
+    )
+    return data.posts.nodes.filter((p) => !p.postSettings?.hideFromBlog)
+  } catch (error) {
+    console.error('Failed to fetch posts by author:', error)
+    return []
+  }
+}
+
+export async function getAuthorBySlug(slug: string): Promise<WPAuthor | null> {
+  try {
+    const data = await wpQuery<{ user: WPAuthor | null }>(GET_AUTHOR_BY_SLUG, {
+      slug,
+    })
+    return data.user ?? null
+  } catch (error) {
+    console.error('Failed to fetch author:', error)
+    return null
+  }
+}
+
+export async function getAuthors(): Promise<WPAuthor[]> {
+  try {
+    const data = await wpQuery<{ users: { nodes: WPAuthor[] } }>(GET_AUTHORS)
+    return data.users.nodes
+  } catch (error) {
+    console.error('Failed to fetch authors:', error)
+    return []
+  }
+}
+
+/** Translated team_member behind an author, with English fallback. */
+export async function getTeamMemberProfile(
+  id: number,
+  locale: string
+): Promise<WPTeamMember | null> {
+  try {
+    const data = await wpQuery<{
+      teamMember: { translation: WPTeamMember | null } | null
+    }>(GET_TEAM_MEMBER_BY_ID, { id: String(id), language: langCode(locale) })
+
+    const translated = data.teamMember?.translation ?? null
+    if (translated) return translated
+
+    if (locale !== 'en') {
+      const fallback = await wpQuery<{
+        teamMember: { translation: WPTeamMember | null } | null
+      }>(GET_TEAM_MEMBER_BY_ID, { id: String(id), language: 'EN' })
+      return fallback.teamMember?.translation ?? null
+    }
+
+    return null
+  } catch (error) {
+    console.error('Failed to fetch team member profile:', error)
+    return null
+  }
+}
+
+/**
+ * Resolved, locale-aware author profile: the WP user merged with their linked
+ * team_member (translated) when present. Returns null when the author does not
+ * exist. Used by both the article about-the-author card and the author page.
+ */
+export async function getAuthorProfile(
+  slug: string,
+  locale: string
+): Promise<AuthorProfile | null> {
+  const author = await getAuthorBySlug(slug)
+  if (!author) return null
+
+  const teamMemberId =
+    author.authorProfile?.authorTeamMember?.nodes?.[0]?.databaseId ?? null
+  const teamMember = teamMemberId
+    ? await getTeamMemberProfile(teamMemberId, locale)
+    : null
+
+  return resolveAuthorProfile(author, teamMember)
 }
 
 export async function getProjects(

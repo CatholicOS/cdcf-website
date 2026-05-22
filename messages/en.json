@@ -245,6 +245,16 @@
     "comments": "Comments",
     "commentsComingSoon": "Comments are coming soon."
   },
+  "authors": {
+    "title": "Authors",
+    "intro": "The people behind our articles.",
+    "aboutTheAuthor": "About the author",
+    "articlesBy": "Articles by {name}",
+    "viewProfile": "View profile",
+    "moreAuthors": "All authors",
+    "noArticles": "No articles yet.",
+    "noAuthors": "No authors yet."
+  },
   "fishEasterEgg": {
     "prompt": "Did you notice the fish in the net? Guess how many there are.",
     "placeholder": "Enter a number",

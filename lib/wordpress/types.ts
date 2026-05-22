@@ -136,12 +136,14 @@ export interface WPPost {
   title: string
   slug: string
   date: string
+  modified?: string
   content: string | null
   excerpt: string | null
   featuredImage: WPFeaturedImage | null
   author: {
     node: {
       name: string
+      slug: string
     }
   }
   tags: {
@@ -149,6 +151,20 @@ export interface WPPost {
   }
   postSettings: {
     hideFromBlog: boolean | null
+  } | null
+}
+
+// A WordPress user that authors posts. Profile data (photo, role, bio, social
+// links) is sourced from an optionally-linked team_member so it can be
+// translated; core fields are the fallback. See lib/author-profile.ts.
+export interface WPAuthor {
+  name: string
+  slug: string
+  description: string | null
+  url: string | null
+  avatar: { url: string | null } | null
+  authorProfile: {
+    authorTeamMember: { nodes: { databaseId: number }[] } | null
   } | null
 }
 

@@ -245,6 +245,16 @@
     "comments": "Comments",
     "commentsComingSoon": "Comments are coming soon."
   },
+  "authors": {
+    "title": "Autores",
+    "intro": "As pessoas por trás dos nossos artigos.",
+    "aboutTheAuthor": "Sobre o autor",
+    "articlesBy": "Artigos de {name}",
+    "viewProfile": "Ver perfil",
+    "moreAuthors": "Todos os autores",
+    "noArticles": "Ainda não há artigos.",
+    "noAuthors": "Ainda não há autores."
+  },
   "fishEasterEgg": {
     "prompt": "Você notou os peixes na rede? Adivinhe quantos são.",
     "placeholder": "Digite um número",

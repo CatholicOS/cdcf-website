@@ -286,6 +286,7 @@ const POST_FIELDS = `
   title
   slug
   date
+  modified
   content
   excerpt
   featuredImage {
@@ -296,11 +297,62 @@ const POST_FIELDS = `
   author {
     node {
       name
+      slug
     }
   }
   tags {
     nodes {
       name
+    }
+  }
+`
+
+// Lighter selection for post cards (blog listing, author archive).
+const POST_CARD_FIELDS = `
+  title
+  slug
+  date
+  content
+  excerpt
+  featuredImage {
+    node {
+      ${IMAGE_FRAGMENT}
+    }
+  }
+  author {
+    node {
+      name
+      slug
+    }
+  }
+  tags {
+    nodes {
+      name
+    }
+  }
+  postSettings {
+    hideFromBlog
+  }
+`
+
+// Author (WP user) fields. authorProfile is the ACF link to a team_member; it
+// only resolves once the theme's user field group is deployed, so it is kept
+// out of the public post queries to avoid coupling blog rendering to it.
+const AUTHOR_FIELDS = `
+  name
+  slug
+  description
+  url
+  avatar {
+    url
+  }
+  authorProfile {
+    authorTeamMember {
+      nodes {
+        ... on TeamMember {
+          databaseId
+        }
+      }
     }
   }
 `
@@ -349,29 +401,53 @@ export const GET_POSTS = `
   query GetPosts($language: LanguageCodeFilterEnum, $first: Int = 10) {
     posts(where: { language: $language }, first: $first) {
       nodes {
-        title
+        ${POST_CARD_FIELDS}
+      }
+    }
+  }
+`
+
+// ─── Posts by author (author archive) ───────────────────────────────
+
+export const GET_POSTS_BY_AUTHOR = `
+  query GetPostsByAuthor($authorName: String!, $language: LanguageCodeFilterEnum, $first: Int = 50) {
+    posts(where: { authorName: $authorName, language: $language }, first: $first) {
+      nodes {
+        ${POST_CARD_FIELDS}
+      }
+    }
+  }
+`
+
+// ─── Author queries ──────────────────────────────────────────────────
+// WPGraphQL only exposes users that have published posts to public requests,
+// which is exactly the set we want for author pages.
+
+export const GET_AUTHOR_BY_SLUG = `
+  query GetAuthorBySlug($slug: ID!) {
+    user(id: $slug, idType: SLUG) {
+      ${AUTHOR_FIELDS}
+    }
+  }
+`
+
+export const GET_AUTHORS = `
+  query GetAuthors {
+    users(where: { hasPublishedPosts: POST }, first: 100) {
+      nodes {
+        ${AUTHOR_FIELDS}
+      }
+    }
+  }
+`
+
+// Translated team_member profile behind an author, fetched by database id.
+export const GET_TEAM_MEMBER_BY_ID = `
+  query GetTeamMemberById($id: ID!, $language: LanguageCodeEnum!) {
+    teamMember(id: $id, idType: DATABASE_ID) {
+      translation(language: $language) {
         slug
-        date
-        content
-        excerpt
-        featuredImage {
-          node {
-            ${IMAGE_FRAGMENT}
-          }
-        }
-        author {
-          node {
-            name
-          }
-        }
-        tags {
-          nodes {
-            name
-          }
-        }
-        postSettings {
-          hideFromBlog
-        }
+        ${TEAM_MEMBER_FIELDS}
       }
     }
   }

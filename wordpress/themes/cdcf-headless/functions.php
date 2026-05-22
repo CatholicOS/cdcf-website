@@ -1779,6 +1779,37 @@ add_action('acf/init', function () {
         'graphql_field_name' => 'teamMemberFields',
     ]);
 
+    // ── Author Profile (User) Fields ──
+    // Links a WordPress user (an article author) to their Team Member entry so
+    // author pages reuse the team_member's translated bio (its content), photo
+    // (featured image), role, and social links across all locales. Optional —
+    // authors without a link fall back to core user fields (display name,
+    // Biographical Info, Gravatar).
+    acf_add_local_field_group([
+        'key'   => 'group_author_profile',
+        'title' => 'Author Profile',
+        'fields' => [
+            [
+                'key'          => 'field_author_team_member',
+                'label'        => 'Team Member Profile',
+                'name'         => 'author_team_member',
+                'type'         => 'relationship',
+                'instructions' => 'Optional. Link this author to their Team Member entry to show a translated bio, photo, role, and social links on their author page.',
+                'post_type'    => ['team_member'],
+                'max'          => 1,
+                'return_format' => 'object',
+                'show_in_graphql' => true,
+                'show_in_rest' => true,
+            ],
+        ],
+        'location' => [
+            [['param' => 'user_form', 'operator' => '==', 'value' => 'all']],
+        ],
+        'show_in_graphql' => true,
+        'graphql_field_name' => 'authorProfile',
+        'graphql_types' => ['User'],
+    ]);
+
     // ── Sponsor CPT Fields ──
 
     acf_add_local_field_group([
