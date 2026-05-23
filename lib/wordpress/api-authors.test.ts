@@ -156,6 +156,12 @@ describe('getTeamMemberProfile', () => {
     expect(await getTeamMemberProfile(7, 'en')).toBeNull()
     expect(wpQueryMock).toHaveBeenCalledTimes(1)
   })
+
+  it('returns null on error', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    wpQueryMock.mockRejectedValueOnce(new Error('x'))
+    expect(await getTeamMemberProfile(7, 'it')).toBeNull()
+  })
 })
 
 describe('getAuthorProfile', () => {
@@ -195,6 +201,19 @@ describe('preview fetchers', () => {
     const post = await getPostPreview(5)
     expect(post).toEqual({ databaseId: 5, title: 'Draft' })
     expect(wpQueryMock.mock.calls[0][1]).toEqual({ id: '5' })
+    expect(wpQueryMock.mock.calls[0][2]).toEqual({ draft: true })
+  })
+
+  it('getPostPreview returns null on error', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    wpQueryMock.mockRejectedValueOnce(new Error('x'))
+    expect(await getPostPreview(5)).toBeNull()
+  })
+
+  it('getPagePreview fetches by id with draft auth', async () => {
+    wpQueryMock.mockResolvedValueOnce({ page: { databaseId: 9, title: 'Draft Page' } })
+    const page = await getPagePreview(9)
+    expect(page).toEqual({ databaseId: 9, title: 'Draft Page' })
     expect(wpQueryMock.mock.calls[0][2]).toEqual({ draft: true })
   })
 
