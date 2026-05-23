@@ -170,6 +170,7 @@ require_once __DIR__ . '/../includes/handlers/submit-project.php';
 require_once __DIR__ . '/../includes/admin/team-member-council.php';
 require_once __DIR__ . '/../includes/admin/polylang-default-seed.php';
 require_once __DIR__ . '/../includes/admin/ai-translate.php';
+require_once __DIR__ . '/../includes/admin/submission-lifecycle.php';
 
 /**
  * Typed exceptions used by AjaxAiTranslateTest. wp_send_json_success /
