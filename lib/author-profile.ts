@@ -58,6 +58,19 @@ function decodeEntities(text: string): string {
     .replace(/&[a-z]+;/gi, (m) => named[m.toLowerCase()] ?? m)
 }
 
+/** Remove every HTML tag, looping until the string is stable. A single
+ *  `replace(/<[^>]*>/g, '')` is incomplete: overlapping/nested constructs such
+ *  as `<<x>>` can leave a tag behind, so we repeat until nothing changes. */
+function stripTags(html: string): string {
+  let out = html
+  let prev: string
+  do {
+    prev = out
+    out = out.replace(/<[^>]*>/g, '')
+  } while (out !== prev)
+  return out
+}
+
 /**
  * Bio markup split into plain-text paragraphs. Block boundaries become
  * paragraph breaks and remaining tags are stripped, so bios render without
@@ -65,12 +78,13 @@ function decodeEntities(text: string): string {
  */
 export function bioParagraphs(bioHtml: string | null): string[] {
   if (!bioHtml) return []
-  return decodeEntities(
-    bioHtml
-      .replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, '\n')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<[^>]*>/g, '')
-  )
+  // Decode entities FIRST so encoded markup (e.g. `&lt;script&gt;`) becomes
+  // real tags that get stripped, instead of surviving as literal text; then
+  // map block boundaries to newlines and strip all remaining tags.
+  const text = decodeEntities(bioHtml)
+    .replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+  return stripTags(text)
     .split(/\n+/)
     .map((s) => s.replace(/\s+/g, ' ').trim())
     .filter(Boolean)

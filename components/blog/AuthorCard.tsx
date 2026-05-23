@@ -14,7 +14,7 @@ export default function AuthorCard({ profile }: { profile: AuthorProfile }) {
       {profile.image ? (
         <Image
           src={profile.image.url}
-          alt={profile.image.alt}
+          alt={profile.image.alt || profile.name}
           width={96}
           height={96}
           className="h-24 w-24 rounded-full object-cover"

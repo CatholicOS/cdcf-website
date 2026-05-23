@@ -22,7 +22,7 @@ export default async function AuthorBio({ profile }: { profile: AuthorProfile })
         {profile.image && (
           <Image
             src={profile.image.url}
-            alt={profile.image.alt}
+            alt={profile.image.alt || profile.name}
             width={80}
             height={80}
             className="h-20 w-20 flex-shrink-0 rounded-full object-cover"

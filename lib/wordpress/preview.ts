@@ -33,7 +33,9 @@ export async function getPreviewTarget(): Promise<PreviewTarget | null> {
       slug?: unknown
     }
     const id = Number(parsed.id)
-    if (!id || typeof parsed.type !== 'string') return null
+    if (!Number.isInteger(id) || id <= 0 || typeof parsed.type !== 'string') {
+      return null
+    }
     return {
       id,
       type: parsed.type,

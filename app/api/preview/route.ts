@@ -2,6 +2,11 @@ import { cookies, draftMode } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { NextRequest } from 'next/server'
 import { PREVIEW_COOKIE, serializePreviewCookie } from '@/lib/wordpress/preview'
+import { locales } from '@/src/i18n/routing'
+
+// Only post/page have by-id preview support (mirrors the theme's
+// preview_post_link filter, which only rewrites these types).
+const PREVIEWABLE_TYPES = new Set(['post', 'page'])
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
@@ -9,7 +14,7 @@ export async function GET(request: NextRequest) {
   const id = searchParams.get('id')
   const type = searchParams.get('type') || 'post'
   const slug = searchParams.get('slug') || ''
-  const lang = searchParams.get('lang') || 'en'
+  const langParam = searchParams.get('lang') || 'en'
 
   if (secret !== process.env.WP_PREVIEW_SECRET) {
     return new Response('Invalid token', { status: 401 })
@@ -19,6 +24,21 @@ export async function GET(request: NextRequest) {
   if (!id || !Number.isInteger(postId) || postId <= 0) {
     return new Response('Invalid or missing post id', { status: 400 })
   }
+
+  if (!PREVIEWABLE_TYPES.has(type)) {
+    return new Response('Unsupported post type', { status: 400 })
+  }
+
+  // The slug is concatenated into the redirect path, so reject anything that
+  // could escape it into an absolute/protocol-relative (open-redirect) URL.
+  if (/^\/|\/\/|\\|:/.test(slug)) {
+    return new Response('Invalid slug', { status: 400 })
+  }
+
+  // Normalize the locale to a known one so the path prefix can't be spoofed.
+  const lang = (locales as readonly string[]).includes(langParam)
+    ? langParam
+    : 'en'
 
   const draft = await draftMode()
   draft.enable()

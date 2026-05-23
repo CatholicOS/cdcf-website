@@ -247,6 +247,10 @@
     "comments": "Comments",
     "commentsComingSoon": "Comments are coming soon."
   },
+  "preview": {
+    "banner": "Modo de vista previa: mostrando contenido de borrador no publicado.",
+    "exit": "Salir de la vista previa"
+  },
   "authors": {
     "title": "Autores",
     "intro": "Las personas detrás de nuestros artículos.",
@@ -255,7 +259,12 @@
     "viewProfile": "Ver perfil",
     "moreAuthors": "Todos los autores",
     "noArticles": "Aún no hay artículos.",
-    "noAuthors": "Aún no hay autores."
+    "noAuthors": "Aún no hay autores.",
+    "social": {
+      "website": "Sitio web",
+      "linkedin": "LinkedIn",
+      "github": "GitHub"
+    }
   },
   "fishEasterEgg": {
     "prompt": "¿Has notado los peces en la red? Adivina cuántos hay.",

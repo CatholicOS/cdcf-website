@@ -247,6 +247,10 @@
     "comments": "Comments",
     "commentsComingSoon": "Comments are coming soon."
   },
+  "preview": {
+    "banner": "Mode aperçu — affichage d'un brouillon non publié.",
+    "exit": "Quitter l'aperçu"
+  },
   "authors": {
     "title": "Auteurs",
     "intro": "Les personnes derrière nos articles.",
@@ -255,7 +259,12 @@
     "viewProfile": "Voir le profil",
     "moreAuthors": "Tous les auteurs",
     "noArticles": "Aucun article pour l'instant.",
-    "noAuthors": "Aucun auteur pour l'instant."
+    "noAuthors": "Aucun auteur pour l'instant.",
+    "social": {
+      "website": "Site web",
+      "linkedin": "LinkedIn",
+      "github": "GitHub"
+    }
   },
   "fishEasterEgg": {
     "prompt": "Avez-vous remarqué les poissons dans le filet ? Devinez combien il y en a.",

@@ -138,6 +138,13 @@ describe('bioParagraphs / bioPlainText', () => {
     ])
   })
 
+  it('neutralizes entity-encoded tags by decoding before stripping', () => {
+    // &lt;script&gt;…&lt;/script&gt; must not survive as literal "<script>" text
+    expect(bioParagraphs('&lt;script&gt;alert(1)&lt;/script&gt;')).toEqual([
+      'alert(1)',
+    ])
+  })
+
   it('joins paragraphs with a single space for plain text', () => {
     expect(bioPlainText('<p>One</p><p>Two</p>')).toBe('One Two')
   })

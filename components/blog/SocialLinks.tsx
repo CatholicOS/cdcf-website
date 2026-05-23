@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server'
 import type { AuthorProfile } from '@/lib/author-profile'
 
 interface SocialLinksProps {
@@ -17,17 +18,18 @@ const ICONS = {
   ),
 } as const
 
-const LABELS = {
-  website: 'Website',
-  linkedin: 'LinkedIn',
-  github: 'GitHub',
-} as const
-
-export default function SocialLinks({ links, className }: SocialLinksProps) {
+export default async function SocialLinks({ links, className }: SocialLinksProps) {
   const entries = (['website', 'linkedin', 'github'] as const).filter(
     (key) => links[key]
   )
   if (entries.length === 0) return null
+
+  const t = await getTranslations('authors')
+  const labels = {
+    website: t('social.website'),
+    linkedin: t('social.linkedin'),
+    github: t('social.github'),
+  } as const
 
   return (
     <ul className={className ?? 'flex items-center gap-3'}>
@@ -37,7 +39,7 @@ export default function SocialLinks({ links, className }: SocialLinksProps) {
             href={links[key]}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={LABELS[key]}
+            aria-label={labels[key]}
             className="text-cdcf-navy/60 transition-colors hover:text-cdcf-gold"
           >
             <svg

@@ -35,7 +35,13 @@ export async function generateMetadata({
   const author = await getAuthorByDerivedSlug(slug)
   if (!author) return {}
 
-  const profile = resolveAuthorProfile(author, null)
+  // Resolve with the linked team_member (same as the page render) so the
+  // metadata title/description/canonical match what the page shows.
+  const teamMemberId = linkedTeamMemberId(author)
+  const teamMember = teamMemberId
+    ? await getTeamMemberProfile(teamMemberId, lang)
+    : null
+  const profile = resolveAuthorProfile(author, teamMember)
   const description = bioParagraphs(profile.bioHtml).join(' ').slice(0, 160)
 
   return {
@@ -108,7 +114,7 @@ export default async function AuthorPage({ params }: AuthorPageProps) {
         {profile.image ? (
           <Image
             src={profile.image.url}
-            alt={profile.image.alt}
+            alt={profile.image.alt || profile.name}
             width={128}
             height={128}
             className="h-32 w-32 flex-shrink-0 rounded-full object-cover"
