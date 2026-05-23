@@ -2089,207 +2089,11 @@ function cdcf_ai_translate_meta_box($post) {
 }
 
 // ── AJAX handler ──
-
-add_action('wp_ajax_cdcf_ai_translate', function () {
-    check_ajax_referer('cdcf_ai_translate');
-
-    if (!current_user_can('edit_posts')) {
-        wp_send_json_error('Insufficient permissions.');
-    }
-
-    $post_id     = intval($_POST['post_id']     ?? 0);
-    $source_id   = intval($_POST['source_id']   ?? 0);
-    $target_lang = sanitize_text_field($_POST['target_lang'] ?? '');
-
-    if (!$source_id || !$target_lang) {
-        wp_send_json_error('Missing parameters.');
-    }
-
-    // Auto-create translation post if it doesn't exist yet.
-    if (!$post_id) {
-        $source = get_post($source_id);
-        if (!$source) {
-            wp_send_json_error('Source post not found.');
-        }
-
-        $insert_args = [
-            'post_type'   => $source->post_type,
-            'post_status' => 'draft',
-            'post_title'  => $source->post_title, // will be overwritten by translation
-        ];
-
-        // Attachments use 'inherit' status and share the same uploaded file.
-        if ($source->post_type === 'attachment') {
-            $insert_args['post_status']    = 'inherit';
-            $insert_args['post_mime_type'] = $source->post_mime_type;
-        }
-
-        $post_id = wp_insert_post($insert_args);
-        if (is_wp_error($post_id) || !$post_id) {
-            wp_send_json_error('Failed to create translation post.');
-        }
-
-        // For attachments, copy the file reference and metadata so both
-        // translations point to the same physical file on disk.
-        if ($source->post_type === 'attachment') {
-            $attached_file = get_post_meta($source_id, '_wp_attached_file', true);
-            if ($attached_file) {
-                update_post_meta($post_id, '_wp_attached_file', $attached_file);
-            }
-            $attachment_meta = get_post_meta($source_id, '_wp_attachment_metadata', true);
-            if ($attachment_meta) {
-                update_post_meta($post_id, '_wp_attachment_metadata', $attachment_meta);
-            }
-        }
-
-        pll_set_post_language($post_id, $target_lang);
-        $source_lang = pll_get_post_language($source_id);
-        $translations = pll_get_post_translations($source_id);
-        $translations[$source_lang] = $source_id;
-        $translations[$target_lang] = $post_id;
-        pll_save_post_translations($translations);
-    }
-
-    $source = get_post($source_id);
-    if (!$source) {
-        wp_send_json_error('Source post not found.');
-    }
-
-    // ── 1. Collect translatable strings ──
-
-    $strings = [];
-
-    if ($source->post_title) {
-        $strings['post_title'] = $source->post_title;
-    }
-    if ($source->post_content) {
-        $strings['post_content'] = $source->post_content;
-    }
-    if ($source->post_excerpt) {
-        $strings['post_excerpt'] = $source->post_excerpt;
-    }
-
-    // Collect alt text for attachments.
-    if ($source->post_type === 'attachment') {
-        $alt = get_post_meta($source_id, '_wp_attachment_image_alt', true);
-        if ($alt) {
-            $strings['alt_text'] = $alt;
-        }
-    }
-
-    // Collect translatable ACF fields.
-    if (function_exists('get_field_objects')) {
-        $field_objects = get_field_objects($source_id);
-        if ($field_objects) {
-            foreach ($field_objects as $field) {
-                if (
-                    in_array($field['type'], CDCF_TRANSLATABLE_ACF_TYPES, true)
-                    && !empty($field['value'])
-                    && is_string($field['value'])
-                ) {
-                    $strings['acf_' . $field['name']] = $field['value'];
-                }
-            }
-        }
-    }
-
-    if (empty($strings)) {
-        // For attachments with nothing to translate (e.g. a photo with no alt text),
-        // the translation post was already created and linked above — just succeed.
-        if ($source->post_type === 'attachment') {
-            wp_send_json_success([
-                'post_id' => $post_id,
-                'message' => 'Media duplicated (no translatable text found).',
-            ]);
-        }
-        wp_send_json_error('No translatable content found on the source post.');
-    }
-
-    // ── 2. Call OpenAI ──
-
-    $api_key = get_option('cdcf_openai_api_key');
-    if (!$api_key) {
-        wp_send_json_error('OpenAI API key not configured. Go to Languages → AI Translation.');
-    }
-
-    $target_name = CDCF_LOCALE_NAMES[$target_lang] ?? $target_lang;
-    $source_lang = pll_default_language('slug');
-    $source_name = CDCF_LOCALE_NAMES[$source_lang] ?? $source_lang;
-
-    $result = cdcf_openai_translate($strings, $source_name, $target_name, $api_key);
-
-    if (is_wp_error($result)) {
-        wp_send_json_error($result->get_error_message());
-    }
-
-    // ── 3. Write translations to the target post ──
-
-    $update = [];
-
-    if (isset($result['post_title'])) {
-        $update['post_title'] = sanitize_text_field($result['post_title']);
-    }
-    if (isset($result['post_content'])) {
-        $update['post_content'] = wp_kses_post($result['post_content']);
-    }
-    if (isset($result['post_excerpt'])) {
-        $update['post_excerpt'] = sanitize_textarea_field($result['post_excerpt']);
-    }
-
-    if (!empty($update)) {
-        $update['ID'] = $post_id;
-        wp_update_post($update);
-    }
-
-    // Write translated alt text for attachments.
-    if (isset($result['alt_text'])) {
-        update_post_meta($post_id, '_wp_attachment_image_alt', sanitize_text_field($result['alt_text']));
-    }
-
-    // Write translated ACF fields.
-    if (function_exists('update_field')) {
-        foreach ($result as $key => $value) {
-            if (strpos($key, 'acf_') === 0) {
-                $field_name = substr($key, 4); // strip 'acf_' prefix
-                update_field($field_name, $value, $post_id);
-            }
-        }
-    }
-
-    // ── 4. Copy non-translatable ACF fields from source ──
-
-    if (function_exists('get_field_objects') && function_exists('update_field')) {
-        $field_objects = get_field_objects($source_id);
-        if ($field_objects) {
-            foreach ($field_objects as $field) {
-                // Skip fields we already translated.
-                if (in_array($field['type'], CDCF_TRANSLATABLE_ACF_TYPES, true)) {
-                    continue;
-                }
-                // Copy config fields (selects, booleans, numbers, urls, etc.)
-                // only if the target post doesn't already have a value.
-                $existing = get_field($field['name'], $post_id);
-                if (empty($existing) && !empty($field['value'])) {
-                    update_field($field['name'], $field['value'], $post_id);
-                }
-            }
-        }
-    }
-
-    // Auto-publish the translation post if the source is published.
-    // Attachments use 'inherit' status, so skip them.
-    $source_obj = get_post($source_id);
-    if ($source_obj && $source_obj->post_type !== 'attachment') {
-        if ($source_obj->post_status === 'publish' && get_post_status($post_id) !== 'publish') {
-            wp_update_post(['ID' => $post_id, 'post_status' => 'publish']);
-        }
-    }
-
-    wp_send_json_success([
-        'message' => 'Translation complete.',
-        'post_id' => $post_id,
-    ]);
-});
+//
+// Handler body lives in includes/admin/ai-translate.php so it can be
+// unit-tested in isolation (Brain Monkey + Mockery).
+require_once __DIR__ . '/includes/admin/ai-translate.php';
+add_action('wp_ajax_cdcf_ai_translate', 'cdcf_ajax_ai_translate');
 
 // ─── Background translation processor (WP Cron) ─────────────────────
 //
@@ -2649,22 +2453,14 @@ function cdcf_api_docs_page() {
     <?php
 }
 
-// ─── Submission Meta Helper ──────────────────────────────────────────
-
-/**
- * Resolve the source (English) post ID for a given post.
- * If Polylang is active and this post is a translation, return the
- * English original's ID so we can read submission meta from it.
- * Falls back to the given post ID if Polylang is absent or the post
- * is already the source language version.
- */
-function cdcf_get_source_post_id(int $post_id): int {
-    if (!function_exists('pll_get_post')) {
-        return $post_id;
-    }
-    $source_id = pll_get_post($post_id, 'en');
-    return $source_id ? (int) $source_id : $post_id;
-}
+// ─── Submission Lifecycle (helpers + transition hooks) ──────────────
+//
+// Helpers (cdcf_get_source_post_id, cdcf_is_public_submission,
+// cdcf_enqueue_translations_for_submission) + the two
+// transition_post_status callbacks below live in
+// includes/admin/submission-lifecycle.php so they can be
+// unit-tested in isolation.
+require_once __DIR__ . '/includes/admin/submission-lifecycle.php';
 
 // ─── Referral Submitter Meta Box ─────────────────────────────────────
 
@@ -2811,157 +2607,22 @@ function cdcf_render_pending_local_groups_widget(): void {
 
 // ─── Restore Public Submissions to Pending on Untrash ────────────────
 
-/**
- * When a publicly submitted post (project or local_group) is restored
- * from trash, WordPress sets it to "draft". This hook re-sets it to
- * "pending" so it reappears in the admin dashboard widget and menu bubble.
- */
-add_action('transition_post_status', function ($new_status, $old_status, $post) {
-    if ($new_status !== 'draft' || $old_status !== 'trash') {
-        return;
-    }
-
-    if (!in_array($post->post_type, ['project', 'local_group'], true)) {
-        return;
-    }
-
-    // Only re-pend posts that came from the public submission form.
-    // Check the source (English) post's meta for translations.
-    $source_id = cdcf_get_source_post_id($post->ID);
-    $has_submitter = get_post_meta($source_id, '_submission_submitter_email', true)
-                  || get_post_meta($source_id, '_referral_submitter_email', true);
-    if (!$has_submitter) {
-        return;
-    }
-
-    // Unhook to avoid recursion, then update.
-    remove_action('transition_post_status', __FUNCTION__);
-    wp_update_post(['ID' => $post->ID, 'post_status' => 'pending']);
-}, 10, 3);
+// cdcf_repend_submission_on_untrash() lives in includes/admin/submission-lifecycle.php
+add_action('transition_post_status', 'cdcf_repend_submission_on_untrash', 10, 3);
 
 // ─── Auto-Translate Public Submissions on Approval ───────────────────
 //
 // When an admin publishes a public-submission post (project,
 // community_project, or local_group whose source has submitter meta),
-// create draft sibling posts in it/es/fr/pt/de, link them via Polylang,
-// and enqueue background AI translations. The existing worker
-// (cdcf_process_translation) auto-publishes each translation when its
-// source is `publish` (see line ~3560).
-
-/**
- * True if the source (EN) post has submitter meta from the public
- * submission/referral form. Works whether called with the EN post ID
- * or a translation's ID — resolves to source via cdcf_get_source_post_id().
- */
-function cdcf_is_public_submission(int $post_id): bool {
-    $source_id = cdcf_get_source_post_id($post_id);
-    return (bool) (
-        get_post_meta($source_id, '_submission_submitter_email', true)
-        || get_post_meta($source_id, '_referral_submitter_email', true)
-    );
-}
-
-/**
- * For each target language (it/es/fr/pt/de):
- *   - Skip if a Polylang translation already exists.
- *   - Otherwise create a draft sibling post, link it via Polylang,
- *     and enqueue a background AI translation job.
- *
- * The existing worker (cdcf_process_translation) will auto-publish
- * each translation once its source post is `publish`.
- *
- * @param int    $en_post_id  The English (source) post ID. MUST be the source,
- *                            not a translation — caller should resolve via
- *                            cdcf_get_source_post_id() first.
- * @param string $post_type   The CPT slug (project | community_project | local_group).
- */
-function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_type): void {
-    if (
-        !function_exists('pll_set_post_language')
-        || !function_exists('pll_save_post_translations')
-        || !function_exists('pll_get_post_translations')
-    ) {
-        error_log("cdcf_enqueue_translations_for_submission: Polylang not active; skipping post {$en_post_id}.");
-        return;
-    }
-
-    $en_post = get_post($en_post_id);
-    if (!$en_post) {
-        error_log("cdcf_enqueue_translations_for_submission: Source post {$en_post_id} not found.");
-        return;
-    }
-
-    $target_langs = ['it', 'es', 'fr', 'pt', 'de'];
-
-    // Build the Polylang translation map once; accumulate as we create new siblings.
-    // Pre-seeding from the existing map handles partial re-runs where some langs
-    // are already linked.
-    $translations = pll_get_post_translations($en_post_id);
-    $translations['en'] = $en_post_id;
-
-    foreach ($target_langs as $lang) {
-        // Skip if a translation is already linked for this language.
-        if (!empty($translations[$lang])) {
-            continue;
-        }
-
-        // Create a draft sibling post; the worker will fill content and auto-publish.
-        $trans_id = wp_insert_post([
-            'post_type'   => $post_type,
-            'post_status' => 'draft',
-            'post_title'  => $en_post->post_title,
-        ]);
-
-        if (is_wp_error($trans_id) || !$trans_id) {
-            error_log("cdcf_enqueue_translations_for_submission: Failed to create {$lang} sibling for post {$en_post_id}.");
-            continue;
-        }
-
-        pll_set_post_language($trans_id, $lang);
-
-        $translations[$lang] = $trans_id;
-        pll_save_post_translations($translations);
-
-        // Enqueue background translation: Redis Queue if available, WP-Cron fallback.
-        if (function_exists('cdcf_enqueue_translation')) {
-            cdcf_enqueue_translation($trans_id, $en_post_id, $lang);
-        } else {
-            wp_schedule_single_event(time(), 'cdcf_async_translate', [$trans_id, $en_post_id, $lang]);
-            spawn_cron();
-        }
-    }
-}
-
-/**
- * Fires when an admin publishes a public-submission post.
- * Priority 20 so it runs after all priority-10 hooks (sitemap
- * revalidation and the untrash/re-pend hook).
- */
-add_action('transition_post_status', function ($new_status, $old_status, $post) {
-    if ($new_status === $old_status) {
-        return;
-    }
-    if ($new_status !== 'publish') {
-        return;
-    }
-    if (!in_array($post->post_type, ['project', 'community_project', 'local_group'], true)) {
-        return;
-    }
-
-    // Only process the English source post — when the worker promotes a
-    // translation sibling to `publish`, this hook fires again, but there
-    // is nothing more to enqueue at that point.
-    $source_id = cdcf_get_source_post_id($post->ID);
-    if ($source_id !== $post->ID) {
-        return;
-    }
-
-    if (!cdcf_is_public_submission($post->ID)) {
-        return;
-    }
-
-    cdcf_enqueue_translations_for_submission($source_id, $post->post_type);
-}, 20, 3);
+// the hook below creates draft sibling posts in it/es/fr/pt/de, links
+// them via Polylang, and enqueues background AI translations. The
+// existing worker (cdcf_process_translation) auto-publishes each
+// translation when its source is `publish`.
+//
+// Helpers + callback live in includes/admin/submission-lifecycle.php
+// (required above). Priority 20 here so it runs after all priority-10
+// hooks (sitemap revalidation and the untrash/re-pend hook).
+add_action('transition_post_status', 'cdcf_enqueue_translations_on_publish', 20, 3);
 
 // ─── Project Submission: Meta Box ────────────────────────────────────
 
