@@ -7,11 +7,7 @@ import {
   getPostsByAuthor,
   getTeamMemberProfile,
 } from '@/lib/wordpress/api'
-import {
-  bioParagraphs,
-  linkedTeamMemberId,
-  resolveAuthorProfile,
-} from '@/lib/author-profile'
+import { linkedTeamMemberId, resolveAuthorProfile } from '@/lib/author-profile'
 import { Link } from '@/src/i18n/navigation'
 import BlogFeed from '@/components/sections/BlogFeed'
 import SocialLinks from '@/components/blog/SocialLinks'
@@ -42,7 +38,7 @@ export async function generateMetadata({
     ? await getTeamMemberProfile(teamMemberId, lang)
     : null
   const profile = resolveAuthorProfile(author, teamMember)
-  const description = bioParagraphs(profile.bioHtml).join(' ').slice(0, 160)
+  const description = profile.bio.join(' ').slice(0, 160)
 
   return {
     title: profile.name,
@@ -74,7 +70,7 @@ export default async function AuthorPage({ params }: AuthorPageProps) {
   ])
 
   const profile = resolveAuthorProfile(author, teamMember)
-  const paragraphs = bioParagraphs(profile.bioHtml)
+  const paragraphs = profile.bio
 
   const authorUrl = absoluteUrl(lang, `blog/authors/${profile.slug}`)
   const sameAs = [

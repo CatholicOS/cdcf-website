@@ -24,22 +24,15 @@ export interface AuthorProfile {
   /** The team_member "title" field (e.g. "AI Specialist"), matching how
    *  team-member cards render elsewhere. Null when unset or no team_member. */
   title: string | null
-  /** Bio markup. From team_member it is rich HTML; from the core user field it
-   *  is the plain Biographical Info wrapped in a paragraph. */
-  bioHtml: string | null
+  /** Bio as plain-text paragraphs, already extracted from the team_member's
+   *  HTML content or from the user's plain Biographical Info. Empty when none. */
+  bio: string[]
   image: { url: string; alt: string } | null
   links: {
     website?: string
     linkedin?: string
     github?: string
   }
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
 }
 
 function decodeEntities(text: string): string {
@@ -72,16 +65,17 @@ function stripTags(html: string): string {
 }
 
 /**
- * Bio markup split into plain-text paragraphs. Block boundaries become
- * paragraph breaks and remaining tags are stripped, so bios render without
- * raw-HTML injection. Inline formatting (links, bold) is not preserved.
+ * Real HTML bio markup (a team_member's rendered content) → plain-text
+ * paragraphs. Block boundaries become paragraph breaks and all tags are
+ * stripped, so bios render without raw-HTML injection. Inline formatting
+ * (links, bold) is not preserved.
  */
-export function bioParagraphs(bioHtml: string | null): string[] {
-  if (!bioHtml) return []
+export function htmlToParagraphs(html: string | null): string[] {
+  if (!html) return []
   // Decode entities FIRST so encoded markup (e.g. `&lt;script&gt;`) becomes
   // real tags that get stripped, instead of surviving as literal text; then
   // map block boundaries to newlines and strip all remaining tags.
-  const text = decodeEntities(bioHtml)
+  const text = decodeEntities(html)
     .replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, '\n')
     .replace(/<br\s*\/?>/gi, '\n')
   return stripTags(text)
@@ -90,9 +84,17 @@ export function bioParagraphs(bioHtml: string | null): string[] {
     .filter(Boolean)
 }
 
-/** Single-line plain text from bio markup, for meta descriptions and JSON-LD. */
-export function bioPlainText(bioHtml: string | null): string {
-  return bioParagraphs(bioHtml).join(' ')
+/**
+ * Plain-text Biographical Info → paragraphs. Entities are decoded for display,
+ * but tags are NOT stripped: this is plain text, so literal "<...>" the author
+ * typed must be preserved (it renders safely as escaped text, never as HTML).
+ */
+export function textToParagraphs(text: string | null): string[] {
+  if (!text) return []
+  return decodeEntities(text)
+    .split(/\n+/)
+    .map((s) => s.replace(/[^\S\n]+/g, ' ').trim())
+    .filter(Boolean)
 }
 
 /**
@@ -155,13 +157,12 @@ export function resolveAuthorProfile(
       ? { url: author.avatar.url, alt: name }
       : null
 
-  // Prefer the (translatable) team_member content; fall back to the user's
-  // plain-text Biographical Info.
-  const bioHtml = teamMember?.content
-    ? teamMember.content
-    : author.description
-      ? `<p>${escapeHtml(author.description)}</p>`
-      : null
+  // Prefer the (translatable) team_member content — real HTML, so strip tags;
+  // otherwise fall back to the user's plain-text Biographical Info, which must
+  // NOT be tag-stripped (it's plain text, kept verbatim).
+  const bio = teamMember?.content
+    ? htmlToParagraphs(teamMember.content)
+    : textToParagraphs(author.description)
 
   const links: AuthorProfile['links'] = {}
   if (author.url) links.website = author.url
@@ -176,7 +177,7 @@ export function resolveAuthorProfile(
     name,
     slug: deriveAuthorSlug(author),
     title,
-    bioHtml,
+    bio,
     image,
     links,
   }

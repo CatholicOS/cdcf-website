@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   authorDisplayName,
   authorHref,
-  bioParagraphs,
-  bioPlainText,
   deriveAuthorSlug,
+  htmlToParagraphs,
   linkedTeamMemberId,
   resolveAuthorProfile,
+  textToParagraphs,
   type AuthorSlug,
 } from './author-profile'
 import type { Nicename, WPAuthor, WPTeamMember } from './wordpress/types'
@@ -110,48 +110,63 @@ describe('authorHref', () => {
   })
 })
 
-describe('bioParagraphs / bioPlainText', () => {
-  it('returns [] / "" for null', () => {
-    expect(bioParagraphs(null)).toEqual([])
-    expect(bioPlainText(null)).toBe('')
+describe('htmlToParagraphs (team_member HTML)', () => {
+  it('returns [] for null', () => {
+    expect(htmlToParagraphs(null)).toEqual([])
   })
 
   it('splits block tags and <br> into paragraphs', () => {
-    expect(bioParagraphs('<p>One</p><p>Two</p>')).toEqual(['One', 'Two'])
-    expect(bioParagraphs('Line1<br>Line2')).toEqual(['Line1', 'Line2'])
+    expect(htmlToParagraphs('<p>One</p><p>Two</p>')).toEqual(['One', 'Two'])
+    expect(htmlToParagraphs('Line1<br>Line2')).toEqual(['Line1', 'Line2'])
   })
 
   it('drops empty paragraphs and collapses whitespace', () => {
-    expect(bioParagraphs('<p></p><p>  Hi   there </p>')).toEqual(['Hi there'])
+    expect(htmlToParagraphs('<p></p><p>  Hi   there </p>')).toEqual(['Hi there'])
   })
 
   it('decodes named, decimal and hex entities', () => {
-    expect(bioParagraphs('<p>Tom &amp; Jerry&#39;s&#x2e;</p>')).toEqual([
+    expect(htmlToParagraphs('<p>Tom &amp; Jerry&#39;s&#x2e;</p>')).toEqual([
       "Tom & Jerry's.",
     ])
-    expect(bioParagraphs('<p>a&nbsp;b</p>')).toEqual(['a b'])
+    expect(htmlToParagraphs('<p>a&nbsp;b</p>')).toEqual(['a b'])
   })
 
   it('strips arbitrary/script tags to plain text (no raw HTML)', () => {
-    expect(bioParagraphs('<p>safe<script>alert(1)</script></p>')).toEqual([
+    expect(htmlToParagraphs('<p>safe<script>alert(1)</script></p>')).toEqual([
       'safealert(1)',
     ])
   })
 
   it('neutralizes entity-encoded tags by decoding before stripping', () => {
     // &lt;script&gt;…&lt;/script&gt; must not survive as literal "<script>" text
-    expect(bioParagraphs('&lt;script&gt;alert(1)&lt;/script&gt;')).toEqual([
+    expect(htmlToParagraphs('&lt;script&gt;alert(1)&lt;/script&gt;')).toEqual([
       'alert(1)',
     ])
   })
+})
 
-  it('joins paragraphs with a single space for plain text', () => {
-    expect(bioPlainText('<p>One</p><p>Two</p>')).toBe('One Two')
+describe('textToParagraphs (plain Biographical Info)', () => {
+  it('returns [] for null/empty', () => {
+    expect(textToParagraphs(null)).toEqual([])
+    expect(textToParagraphs('')).toEqual([])
+  })
+
+  it('preserves literal angle brackets (plain text is never tag-stripped)', () => {
+    expect(textToParagraphs('Loves C++ <generics> & math')).toEqual([
+      'Loves C++ <generics> & math',
+    ])
+  })
+
+  it('splits on blank lines and decodes entities', () => {
+    expect(textToParagraphs('Para &amp; one\n\nPara two')).toEqual([
+      'Para & one',
+      'Para two',
+    ])
   })
 })
 
 describe('resolveAuthorProfile', () => {
-  it('takes title/photo/links from the team_member and escapes user bio', () => {
+  it('takes title/photo/links from the team_member; HTML bio stripped to text', () => {
     const profile = resolveAuthorProfile(
       author({
         name: 'Jane Doe',
@@ -176,7 +191,7 @@ describe('resolveAuthorProfile', () => {
     expect(profile.title).toBe('AI Specialist') // title, not role
     expect(profile.slug).toBe('jane-doe')
     expect(profile.image).toEqual({ url: 'https://wp/photo.jpg', alt: 'Jane Doe' })
-    expect(profile.bioHtml).toBe('<p>Rich <strong>bio</strong></p>') // not escaped
+    expect(profile.bio).toEqual(['Rich bio']) // HTML stripped to plain text
     expect(profile.links).toEqual({
       website: 'https://jane.example',
       linkedin: 'https://linkedin/x',
@@ -184,7 +199,7 @@ describe('resolveAuthorProfile', () => {
     })
   })
 
-  it('falls back to gravatar + escaped Biographical Info without a team_member', () => {
+  it('falls back to gravatar + plain Biographical Info, preserving literal markup', () => {
     const profile = resolveAuthorProfile(
       author({
         name: 'Jane Doe',
@@ -196,7 +211,8 @@ describe('resolveAuthorProfile', () => {
 
     expect(profile.title).toBeNull()
     expect(profile.image).toEqual({ url: 'https://gravatar/x', alt: 'Jane Doe' })
-    expect(profile.bioHtml).toBe('<p>A &amp; B &lt;c&gt;</p>') // escaped + wrapped
+    // plain text kept verbatim — the literal "<c>" must NOT be stripped
+    expect(profile.bio).toEqual(['A & B <c>'])
     expect(profile.links).toEqual({}) // no url/links → empty
   })
 

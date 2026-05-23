@@ -2,14 +2,14 @@ import Image from 'next/image'
 import { getTranslations } from 'next-intl/server'
 import { Link } from '@/src/i18n/navigation'
 import SocialLinks from './SocialLinks'
-import { authorHref, bioPlainText, type AuthorProfile } from '@/lib/author-profile'
+import { authorHref, type AuthorProfile } from '@/lib/author-profile'
 
 /** Compact "About the author" card shown beneath an article. The full,
  *  formatted bio lives on the author page linked from here. */
 export default async function AuthorBio({ profile }: { profile: AuthorProfile }) {
   const t = await getTranslations('authors')
   const href = authorHref(profile.slug)
-  const bio = bioPlainText(profile.bioHtml)
+  const bio = profile.bio.join(' ')
   const excerpt = bio.length > 280 ? `${bio.slice(0, 280).trimEnd()}…` : bio
 
   return (
