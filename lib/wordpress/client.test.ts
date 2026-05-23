@@ -12,6 +12,8 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 describe('wpQuery', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+    vi.restoreAllMocks()
   })
 
   it('returns json.data on a successful response', async () => {
@@ -60,14 +62,31 @@ describe('wpQuery', () => {
     expect(init.headers.Authorization).toBe('Bearer t')
   })
 
-  it('does not set Authorization when draft is true but token is missing', async () => {
+  it('uses Basic auth from the app-password env when draft and no token', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: null }))
     vi.stubGlobal('fetch', fetchMock)
+    vi.stubEnv('WP_APP_USERNAME', 'user')
+    vi.stubEnv('WP_APP_PASSWORD', 'pass')
+
+    await wpQuery('Q', {}, { draft: true })
+
+    const [, init] = fetchMock.mock.calls[0]
+    const expected = `Basic ${Buffer.from('user:pass').toString('base64')}`
+    expect(init.headers.Authorization).toBe(expected)
+  })
+
+  it('warns and sends no Authorization when draft has no credentials', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: null }))
+    vi.stubGlobal('fetch', fetchMock)
+    vi.stubEnv('WP_APP_USERNAME', '')
+    vi.stubEnv('WP_APP_PASSWORD', '')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
     await wpQuery('Q', {}, { draft: true })
 
     const [, init] = fetchMock.mock.calls[0]
     expect(init.headers.Authorization).toBeUndefined()
+    expect(warn).toHaveBeenCalled()
   })
 
   it('throws on a non-ok HTTP response with status text', async () => {

@@ -5,7 +5,16 @@ vi.mock('./client', () => ({
 }))
 
 import { wpQuery } from './client'
-import { getAuthorByDerivedSlug, getPostsByAuthor } from './api'
+import {
+  getAuthorByDerivedSlug,
+  getAuthorBySlug,
+  getAuthorProfile,
+  getAuthors,
+  getPagePreview,
+  getPostPreview,
+  getPostsByAuthor,
+  getTeamMemberProfile,
+} from './api'
 import type { Nicename, WPAuthor } from './types'
 
 const wpQueryMock = vi.mocked(wpQuery)
@@ -93,5 +102,105 @@ describe('getPostsByAuthor', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     wpQueryMock.mockRejectedValueOnce(new Error('boom'))
     expect(await getPostsByAuthor('jdoe_1' as Nicename, 'en')).toEqual([])
+  })
+})
+
+describe('getAuthorBySlug', () => {
+  it('returns the user node', async () => {
+    wpQueryMock.mockResolvedValueOnce({ user: author('Jane', 'jane_1') })
+    expect((await getAuthorBySlug('jane_1' as Nicename))?.name).toBe('Jane')
+  })
+
+  it('returns null on error', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    wpQueryMock.mockRejectedValueOnce(new Error('x'))
+    expect(await getAuthorBySlug('jane_1' as Nicename)).toBeNull()
+  })
+})
+
+describe('getAuthors', () => {
+  it('returns the users list', async () => {
+    wpQueryMock.mockResolvedValueOnce({ users: { nodes: [author('A', 'a_1')] } })
+    expect(await getAuthors()).toHaveLength(1)
+  })
+
+  it('returns [] on error', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    wpQueryMock.mockRejectedValueOnce(new Error('x'))
+    expect(await getAuthors()).toEqual([])
+  })
+})
+
+describe('getTeamMemberProfile', () => {
+  const tm = { title: 'TM', content: '<p>bio</p>' }
+
+  it('returns the localized translation without an EN fallback query', async () => {
+    wpQueryMock.mockResolvedValueOnce({ teamMember: { translation: tm } })
+    const result = await getTeamMemberProfile(7, 'it')
+    expect(result).toEqual(tm)
+    expect(wpQueryMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('falls back to EN when the locale translation is null', async () => {
+    wpQueryMock
+      .mockResolvedValueOnce({ teamMember: { translation: null } })
+      .mockResolvedValueOnce({ teamMember: { translation: tm } })
+    const result = await getTeamMemberProfile(7, 'it')
+    expect(result).toEqual(tm)
+    expect(wpQueryMock).toHaveBeenCalledTimes(2)
+    expect((wpQueryMock.mock.calls[1][1] as { language: string }).language).toBe('EN')
+  })
+
+  it('does not issue an EN fallback for the en locale', async () => {
+    wpQueryMock.mockResolvedValueOnce({ teamMember: { translation: null } })
+    expect(await getTeamMemberProfile(7, 'en')).toBeNull()
+    expect(wpQueryMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('getAuthorProfile', () => {
+  it('returns null (no team_member fetch) when the author is missing', async () => {
+    wpQueryMock.mockResolvedValueOnce({ user: null })
+    expect(await getAuthorProfile('ghost' as Nicename, 'en')).toBeNull()
+    expect(wpQueryMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('resolves a profile and fetches the linked team_member', async () => {
+    const linked: WPAuthor = {
+      ...author('Jane Doe', 'jane_1'),
+      authorProfile: { authorTeamMember: { nodes: [{ databaseId: 9 }] } },
+    }
+    wpQueryMock
+      .mockResolvedValueOnce({ user: linked })
+      .mockResolvedValueOnce({
+        teamMember: {
+          translation: {
+            title: 'TM',
+            content: '<p>Bio</p>',
+            featuredImage: null,
+            teamMemberFields: { memberTitle: 'AI Specialist' },
+          },
+        },
+      })
+    const profile = await getAuthorProfile('jane_1' as Nicename, 'en')
+    expect(profile?.slug).toBe('jane-doe')
+    expect(profile?.title).toBe('AI Specialist')
+    expect(wpQueryMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('preview fetchers', () => {
+  it('getPostPreview fetches by id with draft auth', async () => {
+    wpQueryMock.mockResolvedValueOnce({ post: { databaseId: 5, title: 'Draft' } })
+    const post = await getPostPreview(5)
+    expect(post).toEqual({ databaseId: 5, title: 'Draft' })
+    expect(wpQueryMock.mock.calls[0][1]).toEqual({ id: '5' })
+    expect(wpQueryMock.mock.calls[0][2]).toEqual({ draft: true })
+  })
+
+  it('getPagePreview returns null on error', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    wpQueryMock.mockRejectedValueOnce(new Error('x'))
+    expect(await getPagePreview(5)).toBeNull()
   })
 })
