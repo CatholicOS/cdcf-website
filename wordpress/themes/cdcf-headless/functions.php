@@ -1773,6 +1773,14 @@ add_action('graphql_response_headers_to_send', function ($headers) {
     return $headers;
 });
 
+// ─── Published permalink → Next.js frontend ─────────────────────────
+// Make the admin "View Post" link (and admin bar / post-list / block-editor
+// permalink) point at the live headless frontend instead of the dead WP-side
+// URL. Bodies live in includes/frontend-permalinks.php so they're testable.
+require_once __DIR__ . '/includes/frontend-permalinks.php';
+
+add_filter('post_link', 'cdcf_filter_post_permalink', 10, 2);
+
 // ─── Preview URL → Next.js draft mode ────────────────────────────────
 
 add_filter('preview_post_link', function ($preview_link, $post) {
