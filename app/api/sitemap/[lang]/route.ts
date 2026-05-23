@@ -4,7 +4,10 @@ import {
   getAllPages,
   getPostsForSitemap,
   getProjectsForSitemap,
+  getAcademicCollaborationsForSitemap,
+  getAuthors,
 } from '@/lib/wordpress/api'
+import { deriveAuthorSlug } from '@/lib/author-profile'
 
 export const revalidate = 3600
 
@@ -89,10 +92,14 @@ export async function GET(
     return new Response('Not Found', { status: 404 })
   }
 
-  const [pages, posts, projects] = await Promise.all([
+  const [pages, posts, projects, collaborations, authors] = await Promise.all([
     getAllPages(lang, { tags: ['sitemap'] }),
     getPostsForSitemap(lang, { tags: ['sitemap'] }),
     getProjectsForSitemap(lang, { tags: ['sitemap'] }),
+    getAcademicCollaborationsForSitemap(lang, { tags: ['sitemap'] }),
+    // Authors are language-independent (the public slug is derived from the
+    // display name, identical across locales), so this isn't fetched per-lang.
+    getAuthors(),
   ])
 
   const entries: string[] = []
@@ -149,6 +156,40 @@ export async function GET(
         0.6,
         pathByLocale
       )
+    )
+  }
+
+  for (const collaboration of collaborations) {
+    const ownPath = `/academic-collaborations/${collaboration.slug}`
+    const pathByLocale = new Map<string, string>([[lang, ownPath]])
+    for (const t of collaboration.translations) {
+      if (knownLocales.has(t.code)) {
+        pathByLocale.set(t.code, `/academic-collaborations/${t.slug}`)
+      }
+    }
+    entries.push(
+      urlEntryByLocale(
+        buildUrl(lang, ownPath),
+        collaboration.modified,
+        'weekly',
+        0.6,
+        pathByLocale
+      )
+    )
+  }
+
+  // Blog authors: the index page plus one page per author with published
+  // posts. The derived author slug is identical across locales, so each page
+  // exists at the same path in every locale (default hreflang alternates).
+  // Authors carry no per-entry modified date, so use the request time.
+  const authorsLastmod = new Date().toISOString()
+  entries.push(
+    urlEntry(buildUrl(lang, '/blog/authors'), authorsLastmod, 'weekly', 0.4, '/blog/authors')
+  )
+  for (const author of authors) {
+    const path = `/blog/authors/${deriveAuthorSlug(author)}`
+    entries.push(
+      urlEntry(buildUrl(lang, path), authorsLastmod, 'monthly', 0.3, path)
     )
   }
 

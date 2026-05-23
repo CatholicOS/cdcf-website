@@ -589,3 +589,19 @@ export const GET_PROJECTS_FOR_SITEMAP = `
   }
 `
 
+export const GET_ACADEMIC_COLLABORATIONS_FOR_SITEMAP = `
+  query GetAcademicCollaborationsForSitemap($language: LanguageCodeFilterEnum) {
+    academicCollaborations(where: { language: $language }, first: 100) {
+      nodes {
+        slug
+        date
+        modified
+        translations {
+          language { code }
+          slug
+        }
+      }
+    }
+  }
+`
+

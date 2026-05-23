@@ -15,6 +15,7 @@ import {
   GET_POSTS_FOR_SITEMAP,
   GET_PROJECTS,
   GET_PROJECTS_FOR_SITEMAP,
+  GET_ACADEMIC_COLLABORATIONS_FOR_SITEMAP,
   GET_PROJECT_BY_SLUG,
   GET_SPONSORS,
 } from './queries'
@@ -329,6 +330,16 @@ interface RawAllPagesNode {
   translations?: { language: { code: string }; uri: string }[]
 }
 
+// Strip a leading Polylang /<locale> language directory from a page URI.
+// Polylang prefixes non-default-language URIs (e.g. "/pt/governanca/…"); the
+// sitemap stores prefix-less paths and re-adds the locale prefix itself, so
+// leaving it in produces a doubled "/pt/pt/…" entry.
+function stripLocalePrefix(uri: string, locale: string): string {
+  const prefix = `/${locale}`
+  if (uri === prefix || uri === `${prefix}/`) return '/'
+  return uri.startsWith(`${prefix}/`) ? uri.slice(prefix.length) : uri
+}
+
 export async function getAllPages(
   locale: string,
   options?: FetchOptions
@@ -339,10 +350,17 @@ export async function getAllPages(
     }>(GET_ALL_PAGES, { language: langCode(locale) }, options)
 
     return data.pages.nodes.map((node) => {
+      // Prefer the English translation's URI (Polylang serves the default
+      // locale without a prefix). When a page has no English translation, fall
+      // back to its own URI with the Polylang /<locale> prefix stripped, so the
+      // sitemap route doesn't prepend a second locale segment (/pt/pt/…).
+      const enTranslationUri = node.translations?.find(
+        (t) => t.language.code === 'EN'
+      )?.uri
       const enUri =
         locale === 'en'
           ? node.uri
-          : node.translations?.find((t) => t.language.code === 'EN')?.uri ?? node.uri
+          : enTranslationUri ?? stripLocalePrefix(node.uri, locale)
       const otherLocales = node.translations?.map((t) => t.language.code.toLowerCase()) ?? []
       const availableLocales = Array.from(new Set([locale, ...otherLocales]))
       return { enUri, modified: node.modified, availableLocales }
@@ -424,6 +442,32 @@ export async function getProjectsForSitemap(
     }))
   } catch (error) {
     console.error('Failed to fetch projects for sitemap:', error)
+    return []
+  }
+}
+
+// Academic collaborations share the slug/modified/translations sitemap shape
+// with projects (WPSitemapProject); the sitemap route renders them under the
+// /academic-collaborations/ path prefix instead of /projects/.
+export async function getAcademicCollaborationsForSitemap(
+  locale: string,
+  options?: FetchOptions
+): Promise<WPSitemapProject[]> {
+  try {
+    const data = await wpQuery<{
+      academicCollaborations: { nodes: RawSitemapProject[] }
+    }>(GET_ACADEMIC_COLLABORATIONS_FOR_SITEMAP, { language: langCode(locale) }, options)
+
+    return data.academicCollaborations.nodes.map((c) => ({
+      slug: c.slug,
+      modified: c.modified ?? c.date,
+      translations: (c.translations ?? []).map((t) => ({
+        code: t.language.code.toLowerCase(),
+        slug: t.slug,
+      })),
+    }))
+  } catch (error) {
+    console.error('Failed to fetch academic collaborations for sitemap:', error)
     return []
   }
 }
