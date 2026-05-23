@@ -92,3 +92,19 @@ if (!class_exists('WP_REST_Request')) {
 }
 
 require_once __DIR__ . '/../includes/handlers.php';
+
+// Stub the upstream Abstract_Base_Job that CDCF_Translation_Job extends.
+// Must be loaded BEFORE class-translation-job.php so the class can resolve
+// its parent at class-load time.
+require_once __DIR__ . '/stubs/AbstractBaseJobStub.php';
+
+// class-translation-job.php calls add_filter() at file scope to register
+// the deserializer. Provide a no-op stub at load time so the require
+// doesn't blow up before Brain Monkey can intercept calls per-test.
+if (!function_exists('add_filter')) {
+    function add_filter(string $hook, callable $callback, int $priority = 10, int $accepted_args = 1): bool {
+        return true;
+    }
+}
+
+require_once __DIR__ . '/../includes/class-translation-job.php';
