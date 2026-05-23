@@ -39,9 +39,9 @@ export default async function SocialLinks({ links, className }: SocialLinksProps
             href={links[key]}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={labels[key]}
             className="text-cdcf-navy/60 transition-colors hover:text-cdcf-gold"
           >
+            <span className="sr-only">{labels[key]}</span>
             <svg
               viewBox="0 0 24 24"
               className="h-5 w-5"

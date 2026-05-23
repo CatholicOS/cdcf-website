@@ -142,8 +142,8 @@ export default async function AuthorPage({ params }: AuthorPageProps) {
 
       {paragraphs.length > 0 && (
         <div className="mt-8 space-y-4 text-lg leading-relaxed text-gray-700">
-          {paragraphs.map((paragraph, i) => (
-            <p key={i}>{paragraph}</p>
+          {paragraphs.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
           ))}
         </div>
       )}

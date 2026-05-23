@@ -102,7 +102,7 @@ export function bioPlainText(bioHtml: string | null): string {
  */
 export function authorDisplayName(author: WPAuthor): string {
   const fullName = [author.firstName, author.lastName]
-    .filter((part) => part && part.trim())
+    .filter((part) => part?.trim())
     .join(' ')
     .trim()
   return (
