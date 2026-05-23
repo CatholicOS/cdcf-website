@@ -12,6 +12,7 @@ import {
   getPage,
   getPostBySlug,
   getPosts,
+  getAcademicCollaborationsForSitemap,
   getPostsForSitemap,
   getProject,
   getProjects,
@@ -168,6 +169,28 @@ describe('getAllPages mapping', () => {
     expect(page.availableLocales.sort()).toEqual(['en', 'it'])
   })
 
+  it('strips the Polylang locale prefix when a page has no EN translation', async () => {
+    // Regression for the /pt/pt/… doubled-prefix bug: a page with no English
+    // translation must fall back to its own URI with the /pt prefix stripped,
+    // so the sitemap route can add exactly one locale segment.
+    wpQueryMock.mockResolvedValueOnce({
+      pages: {
+        nodes: [
+          {
+            uri: '/pt/governanca/governanca-de-ia/',
+            modified: '2026-05-01',
+            translations: [{ language: { code: 'FR' }, uri: '/fr/gouvernance/gouvernance-de-lia/' }],
+          },
+        ],
+      },
+    })
+
+    const [page] = await getAllPages('pt')
+
+    expect(page.enUri).toBe('/governanca/governanca-de-ia/')
+    expect(page.availableLocales.sort()).toEqual(['fr', 'pt'])
+  })
+
   it('returns [] if wpQuery rejects', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     wpQueryMock.mockRejectedValueOnce(new Error('boom'))
@@ -284,6 +307,48 @@ describe('getProjectsForSitemap mapping', () => {
     wpQueryMock.mockRejectedValueOnce(new Error('boom'))
 
     await expect(getProjectsForSitemap('en')).resolves.toEqual([])
+  })
+})
+
+describe('getAcademicCollaborationsForSitemap mapping', () => {
+  it('maps modified, slug, and lowercased translation codes', async () => {
+    wpQueryMock.mockResolvedValueOnce({
+      academicCollaborations: {
+        nodes: [
+          {
+            slug: 'notre-dame',
+            date: '2026-02-01',
+            modified: '2026-03-01',
+            translations: [{ language: { code: 'IT' }, slug: 'notre-dame-it' }],
+          },
+        ],
+      },
+    })
+
+    const [collab] = await getAcademicCollaborationsForSitemap('en')
+    expect(collab).toEqual({
+      slug: 'notre-dame',
+      modified: '2026-03-01',
+      translations: [{ code: 'it', slug: 'notre-dame-it' }],
+    })
+  })
+
+  it('falls back to date when modified is absent', async () => {
+    wpQueryMock.mockResolvedValueOnce({
+      academicCollaborations: {
+        nodes: [{ slug: 'oxford', date: '2026-01-15', modified: null, translations: [] }],
+      },
+    })
+
+    const [collab] = await getAcademicCollaborationsForSitemap('en')
+    expect(collab.modified).toBe('2026-01-15')
+  })
+
+  it('returns [] if wpQuery rejects', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    wpQueryMock.mockRejectedValueOnce(new Error('boom'))
+
+    await expect(getAcademicCollaborationsForSitemap('en')).resolves.toEqual([])
   })
 })
 
