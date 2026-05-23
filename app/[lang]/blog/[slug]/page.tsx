@@ -2,11 +2,20 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { setRequestLocale, getTranslations } from 'next-intl/server'
-import { getPostBySlug } from '@/lib/wordpress/api'
+import { getAuthorProfile, getPostBySlug, getPostPreview } from '@/lib/wordpress/api'
+import { authorHref } from '@/lib/author-profile'
+import { getPreviewTarget, previewMatchesSlug } from '@/lib/wordpress/preview'
 import { stripHtml } from '@/lib/strip-html'
 import { Link } from '@/src/i18n/navigation'
 import ShareButtons from '@/components/blog/ShareButtons'
 import DisqusComments from '@/components/blog/DisqusComments'
+import AuthorBio from '@/components/blog/AuthorBio'
+import JsonLd from '@/components/JsonLd'
+
+/** Locale-aware absolute URL (default locale has no prefix). */
+function absoluteUrl(lang: string, path: string): string {
+  return `${SITE_URL}/${lang === 'en' ? '' : `${lang}/`}${path}`
+}
 
 interface BlogPostPageProps {
   params: Promise<{ lang: string; slug: string }>
@@ -58,8 +67,14 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { lang, slug } = await params
   setRequestLocale(lang)
 
+  // In a preview session, render the draft post by id (it may have no usable
+  // slug yet); otherwise fall through to the normal published lookup.
+  const preview = await getPreviewTarget()
+  const usePreview =
+    preview?.type === 'post' && previewMatchesSlug(preview, slug)
+
   const [post, t] = await Promise.all([
-    getPostBySlug(slug, lang),
+    usePreview ? getPostPreview(preview.id) : getPostBySlug(slug, lang),
     getTranslations('blog'),
   ])
 
@@ -77,8 +92,45 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
   const image = post.featuredImage?.node
 
+  // Resolve the (locale-aware) author profile for the byline link + bio card.
+  // The nicename is used only to fetch; links use the derived, login-free slug.
+  const authorNicename = post.author?.node?.slug
+  const authorProfile = authorNicename
+    ? await getAuthorProfile(authorNicename, lang)
+    : null
+  const authorName = authorProfile?.name ?? post.author?.node?.name
+
+  // BlogPosting structured data (https://schema.org/BlogPosting), per Google's
+  // Article structured-data technical guidelines.
+  const articleUrl = absoluteUrl(lang, `blog/${slug}`)
+  const articleSchema: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    mainEntityOfPage: { '@type': 'WebPage', '@id': articleUrl },
+    headline: post.title.slice(0, 110),
+    datePublished: post.date,
+    dateModified: post.modified || post.date,
+    ...(image && { image: [image.sourceUrl] }),
+    ...(post.excerpt && { description: stripHtml(post.excerpt).slice(0, 250) }),
+    ...(authorName && {
+      author: {
+        '@type': 'Person',
+        name: authorName,
+        ...(authorProfile && {
+          url: absoluteUrl(lang, `blog/authors/${authorProfile.slug}`),
+        }),
+      },
+    }),
+    publisher: {
+      '@type': 'Organization',
+      name: 'Catholic Digital Commons Foundation',
+      logo: { '@type': 'ImageObject', url: `${SITE_URL}/icon-512.png` },
+    },
+  }
+
   return (
     <article>
+      <JsonLd data={articleSchema} />
       {/* Featured image hero */}
       {image && (
         <div className="relative h-64 w-full sm:h-80 lg:h-96">
@@ -109,10 +161,19 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-500">
           {dateStr && <time dateTime={post.date}>{dateStr}</time>}
-          {post.author?.node?.name && (
+          {authorName && (
             <>
               <span>&middot;</span>
-              <span>{post.author.node.name}</span>
+              {authorProfile ? (
+                <Link
+                  href={authorHref(authorProfile.slug)}
+                  className="font-medium text-cdcf-navy transition-colors hover:text-cdcf-gold"
+                >
+                  {authorName}
+                </Link>
+              ) : (
+                <span>{authorName}</span>
+              )}
             </>
           )}
         </div>
@@ -139,6 +200,9 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             dangerouslySetInnerHTML={{ __html: post.content }}
           />
         )}
+
+        {/* About the author */}
+        {authorProfile && <AuthorBio profile={authorProfile} />}
 
         {/* Share buttons */}
         <ShareButtons title={post.title} />

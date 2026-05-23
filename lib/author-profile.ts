@@ -1,0 +1,184 @@
+import type { WPAuthor, WPTeamMember } from './wordpress/types'
+
+/**
+ * A public, derived author slug (from the display-name chain). Branded so it's
+ * distinct from a Nicename — only an AuthorSlug may be used to build a public
+ * author URL (see authorHref). Produced solely by deriveAuthorSlug.
+ */
+export type AuthorSlug = string & { readonly __brand: 'AuthorSlug' }
+
+/** Build the (locale-relative) author page path. Accepts only an AuthorSlug,
+ *  so a raw Nicename can't be passed in and leak into a URL. */
+export function authorHref(slug: AuthorSlug): string {
+  return `/blog/authors/${slug}`
+}
+
+/**
+ * Normalized author profile for rendering. Profile detail (photo, role, bio,
+ * social links) is sourced from a linked team_member when present so it can be
+ * translated; otherwise it falls back to core WordPress user fields.
+ */
+export interface AuthorProfile {
+  name: string
+  slug: AuthorSlug
+  /** The team_member "title" field (e.g. "AI Specialist"), matching how
+   *  team-member cards render elsewhere. Null when unset or no team_member. */
+  title: string | null
+  /** Bio as plain-text paragraphs, already extracted from the team_member's
+   *  HTML content or from the user's plain Biographical Info. Empty when none. */
+  bio: string[]
+  image: { url: string; alt: string } | null
+  links: {
+    website?: string
+    linkedin?: string
+    github?: string
+  }
+}
+
+function decodeEntities(text: string): string {
+  const named: Record<string, string> = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&apos;': "'",
+    '&nbsp;': ' ',
+  }
+  return text
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
+    .replace(/&[a-z]+;/gi, (m) => named[m.toLowerCase()] ?? m)
+}
+
+/** Remove every HTML tag, looping until the string is stable. A single
+ *  `replace(/<[^>]*>/g, '')` is incomplete: overlapping/nested constructs such
+ *  as `<<x>>` can leave a tag behind, so we repeat until nothing changes. */
+function stripTags(html: string): string {
+  let out = html
+  let prev: string
+  do {
+    prev = out
+    out = out.replace(/<[^>]*>/g, '')
+  } while (out !== prev)
+  return out
+}
+
+/**
+ * Real HTML bio markup (a team_member's rendered content) → plain-text
+ * paragraphs. Block boundaries become paragraph breaks and all tags are
+ * stripped, so bios render without raw-HTML injection. Inline formatting
+ * (links, bold) is not preserved.
+ */
+export function htmlToParagraphs(html: string | null): string[] {
+  if (!html) return []
+  // Decode entities FIRST so encoded markup (e.g. `&lt;script&gt;`) becomes
+  // real tags that get stripped, instead of surviving as literal text; then
+  // map block boundaries to newlines and strip all remaining tags.
+  const text = decodeEntities(html)
+    .replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+  return stripTags(text)
+    .split(/\n+/)
+    .map((s) => s.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+}
+
+/**
+ * Plain-text Biographical Info → paragraphs. Entities are decoded for display,
+ * but tags are NOT stripped: this is plain text, so literal "<...>" the author
+ * typed must be preserved (it renders safely as escaped text, never as HTML).
+ */
+export function textToParagraphs(text: string | null): string[] {
+  if (!text) return []
+  return decodeEntities(text)
+    .split(/\n+/)
+    .map((s) => s.replace(/[^\S\n]+/g, ' ').trim())
+    .filter(Boolean)
+}
+
+/**
+ * Human-readable author name, preferring (in order) nickname, display name,
+ * first + last, and finally the nicename. We never surface the WordPress
+ * username (login) here.
+ */
+export function authorDisplayName(author: WPAuthor): string {
+  const fullName = [author.firstName, author.lastName]
+    .filter((part) => part?.trim())
+    .join(' ')
+    .trim()
+  return (
+    author.nickname?.trim() ||
+    author.name?.trim() ||
+    fullName ||
+    author.slug
+  )
+}
+
+function slugify(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '') // strip diacritics
+    .replace(/['’]/g, '') // drop straight/smart apostrophes (D'Orazio → dorazio)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/**
+ * URL slug for an author, derived from the display-name chain so the public URL
+ * never contains the WordPress nicename/login. Falls back to the nicename only
+ * if the derived value is empty (effectively never, since display_name is
+ * always set). Author pages resolve this by matching, since WPGraphQL cannot
+ * look a user up by a derived slug.
+ */
+export function deriveAuthorSlug(author: WPAuthor): AuthorSlug {
+  return (slugify(authorDisplayName(author)) || author.slug) as AuthorSlug
+}
+
+/** The database id of the team_member linked to an author, or null. Centralizes
+ *  the "first node only" relationship-connection access used by the resolvers. */
+export function linkedTeamMemberId(author: WPAuthor): number | null {
+  return author.authorProfile?.authorTeamMember?.nodes?.[0]?.databaseId ?? null
+}
+
+export function resolveAuthorProfile(
+  author: WPAuthor,
+  teamMember: WPTeamMember | null
+): AuthorProfile {
+  const name = authorDisplayName(author)
+
+  const title = teamMember?.teamMemberFields?.memberTitle || null
+
+  const tmImage = teamMember?.featuredImage?.node
+  const image = tmImage
+    ? { url: tmImage.sourceUrl, alt: tmImage.altText || name }
+    : author.avatar?.url
+      ? { url: author.avatar.url, alt: name }
+      : null
+
+  // Prefer the (translatable) team_member content — real HTML, so strip tags;
+  // otherwise fall back to the user's plain-text Biographical Info, which must
+  // NOT be tag-stripped (it's plain text, kept verbatim).
+  const bio = teamMember?.content
+    ? htmlToParagraphs(teamMember.content)
+    : textToParagraphs(author.description)
+
+  const links: AuthorProfile['links'] = {}
+  if (author.url) links.website = author.url
+  if (teamMember?.teamMemberFields?.memberLinkedinUrl) {
+    links.linkedin = teamMember.teamMemberFields.memberLinkedinUrl
+  }
+  if (teamMember?.teamMemberFields?.memberGithubUrl) {
+    links.github = teamMember.teamMemberFields.memberGithubUrl
+  }
+
+  return {
+    name,
+    slug: deriveAuthorSlug(author),
+    title,
+    bio,
+    image,
+    links,
+  }
+}

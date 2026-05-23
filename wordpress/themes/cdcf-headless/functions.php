@@ -1113,6 +1113,37 @@ add_action('acf/init', function () {
         'graphql_field_name' => 'teamMemberFields',
     ]);
 
+    // ── Author Profile (User) Fields ──
+    // Links a WordPress user (an article author) to their Team Member entry so
+    // author pages reuse the team_member's translated bio (its content), photo
+    // (featured image), role, and social links across all locales. Optional —
+    // authors without a link fall back to core user fields (display name,
+    // Biographical Info, Gravatar).
+    acf_add_local_field_group([
+        'key'   => 'group_author_profile',
+        'title' => 'Author Profile',
+        'fields' => [
+            [
+                'key'          => 'field_author_team_member',
+                'label'        => 'Team Member Profile',
+                'name'         => 'author_team_member',
+                'type'         => 'relationship',
+                'instructions' => 'Optional. Link this author to their Team Member entry to show a translated bio, photo, role, and social links on their author page.',
+                'post_type'    => ['team_member'],
+                'max'          => 1,
+                'return_format' => 'object',
+                'show_in_graphql' => true,
+                'show_in_rest' => true,
+            ],
+        ],
+        'location' => [
+            [['param' => 'user_form', 'operator' => '==', 'value' => 'all']],
+        ],
+        'show_in_graphql' => true,
+        'graphql_field_name' => 'authorProfile',
+        'graphql_types' => ['User'],
+    ]);
+
     // ── Sponsor CPT Fields ──
 
     acf_add_local_field_group([
@@ -1745,25 +1776,58 @@ add_action('graphql_response_headers_to_send', function ($headers) {
 // ─── Preview URL → Next.js draft mode ────────────────────────────────
 
 add_filter('preview_post_link', function ($preview_link, $post) {
+    // Only post and page have by-id preview support on the Next.js frontend
+    // (the blog route and the catch-all page route). Other public CPTs
+    // (project, team_member, academic_collaboration, …) have no by-id preview
+    // path, so leave their preview link untouched rather than redirect to a
+    // 404 on the headless frontend.
+    if (!in_array($post->post_type, ['post', 'page'], true)) {
+        return $preview_link;
+    }
+
     $frontend = defined('CDCF_FRONTEND_URL')
         ? CDCF_FRONTEND_URL
         : 'http://localhost:3000';
 
     $secret = defined('CDCF_PREVIEW_SECRET')
         ? CDCF_PREVIEW_SECRET
+        : (getenv('WP_PREVIEW_SECRET') ?: '');
+
+    // Polylang language (slug form, e.g. "en", "it"); empty if Polylang is off.
+    $lang = function_exists('pll_get_post_language')
+        ? pll_get_post_language($post->ID, 'slug')
         : '';
 
-    $slug = $post->post_name;
-    $type = $post->post_type;
-
-    return sprintf(
-        '%s/api/preview?secret=%s&slug=%s&type=%s',
-        $frontend,
-        urlencode($secret),
-        urlencode($slug),
-        urlencode($type)
+    // Pass the database id, not just the slug: a never-published draft has no
+    // post_name yet, but the frontend can always resolve it by id.
+    return add_query_arg(
+        [
+            'secret' => $secret,
+            'id'     => $post->ID,
+            'type'   => $post->post_type,
+            'slug'   => $post->post_name,
+            'lang'   => $lang,
+        ],
+        $frontend . '/api/preview'
     );
 }, 10, 2);
+
+// ─── Application Password auth for WPGraphQL ─────────────────────────
+// WordPress core only honours Application Passwords on requests it considers
+// "API requests" (REST and XML-RPC). WPGraphQL's /graphql endpoint is neither,
+// so without this the headless frontend cannot authenticate to fetch draft /
+// preview content. Opt /graphql in so Basic-auth app passwords work there too.
+add_filter('application_password_is_api_request', function ($is_api_request) {
+    if ($is_api_request) {
+        return true;
+    }
+
+    $uri = isset($_SERVER['REQUEST_URI'])
+        ? wp_unslash($_SERVER['REQUEST_URI'])
+        : '';
+
+    return is_string($uri) && strpos($uri, '/graphql') !== false;
+});
 
 // ─── Theme setup ─────────────────────────────────────────────────────
 
@@ -2322,7 +2386,7 @@ add_action('transition_post_status', function ($new_status, $old_status, $post) 
 
     $secret = defined('CDCF_PREVIEW_SECRET')
         ? CDCF_PREVIEW_SECRET
-        : '';
+        : (getenv('WP_PREVIEW_SECRET') ?: '');
 
     if (empty($secret)) {
         return;

@@ -190,6 +190,176 @@ const SPONSOR_FIELDS = `
   }
 `
 
+// ─── Page fields ─────────────────────────────────────────────────────
+// Shared by the public slug query (under `translation`) and the by-id
+// preview query, so both render through the same PageRenderer pipeline.
+
+const PAGE_FIELDS = `
+  databaseId
+  title
+  slug
+  content
+  template {
+    templateName
+  }
+  ${HERO_FRAGMENT}
+  ${CTA_FRAGMENT}
+  aboutFields {
+    teamMembers(first: 50) {
+      nodes {
+        ... on TeamMember {
+          ${TEAM_MEMBER_FIELDS}
+        }
+      }
+    }
+    ecclesialCouncil(first: 50) {
+      nodes {
+        ... on TeamMember {
+          ${TEAM_MEMBER_FIELDS}
+        }
+      }
+    }
+    technicalCouncil(first: 50) {
+      nodes {
+        ... on TeamMember {
+          ${TEAM_MEMBER_FIELDS}
+        }
+      }
+    }
+    governanceColumns
+  }
+  projectsPageFields {
+    showFilters
+    gridColumns
+    communityProjects(first: 50) {
+      nodes {
+        ... on CommunityProject {
+          ${COMMUNITY_PROJECT_FIELDS}
+        }
+      }
+    }
+  }
+  communityFields {
+    channels(first: 50) {
+      nodes {
+        ... on CommunityChannel {
+          ${CHANNEL_FIELDS}
+        }
+      }
+    }
+    localGroups(first: 50) {
+      nodes {
+        ... on LocalGroup {
+          ${LOCAL_GROUP_FIELDS}
+        }
+      }
+    }
+    members(first: 50) {
+      nodes {
+        ... on TeamMember {
+          ${TEAM_MEMBER_FIELDS}
+        }
+      }
+    }
+    academicCollaborations(first: 50) {
+      nodes {
+        ... on AcademicCollaboration {
+          ${ACADEMIC_COLLABORATION_CARD_FIELDS}
+        }
+      }
+    }
+  }
+  blogFields {
+    maxPosts
+  }
+  contactFields {
+    contactBody
+  }
+`
+
+// ─── Post fields ─────────────────────────────────────────────────────
+// Shared by the public slug query (under `translation`) and the by-id
+// preview query.
+
+const POST_FIELDS = `
+  databaseId
+  title
+  slug
+  date
+  modified
+  content
+  excerpt
+  featuredImage {
+    node {
+      ${IMAGE_FRAGMENT}
+    }
+  }
+  author {
+    node {
+      name
+      slug
+    }
+  }
+  tags {
+    nodes {
+      name
+    }
+  }
+`
+
+// Lighter selection for post cards (blog listing, author archive).
+const POST_CARD_FIELDS = `
+  title
+  slug
+  date
+  content
+  excerpt
+  featuredImage {
+    node {
+      ${IMAGE_FRAGMENT}
+    }
+  }
+  author {
+    node {
+      name
+      slug
+    }
+  }
+  tags {
+    nodes {
+      name
+    }
+  }
+  postSettings {
+    hideFromBlog
+  }
+`
+
+// Author (WP user) fields. authorProfile is the ACF link to a team_member; it
+// only resolves once the theme's user field group is deployed, so it is kept
+// out of the public post queries to avoid coupling blog rendering to it.
+const AUTHOR_FIELDS = `
+  name
+  nickname
+  firstName
+  lastName
+  slug
+  description
+  url
+  avatar {
+    url
+  }
+  authorProfile {
+    authorTeamMember {
+      nodes {
+        ... on TeamMember {
+          databaseId
+        }
+      }
+    }
+  }
+`
+
 // ─── Page query ──────────────────────────────────────────────────────
 
 export const GET_PAGE_BY_SLUG = `
@@ -202,87 +372,28 @@ export const GET_PAGE_BY_SLUG = `
         templateName
       }
       translation(language: $language) {
-        databaseId
-        title
-        slug
-        content
-        template {
-          templateName
-        }
-        ${HERO_FRAGMENT}
-        ${CTA_FRAGMENT}
-        aboutFields {
-          teamMembers(first: 50) {
-            nodes {
-              ... on TeamMember {
-                ${TEAM_MEMBER_FIELDS}
-              }
-            }
-          }
-          ecclesialCouncil(first: 50) {
-            nodes {
-              ... on TeamMember {
-                ${TEAM_MEMBER_FIELDS}
-              }
-            }
-          }
-          technicalCouncil(first: 50) {
-            nodes {
-              ... on TeamMember {
-                ${TEAM_MEMBER_FIELDS}
-              }
-            }
-          }
-          governanceColumns
-        }
-        projectsPageFields {
-          showFilters
-          gridColumns
-          communityProjects(first: 50) {
-            nodes {
-              ... on CommunityProject {
-                ${COMMUNITY_PROJECT_FIELDS}
-              }
-            }
-          }
-        }
-        communityFields {
-          channels(first: 50) {
-            nodes {
-              ... on CommunityChannel {
-                ${CHANNEL_FIELDS}
-              }
-            }
-          }
-          localGroups(first: 50) {
-            nodes {
-              ... on LocalGroup {
-                ${LOCAL_GROUP_FIELDS}
-              }
-            }
-          }
-          members(first: 50) {
-            nodes {
-              ... on TeamMember {
-                ${TEAM_MEMBER_FIELDS}
-              }
-            }
-          }
-          academicCollaborations(first: 50) {
-            nodes {
-              ... on AcademicCollaboration {
-                ${ACADEMIC_COLLABORATION_CARD_FIELDS}
-              }
-            }
-          }
-        }
-        blogFields {
-          maxPosts
-        }
-        contactFields {
-          contactBody
-        }
+        ${PAGE_FIELDS}
       }
+    }
+  }
+`
+
+// ─── Preview queries (by database id, draft-capable) ─────────────────
+// Drafts have no public URI/slug until first publish, so preview must
+// look posts up by database id with an authenticated request.
+
+export const GET_PAGE_BY_ID = `
+  query GetPageById($id: ID!) {
+    page(id: $id, idType: DATABASE_ID) {
+      ${PAGE_FIELDS}
+    }
+  }
+`
+
+export const GET_POST_BY_ID = `
+  query GetPostById($id: ID!) {
+    post(id: $id, idType: DATABASE_ID) {
+      ${POST_FIELDS}
     }
   }
 `
@@ -293,29 +404,53 @@ export const GET_POSTS = `
   query GetPosts($language: LanguageCodeFilterEnum, $first: Int = 10) {
     posts(where: { language: $language }, first: $first) {
       nodes {
-        title
+        ${POST_CARD_FIELDS}
+      }
+    }
+  }
+`
+
+// ─── Posts by author (author archive) ───────────────────────────────
+
+export const GET_POSTS_BY_AUTHOR = `
+  query GetPostsByAuthor($authorName: String!, $language: LanguageCodeFilterEnum, $first: Int = 50) {
+    posts(where: { authorName: $authorName, language: $language }, first: $first) {
+      nodes {
+        ${POST_CARD_FIELDS}
+      }
+    }
+  }
+`
+
+// ─── Author queries ──────────────────────────────────────────────────
+// WPGraphQL only exposes users that have published posts to public requests,
+// which is exactly the set we want for author pages.
+
+export const GET_AUTHOR_BY_SLUG = `
+  query GetAuthorBySlug($slug: ID!) {
+    user(id: $slug, idType: SLUG) {
+      ${AUTHOR_FIELDS}
+    }
+  }
+`
+
+export const GET_AUTHORS = `
+  query GetAuthors {
+    users(where: { hasPublishedPosts: POST }, first: 100) {
+      nodes {
+        ${AUTHOR_FIELDS}
+      }
+    }
+  }
+`
+
+// Translated team_member profile behind an author, fetched by database id.
+export const GET_TEAM_MEMBER_BY_ID = `
+  query GetTeamMemberById($id: ID!, $language: LanguageCodeEnum!) {
+    teamMember(id: $id, idType: DATABASE_ID) {
+      translation(language: $language) {
         slug
-        date
-        content
-        excerpt
-        featuredImage {
-          node {
-            ${IMAGE_FRAGMENT}
-          }
-        }
-        author {
-          node {
-            name
-          }
-        }
-        tags {
-          nodes {
-            name
-          }
-        }
-        postSettings {
-          hideFromBlog
-        }
+        ${TEAM_MEMBER_FIELDS}
       }
     }
   }
@@ -361,26 +496,7 @@ export const GET_POST_BY_SLUG = `
   query GetPostBySlug($slug: ID!, $language: LanguageCodeEnum!) {
     post(id: $slug, idType: SLUG) {
       translation(language: $language) {
-        title
-        slug
-        date
-        content
-        excerpt
-        featuredImage {
-          node {
-            ${IMAGE_FRAGMENT}
-          }
-        }
-        author {
-          node {
-            name
-          }
-        }
-        tags {
-          nodes {
-            name
-          }
-        }
+        ${POST_FIELDS}
       }
     }
   }

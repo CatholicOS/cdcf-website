@@ -7,8 +7,8 @@ export default defineConfig({
     include: ['lib/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      include: ['lib/wordpress/**/*.ts'],
-      exclude: ['lib/wordpress/**/*.test.ts'],
+      include: ['lib/**/*.ts'],
+      exclude: ['lib/**/*.test.ts'],
       reporter: ['text', 'html', 'lcov'],
     },
   },

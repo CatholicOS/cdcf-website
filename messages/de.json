@@ -5,6 +5,8 @@
     "projects": "Projekte",
     "community": "Gemeinschaft",
     "news": "Nachrichten",
+    "latestArticles": "Neueste Artikel",
+    "ourAuthors": "Unsere Autoren",
     "contact": "Kontakt",
     "donate": "Spenden",
     "boardOfDirectors": "Vorstand",
@@ -244,6 +246,25 @@
     "shareNative": "Share",
     "comments": "Comments",
     "commentsComingSoon": "Comments are coming soon."
+  },
+  "preview": {
+    "banner": "Vorschaumodus – nicht veröffentlichter Entwurf wird angezeigt.",
+    "exit": "Vorschau beenden"
+  },
+  "authors": {
+    "title": "Autoren",
+    "intro": "Die Menschen hinter unseren Artikeln.",
+    "aboutTheAuthor": "Über den Autor",
+    "articlesBy": "Artikel von {name}",
+    "viewProfile": "Profil ansehen",
+    "moreAuthors": "Alle Autoren",
+    "noArticles": "Noch keine Artikel.",
+    "noAuthors": "Noch keine Autoren.",
+    "social": {
+      "website": "Website",
+      "linkedin": "LinkedIn",
+      "github": "GitHub"
+    }
   },
   "fishEasterEgg": {
     "prompt": "Haben Sie die Fische im Netz bemerkt? Raten Sie, wie viele es sind.",

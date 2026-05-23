@@ -179,7 +179,14 @@ export default function Header() {
         { href: '/community#academic-collaborations', label: t('academicCollaborations') },
       ],
     },
-    { href: '/blog', label: t('news') },
+    {
+      href: '/blog',
+      label: t('news'),
+      children: [
+        { href: '/blog', label: t('latestArticles') },
+        { href: '/blog/authors', label: t('ourAuthors') },
+      ],
+    },
     { href: '/contact', label: t('contact') },
   ]
 

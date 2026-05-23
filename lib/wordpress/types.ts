@@ -132,16 +132,26 @@ export interface WPCommunityProject {
 
 // ─── Page types ──────────────────────────────────────────────────────
 
+/**
+ * A WordPress user_nicename — login-derived. Branded so it can't be passed
+ * where a public, derived author slug is expected; keep it out of public URLs
+ * (build those from deriveAuthorSlug instead). It's the correct key for
+ * WPGraphQL/author lookups, so fetchers accept it.
+ */
+export type Nicename = string & { readonly __brand: 'Nicename' }
+
 export interface WPPost {
   title: string
   slug: string
   date: string
+  modified?: string
   content: string | null
   excerpt: string | null
   featuredImage: WPFeaturedImage | null
   author: {
     node: {
       name: string
+      slug: Nicename
     }
   }
   tags: {
@@ -149,6 +159,27 @@ export interface WPPost {
   }
   postSettings: {
     hideFromBlog: boolean | null
+  } | null
+}
+
+// A WordPress user that authors posts. Profile data (photo, role, bio, social
+// links) is sourced from an optionally-linked team_member so it can be
+// translated; core fields are the fallback. See lib/author-profile.ts.
+export interface WPAuthor {
+  name: string
+  nickname: string | null
+  firstName: string | null
+  lastName: string | null
+  /** WordPress user_nicename. The correct key for author lookups, but not for
+   *  building public URLs — use deriveAuthorSlug() so the nicename/login isn't
+   *  exposed (it's only accepted as a resolution fallback). The Nicename brand
+   *  enforces this at the type level. See lib/author-profile.ts. */
+  slug: Nicename
+  description: string | null
+  url: string | null
+  avatar: { url: string | null } | null
+  authorProfile: {
+    authorTeamMember: { nodes: { databaseId: number }[] } | null
   } | null
 }
 

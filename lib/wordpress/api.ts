@@ -2,17 +2,38 @@ import { wpQuery } from './client'
 import {
   GET_ACADEMIC_COLLABORATION_BY_SLUG,
   GET_ALL_PAGES,
+  GET_AUTHORS,
+  GET_AUTHOR_BY_SLUG,
   GET_CHILD_PAGES,
+  GET_PAGE_BY_ID,
   GET_PAGE_BY_SLUG,
+  GET_POST_BY_ID,
   GET_POST_BY_SLUG,
   GET_POSTS,
+  GET_POSTS_BY_AUTHOR,
+  GET_TEAM_MEMBER_BY_ID,
   GET_POSTS_FOR_SITEMAP,
   GET_PROJECTS,
   GET_PROJECTS_FOR_SITEMAP,
   GET_PROJECT_BY_SLUG,
   GET_SPONSORS,
 } from './queries'
-import type { WPAcademicCollaboration, WPPage, WPPost, WPProject, WPSponsor } from './types'
+import type {
+  Nicename,
+  WPAcademicCollaboration,
+  WPAuthor,
+  WPPage,
+  WPPost,
+  WPProject,
+  WPSponsor,
+  WPTeamMember,
+} from './types'
+import {
+  deriveAuthorSlug,
+  linkedTeamMemberId,
+  resolveAuthorProfile,
+  type AuthorProfile,
+} from '../author-profile'
 
 interface FetchOptions {
   tags?: string[]
@@ -87,6 +108,44 @@ export async function getPostBySlug(
   }
 }
 
+/**
+ * Fetch a page by database id with draft auth, for preview rendering.
+ * Returns the exact post being edited (no translation fallback) including
+ * unpublished drafts. See lib/wordpress/preview.ts.
+ */
+export async function getPagePreview(id: number): Promise<WPPage | null> {
+  try {
+    const data = await wpQuery<{ page: WPPage | null }>(
+      GET_PAGE_BY_ID,
+      { id: String(id) },
+      { draft: true }
+    )
+    return data.page ?? null
+  } catch (error) {
+    console.error('Failed to fetch page preview:', error)
+    return null
+  }
+}
+
+/**
+ * Fetch a post by database id with draft auth, for preview rendering.
+ * Returns the exact post being edited (no translation fallback) including
+ * unpublished drafts. See lib/wordpress/preview.ts.
+ */
+export async function getPostPreview(id: number): Promise<WPPost | null> {
+  try {
+    const data = await wpQuery<{ post: WPPost | null }>(
+      GET_POST_BY_ID,
+      { id: String(id) },
+      { draft: true }
+    )
+    return data.post ?? null
+  } catch (error) {
+    console.error('Failed to fetch post preview:', error)
+    return null
+  }
+}
+
 export async function getPosts(
   locale: string,
   count: number = 10,
@@ -102,6 +161,110 @@ export async function getPosts(
     console.error('Failed to fetch posts:', error)
     return []
   }
+}
+
+export async function getPostsByAuthor(
+  authorSlug: Nicename,
+  locale: string,
+  count: number = 50
+): Promise<WPPost[]> {
+  try {
+    const data = await wpQuery<{ posts: { nodes: WPPost[] } }>(
+      GET_POSTS_BY_AUTHOR,
+      { authorName: authorSlug, language: langCode(locale), first: count }
+    )
+    return data.posts.nodes.filter((p) => !p.postSettings?.hideFromBlog)
+  } catch (error) {
+    console.error('Failed to fetch posts by author:', error)
+    return []
+  }
+}
+
+export async function getAuthorBySlug(slug: Nicename): Promise<WPAuthor | null> {
+  try {
+    const data = await wpQuery<{ user: WPAuthor | null }>(GET_AUTHOR_BY_SLUG, {
+      slug,
+    })
+    return data.user ?? null
+  } catch (error) {
+    console.error('Failed to fetch author:', error)
+    return null
+  }
+}
+
+export async function getAuthors(): Promise<WPAuthor[]> {
+  try {
+    const data = await wpQuery<{ users: { nodes: WPAuthor[] } }>(GET_AUTHORS)
+    return data.users.nodes
+  } catch (error) {
+    console.error('Failed to fetch authors:', error)
+    return []
+  }
+}
+
+/** Translated team_member behind an author, with English fallback. */
+export async function getTeamMemberProfile(
+  id: number,
+  locale: string
+): Promise<WPTeamMember | null> {
+  try {
+    const data = await wpQuery<{
+      teamMember: { translation: WPTeamMember | null } | null
+    }>(GET_TEAM_MEMBER_BY_ID, { id: String(id), language: langCode(locale) })
+
+    const translated = data.teamMember?.translation ?? null
+    if (translated) return translated
+
+    if (locale !== 'en') {
+      const fallback = await wpQuery<{
+        teamMember: { translation: WPTeamMember | null } | null
+      }>(GET_TEAM_MEMBER_BY_ID, { id: String(id), language: 'EN' })
+      return fallback.teamMember?.translation ?? null
+    }
+
+    return null
+  } catch (error) {
+    console.error('Failed to fetch team member profile:', error)
+    return null
+  }
+}
+
+/**
+ * Resolved, locale-aware author profile: the WP user merged with their linked
+ * team_member (translated) when present. Returns null when the author does not
+ * exist. Used by both the article about-the-author card and the author page.
+ */
+export async function getAuthorProfile(
+  slug: Nicename,
+  locale: string
+): Promise<AuthorProfile | null> {
+  const author = await getAuthorBySlug(slug)
+  if (!author) return null
+
+  const teamMemberId = linkedTeamMemberId(author)
+  const teamMember = teamMemberId
+    ? await getTeamMemberProfile(teamMemberId, locale)
+    : null
+
+  return resolveAuthorProfile(author, teamMember)
+}
+
+/**
+ * Find an author by their *derived* (display-name) slug, used by the author
+ * page. WPGraphQL can't look users up by a derived slug, so we match it against
+ * the author list; the WP nicename is accepted as a fallback so any pre-existing
+ * links still resolve. Returns the WPAuthor (callers need its nicename to fetch
+ * the author's posts) or null when no author matches.
+ */
+export async function getAuthorByDerivedSlug(
+  slug: string
+): Promise<WPAuthor | null> {
+  const authors = await getAuthors()
+  return (
+    authors.find((author) => deriveAuthorSlug(author) === slug) ??
+    authors.find((author) => author.slug === slug) ??
+    null
+  )
 }
 
 export async function getProjects(
