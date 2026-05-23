@@ -45,6 +45,11 @@ function cdcf_frontend_post_url($post): ?string
     $lang = function_exists('pll_get_post_language')
         ? pll_get_post_language($post->ID, 'slug')
         : '';
+    // "en" is hardcoded on purpose: it is the *frontend's* default locale
+    // (src/i18n/routing.ts defaultLocale, localePrefix: 'as-needed'), which
+    // gets no URL prefix — NOT Polylang's configured default. This must mirror
+    // app/api/preview/route.ts so preview and published URLs agree; using
+    // pll_default_language() here would diverge from the frontend's routing.
     $prefix = ($lang && $lang !== 'en') ? '/' . $lang : '';
 
     return $frontend . $prefix . '/blog/' . $post->post_name;
