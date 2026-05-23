@@ -169,6 +169,34 @@ require_once __DIR__ . '/../includes/handlers/submit-project-send-code.php';
 require_once __DIR__ . '/../includes/handlers/submit-project.php';
 require_once __DIR__ . '/../includes/admin/team-member-council.php';
 require_once __DIR__ . '/../includes/admin/polylang-default-seed.php';
+require_once __DIR__ . '/../includes/admin/ai-translate.php';
+
+/**
+ * Typed exceptions used by AjaxAiTranslateTest. wp_send_json_success /
+ * wp_send_json_error normally call wp_die() to terminate the response.
+ * Tests stub them to throw these instead so the handler's "exit"
+ * semantics map to a catchable exception with the response payload
+ * attached, making it easy to assert on what the handler tried to
+ * return.
+ */
+if (!class_exists('CdcfAjaxSuccess')) {
+    class CdcfAjaxSuccess extends \RuntimeException {
+        public mixed $data;
+        public function __construct(mixed $data = null) {
+            parent::__construct('wp_send_json_success');
+            $this->data = $data;
+        }
+    }
+}
+if (!class_exists('CdcfAjaxError')) {
+    class CdcfAjaxError extends \RuntimeException {
+        public mixed $data;
+        public function __construct(mixed $data = null) {
+            parent::__construct('wp_send_json_error');
+            $this->data = $data;
+        }
+    }
+}
 
 // Shared base classes. PHPUnit doesn't autoload test files via PSR-4,
 // so concrete subclasses can only find their parent if it's been
