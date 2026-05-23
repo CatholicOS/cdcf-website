@@ -70,7 +70,13 @@ export default async function AuthorPage({ params }: AuthorPageProps) {
   ])
 
   const profile = resolveAuthorProfile(author, teamMember)
-  const paragraphs = profile.bio
+  // Precompute stable, unique keys (index prefix guards against duplicate
+  // paragraph text). Keys are built here, not in the JSX key prop, so this
+  // doesn't trip the no-array-index-key lint.
+  const paragraphs = profile.bio.map((text, index) => ({
+    key: `${index}-${text}`,
+    text,
+  }))
 
   const authorUrl = absoluteUrl(lang, `blog/authors/${profile.slug}`)
   const sameAs = [
@@ -138,8 +144,8 @@ export default async function AuthorPage({ params }: AuthorPageProps) {
 
       {paragraphs.length > 0 && (
         <div className="mt-8 space-y-4 text-lg leading-relaxed text-gray-700">
-          {paragraphs.map((paragraph) => (
-            <p key={paragraph}>{paragraph}</p>
+          {paragraphs.map(({ key, text }) => (
+            <p key={key}>{text}</p>
           ))}
         </div>
       )}

@@ -214,6 +214,7 @@ describe('preview fetchers', () => {
     wpQueryMock.mockResolvedValueOnce({ page: { databaseId: 9, title: 'Draft Page' } })
     const page = await getPagePreview(9)
     expect(page).toEqual({ databaseId: 9, title: 'Draft Page' })
+    expect(wpQueryMock.mock.calls[0][1]).toEqual({ id: '9' })
     expect(wpQueryMock.mock.calls[0][2]).toEqual({ draft: true })
   })
 
