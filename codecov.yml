@@ -49,3 +49,23 @@ comment:
   # Post the comment even on PRs that don't change covered code, so the
   # reviewer always sees the per-flag table.
   require_changes: false
+
+# Exclude declarative-only bootstrap files from coverage.
+#
+# functions.php is a 3000+ line WordPress theme boot file dominated by
+# register_post_type() + acf_add_local_field_group() declarations,
+# add_action()/add_filter() hook registrations bound to closures that
+# only fire under the WP runtime, and admin page renderers explicitly
+# de-scoped as Tier-4 in #107. It can't be loaded under PHPUnit because
+# every line at file scope calls into WP, and all extractable
+# behavioral code has been moved into includes/ with test coverage
+# (PRs #122, #123 + the prior #107-tracked extractions). What remains
+# is configuration, not testable behavior.
+#
+# The plugin bootstrap (cdcf-redis-translations.php) is the same
+# pattern at smaller scale: register_activation_hook +
+# add_action('init', ...) for the queue runner. Its job classes and
+# handler functions live in includes/ and ARE covered.
+ignore:
+  - 'wordpress/themes/cdcf-headless/functions.php'
+  - 'wordpress/plugins/cdcf-redis-translations/cdcf-redis-translations.php'
