@@ -4,7 +4,7 @@
 **Question:** Should content editors / authors be able to draft and manage CDCF
 content through an MCP server (e.g. [WordPress/mcp-adapter](https://github.com/WordPress/mcp-adapter))?
 **Verdict:** Feasible and a good fit for this stack, scoped as a phase-2
-experiment. The real payoff comes from exposing CDCF's *existing* domain
+experiment. The real payoff comes from exposing CDCF's _existing_ domain
 operations as abilities — not generic post CRUD.
 
 ---
@@ -24,27 +24,27 @@ An editor connects their AI client to the site, the client discovers the
 abilities, and calls them. WordPress runs the same capability checks it always
 does. Write operations require an explicit confirmation round-trip.
 
-| Property | Value |
-| --- | --- |
-| Distribution | Composer package (`composer require wordpress/mcp-adapter`) or plugin |
-| PHP | ≥ 7.4 |
-| WordPress | ≥ 6.8 (Abilities API in core from **6.9**; 6.8 needs the API as a separate plugin) |
-| Latest release | **v0.5.0** (April 2026), pre-1.0 |
-| Write capabilities | Landed **March 2026** — young |
-| Runtime dep | `wordpress/php-mcp-schema` |
-| Auth model | Agent authenticates as a real WP user (Application Password) and inherits that user's role/capabilities |
-| Ability hook | `wp_abilities_api_init` |
-| Server hook | `mcp_adapter_init` → `$adapter->create_server(...)` |
+| Property           | Value                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------- |
+| Distribution       | Composer package (`composer require wordpress/mcp-adapter`) or plugin                                   |
+| PHP                | ≥ 7.4                                                                                                   |
+| WordPress          | ≥ 6.8 (Abilities API in core from **6.9**; 6.8 needs the API as a separate plugin)                      |
+| Latest release     | **v0.5.0** (April 2026), pre-1.0                                                                        |
+| Write capabilities | Landed **March 2026** — young                                                                           |
+| Runtime dep        | `wordpress/php-mcp-schema`                                                                              |
+| Auth model         | Agent authenticates as a real WP user (Application Password) and inherits that user's role/capabilities |
+| Ability hook       | `wp_abilities_api_init`                                                                                 |
+| Server hook        | `mcp_adapter_init` → `$adapter->create_server(...)`                                                     |
 
 ## 2. Compatibility with CDCF
 
-| Requirement | CDCF status |
-| --- | --- |
-| PHP ≥ 7.4 | ✅ PHP **8.4** in docker; `cdcf-redis-translations` already requires 8.3+ |
-| WP ≥ 6.8 / 6.9 | ✅ dev runs the `6` (latest) tag — ⚠️ **production WordPress on Plesk must be verified ≥ 6.9** |
-| Composer plugin tree | ✅ Already the convention (`cdcf-redis-translations`, theme) |
-| Capability-based auth (`edit_posts` / `manage_options`) | ✅ Exactly the model the adapter inherits |
-| Application Passwords | ✅ Already used by `scripts/cdcf_api.py` |
+| Requirement                                             | CDCF status                                                                                    |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| PHP ≥ 7.4                                               | ✅ PHP **8.4** in docker; `cdcf-redis-translations` already requires 8.3+                      |
+| WP ≥ 6.8 / 6.9                                          | ✅ dev runs the `6` (latest) tag — ⚠️ **production WordPress on Plesk must be verified ≥ 6.9** |
+| Composer plugin tree                                    | ✅ Already the convention (`cdcf-redis-translations`, theme)                                   |
+| Capability-based auth (`edit_posts` / `manage_options`) | ✅ Exactly the model the adapter inherits                                                      |
+| Application Passwords                                   | ✅ Already used by `scripts/cdcf_api.py`                                                       |
 
 `composer require wordpress/mcp-adapter` resolves cleanly from Packagist
 (verified: pulls `wordpress/mcp-adapter v0.5.0` + `wordpress/php-mcp-schema
@@ -82,26 +82,26 @@ A self-contained plugin that registers a `cdcf` ability category and 18
 abilities, then (if the adapter is installed) serves them at
 `/wp-json/cdcf-mcp/mcp`.
 
-| Ability | Backing | Capability |
-| --- | --- | --- |
-| `cdcf/create-board-member` | POST `/cdcf/v1/team-member` (council=`team_members`) | `edit_posts` |
-| `cdcf/create-ecclesial-council-member` | …council=`ecclesial_council` | `edit_posts` |
-| `cdcf/create-technical-council-member` | …council=`technical_council` | `edit_posts` |
-| `cdcf/create-academic-liaison` | …council=`academic_council` (needs `collab_post_id`) | `edit_posts` |
-| `cdcf/create-academic-collaboration` | POST `/cdcf/v1/academic-collaboration` | `edit_posts` |
-| `cdcf/update-member-bio` | `wp_update_post` + ACF + optional re-translate | `edit_posts` |
-| `cdcf/delete-member` | trash/delete member + all translations | `delete_posts` |
-| `cdcf/update-member-relationship` | POST `/cdcf/v1/relationship` (replace) | `edit_posts` |
-| `cdcf/add-project-lead` | GET+POST `/cdcf/v1/relationship` (append) | `edit_posts` |
-| `cdcf/update-project-description` | `wp_update_post` + optional re-translate | `edit_posts` |
-| `cdcf/update-project-status` | POST `/cdcf/v1/project-status` | `edit_posts` |
-| `cdcf/set-project-repos` | ACF `project_repo_url` / `project_url` across translations | `edit_posts` |
-| `cdcf/set-featured-image` | `set_post_thumbnail` (any post type) | `edit_posts` |
-| `cdcf/upload-media` | sideload remote URL → media library | `upload_files` |
-| `cdcf/list-submitted-projects` | `project` listing (incl. drafts/pending) | `edit_posts` |
-| `cdcf/list-submitted-community-projects` | `community_project` listing | `edit_posts` |
-| `cdcf/create-page` | `wp_insert_post` (page, template + language) | `edit_pages` |
-| `cdcf/create-post` | `wp_insert_post` (blog post draft) | `edit_posts` |
+| Ability                                  | Backing                                                    | Capability     |
+| ---------------------------------------- | ---------------------------------------------------------- | -------------- |
+| `cdcf/create-board-member`               | POST `/cdcf/v1/team-member` (council=`team_members`)       | `edit_posts`   |
+| `cdcf/create-ecclesial-council-member`   | …council=`ecclesial_council`                               | `edit_posts`   |
+| `cdcf/create-technical-council-member`   | …council=`technical_council`                               | `edit_posts`   |
+| `cdcf/create-academic-liaison`           | …council=`academic_council` (needs `collab_post_id`)       | `edit_posts`   |
+| `cdcf/create-academic-collaboration`     | POST `/cdcf/v1/academic-collaboration`                     | `edit_posts`   |
+| `cdcf/update-member-bio`                 | `wp_update_post` + ACF + optional re-translate             | `edit_posts`   |
+| `cdcf/delete-member`                     | trash/delete member + all translations                     | `delete_posts` |
+| `cdcf/update-member-relationship`        | POST `/cdcf/v1/relationship` (replace)                     | `edit_posts`   |
+| `cdcf/add-project-lead`                  | GET+POST `/cdcf/v1/relationship` (append)                  | `edit_posts`   |
+| `cdcf/update-project-description`        | `wp_update_post` + optional re-translate                   | `edit_posts`   |
+| `cdcf/update-project-status`             | POST `/cdcf/v1/project-status`                             | `edit_posts`   |
+| `cdcf/set-project-repos`                 | ACF `project_repo_url` / `project_url` across translations | `edit_posts`   |
+| `cdcf/set-featured-image`                | `set_post_thumbnail` (any post type)                       | `edit_posts`   |
+| `cdcf/upload-media`                      | sideload remote URL → media library                        | `upload_files` |
+| `cdcf/list-submitted-projects`           | `project` listing (incl. drafts/pending)                   | `edit_posts`   |
+| `cdcf/list-submitted-community-projects` | `community_project` listing                                | `edit_posts`   |
+| `cdcf/create-page`                       | `wp_insert_post` (page, template + language)               | `edit_pages`   |
+| `cdcf/create-post`                       | `wp_insert_post` (blog post draft)                         | `edit_posts`   |
 
 Each ability declares a JSON input schema and a capability gate; the adapter
 exposes only abilities flagged `meta.mcp.public => true`. The plugin degrades
@@ -129,7 +129,7 @@ install, activate and connect a client.
    operations (`/process-queue`, `/maintenance`, `/flush-opcache`) as abilities.
 4. **Not wired into the shared dev stack.** Unlike `cdcf-redis-translations`
    (dev-only composer deps), this plugin needs its `vendor/` at runtime. To keep
-   the prototype non-invasive it is *not* added to `docker-compose.yml` or
+   the prototype non-invasive it is _not_ added to `docker-compose.yml` or
    `wordpress/init.sh`; opt-in steps are in the plugin README.
 
 ## 6. Recommendation / next steps

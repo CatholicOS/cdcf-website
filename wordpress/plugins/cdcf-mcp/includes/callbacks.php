@@ -356,11 +356,9 @@ function cdcf_mcp_cb_upload_media(array $input) {
  */
 function cdcf_mcp_list_posts(string $post_type, array $input) {
     $status = $input['post_status'] ?? ['publish', 'draft', 'pending'];
-    if (is_string($status)) {
-        $status = sanitize_key($status);
-    } else {
-        $status = array_map('sanitize_key', (array) $status);
-    }
+    $status = is_string($status)
+        ? sanitize_key($status)
+        : array_map('sanitize_key', (array) $status);
 
     $posts = get_posts([
         'post_type'   => $post_type,

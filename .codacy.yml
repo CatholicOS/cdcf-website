@@ -15,3 +15,7 @@ exclude_paths:
   - 'wordpress/themes/cdcf-headless/vendor/**'
   - 'wordpress/themes/cdcf-headless/.phpunit.cache/**'
   - 'wordpress/themes/cdcf-headless/.phpunit.result.cache'
+  - 'wordpress/plugins/cdcf-mcp/tests/**'
+  - 'wordpress/plugins/cdcf-mcp/vendor/**'
+  - 'wordpress/plugins/cdcf-mcp/.phpunit.cache/**'
+  - 'wordpress/plugins/cdcf-mcp/.phpunit.result.cache'

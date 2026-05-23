@@ -38,7 +38,7 @@ Each ability is capability-gated (`edit_posts`, `edit_pages`, `delete_posts`,
 
 ## Layout
 
-```
+```text
 cdcf-mcp.php            Plugin bootstrap; loads vendor autoload + hooks
 includes/abilities.php  Ability registry (single source of truth) + registration
 includes/callbacks.php  execute_callback implementations
@@ -52,18 +52,24 @@ This plugin needs its `vendor/` at runtime (the adapter), so it is intentionally
 **not** wired into `docker-compose.yml` / `wordpress/init.sh`. To pilot it:
 
 1. Install dependencies:
+
    ```bash
    composer install --working-dir=wordpress/plugins/cdcf-mcp
    ```
+
 2. Mount it into the WordPress container — add to each WP service's `volumes:`
    in `docker-compose.yml`:
+
    ```yaml
    - ./wordpress/plugins/cdcf-mcp:/var/www/html/wp-content/plugins/cdcf-mcp
    ```
+
 3. Activate it:
+
    ```bash
    docker compose exec wordpress wp plugin activate cdcf-mcp --allow-root
    ```
+
 4. Connect an MCP client to `/wp-json/cdcf-mcp/mcp`, authenticating with an
    Application Password for a **role-limited** user (see Security).
 
