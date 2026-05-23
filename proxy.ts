@@ -1,6 +1,7 @@
 import createMiddleware from 'next-intl/middleware'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { normalizeRedirectLocation } from './lib/normalize-redirect'
 import { routing } from './src/i18n/routing'
 
 // Hosts that ARE allowed to be indexed by search engines. Anything else
@@ -42,30 +43,19 @@ export function proxy(request: NextRequest) {
     ? NextResponse.next()
     : intlProxy(request)
 
-  // Fix Location header when next-intl produces a locale redirect.
-  // Under Plesk Passenger the upstream Node.js port (e.g. 3000) leaks
-  // into request.nextUrl.origin, which next-intl uses to construct
-  // the 307 redirect target — observed as
-  //   location: https://catholicdigitalcommons.org:3000/it
-  // when an Italian-speaking browser hits /. Public traffic only ever
-  // reaches us on the default HTTPS port, so the redirect should never
-  // carry an explicit port unless the Host header itself does (local
-  // dev: Host: localhost:3000). Rewrite to match the Host header port
-  // (empty for production / staging where Host has no port).
+  // Fix Location header when next-intl produces a locale redirect. The
+  // 307 target leaks the Next standalone bind address/port (0.0.0.0:3000)
+  // because Next runs with trustHostHeader: false behind Plesk's Passenger
+  // proxy; rebuild its authority from the clean public Host header. See
+  // normalizeRedirectLocation for the full rationale and the URL-setter
+  // caveat that makes this non-trivial.
   const hostHeader = (request.headers.get('host') ?? '').toLowerCase()
-  const hostHeaderPort = hostHeader.includes(':') ? hostHeader.split(':')[1] : ''
-  const location = response.headers.get('location')
-  if (location) {
-    try {
-      const url = new URL(location)
-      if (url.port && url.port !== hostHeaderPort) {
-        url.port = hostHeaderPort
-        response.headers.set('location', url.toString())
-      }
-    } catch {
-      // Location wasn't an absolute URL — middleware never produces
-      // relative Locations, so this branch is just defence in depth.
-    }
+  const fixedLocation = normalizeRedirectLocation(
+    response.headers.get('location'),
+    hostHeader
+  )
+  if (fixedLocation) {
+    response.headers.set('location', fixedLocation)
   }
 
   // Apply noindex on any non-production host (staging, preview deploys,
@@ -78,8 +68,8 @@ export function proxy(request: NextRequest) {
   // and would noindex production. The Host header is what nginx actually
   // forwards via `proxy_set_header Host $host` and is the only reliable
   // source of the incoming hostname in this topology.
-  const host = hostHeader.split(':')[0]
-  if (host && !INDEXABLE_HOSTS.has(host)) {
+  const hostHostname = hostHeader.split(':')[0]
+  if (hostHostname && !INDEXABLE_HOSTS.has(hostHostname)) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow')
   }
 
