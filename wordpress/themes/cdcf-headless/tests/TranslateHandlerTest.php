@@ -353,7 +353,7 @@ final class TranslateHandlerTest extends TestCase
         );
         $this->allowAllFunctionsToExist();
 
-        cdcf_rest_translate($this->makeRequest());
+        $response = cdcf_rest_translate($this->makeRequest());
 
         $this->assertSame(
             [
@@ -361,6 +361,68 @@ final class TranslateHandlerTest extends TestCase
                 [800, '_wp_attachment_metadata', ['width' => 800, 'height' => 600]],
             ],
             $metaWrites
+        );
+        // Happy path → errors[] stays empty (#109).
+        $this->assertSame([], $response->get_data()['errors']);
+    }
+
+    public function test_records_error_when_attached_file_meta_write_fails(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->makeSourcePost([
+            'post_type'      => 'attachment',
+            'post_mime_type' => 'image/png',
+        ]));
+        Functions\when('pll_get_post')->justReturn(0);
+        Functions\when('wp_insert_post')->justReturn(800);
+        Functions\when('get_post_meta')->alias(
+            static fn(int $post_id, string $key) => match ($key) {
+                '_wp_attached_file'      => '2026/05/file.png',
+                '_wp_attachment_metadata' => '',  // empty → skip the second write
+                default => '',
+            }
+        );
+        // _wp_attached_file write fails — error recorded but translation
+        // post is still created and enqueued.
+        Functions\when('update_post_meta')->justReturn(false);
+        $this->allowAllFunctionsToExist();
+
+        $response = cdcf_rest_translate($this->makeRequest());
+
+        $this->assertContains(
+            'Failed to copy _wp_attached_file to translation post.',
+            $response->get_data()['errors']
+        );
+        // post_id still set + 202 returned — translation IS queued, the
+        // metadata copy is best-effort.
+        $this->assertSame(800, $response->get_data()['post_id']);
+        $this->assertSame(202, $response->get_status());
+    }
+
+    public function test_records_error_when_attachment_metadata_write_fails(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->makeSourcePost([
+            'post_type'      => 'attachment',
+            'post_mime_type' => 'image/png',
+        ]));
+        Functions\when('pll_get_post')->justReturn(0);
+        Functions\when('wp_insert_post')->justReturn(800);
+        Functions\when('get_post_meta')->alias(
+            static fn(int $post_id, string $key) => match ($key) {
+                '_wp_attached_file'      => '',  // empty → skip the first write
+                '_wp_attachment_metadata' => ['width' => 800, 'height' => 600],
+                default => '',
+            }
+        );
+        Functions\when('update_post_meta')->justReturn(false);
+        $this->allowAllFunctionsToExist();
+
+        $response = cdcf_rest_translate($this->makeRequest());
+
+        $this->assertContains(
+            'Failed to copy _wp_attachment_metadata to translation post.',
+            $response->get_data()['errors']
         );
     }
 

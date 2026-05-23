@@ -107,6 +107,14 @@ All endpoints require Application Password authentication. Most endpoints requir
 | `POST` | `/maintenance`               | Pause or resume the cdcf-queue-worker by setting/clearing a Redis flag. Body: `action` is `"begin"` or `"end"`; optional `duration_seconds` is clamped server-side to 60–600. Requires administrator (`manage_options`) capability. |
 | `POST` | `/academic-collaboration`    | Create an academic collaboration with auto-translation and Community page linking (see below)                                                                                                                                       |
 
+### Sanitization convention
+
+Every `cdcf/v1` route declares its `sanitize_callback` per field in the `args` block of `register_rest_route()` (in `functions.php`). The handlers in `includes/handlers/` trust that the request has already been sanitized by REST dispatch and **do not re-sanitize on entry**. The REST framework runs the permission callback → type validation → each field's `sanitize_callback` → then the handler — so by the time the handler sees `$request`, every declared field is clean.
+
+When adding a new request field, declare its `sanitize_callback` at registration (`sanitize_text_field`, `sanitize_textarea_field`, `sanitize_email`, `esc_url_raw`, `absint`, etc.) — not inside the handler body. Validation beyond sanitization (`is_email()`, allowlist checks, format guards) stays in the handler where it can return a contextual `WP_Error`.
+
+This was settled in #111: defense-in-depth re-sanitization inside the handler body was rejected because (a) the REST framework is the canonical and only ingress path for these handlers — they're not hooked into actions/filters or called from other PHP code, (b) re-sanitization would be idempotent under the actual call path and verifiable only by bypassing REST dispatch (which production callers never do), and (c) WordPress's own sinks (`wp_insert_post`, `update_field`, `wp_mail`) apply their own downstream sanitization. The args-block declaration is the authoritative layer; PR review of registration changes is the enforcement mechanism.
+
 ### `POST /team-member`
 
 Creates an English `team_member` post, translates it to all 5 languages via OpenAI, and optionally appends each translation to the appropriate relationship field. For `team_members`, `ecclesial_council`, and `technical_council`, members are linked to the About page's council field. For `academic_council`, members are linked to the academic collaboration post's `collab_governance` field (requires `collab_post_id`). When `council` is omitted, the member is created with translations but not linked to any page — use this for project-only members (e.g. project leads) who should then be added to the project's `project_leads` field separately via `update-relationship`.

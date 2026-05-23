@@ -11,24 +11,22 @@
 // POST /wp-json/cdcf/v1/flush-opcache (Application Password auth)
 // Invalidates OPcache for this file so new CPT registrations take effect
 // after deploy without waiting for the OPcache TTL.
+//
+// Handler body lives in includes/handlers/flush-opcache.php so it can
+// be unit-tested in isolation (Brain Monkey + Mockery). The CDCF_FUNCTIONS_FILE
+// constant captures the runtime path to this file so the extracted
+// handler can pass it to opcache_invalidate().
+
+if (!defined('CDCF_FUNCTIONS_FILE')) {
+    define('CDCF_FUNCTIONS_FILE', __FILE__);
+}
+
+require_once __DIR__ . '/includes/handlers/flush-opcache.php';
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/flush-opcache', [
         'methods'             => 'POST',
-        'callback'            => function () {
-            $flushed = [];
-            if (function_exists('opcache_invalidate')) {
-                opcache_invalidate(__FILE__, true);
-                $flushed[] = 'functions.php';
-            }
-            if (function_exists('opcache_reset')) {
-                opcache_reset();
-                $flushed[] = 'full-reset';
-            }
-            flush_rewrite_rules();
-            $flushed[] = 'rewrite-rules';
-            return rest_ensure_response(['flushed' => $flushed]);
-        },
+        'callback'            => 'cdcf_rest_flush_opcache',
         'permission_callback' => function () {
             return current_user_can('manage_options');
         },
@@ -427,36 +425,7 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-function cdcf_rest_link_translations(WP_REST_Request $request) {
-    if (!function_exists('pll_set_post_language') || !function_exists('pll_save_post_translations')) {
-        return new WP_Error('polylang_missing', 'Polylang is not active.', ['status' => 500]);
-    }
-
-    $translations = $request['translations'];
-    if (!is_array($translations) || count($translations) < 2) {
-        return new WP_Error('invalid_translations', 'Provide at least 2 language => post_id pairs.', ['status' => 400]);
-    }
-
-    // Validate all posts exist.
-    foreach ($translations as $lang => $post_id) {
-        $post_id = (int) $post_id;
-        if (!get_post($post_id)) {
-            return new WP_Error('invalid_post', "Post {$post_id} does not exist.", ['status' => 400]);
-        }
-        $translations[$lang] = $post_id;
-    }
-
-    // Set language on each post and link them.
-    foreach ($translations as $lang => $post_id) {
-        pll_set_post_language($post_id, $lang);
-    }
-    pll_save_post_translations($translations);
-
-    return rest_ensure_response([
-        'success'      => true,
-        'translations' => $translations,
-    ]);
-}
+require_once __DIR__ . '/includes/handlers/link-translations.php';
 
 // ─── REST endpoint for updating project status across translations ───
 //
@@ -480,46 +449,7 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-function cdcf_rest_update_project_status(WP_REST_Request $request) {
-    if (!function_exists('update_field')) {
-        return new WP_Error('acf_missing', 'ACF is not active.', ['status' => 500]);
-    }
-
-    $post_id = $request['post_id'];
-    $status  = $request['status'];
-
-    $allowed = ['incubating', 'active', 'archived'];
-    if (!in_array($status, $allowed, true)) {
-        return new WP_Error('invalid_status', 'status must be one of: ' . implode(', ', $allowed), ['status' => 400]);
-    }
-
-    $post = get_post($post_id);
-    if (!$post || $post->post_type !== 'project') {
-        return new WP_Error('invalid_post', 'Post not found or is not a project.', ['status' => 404]);
-    }
-
-    // Collect all translation IDs (including the given post itself).
-    $post_ids = [$post_id];
-    if (function_exists('pll_get_post_translations')) {
-        $translations = pll_get_post_translations($post_id);
-        $post_ids = array_values($translations);
-        if (!in_array($post_id, $post_ids, true)) {
-            $post_ids[] = $post_id;
-        }
-    }
-
-    $updated = [];
-    foreach ($post_ids as $pid) {
-        update_field('project_status', $status, $pid);
-        $updated[] = $pid;
-    }
-
-    return rest_ensure_response([
-        'success'      => true,
-        'status'       => $status,
-        'updated_posts' => $updated,
-    ]);
-}
+require_once __DIR__ . '/includes/handlers/project-status.php';
 
 // ─── REST endpoint for creating a team member with translations ──────
 //
@@ -665,6 +595,12 @@ if (!defined('CDCF_DISPOSABLE_DOMAINS_FILE')) {
 
 require_once __DIR__ . '/includes/handlers/update-disposable-domains.php';
 
+// Spam-protection helpers (cdcf_check_ip_rbl, cdcf_is_disposable_email,
+// cdcf_is_spam_content) used by every public-submission endpoint below.
+// Required here — after CDCF_DISPOSABLE_DOMAINS_FILE is defined — so
+// the disposable-domain lookup can read the blocklist file path.
+require_once __DIR__ . '/includes/security.php';
+
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/update-disposable-domains', [
         'methods'             => 'POST',
@@ -681,6 +617,12 @@ add_action('rest_api_init', function () {
 // Creates a pending local_group post and sends an admin notification email.
 //
 // POST /wp-json/cdcf/v1/refer-local-group (public — no auth required)
+//
+// Handler bodies live in includes/handlers/ so they can be
+// unit-tested in isolation (Brain Monkey + Mockery).
+
+require_once __DIR__ . '/includes/handlers/refer-local-group.php';
+require_once __DIR__ . '/includes/handlers/send-verification-code.php';
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/refer-local-group', [
@@ -715,298 +657,12 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-// ── Spam-protection helpers for public referral endpoint ──
+// Spam-protection helpers (cdcf_check_ip_rbl, cdcf_is_disposable_email,
+// cdcf_is_spam_content) live in includes/security.php, required above.
 
-/**
- * Check whether an IP is listed in DNS-based Real-time Blackhole Lists.
- * Returns true if the IP is listed on any checked RBL.
- * Results are cached in a transient for 1 hour.
- */
-function cdcf_check_ip_rbl(string $ip): bool {
-    if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-        return false; // Only IPv4 is supported by DNSBL lookups.
-    }
+// cdcf_rest_send_verification_code() lives in includes/handlers/send-verification-code.php
 
-    $cache_key = 'cdcf_rbl_' . md5($ip);
-    $cached    = get_transient($cache_key);
-    if ($cached !== false) {
-        return $cached === 'listed';
-    }
-
-    $reversed = implode('.', array_reverse(explode('.', $ip)));
-    $rbls     = ['zen.spamhaus.org', 'bl.spamcop.net'];
-    $listed   = false;
-
-    foreach ($rbls as $rbl) {
-        if (checkdnsrr("{$reversed}.{$rbl}", 'A')) {
-            $listed = true;
-            break;
-        }
-    }
-
-    set_transient($cache_key, $listed ? 'listed' : 'clean', HOUR_IN_SECONDS);
-    return $listed;
-}
-
-/**
- * Check whether an email address uses a known disposable/throwaway domain.
- */
-function cdcf_is_disposable_email(string $email): bool {
-    $domain = strtolower(substr(strrchr($email, '@'), 1));
-    if (!$domain) {
-        return false;
-    }
-
-    static $domains = null;
-    if ($domains === null) {
-        $file = CDCF_DISPOSABLE_DOMAINS_FILE;
-        if (!file_exists($file)) {
-            return false;
-        }
-        $domains = array_flip(array_filter(array_map('trim', file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES))));
-    }
-
-    return isset($domains[$domain]);
-}
-
-/**
- * Score text content for spam indicators. Returns true if likely spam (score >= 5).
- */
-function cdcf_is_spam_content(string $text): bool {
-    $score = 0;
-
-    // Excessive URLs (> 2)
-    $url_count = preg_match_all('#https?://#i', $text);
-    if ($url_count > 2) {
-        $score += 2;
-    }
-
-    // Common spam keywords
-    $spam_keywords = [
-        'viagra', 'cialis', 'casino', 'lottery', 'poker', 'blackjack',
-        'buy now', 'free money', 'click here', 'act now', 'limited time',
-        'nigerian prince', 'wire transfer', 'cryptocurrency offer',
-    ];
-    $lower = strtolower($text);
-    foreach ($spam_keywords as $kw) {
-        if (str_contains($lower, $kw)) {
-            $score += 3;
-        }
-    }
-
-    // HTML/script injection attempts
-    if (preg_match('/<\s*(script|iframe|object|embed|form|style)\b/i', $text)) {
-        $score += 10;
-    }
-
-    // Excessive email addresses in content (> 1)
-    $email_count = preg_match_all('/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/i', $text);
-    if ($email_count > 1) {
-        $score += 2;
-    }
-
-    // Non-Latin script ratio (> 50% suggests gibberish or Cyrillic spam)
-    $total_chars = mb_strlen(preg_replace('/\s+/', '', $text));
-    if ($total_chars > 0) {
-        $latin_chars = preg_match_all('/[\x20-\x7E\xC0-\xFF]/u', $text);
-        if ($latin_chars / $total_chars < 0.5) {
-            $score += 2;
-        }
-    }
-
-    return $score >= 5;
-}
-
-function cdcf_rest_send_verification_code(WP_REST_Request $request) {
-    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-
-    // IP rate limit: max 5 code requests per hour.
-    $ip_key   = 'cdcf_verify_' . md5($ip);
-    $ip_count = (int) get_transient($ip_key);
-    if ($ip_count >= 5) {
-        return new WP_Error('rate_limited', 'Too many requests. Please try again later.', ['status' => 429]);
-    }
-    set_transient($ip_key, $ip_count + 1, HOUR_IN_SECONDS);
-
-    // Honeypot — silent success so bots don't adapt.
-    if (!empty($request['honeypot'])) {
-        return rest_ensure_response(['success' => true]);
-    }
-
-    // Timing check — too fast means bot.
-    $elapsed = (int) $request['elapsed_ms'];
-    if ($elapsed > 0 && $elapsed < 3000) {
-        return rest_ensure_response(['success' => true]);
-    }
-
-    // DNSBL check.
-    if (cdcf_check_ip_rbl($ip)) {
-        return new WP_Error('forbidden', 'Request blocked.', ['status' => 403]);
-    }
-
-    // Validate email format.
-    if (!is_email($request['submitter_email'])) {
-        return new WP_Error('invalid_email', 'Please provide a valid email address.', ['status' => 400]);
-    }
-
-    // Disposable email check.
-    if (cdcf_is_disposable_email($request['submitter_email'])) {
-        return new WP_Error('disposable_email', 'Please use a permanent email address.', ['status' => 400]);
-    }
-
-    // Content spam scoring — silent success so bots don't adapt.
-    if (cdcf_is_spam_content($request['description'] . ' ' . $request['group_name'])) {
-        return rest_ensure_response(['success' => true]);
-    }
-
-    // Email send rate limit: max 3 codes per hour per email.
-    $email       = $request['submitter_email'];
-    $sends_key   = 'cdcf_code_sends_' . md5($email);
-    $sends_count = (int) get_transient($sends_key);
-    if ($sends_count >= 3) {
-        return new WP_Error('rate_limited', 'Too many code requests for this email. Please try again later.', ['status' => 429]);
-    }
-    set_transient($sends_key, $sends_count + 1, HOUR_IN_SECONDS);
-
-    // Generate 6-digit code and store in transient (10 min TTL).
-    $code         = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-    $code_key     = 'cdcf_email_code_' . md5($email);
-    set_transient($code_key, ['code' => $code, 'attempts' => 0], 600);
-
-    // Send the code via email.
-    $subject = '[CDCF] Your verification code';
-    $body    = sprintf(
-        "Your verification code is: %s\n\n" .
-        "Enter this code in the referral form to complete your submission.\n" .
-        "This code expires in 10 minutes.\n\n" .
-        "If you did not request this code, you can safely ignore this email.",
-        $code
-    );
-
-    $sent = wp_mail($email, $subject, $body);
-    if (!$sent) {
-        return new WP_Error('mail_failed', 'Failed to send verification email. Please try again.', ['status' => 500]);
-    }
-
-    return rest_ensure_response(['success' => true]);
-}
-
-function cdcf_rest_refer_local_group(WP_REST_Request $request) {
-    // Rate limiting via transients: 3 submissions per hour per IP (defense-in-depth).
-    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    $transient_key = 'cdcf_refer_' . md5($ip);
-    $count = (int) get_transient($transient_key);
-
-    if ($count >= 3) {
-        return new WP_Error(
-            'rate_limited',
-            'Too many submissions. Please try again later.',
-            ['status' => 429]
-        );
-    }
-
-    set_transient($transient_key, $count + 1, HOUR_IN_SECONDS);
-
-    // Layer 5: IP DNSBL check.
-    if (cdcf_check_ip_rbl($ip)) {
-        return new WP_Error('forbidden', 'Request blocked.', ['status' => 403]);
-    }
-
-    // Validate email format.
-    if (!is_email($request['submitter_email'])) {
-        return new WP_Error('invalid_email', 'Please provide a valid email address.', ['status' => 400]);
-    }
-
-    // Layer 6: Disposable email check.
-    if (cdcf_is_disposable_email($request['submitter_email'])) {
-        return new WP_Error('disposable_email', 'Please use a permanent email address.', ['status' => 400]);
-    }
-
-    // Layer 7: Content spam scoring — silent success so bots don't adapt.
-    if (cdcf_is_spam_content($request['description'] . ' ' . $request['group_name'])) {
-        return rest_ensure_response(['success' => true, 'post_id' => 0]);
-    }
-
-    // Verify email verification code.
-    $email    = $request['submitter_email'];
-    $code_key = 'cdcf_email_code_' . md5($email);
-    $stored   = get_transient($code_key);
-
-    if (!$stored) {
-        return new WP_Error('code_expired', 'Verification code has expired. Please request a new one.', ['status' => 400]);
-    }
-
-    if ($stored['attempts'] >= 5) {
-        delete_transient($code_key);
-        return new WP_Error('too_many_attempts', 'Too many incorrect attempts. Please request a new code.', ['status' => 429]);
-    }
-
-    if ($request['verification_code'] !== $stored['code']) {
-        $stored['attempts']++;
-        set_transient($code_key, $stored, 600);
-        return new WP_Error('invalid_code', 'Invalid verification code. Please check and try again.', ['status' => 400]);
-    }
-
-    // Code is valid — delete it (single use).
-    delete_transient($code_key);
-
-    // Create a pending local_group post.
-    $post_id = wp_insert_post([
-        'post_type'   => 'local_group',
-        'post_status' => 'pending',
-        'post_title'  => $request['group_name'],
-    ]);
-
-    if (is_wp_error($post_id) || !$post_id) {
-        return new WP_Error('insert_failed', 'Failed to create referral.', ['status' => 500]);
-    }
-
-    // Assign English language so Polylang can link translations later.
-    if (function_exists('pll_set_post_language')) {
-        pll_set_post_language($post_id, 'en');
-    }
-
-    // Set ACF fields if ACF is active.
-    if (function_exists('update_field')) {
-        update_field('group_description', $request['description'], $post_id);
-        update_field('group_url', $request['url'], $post_id);
-        if ($request['location']) {
-            update_field('group_location', $request['location'], $post_id);
-        }
-    }
-
-    // Store submitter info as private post meta.
-    update_post_meta($post_id, '_referral_submitter_name', $request['submitter_name']);
-    update_post_meta($post_id, '_referral_submitter_email', $request['submitter_email']);
-
-    // Send admin notification email.
-    $admin_email = get_option('admin_email');
-    $edit_link   = admin_url("post.php?post={$post_id}&action=edit");
-    $subject     = sprintf('[CDCF] New Local Group Referral: %s', $request['group_name']);
-    $body        = sprintf(
-        "A new local group referral has been submitted for review.\n\n" .
-        "Group Name: %s\n" .
-        "Location: %s\n" .
-        "URL: %s\n" .
-        "Description:\n%s\n\n" .
-        "Submitted by: %s (%s)\n\n" .
-        "Review and approve it here:\n%s",
-        $request['group_name'],
-        $request['location'] ?: '(not provided)',
-        $request['url'],
-        $request['description'],
-        $request['submitter_name'],
-        $request['submitter_email'],
-        $edit_link
-    );
-
-    wp_mail($admin_email, $subject, $body);
-
-    return rest_ensure_response([
-        'success' => true,
-        'post_id' => $post_id,
-    ]);
-}
+// cdcf_rest_refer_local_group() lives in includes/handlers/refer-local-group.php
 
 // ─── Public Community Project Referral Endpoint ──────────────────────
 //
@@ -1014,6 +670,12 @@ function cdcf_rest_refer_local_group(WP_REST_Request $request) {
 // Creates a pending community_project post and sends an admin notification email.
 //
 // POST /wp-json/cdcf/v1/refer-community-project (public — no auth required)
+//
+// Handler body lives in includes/handlers/refer-community-project.php.
+// The shared /send-code handler was already required above for
+// /refer-local-group; no second require needed here.
+
+require_once __DIR__ . '/includes/handlers/refer-community-project.php';
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/refer-community-project', [
@@ -1052,135 +714,7 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-function cdcf_rest_refer_community_project(WP_REST_Request $request) {
-    // Rate limiting via transients: 3 submissions per hour per IP (defense-in-depth).
-    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    $transient_key = 'cdcf_refer_cp_' . md5($ip);
-    $count = (int) get_transient($transient_key);
-
-    if ($count >= 3) {
-        return new WP_Error(
-            'rate_limited',
-            'Too many submissions. Please try again later.',
-            ['status' => 429]
-        );
-    }
-
-    set_transient($transient_key, $count + 1, HOUR_IN_SECONDS);
-
-    // IP DNSBL check.
-    if (cdcf_check_ip_rbl($ip)) {
-        return new WP_Error('forbidden', 'Request blocked.', ['status' => 403]);
-    }
-
-    // Validate email format.
-    if (!is_email($request['submitter_email'])) {
-        return new WP_Error('invalid_email', 'Please provide a valid email address.', ['status' => 400]);
-    }
-
-    // Disposable email check.
-    if (cdcf_is_disposable_email($request['submitter_email'])) {
-        return new WP_Error('disposable_email', 'Please use a permanent email address.', ['status' => 400]);
-    }
-
-    // Content spam scoring — silent success so bots don't adapt.
-    if (cdcf_is_spam_content($request['description'] . ' ' . $request['project_name'])) {
-        return rest_ensure_response(['success' => true, 'post_id' => 0]);
-    }
-
-    // Verify email verification code.
-    $email    = $request['submitter_email'];
-    $code_key = 'cdcf_email_code_' . md5($email);
-    $stored   = get_transient($code_key);
-
-    if (!$stored) {
-        return new WP_Error('code_expired', 'Verification code has expired. Please request a new one.', ['status' => 400]);
-    }
-
-    if ($stored['attempts'] >= 5) {
-        delete_transient($code_key);
-        return new WP_Error('too_many_attempts', 'Too many incorrect attempts. Please request a new code.', ['status' => 429]);
-    }
-
-    if ($request['verification_code'] !== $stored['code']) {
-        $stored['attempts']++;
-        set_transient($code_key, $stored, 600);
-        return new WP_Error('invalid_code', 'Invalid verification code. Please check and try again.', ['status' => 400]);
-    }
-
-    // Code is valid — delete it (single use).
-    delete_transient($code_key);
-
-    // Create a pending community_project post.
-    $post_id = wp_insert_post([
-        'post_type'    => 'community_project',
-        'post_status'  => 'pending',
-        'post_title'   => $request['project_name'],
-        'post_content' => $request['description'],
-    ]);
-
-    if (is_wp_error($post_id) || !$post_id) {
-        return new WP_Error('insert_failed', 'Failed to create referral.', ['status' => 500]);
-    }
-
-    // Assign English language so Polylang can link translations later.
-    if (function_exists('pll_set_post_language')) {
-        pll_set_post_language($post_id, 'en');
-    }
-
-    // Set ACF fields if ACF is active.
-    if (function_exists('update_field')) {
-        if ($request['category']) {
-            update_field('project_category', $request['category'], $post_id);
-        }
-        if ($request['project_url']) {
-            update_field('project_url', $request['project_url'], $post_id);
-        }
-        if ($request['github_url']) {
-            update_field('project_github_url', $request['github_url'], $post_id);
-        }
-    }
-
-    // Assign project tags.
-    $tags = array_filter(array_map('sanitize_text_field', (array) $request['tags']));
-    if (!empty($tags)) {
-        wp_set_object_terms($post_id, $tags, 'project_tag');
-    }
-
-    // Store submitter info as private post meta.
-    update_post_meta($post_id, '_referral_submitter_name', $request['submitter_name']);
-    update_post_meta($post_id, '_referral_submitter_email', $request['submitter_email']);
-
-    // Send admin notification email.
-    $admin_email = get_option('admin_email');
-    $edit_link   = admin_url("post.php?post={$post_id}&action=edit");
-    $subject     = sprintf('[CDCF] New Community Project Referral: %s', $request['project_name']);
-    $body        = sprintf(
-        "A new community project referral has been submitted for review.\n\n" .
-        "Project Name: %s\n" .
-        "Category: %s\n" .
-        "Project URL: %s\n" .
-        "GitHub URL: %s\n" .
-        "Description:\n%s\n\n" .
-        "Submitted by: %s (%s)\n\n" .
-        "Review and approve it here:\n%s",
-        $request['project_name'],
-        $request['category'] ?: '(not provided)',
-        $request['project_url'] ?: '(not provided)',
-        $request['github_url'] ?: '(not provided)',
-        $request['description'],
-        $request['submitter_name'],
-        $request['submitter_email'],
-        $edit_link
-    );
-
-    wp_mail($admin_email, $subject, $body);
-
-    return rest_ensure_response([
-        'success' => true,
-        'post_id' => $post_id,
-    ]);
-}
+// cdcf_rest_refer_community_project() lives in includes/handlers/refer-community-project.php
 
 // ─── Public Project Submission Endpoint ───────────────────────────────
 //
@@ -1188,6 +722,13 @@ function cdcf_rest_refer_community_project(WP_REST_Request $request) {
 // Creates a pending project post and sends an admin notification email.
 //
 // POST /wp-json/cdcf/v1/submit-project (public — no auth required)
+//
+// Handler bodies live in includes/handlers/. /submit-project/send-code
+// has its own helper (separate IP-rate-limit transient prefix) — see
+// the docblock in submit-project-send-code.php.
+
+require_once __DIR__ . '/includes/handlers/submit-project.php';
+require_once __DIR__ . '/includes/handlers/submit-project-send-code.php';
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/submit-project', [
@@ -1226,216 +767,9 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-function cdcf_rest_submit_project_send_code(WP_REST_Request $request) {
-    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+// cdcf_rest_submit_project_send_code() lives in includes/handlers/submit-project-send-code.php
 
-    // IP rate limit: max 5 code requests per hour.
-    $ip_key   = 'cdcf_projv_' . md5($ip);
-    $ip_count = (int) get_transient($ip_key);
-    if ($ip_count >= 5) {
-        return new WP_Error('rate_limited', 'Too many requests. Please try again later.', ['status' => 429]);
-    }
-    set_transient($ip_key, $ip_count + 1, HOUR_IN_SECONDS);
-
-    // Honeypot — silent success so bots don't adapt.
-    if (!empty($request['honeypot'])) {
-        return rest_ensure_response(['success' => true]);
-    }
-
-    // Timing check — too fast means bot.
-    $elapsed = (int) $request['elapsed_ms'];
-    if ($elapsed > 0 && $elapsed < 3000) {
-        return rest_ensure_response(['success' => true]);
-    }
-
-    // DNSBL check.
-    if (cdcf_check_ip_rbl($ip)) {
-        return new WP_Error('forbidden', 'Request blocked.', ['status' => 403]);
-    }
-
-    // Validate email format.
-    if (!is_email($request['submitter_email'])) {
-        return new WP_Error('invalid_email', 'Please provide a valid email address.', ['status' => 400]);
-    }
-
-    // Disposable email check.
-    if (cdcf_is_disposable_email($request['submitter_email'])) {
-        return new WP_Error('disposable_email', 'Please use a permanent email address.', ['status' => 400]);
-    }
-
-    // Content spam scoring — silent success so bots don't adapt.
-    if (cdcf_is_spam_content($request['description'] . ' ' . $request['project_name'])) {
-        return rest_ensure_response(['success' => true]);
-    }
-
-    // Email send rate limit: max 3 codes per hour per email.
-    $email       = $request['submitter_email'];
-    $sends_key   = 'cdcf_code_sends_' . md5($email);
-    $sends_count = (int) get_transient($sends_key);
-    if ($sends_count >= 3) {
-        return new WP_Error('rate_limited', 'Too many code requests for this email. Please try again later.', ['status' => 429]);
-    }
-    set_transient($sends_key, $sends_count + 1, HOUR_IN_SECONDS);
-
-    // Generate 6-digit code and store in transient (10 min TTL).
-    $code     = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-    $code_key = 'cdcf_email_code_' . md5($email);
-    set_transient($code_key, ['code' => $code, 'attempts' => 0], 600);
-
-    // Send the code via email.
-    $subject = '[CDCF] Your verification code';
-    $body    = sprintf(
-        "Your verification code is: %s\n\n" .
-        "Enter this code in the project submission form to complete your submission.\n" .
-        "This code expires in 10 minutes.\n\n" .
-        "If you did not request this code, you can safely ignore this email.",
-        $code
-    );
-
-    $sent = wp_mail($email, $subject, $body);
-    if (!$sent) {
-        return new WP_Error('mail_failed', 'Failed to send verification email. Please try again.', ['status' => 500]);
-    }
-
-    return rest_ensure_response(['success' => true]);
-}
-
-function cdcf_rest_submit_project(WP_REST_Request $request) {
-    // Rate limiting via transients: 3 submissions per hour per IP (defense-in-depth).
-    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    $transient_key = 'cdcf_projsub_' . md5($ip);
-    $count = (int) get_transient($transient_key);
-
-    if ($count >= 3) {
-        return new WP_Error(
-            'rate_limited',
-            'Too many submissions. Please try again later.',
-            ['status' => 429]
-        );
-    }
-
-    set_transient($transient_key, $count + 1, HOUR_IN_SECONDS);
-
-    // IP DNSBL check.
-    if (cdcf_check_ip_rbl($ip)) {
-        return new WP_Error('forbidden', 'Request blocked.', ['status' => 403]);
-    }
-
-    // Validate email format.
-    if (!is_email($request['submitter_email'])) {
-        return new WP_Error('invalid_email', 'Please provide a valid email address.', ['status' => 400]);
-    }
-
-    // Disposable email check.
-    if (cdcf_is_disposable_email($request['submitter_email'])) {
-        return new WP_Error('disposable_email', 'Please use a permanent email address.', ['status' => 400]);
-    }
-
-    // Content spam scoring — silent success so bots don't adapt.
-    if (cdcf_is_spam_content($request['description'] . ' ' . $request['project_name'])) {
-        return rest_ensure_response(['success' => true, 'post_id' => 0]);
-    }
-
-    // Verify email verification code.
-    $email    = $request['submitter_email'];
-    $code_key = 'cdcf_email_code_' . md5($email);
-    $stored   = get_transient($code_key);
-
-    if (!$stored) {
-        return new WP_Error('code_expired', 'Verification code has expired. Please request a new one.', ['status' => 400]);
-    }
-
-    if ($stored['attempts'] >= 5) {
-        delete_transient($code_key);
-        return new WP_Error('too_many_attempts', 'Too many incorrect attempts. Please request a new code.', ['status' => 429]);
-    }
-
-    if ($request['verification_code'] !== $stored['code']) {
-        $stored['attempts']++;
-        set_transient($code_key, $stored, 600);
-        return new WP_Error('invalid_code', 'Invalid verification code. Please check and try again.', ['status' => 400]);
-    }
-
-    // Code is valid — delete it (single use).
-    delete_transient($code_key);
-
-    // Create a pending project post.
-    $post_id = wp_insert_post([
-        'post_type'    => 'project',
-        'post_status'  => 'pending',
-        'post_title'   => $request['project_name'],
-        'post_content' => $request['description'],
-    ]);
-
-    if (is_wp_error($post_id) || !$post_id) {
-        return new WP_Error('insert_failed', 'Failed to create project submission.', ['status' => 500]);
-    }
-
-    // Assign English language so Polylang can link translations later.
-    if (function_exists('pll_set_post_language')) {
-        pll_set_post_language($post_id, 'en');
-    }
-
-    // Sanitise repo URLs.
-    $repo_urls = array_values(array_filter(array_map('esc_url_raw', (array) $request['repo_urls'])));
-
-    // Set ACF fields if ACF is active.
-    if (function_exists('update_field')) {
-        update_field('project_url', $request['url'], $post_id);
-        update_field('project_status', 'incubating', $post_id);
-        if (!empty($request['category'])) {
-            update_field('project_category', $request['category'], $post_id);
-        }
-        if (!empty($repo_urls)) {
-            update_field('project_repo_url', $repo_urls[0], $post_id);
-        }
-    }
-
-    // Store all repo URLs as private meta (JSON-encoded array) for the meta box.
-    if (!empty($repo_urls)) {
-        update_post_meta($post_id, '_submission_repo_urls', wp_json_encode($repo_urls));
-    }
-
-    // Assign project tags.
-    $tags = array_filter(array_map('sanitize_text_field', (array) $request['tags']));
-    if (!empty($tags)) {
-        wp_set_object_terms($post_id, $tags, 'project_tag');
-    }
-
-    // Store submitter info as private post meta.
-    update_post_meta($post_id, '_submission_submitter_name', $request['submitter_name']);
-    update_post_meta($post_id, '_submission_submitter_email', $request['submitter_email']);
-
-    // Send admin notification email.
-    $admin_email = get_option('admin_email');
-    $edit_link   = admin_url("post.php?post={$post_id}&action=edit");
-    $subject     = sprintf('[CDCF] New Project Submission: %s', $request['project_name']);
-
-    $repo_list = !empty($repo_urls) ? implode("\n  ", $repo_urls) : '(none provided)';
-    $body = sprintf(
-        "A new project has been submitted for review.\n\n" .
-        "Project Name: %s\n" .
-        "Website: %s\n" .
-        "Repositories:\n  %s\n" .
-        "Description:\n%s\n\n" .
-        "Submitted by: %s (%s)\n\n" .
-        "Review and approve it here:\n%s",
-        $request['project_name'],
-        $request['url'],
-        $repo_list,
-        $request['description'],
-        $request['submitter_name'],
-        $request['submitter_email'],
-        $edit_link
-    );
-
-    wp_mail($admin_email, $subject, $body);
-
-    return rest_ensure_response([
-        'success' => true,
-        'post_id' => $post_id,
-    ]);
-}
+// cdcf_rest_submit_project() lives in includes/handlers/submit-project.php
 
 // ─── ACF Field Groups (registered programmatically) ──────────────────
 
@@ -2958,231 +2292,13 @@ add_action('wp_ajax_cdcf_ai_translate', function () {
 });
 
 // ─── Background translation processor (WP Cron) ─────────────────────
-
-/**
- * Soft cap on characters per OpenAI request. A single ~30K-char post_content
- * routinely takes >120s on gpt-4o-mini, hitting the nginx/PHP-FPM upstream
- * timeout. Chunking at ~5K chars per request keeps each call well under that
- * window.
- */
-const CDCF_TRANSLATION_CHUNK_CHARS = 5000;
-
-/**
- * Split a chunk of HTML at top-level block-element boundaries so each piece
- * fits under $max_chars. Boundaries are placed AFTER closing tags of common
- * block elements (p, h1–h6, ul, ol, table, blockquote, pre, div, section,
- * article, figure, details, dl) — never mid-element. Returns [$html] when no
- * boundary is found or content is already under the cap.
- */
-function cdcf_chunk_html_content(string $html, int $max_chars = CDCF_TRANSLATION_CHUNK_CHARS): array {
-    $html = trim($html);
-    if ($html === '' || mb_strlen($html) <= $max_chars) {
-        return [$html];
-    }
-
-    $delimiter = "\x00CDCF_CHUNK_BOUNDARY\x00";
-    $boundary  = '#(</(?:p|h[1-6]|ul|ol|table|blockquote|pre|div|section|article|figure|details|dl)>\s*)#i';
-    $marked    = preg_replace($boundary, '$1' . $delimiter, $html);
-    $parts     = array_values(array_filter(
-        explode($delimiter, (string) $marked),
-        static fn($p) => trim($p) !== ''
-    ));
-
-    if (count($parts) <= 1) {
-        // No splittable boundaries (e.g. one huge <table> or plain text).
-        return [$html];
-    }
-
-    $chunks  = [];
-    $current = '';
-    foreach ($parts as $part) {
-        if ($current !== '' && mb_strlen($current) + mb_strlen($part) > $max_chars) {
-            $chunks[] = $current;
-            $current  = $part;
-        } else {
-            $current .= $part;
-        }
-    }
-    if ($current !== '') {
-        $chunks[] = $current;
-    }
-    return $chunks;
-}
-
-/**
- * @return true|WP_Error  true on success (or no-op), WP_Error on failure so
- *                        callers (Redis Queue job, REST handler) can retry.
- */
-function cdcf_process_translation($post_id, $source_id, $target_lang) {
-    $source = get_post($source_id);
-    if (!$source) {
-        error_log("cdcf_process_translation: Source post {$source_id} not found.");
-        return new WP_Error('source_missing', "Source post {$source_id} not found.");
-    }
-
-    // Collect translatable strings.
-    $strings = [];
-    if ($source->post_title)   $strings['post_title']   = $source->post_title;
-    if ($source->post_content) $strings['post_content'] = $source->post_content;
-    if ($source->post_excerpt) $strings['post_excerpt'] = $source->post_excerpt;
-
-    if ($source->post_type === 'attachment') {
-        $alt = get_post_meta($source_id, '_wp_attachment_image_alt', true);
-        if ($alt) $strings['alt_text'] = $alt;
-    }
-
-    if (function_exists('get_field_objects')) {
-        $field_objects = get_field_objects($source_id);
-        if ($field_objects) {
-            foreach ($field_objects as $field) {
-                if (
-                    in_array($field['type'], CDCF_TRANSLATABLE_ACF_TYPES, true)
-                    && !empty($field['value'])
-                    && is_string($field['value'])
-                ) {
-                    $strings['acf_' . $field['name']] = $field['value'];
-                }
-            }
-        }
-    }
-
-    if (empty($strings)) {
-        error_log("cdcf_process_translation: No translatable content for post {$source_id}.");
-        return true; // No-op success: nothing to translate, not a failure to retry.
-    }
-
-    // Call OpenAI.
-    $api_key = get_option('cdcf_openai_api_key');
-    if (!$api_key) {
-        error_log('cdcf_process_translation: OpenAI API key not configured.');
-        return new WP_Error('no_api_key', 'OpenAI API key not configured.');
-    }
-
-    $target_name = CDCF_LOCALE_NAMES[$target_lang] ?? $target_lang;
-    $source_lang = pll_default_language('slug');
-    $source_name = CDCF_LOCALE_NAMES[$source_lang] ?? $source_lang;
-
-    // Pull oversized fields out of the batch and chunk them. A single ~30K
-    // post_content takes >120s on gpt-4o-mini and trips the nginx/PHP-FPM
-    // upstream timeout. Each chunk gets its own (short) OpenAI call;
-    // translated chunks are reassembled below.
-    $chunked_fields = [];
-    foreach ($strings as $key => $value) {
-        if (mb_strlen((string) $value) <= CDCF_TRANSLATION_CHUNK_CHARS) {
-            continue;
-        }
-        $chunks = cdcf_chunk_html_content((string) $value);
-        if (count($chunks) > 1) {
-            $chunked_fields[$key] = $chunks;
-            unset($strings[$key]);
-        }
-    }
-
-    // Translate the (now smaller) batch in one call.
-    $result = !empty($strings)
-        ? cdcf_openai_translate($strings, $source_name, $target_name, $api_key)
-        : [];
-    if (is_wp_error($result)) {
-        error_log('cdcf_process_translation: OpenAI error – ' . $result->get_error_message());
-        return $result; // Surface to caller so retry logic engages.
-    }
-
-    // Translate each oversized field's chunks individually and reassemble.
-    // Pass the tail of the previous translated chunk as context so the model
-    // keeps terminology, register, and style consistent across chunk
-    // boundaries (cdcf_openai_translate handles the trim and the prompt).
-    foreach ($chunked_fields as $key => $chunks) {
-        $translated_parts = [];
-        $total = count($chunks);
-        foreach ($chunks as $i => $chunk) {
-            $context = $i > 0 && !empty($translated_parts) ? end($translated_parts) : '';
-            $chunk_result = cdcf_openai_translate([$key => $chunk], $source_name, $target_name, $api_key, $context);
-            if (is_wp_error($chunk_result)) {
-                error_log(sprintf(
-                    'cdcf_process_translation: chunk %d/%d failed for post %d %s (%s) – %s',
-                    $i + 1,
-                    $total,
-                    $post_id,
-                    $key,
-                    $target_lang,
-                    $chunk_result->get_error_message()
-                ));
-                return $chunk_result;
-            }
-            // OpenAI may return a JSON object missing the expected key (model
-            // hallucination, schema drift). Falling back to the untranslated
-            // chunk preserves output structure but mixes source-lang content
-            // into the translation — log so this is investigable rather than
-            // silently shipping bad translations.
-            if (!isset($chunk_result[$key])) {
-                error_log(sprintf(
-                    'cdcf_process_translation: chunk %d/%d for post %d %s (%s) returned no "%s" key; falling back to untranslated chunk. Response: %s',
-                    $i + 1,
-                    $total,
-                    $post_id,
-                    $key,
-                    $target_lang,
-                    $key,
-                    mb_substr((string) wp_json_encode($chunk_result), 0, 500)
-                ));
-            }
-            $translated_parts[] = $chunk_result[$key] ?? $chunk;
-        }
-        $result[$key] = implode('', $translated_parts);
-    }
-
-    // Write translations.
-    $update = [];
-    if (isset($result['post_title']))   $update['post_title']   = sanitize_text_field($result['post_title']);
-    if (isset($result['post_content'])) $update['post_content'] = wp_kses_post($result['post_content']);
-    if (isset($result['post_excerpt'])) $update['post_excerpt'] = sanitize_textarea_field($result['post_excerpt']);
-
-    if (!empty($update)) {
-        $update['ID'] = $post_id;
-        wp_update_post($update);
-    }
-
-    if (isset($result['alt_text'])) {
-        update_post_meta($post_id, '_wp_attachment_image_alt', sanitize_text_field($result['alt_text']));
-    }
-
-    if (function_exists('update_field')) {
-        foreach ($result as $key => $value) {
-            if (strpos($key, 'acf_') === 0) {
-                update_field(substr($key, 4), $value, $post_id);
-            }
-        }
-    }
-
-    // Copy non-translatable ACF fields from source.
-    if (function_exists('get_field_objects') && function_exists('update_field')) {
-        $field_objects = get_field_objects($source_id);
-        if ($field_objects) {
-            foreach ($field_objects as $field) {
-                if (in_array($field['type'], CDCF_TRANSLATABLE_ACF_TYPES, true)) continue;
-                $existing = get_field($field['name'], $post_id);
-                if (empty($existing) && !empty($field['value'])) {
-                    update_field($field['name'], $field['value'], $post_id);
-                }
-            }
-        }
-    }
-
-    // Copy featured image, using the translated media ID for this language.
-    $source_thumbnail_id = get_post_thumbnail_id($source_id);
-    if ($source_thumbnail_id && !get_post_thumbnail_id($post_id)) {
-        $lang_image_id = function_exists('pll_get_post') ? pll_get_post($source_thumbnail_id, $target_lang) : 0;
-        set_post_thumbnail($post_id, $lang_image_id ?: $source_thumbnail_id);
-    }
-
-    // Auto-publish if source is published.
-    if ($source->post_type !== 'attachment' && $source->post_status === 'publish' && get_post_status($post_id) !== 'publish') {
-        wp_update_post(['ID' => $post_id, 'post_status' => 'publish']);
-    }
-
-    error_log("cdcf_process_translation: Translation complete for post {$post_id} ({$target_lang}).");
-    return true;
-}
+//
+// Pipeline (chunking, OpenAI client + bounded retries, post-write
+// orchestrator) lives in includes/translation.php so it can be
+// unit-tested in isolation. Required here — after CDCF_TRANSLATABLE_ACF_TYPES
+// and CDCF_LOCALE_NAMES are defined above — because the orchestrator
+// consults both at runtime.
+require_once __DIR__ . '/includes/translation.php';
 add_action('cdcf_async_translate', 'cdcf_process_translation', 10, 3);
 
 // ─── REST endpoint for AI translation ────────────────────────────────
@@ -3196,6 +2312,7 @@ add_action('cdcf_async_translate', 'cdcf_process_translation', 10, 3);
 // unit-tested in isolation (Brain Monkey + Mockery).
 
 require_once __DIR__ . '/includes/handlers/translate.php';
+require_once __DIR__ . '/includes/handlers/deploy-translation.php';
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/translate', [
@@ -3216,70 +2333,7 @@ add_action('rest_api_init', function () {
         'permission_callback' => function () {
             return current_user_can('edit_posts');
         },
-        'callback' => function (WP_REST_Request $request) {
-            $source_id   = intval($request['source_id'] ?? 0);
-            $target_lang = sanitize_text_field($request['target_lang'] ?? '');
-            $title       = sanitize_text_field($request['title'] ?? '');
-            $content     = wp_kses_post($request['content'] ?? '');
-
-            if (!$source_id || !$target_lang || !$content) {
-                return new WP_Error('missing_params', 'Missing source_id, target_lang, or content.', ['status' => 400]);
-            }
-
-            if (!function_exists('pll_set_post_language')) {
-                return new WP_Error('polylang_missing', 'Polylang is not active.', ['status' => 500]);
-            }
-
-            $source = get_post($source_id);
-            if (!$source) {
-                return new WP_Error('not_found', 'Source post not found.', ['status' => 404]);
-            }
-
-            // Check if a translation already exists for this language.
-            $translations = pll_get_post_translations($source_id);
-            $post_id = $translations[$target_lang] ?? 0;
-
-            if ($post_id) {
-                wp_update_post([
-                    'ID'           => $post_id,
-                    'post_title'   => $title ?: $source->post_title,
-                    'post_content' => $content,
-                    'post_status'  => $source->post_status,
-                ]);
-            } else {
-                $insert_args = [
-                    'post_type'    => $source->post_type,
-                    'post_status'  => $source->post_status,
-                    'post_title'   => $title ?: $source->post_title,
-                    'post_content' => $content,
-                ];
-
-                // Propagate parent: use the parent's translation in the target language.
-                if ($source->post_parent) {
-                    $parent_translation = pll_get_post($source->post_parent, $target_lang);
-                    if ($parent_translation) {
-                        $insert_args['post_parent'] = $parent_translation;
-                    }
-                }
-
-                $post_id = wp_insert_post($insert_args);
-
-                if (is_wp_error($post_id) || !$post_id) {
-                    return new WP_Error('insert_failed', 'Failed to create translation post.', ['status' => 500]);
-                }
-
-                pll_set_post_language($post_id, $target_lang);
-                $source_lang = pll_get_post_language($source_id);
-                $translations[$source_lang] = $source_id;
-                $translations[$target_lang] = $post_id;
-                pll_save_post_translations($translations);
-            }
-
-            return rest_ensure_response([
-                'post_id' => $post_id,
-                'message' => 'Translation deployed.',
-            ]);
-        },
+        'callback' => 'cdcf_rest_deploy_translation',
         'args' => [
             'source_id'   => ['required' => true,  'type' => 'integer', 'sanitize_callback' => 'absint'],
             'target_lang' => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
@@ -3289,159 +2343,6 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-/**
- * Send an array of strings to OpenAI for translation, with bounded retries
- * for transient upstream failures (HTTP 5xx, malformed JSON, network blips).
- *
- * Hard failures (auth, rate limit, 4xx) short-circuit immediately.
- *
- * @param  array  $strings     ['key' => 'source text', ...]
- * @param  string $source_lang Human-readable source language name.
- * @param  string $target_lang Human-readable target language name.
- * @param  string $api_key     OpenAI API key.
- * @param  string $context     Optional preceding translated text to maintain
- *                             terminology / register consistency across chunks.
- * @return array|WP_Error      ['key' => 'translated text', ...] or WP_Error.
- */
-function cdcf_openai_translate($strings, $source_lang, $target_lang, $api_key, $context = '') {
-    $max_attempts = 3;
-    $backoff      = [2, 5]; // seconds before retry attempts 2 and 3
-
-    $last_error = null;
-    for ($attempt = 1; $attempt <= $max_attempts; $attempt++) {
-        $result = _cdcf_openai_translate_attempt($strings, $source_lang, $target_lang, $api_key, $context);
-        if (!is_wp_error($result)) {
-            return $result;
-        }
-
-        $last_error = $result;
-        $code       = $result->get_error_code();
-        $msg        = $result->get_error_message();
-        $data       = $result->get_error_data();
-        $status     = is_array($data) && isset($data['status']) ? (int) $data['status'] : null;
-
-        // Retry on transient upstream conditions only. Auth / 4xx is permanent.
-        // Status comes from $error_data attached by _cdcf_openai_translate_attempt
-        // (numeric, exact) rather than substring-matching the error message.
-        $is_retryable = in_array($code, ['openai_parse', 'openai_empty'], true)
-            || ($code === 'openai_error' && $status !== null && (
-                $status === 408
-                || $status === 429
-                || ($status >= 500 && $status < 600)
-            ))
-            || ($code === 'http_request_failed' && stripos($msg, 'cURL error 28') !== false);
-
-        if (!$is_retryable || $attempt === $max_attempts) {
-            return $result;
-        }
-
-        $delay = $backoff[$attempt - 1] ?? 5;
-        error_log(sprintf(
-            'cdcf_openai_translate: attempt %d/%d failed (%s: %s); retrying in %ds',
-            $attempt,
-            $max_attempts,
-            $code,
-            $msg,
-            $delay
-        ));
-        sleep($delay);
-    }
-
-    return $last_error;
-}
-
-/**
- * One attempt at the OpenAI translation call. Caller handles retry policy.
- * Internal — do not call directly; use cdcf_openai_translate().
- */
-function _cdcf_openai_translate_attempt($strings, $source_lang, $target_lang, $api_key, $context = '') {
-    $model = get_option('cdcf_openai_model', 'gpt-4o-mini');
-
-    $system_prompt = <<<PROMPT
-You are a professional translator for the Catholic Digital Commons Foundation website.
-Translate all values from {$source_lang} to {$target_lang}.
-Preserve all HTML tags, attributes, and structure exactly.
-Do not translate proper nouns, brand names, URLs, or code.
-"Catholic Digital Commons Foundation" (CDCF) is the organization's official name and must NEVER be translated.
-Use formal register appropriate for an institutional Catholic organization.
-Return ONLY a valid JSON object with the same keys and translated values.
-Do not wrap the response in markdown code fences.
-PROMPT;
-
-    $user_message = wp_json_encode($strings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
-    // Build the message list. Keep $system_prompt static so dynamic / model-
-    // sourced text never gets promoted to system-level instructions; instead
-    // pass the previous translated chunk as a separate user message.
-    $messages = [
-        ['role' => 'system', 'content' => $system_prompt],
-    ];
-
-    if ($context !== '') {
-        // Trim very long context — model only needs a paragraph or two of
-        // tail to lock in terminology and tone for the next chunk.
-        $context_excerpt = mb_substr($context, max(0, mb_strlen($context) - 1500));
-        $messages[] = [
-            'role'    => 'user',
-            'content' => "The following is the END of the previous translated portion of the SAME document. Do not re-translate or include it. Use it ONLY to maintain consistent terminology, register, and style:\n---\n{$context_excerpt}\n---",
-        ];
-    }
-
-    $messages[] = ['role' => 'user', 'content' => $user_message];
-
-    $body = [
-        'model'       => $model,
-        'temperature' => 0.3,
-        'messages'    => $messages,
-    ];
-
-    $response = wp_remote_post('https://api.openai.com/v1/chat/completions', [
-        'timeout' => 120,
-        'headers' => [
-            'Content-Type'  => 'application/json',
-            'Authorization' => 'Bearer ' . $api_key,
-        ],
-        'body' => wp_json_encode($body),
-    ]);
-
-    if (is_wp_error($response)) {
-        return $response;
-    }
-
-    $code = wp_remote_retrieve_response_code($response);
-    $raw  = wp_remote_retrieve_body($response);
-
-    if ($code !== 200) {
-        $err = json_decode($raw, true);
-        $msg = $err['error']['message'] ?? "HTTP {$code}";
-        // Attach the numeric HTTP status so cdcf_openai_translate's retry
-        // policy can decide retryability without substring-matching the message.
-        return new WP_Error('openai_error', 'OpenAI API error: ' . $msg, ['status' => (int) $code]);
-    }
-
-    $data = json_decode($raw, true);
-    $content = $data['choices'][0]['message']['content'] ?? '';
-
-    if (!$content) {
-        return new WP_Error('openai_empty', 'OpenAI returned an empty response.');
-    }
-
-    // Strip markdown code fences if the model wraps the JSON anyway.
-    $content = trim($content);
-    $content = preg_replace('/^```(?:json)?\s*/i', '', $content);
-    $content = preg_replace('/\s*```$/', '', $content);
-
-    $translated = json_decode($content, true);
-
-    if (!is_array($translated)) {
-        return new WP_Error(
-            'openai_parse',
-            'Could not parse OpenAI response as JSON. Raw: ' . mb_substr($content, 0, 200)
-        );
-    }
-
-    return $translated;
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Bulk Translate media from the Media Library list view

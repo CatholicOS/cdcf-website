@@ -12,6 +12,12 @@ if (!defined('ABSPATH')) {
     define('ABSPATH', __DIR__ . '/');
 }
 
+// WP's time-unit constants the abuse-check helpers use in
+// set_transient TTL arguments.
+if (!defined('MINUTE_IN_SECONDS')) define('MINUTE_IN_SECONDS', 60);
+if (!defined('HOUR_IN_SECONDS'))   define('HOUR_IN_SECONDS', 3600);
+if (!defined('DAY_IN_SECONDS'))    define('DAY_IN_SECONDS', 86400);
+
 // Define minimal WP constants/classes the production code touches at
 // load time, so requiring the handler file doesn't blow up before
 // Brain Monkey gets a chance to stub.
@@ -121,6 +127,30 @@ if (!defined('CDCF_DISPOSABLE_DOMAINS_FILE')) {
     );
 }
 
+// The flush-opcache handler passes CDCF_FUNCTIONS_FILE to
+// opcache_invalidate(). Define a dummy value so the
+// "opcache-available" branch can be exercised in tests; the call
+// itself is stubbed via Brain Monkey, so the value never reaches a
+// real opcache call.
+if (!defined('CDCF_FUNCTIONS_FILE')) {
+    define('CDCF_FUNCTIONS_FILE', '/tmp/cdcf-test-functions.php');
+}
+
+// Constants the translation orchestrator consults — defined in
+// functions.php in production but declared here for the unit tests
+// since functions.php itself isn't loaded under PHPUnit.
+if (!defined('CDCF_TRANSLATABLE_ACF_TYPES')) {
+    define('CDCF_TRANSLATABLE_ACF_TYPES', ['text', 'textarea', 'wysiwyg']);
+}
+if (!defined('CDCF_LOCALE_NAMES')) {
+    define('CDCF_LOCALE_NAMES', [
+        'en' => 'English', 'it' => 'Italian', 'es' => 'Spanish',
+        'fr' => 'French',  'pt' => 'Portuguese', 'de' => 'German',
+    ]);
+}
+
+require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../includes/translation.php';
 require_once __DIR__ . '/../includes/handlers/relationship.php';
 require_once __DIR__ . '/../includes/handlers/team-member.php';
 require_once __DIR__ . '/../includes/handlers/community-channel.php';
@@ -128,10 +158,21 @@ require_once __DIR__ . '/../includes/handlers/local-group.php';
 require_once __DIR__ . '/../includes/handlers/academic-collaboration.php';
 require_once __DIR__ . '/../includes/handlers/update-disposable-domains.php';
 require_once __DIR__ . '/../includes/handlers/translate.php';
+require_once __DIR__ . '/../includes/handlers/deploy-translation.php';
+require_once __DIR__ . '/../includes/handlers/link-translations.php';
+require_once __DIR__ . '/../includes/handlers/project-status.php';
+require_once __DIR__ . '/../includes/handlers/flush-opcache.php';
+require_once __DIR__ . '/../includes/handlers/send-verification-code.php';
+require_once __DIR__ . '/../includes/handlers/refer-local-group.php';
+require_once __DIR__ . '/../includes/handlers/refer-community-project.php';
+require_once __DIR__ . '/../includes/handlers/submit-project-send-code.php';
+require_once __DIR__ . '/../includes/handlers/submit-project.php';
 require_once __DIR__ . '/../includes/admin/team-member-council.php';
 require_once __DIR__ . '/../includes/admin/polylang-default-seed.php';
 
-// Shared base class for the three Community-page handler tests. PHPUnit
-// doesn't autoload test files via PSR-4, so concrete subclasses can only
-// find their parent if it's been required up-front.
+// Shared base classes. PHPUnit doesn't autoload test files via PSR-4,
+// so concrete subclasses can only find their parent if it's been
+// required up-front.
 require_once __DIR__ . '/CommunityHandlerTestBase.php';
+require_once __DIR__ . '/SendCodeHandlerTestBase.php';
+require_once __DIR__ . '/SubmissionHandlerTestBase.php';

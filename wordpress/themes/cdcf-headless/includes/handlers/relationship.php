@@ -77,7 +77,13 @@ function cdcf_rest_update_relationship(WP_REST_Request $request) {
             static fn(int $v): bool => $v > 0
         )
     );
-    update_field($field, $value, $post_id);
+
+    // ACF's update_field() returns false on real persistence failure.
+    // Surface that as a 500 so clients (e.g. scripts/cdcf_api.py) don't
+    // treat a silent failure as a successful write. (#109)
+    if (!update_field($field, $value, $post_id)) {
+        return new WP_Error('update_failed', 'update_field returned false.', ['status' => 500]);
+    }
 
     return rest_ensure_response(['post_id' => $post_id, 'field' => $field, 'value' => $value, 'updated' => true]);
 }

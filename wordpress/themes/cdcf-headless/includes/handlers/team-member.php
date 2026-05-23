@@ -33,7 +33,14 @@ function cdcf_rest_create_team_member(WP_REST_Request $request) {
         return new WP_Error('acf_missing', 'ACF is not active.', ['status' => 500]);
     }
 
-    $errors = [];
+    // String messages for non-persistence problems (missing parent posts,
+    // missing translations) AND for failed setup writes on the English
+    // post. Per-post persistence outcomes for the council relationship
+    // loop live in the three arrays below — see #109.
+    $errors          = [];
+    $updated_posts   = [];
+    $unchanged_posts = [];
+    $failed_posts    = [];
 
     // ── 1. Create the English post ──
 
@@ -50,23 +57,25 @@ function cdcf_rest_create_team_member(WP_REST_Request $request) {
 
     pll_set_post_language($en_post_id, 'en');
 
-    // Set ACF fields on English post.
-    if ($request['member_title']) {
-        update_field('member_title', $request['member_title'], $en_post_id);
+    // Set ACF fields on English post. update_field() returns false on real
+    // persistence failure (#109) — surface in $errors so the client can
+    // distinguish a half-populated post from a fully-populated one.
+    if ($request['member_title'] && !update_field('member_title', $request['member_title'], $en_post_id)) {
+        $errors[] = 'Failed to set member_title on English post.';
     }
-    if ($request['member_role']) {
-        update_field('member_role', $request['member_role'], $en_post_id);
+    if ($request['member_role'] && !update_field('member_role', $request['member_role'], $en_post_id)) {
+        $errors[] = 'Failed to set member_role on English post.';
     }
-    if ($request['member_linkedin_url']) {
-        update_field('member_linkedin_url', $request['member_linkedin_url'], $en_post_id);
+    if ($request['member_linkedin_url'] && !update_field('member_linkedin_url', $request['member_linkedin_url'], $en_post_id)) {
+        $errors[] = 'Failed to set member_linkedin_url on English post.';
     }
-    if ($request['member_github_url']) {
-        update_field('member_github_url', $request['member_github_url'], $en_post_id);
+    if ($request['member_github_url'] && !update_field('member_github_url', $request['member_github_url'], $en_post_id)) {
+        $errors[] = 'Failed to set member_github_url on English post.';
     }
 
-    // Set featured image.
-    if ($request['featured_image_id']) {
-        set_post_thumbnail($en_post_id, $request['featured_image_id']);
+    // Set featured image. set_post_thumbnail() returns false on failure.
+    if ($request['featured_image_id'] && !set_post_thumbnail($en_post_id, $request['featured_image_id'])) {
+        $errors[] = 'Failed to set featured image on English post.';
     }
 
     // ── 2. Create translation drafts and enqueue background translations ──
@@ -130,9 +139,19 @@ function cdcf_rest_create_team_member(WP_REST_Request $request) {
                     $current = [];
                 }
 
-                if (!in_array($member_id, $current)) {
-                    $current[] = $member_id;
-                    update_field('collab_governance', $current, $collab_id);
+                if (in_array($member_id, $current)) {
+                    // Member already linked — nothing to write (#109).
+                    $unchanged_posts[] = $collab_id;
+                    continue;
+                }
+                $current[] = $member_id;
+                if (update_field('collab_governance', $current, $collab_id)) {
+                    $updated_posts[] = $collab_id;
+                } else {
+                    $failed_posts[] = [
+                        'post_id' => $collab_id,
+                        'reason'  => 'update_field returned false',
+                    ];
                 }
             }
         }
@@ -174,9 +193,19 @@ function cdcf_rest_create_team_member(WP_REST_Request $request) {
                         $current = [];
                     }
 
-                    if (!in_array($member_id, $current)) {
-                        $current[] = $member_id;
-                        update_field($council, $current, $about_page_id);
+                    if (in_array($member_id, $current)) {
+                        // Member already linked — nothing to write (#109).
+                        $unchanged_posts[] = $about_page_id;
+                        continue;
+                    }
+                    $current[] = $member_id;
+                    if (update_field($council, $current, $about_page_id)) {
+                        $updated_posts[] = $about_page_id;
+                    } else {
+                        $failed_posts[] = [
+                            'post_id' => $about_page_id,
+                            'reason'  => 'update_field returned false',
+                        ];
                     }
                 }
             } else {
@@ -188,11 +217,14 @@ function cdcf_rest_create_team_member(WP_REST_Request $request) {
     }
 
     return new WP_REST_Response([
-        'success'      => true,
-        'en_post_id'   => $en_post_id,
-        'translations' => $translations,
-        'council'      => $council,
-        'queue'        => $queue,
-        'errors'       => $errors,
+        'success'         => count($failed_posts) === 0 && count($errors) === 0,
+        'en_post_id'      => $en_post_id,
+        'translations'    => $translations,
+        'council'         => $council,
+        'queue'           => $queue,
+        'updated_posts'   => $updated_posts,
+        'unchanged_posts' => $unchanged_posts,
+        'failed_posts'    => $failed_posts,
+        'errors'          => $errors,
     ], 202);
 }
