@@ -7,7 +7,11 @@ import {
   getPostsByAuthor,
   getTeamMemberProfile,
 } from '@/lib/wordpress/api'
-import { bioParagraphs, resolveAuthorProfile } from '@/lib/author-profile'
+import {
+  bioParagraphs,
+  linkedTeamMemberId,
+  resolveAuthorProfile,
+} from '@/lib/author-profile'
 import { Link } from '@/src/i18n/navigation'
 import BlogFeed from '@/components/sections/BlogFeed'
 import SocialLinks from '@/components/blog/SocialLinks'
@@ -54,8 +58,7 @@ export default async function AuthorPage({ params }: AuthorPageProps) {
     notFound()
   }
 
-  const teamMemberId =
-    author.authorProfile?.authorTeamMember?.nodes?.[0]?.databaseId ?? null
+  const teamMemberId = linkedTeamMemberId(author)
   // author.slug is the WP nicename — the key the posts query filters on.
   const [teamMember, posts] = await Promise.all([
     teamMemberId

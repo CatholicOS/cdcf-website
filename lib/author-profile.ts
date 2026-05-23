@@ -1,13 +1,26 @@
 import type { WPAuthor, WPTeamMember } from './wordpress/types'
 
 /**
+ * A public, derived author slug (from the display-name chain). Branded so it's
+ * distinct from a Nicename — only an AuthorSlug may be used to build a public
+ * author URL (see authorHref). Produced solely by deriveAuthorSlug.
+ */
+export type AuthorSlug = string & { readonly __brand: 'AuthorSlug' }
+
+/** Build the (locale-relative) author page path. Accepts only an AuthorSlug,
+ *  so a raw Nicename can't be passed in and leak into a URL. */
+export function authorHref(slug: AuthorSlug): string {
+  return `/blog/authors/${slug}`
+}
+
+/**
  * Normalized author profile for rendering. Profile detail (photo, role, bio,
  * social links) is sourced from a linked team_member when present so it can be
  * translated; otherwise it falls back to core WordPress user fields.
  */
 export interface AuthorProfile {
   name: string
-  slug: string
+  slug: AuthorSlug
   /** The team_member "title" field (e.g. "AI Specialist"), matching how
    *  team-member cards render elsewhere. Null when unset or no team_member. */
   title: string | null
@@ -103,8 +116,14 @@ function slugify(value: string): string {
  * always set). Author pages resolve this by matching, since WPGraphQL cannot
  * look a user up by a derived slug.
  */
-export function deriveAuthorSlug(author: WPAuthor): string {
-  return slugify(authorDisplayName(author)) || author.slug
+export function deriveAuthorSlug(author: WPAuthor): AuthorSlug {
+  return (slugify(authorDisplayName(author)) || author.slug) as AuthorSlug
+}
+
+/** The database id of the team_member linked to an author, or null. Centralizes
+ *  the "first node only" relationship-connection access used by the resolvers. */
+export function linkedTeamMemberId(author: WPAuthor): number | null {
+  return author.authorProfile?.authorTeamMember?.nodes?.[0]?.databaseId ?? null
 }
 
 export function resolveAuthorProfile(

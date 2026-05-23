@@ -2442,6 +2442,15 @@ add_action('graphql_response_headers_to_send', function ($headers) {
 // ─── Preview URL → Next.js draft mode ────────────────────────────────
 
 add_filter('preview_post_link', function ($preview_link, $post) {
+    // Only post and page have by-id preview support on the Next.js frontend
+    // (the blog route and the catch-all page route). Other public CPTs
+    // (project, team_member, academic_collaboration, …) have no by-id preview
+    // path, so leave their preview link untouched rather than redirect to a
+    // 404 on the headless frontend.
+    if (!in_array($post->post_type, ['post', 'page'], true)) {
+        return $preview_link;
+    }
+
     $frontend = defined('CDCF_FRONTEND_URL')
         ? CDCF_FRONTEND_URL
         : 'http://localhost:3000';

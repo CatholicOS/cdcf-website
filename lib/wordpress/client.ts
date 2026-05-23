@@ -21,9 +21,10 @@ export async function wpQuery<T = unknown>(
 
   // Draft/preview requests must authenticate so WPGraphQL returns
   // unpublished content. An explicit bearer token wins; otherwise fall back
-  // to the server-only WordPress Application Password (Basic auth). The
-  // theme opts the /graphql endpoint into app-password auth via the
-  // `application_password_is_api_request` filter.
+  // to the WordPress Application Password (Basic auth) from the server-only
+  // WP_APP_USERNAME / WP_APP_PASSWORD env vars (these must never be exposed to
+  // the client bundle). The theme opts the /graphql endpoint into app-password
+  // auth via the `application_password_is_api_request` filter.
   if (draft) {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`
@@ -32,6 +33,12 @@ export async function wpQuery<T = unknown>(
         `${process.env.WP_APP_USERNAME}:${process.env.WP_APP_PASSWORD}`
       ).toString('base64')
       headers['Authorization'] = `Basic ${creds}`
+    } else {
+      // No credentials → the request goes out unauthenticated and WPGraphQL
+      // returns published-only content, so a draft silently 404s. Surface it.
+      console.warn(
+        'Draft WPGraphQL request without credentials: set WP_APP_USERNAME/WP_APP_PASSWORD (server-only) or pass a token, or preview will return published-only content.'
+      )
     }
   }
 

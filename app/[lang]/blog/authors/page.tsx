@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { setRequestLocale, getTranslations } from 'next-intl/server'
 import { getAuthors, getTeamMemberProfile } from '@/lib/wordpress/api'
-import { resolveAuthorProfile } from '@/lib/author-profile'
+import { linkedTeamMemberId, resolveAuthorProfile } from '@/lib/author-profile'
 import AuthorCard from '@/components/blog/AuthorCard'
 
 interface AuthorsPageProps {
@@ -28,8 +28,7 @@ export default async function AuthorsPage({ params }: AuthorsPageProps) {
   // Resolve each author's translated team_member profile (if linked).
   const profiles = await Promise.all(
     authors.map(async (author) => {
-      const teamMemberId =
-        author.authorProfile?.authorTeamMember?.nodes?.[0]?.databaseId ?? null
+      const teamMemberId = linkedTeamMemberId(author)
       const teamMember = teamMemberId
         ? await getTeamMemberProfile(teamMemberId, lang)
         : null

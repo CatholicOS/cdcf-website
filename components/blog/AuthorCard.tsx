@@ -1,11 +1,11 @@
 import Image from 'next/image'
 import { Link } from '@/src/i18n/navigation'
 import SocialLinks from './SocialLinks'
-import { bioPlainText, type AuthorProfile } from '@/lib/author-profile'
+import { authorHref, bioPlainText, type AuthorProfile } from '@/lib/author-profile'
 
 /** Author entry on the authors index grid. */
 export default function AuthorCard({ profile }: { profile: AuthorProfile }) {
-  const href = `/blog/authors/${profile.slug}`
+  const href = authorHref(profile.slug)
   const bio = bioPlainText(profile.bioHtml)
   const excerpt = bio.length > 160 ? `${bio.slice(0, 160).trimEnd()}…` : bio
 

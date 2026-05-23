@@ -39,9 +39,22 @@ export async function getPreviewTarget(): Promise<PreviewTarget | null> {
       type: parsed.type,
       slug: typeof parsed.slug === 'string' ? parsed.slug : '',
     }
-  } catch {
+  } catch (error) {
+    // A truncated/tampered cookie shouldn't crash; log so a serialization
+    // regression is visible rather than silently exiting preview.
+    console.error('Malformed preview cookie:', error)
     return null
   }
+}
+
+/** Serialize a preview target for the cookie. Sole writer counterpart to
+ *  getPreviewTarget's reader, so the cookie shape has one owner. */
+export function serializePreviewCookie(target: PreviewTarget): string {
+  return JSON.stringify({
+    id: target.id,
+    type: target.type,
+    slug: target.slug,
+  })
 }
 
 /**

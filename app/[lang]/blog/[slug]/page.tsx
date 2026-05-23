@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { setRequestLocale, getTranslations } from 'next-intl/server'
 import { getAuthorProfile, getPostBySlug, getPostPreview } from '@/lib/wordpress/api'
+import { authorHref } from '@/lib/author-profile'
 import { getPreviewTarget, previewMatchesSlug } from '@/lib/wordpress/preview'
 import { stripHtml } from '@/lib/strip-html'
 import { Link } from '@/src/i18n/navigation'
@@ -165,7 +166,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               <span>&middot;</span>
               {authorProfile ? (
                 <Link
-                  href={`/blog/authors/${authorProfile.slug}`}
+                  href={authorHref(authorProfile.slug)}
                   className="font-medium text-cdcf-navy transition-colors hover:text-cdcf-gold"
                 >
                   {authorName}

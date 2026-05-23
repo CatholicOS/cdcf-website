@@ -19,6 +19,7 @@ import {
   GET_SPONSORS,
 } from './queries'
 import type {
+  Nicename,
   WPAcademicCollaboration,
   WPAuthor,
   WPPage,
@@ -27,7 +28,12 @@ import type {
   WPSponsor,
   WPTeamMember,
 } from './types'
-import { deriveAuthorSlug, resolveAuthorProfile, type AuthorProfile } from '../author-profile'
+import {
+  deriveAuthorSlug,
+  linkedTeamMemberId,
+  resolveAuthorProfile,
+  type AuthorProfile,
+} from '../author-profile'
 
 interface FetchOptions {
   tags?: string[]
@@ -158,7 +164,7 @@ export async function getPosts(
 }
 
 export async function getPostsByAuthor(
-  authorSlug: string,
+  authorSlug: Nicename,
   locale: string,
   count: number = 50
 ): Promise<WPPost[]> {
@@ -174,7 +180,7 @@ export async function getPostsByAuthor(
   }
 }
 
-export async function getAuthorBySlug(slug: string): Promise<WPAuthor | null> {
+export async function getAuthorBySlug(slug: Nicename): Promise<WPAuthor | null> {
   try {
     const data = await wpQuery<{ user: WPAuthor | null }>(GET_AUTHOR_BY_SLUG, {
       slug,
@@ -229,14 +235,13 @@ export async function getTeamMemberProfile(
  * exist. Used by both the article about-the-author card and the author page.
  */
 export async function getAuthorProfile(
-  slug: string,
+  slug: Nicename,
   locale: string
 ): Promise<AuthorProfile | null> {
   const author = await getAuthorBySlug(slug)
   if (!author) return null
 
-  const teamMemberId =
-    author.authorProfile?.authorTeamMember?.nodes?.[0]?.databaseId ?? null
+  const teamMemberId = linkedTeamMemberId(author)
   const teamMember = teamMemberId
     ? await getTeamMemberProfile(teamMemberId, locale)
     : null
