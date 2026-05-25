@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<phpunit
+    bootstrap="tests/bootstrap.php"
+    colors="true"
+    cacheDirectory=".phpunit.cache"
+    failOnWarning="true"
+    failOnNotice="true"
+>
+    <testsuites>
+        <testsuite name="cdcf-mcp">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <file>cdcf-mcp.php</file>
+            <directory>includes</directory>
+        </include>
+    </source>
+</phpunit>
