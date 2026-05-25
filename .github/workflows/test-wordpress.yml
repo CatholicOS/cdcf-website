@@ -1,7 +1,8 @@
 name: PHPUnit (WordPress plugin + theme)
 
 # Runs the PHPUnit + Brain Monkey suites over the WordPress plugin
-# and theme trees. Non-blocking for now (continue-on-error) per #63:
+# and theme trees (cdcf-redis-translations, cdcf-mcp, cdcf-headless).
+# Non-blocking for now (continue-on-error) per #63:
 # land tests, watch them stabilise, then flip the gate in a follow-up.
 #
 # All interpolations are repo-controlled identifiers used as concurrency-
@@ -16,12 +17,14 @@ on:
     branches: [main]
     paths:
       - 'wordpress/plugins/cdcf-redis-translations/**'
+      - 'wordpress/plugins/cdcf-mcp/**'
       - 'wordpress/themes/cdcf-headless/**'
       - '.github/workflows/test-wordpress.yml'
   push:
     branches: [main]
     paths:
       - 'wordpress/plugins/cdcf-redis-translations/**'
+      - 'wordpress/plugins/cdcf-mcp/**'
       - 'wordpress/themes/cdcf-headless/**'
       - '.github/workflows/test-wordpress.yml'
 
@@ -38,6 +41,7 @@ jobs:
       matrix:
         tree:
           - plugins/cdcf-redis-translations
+          - plugins/cdcf-mcp
           - themes/cdcf-headless
 
     steps:
@@ -70,14 +74,18 @@ jobs:
 
       - name: Derive Codecov flag from matrix tree
         # `plugins/cdcf-redis-translations` -> `wordpress-plugin`
+        # `plugins/cdcf-mcp`                -> `wordpress-mcp`
         # `themes/cdcf-headless`            -> `wordpress-theme`
+        # Match each plugin explicitly (not `plugins/*`) so the two plugin
+        # trees upload under distinct Codecov flags instead of colliding.
         id: flag
         env:
           MATRIX_TREE: ${{ matrix.tree }}
         run: |
           case "$MATRIX_TREE" in
-            plugins/*) echo "name=wordpress-plugin" >> "$GITHUB_OUTPUT" ;;
-            themes/*)  echo "name=wordpress-theme"  >> "$GITHUB_OUTPUT" ;;
+            plugins/cdcf-redis-translations) echo "name=wordpress-plugin" >> "$GITHUB_OUTPUT" ;;
+            plugins/cdcf-mcp)                echo "name=wordpress-mcp"    >> "$GITHUB_OUTPUT" ;;
+            themes/*)                        echo "name=wordpress-theme"  >> "$GITHUB_OUTPUT" ;;
             *) echo "Unknown matrix tree: $MATRIX_TREE" >&2; exit 1 ;;
           esac
 
