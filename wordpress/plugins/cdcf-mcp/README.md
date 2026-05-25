@@ -19,7 +19,7 @@ rationale and caveats.
 
 ## What it does
 
-Registers a `cdcf` ability category and 18 abilities (see the table in the
+Registers a `cdcf` ability category and 20 abilities (see the table in the
 evaluation doc). Abilities that map onto an existing `cdcf/v1` REST endpoint
 dispatch to it internally via `rest_do_request()`, reusing that endpoint's
 sanitisation, validation, permission checks and translation queueing. The rest

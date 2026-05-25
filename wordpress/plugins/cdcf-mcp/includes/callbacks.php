@@ -86,18 +86,38 @@ function cdcf_mcp_cb_create_academic_liaison(array $input) {
     return cdcf_mcp_create_member($input, 'academic_council');
 }
 
-function cdcf_mcp_cb_create_academic_collaboration(array $input) {
+/**
+ * Forward the non-empty whitelisted fields of $input to a cdcf/v1 create
+ * endpoint. Shared by the Community-page domain creators, which all reuse
+ * the endpoint's auto-translation + page-linking verbatim.
+ */
+function cdcf_mcp_dispatch_create(string $route, array $input, array $passthrough) {
     $params = [];
-    $passthrough = [
-        'title', 'collab_description', 'collab_university', 'collab_department',
-        'collab_location', 'collab_website_url', 'featured_image_id',
-    ];
     foreach ($passthrough as $key) {
         if (isset($input[$key]) && $input[$key] !== '') {
             $params[$key] = $input[$key];
         }
     }
-    return cdcf_mcp_dispatch('POST', '/cdcf/v1/academic-collaboration', $params);
+    return cdcf_mcp_dispatch('POST', $route, $params);
+}
+
+function cdcf_mcp_cb_create_academic_collaboration(array $input) {
+    return cdcf_mcp_dispatch_create('/cdcf/v1/academic-collaboration', $input, [
+        'title', 'collab_description', 'collab_university', 'collab_department',
+        'collab_location', 'collab_website_url', 'featured_image_id',
+    ]);
+}
+
+function cdcf_mcp_cb_create_community_channel(array $input) {
+    return cdcf_mcp_dispatch_create('/cdcf/v1/community-channel', $input, [
+        'title', 'channel_description', 'channel_url', 'channel_icon',
+    ]);
+}
+
+function cdcf_mcp_cb_create_local_group(array $input) {
+    return cdcf_mcp_dispatch_create('/cdcf/v1/local-group', $input, [
+        'title', 'group_description', 'group_url', 'group_location',
+    ]);
 }
 
 /**

@@ -100,6 +100,40 @@ function cdcf_mcp_ability_definitions(): array {
             ],
         ],
         [
+            'name'        => 'cdcf/create-community-channel',
+            'label'       => 'Create Community Channel',
+            'description' => 'Create a community channel (Discord, Slack, …), auto-translate the description to all site languages, and link it to the Community page.',
+            'capability'  => 'edit_posts',
+            'callback'    => 'cdcf_mcp_cb_create_community_channel',
+            'input_schema'=> [
+                'type'       => 'object',
+                'properties' => [
+                    'title'               => ['type' => 'string', 'description' => 'Channel name.'],
+                    'channel_description' => ['type' => 'string', 'description' => 'Description (English source; translated automatically).'],
+                    'channel_url'         => ['type' => 'string', 'description' => 'URL to join the channel.'],
+                    'channel_icon'        => ['type' => 'string', 'description' => 'Icon key (optional), e.g. "discord", "slack".'],
+                ],
+                'required'   => ['title', 'channel_description', 'channel_url'],
+            ],
+        ],
+        [
+            'name'        => 'cdcf/create-local-group',
+            'label'       => 'Create Local Group',
+            'description' => 'Create a local group, auto-translate the description to all site languages, and link it to the Community page.',
+            'capability'  => 'edit_posts',
+            'callback'    => 'cdcf_mcp_cb_create_local_group',
+            'input_schema'=> [
+                'type'       => 'object',
+                'properties' => [
+                    'title'             => ['type' => 'string', 'description' => 'Group name.'],
+                    'group_description' => ['type' => 'string', 'description' => 'Description (English source; translated automatically).'],
+                    'group_url'         => ['type' => 'string', 'description' => 'URL for the group.'],
+                    'group_location'    => ['type' => 'string', 'description' => 'City / region name (optional).'],
+                ],
+                'required'   => ['title', 'group_description', 'group_url'],
+            ],
+        ],
+        [
             'name'        => 'cdcf/update-member-bio',
             'label'       => 'Update Member Bio',
             'description' => 'Update an English team member post (title/bio/role fields). Set retranslate=true to re-queue translations.',

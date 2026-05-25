@@ -86,6 +86,53 @@ final class CallbacksTest extends TestCase
         $this->assertSame(7, $params['collab_post_id']);
     }
 
+    public function test_create_community_channel_dispatches_to_its_endpoint(): void
+    {
+        $captured = null;
+        Functions\when('rest_do_request')->alias(function ($req) use (&$captured) {
+            $captured = $req;
+            return new WP_REST_Response(['en_post_id' => 50], 202);
+        });
+
+        $out = cdcf_mcp_cb_create_community_channel([
+            'title'               => 'CDCF Discord',
+            'channel_description' => 'Our community chat',
+            'channel_url'         => 'https://discord.gg/cdcf',
+            'channel_icon'        => 'discord',
+            'group_url'           => 'ignored', // not whitelisted — must not pass through
+        ]);
+
+        $this->assertSame('POST', $captured->get_method());
+        $this->assertSame('/cdcf/v1/community-channel', $captured->get_route());
+        $params = $captured->get_params();
+        $this->assertSame('CDCF Discord', $params['title']);
+        $this->assertSame('https://discord.gg/cdcf', $params['channel_url']);
+        $this->assertSame('discord', $params['channel_icon']);
+        $this->assertArrayNotHasKey('group_url', $params);
+        $this->assertSame(50, $out['en_post_id']);
+    }
+
+    public function test_create_local_group_dispatches_and_filters_empty_fields(): void
+    {
+        $captured = null;
+        Functions\when('rest_do_request')->alias(function ($req) use (&$captured) {
+            $captured = $req;
+            return new WP_REST_Response(['en_post_id' => 51], 202);
+        });
+
+        cdcf_mcp_cb_create_local_group([
+            'title'             => 'Rome Chapter',
+            'group_description' => 'Local gatherings in Rome',
+            'group_url'         => 'https://example.org/rome',
+            'group_location'    => '', // empty — filtered out, not sent
+        ]);
+
+        $this->assertSame('/cdcf/v1/local-group', $captured->get_route());
+        $params = $captured->get_params();
+        $this->assertSame('Rome Chapter', $params['title']);
+        $this->assertArrayNotHasKey('group_location', $params);
+    }
+
     public function test_add_project_lead_appends_without_duplicating(): void
     {
         Functions\when('absint')->alias(static fn($v) => abs((int) $v));

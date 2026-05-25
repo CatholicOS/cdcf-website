@@ -38,13 +38,13 @@ does. Write operations require an explicit confirmation round-trip.
 
 ## 2. Compatibility with CDCF
 
-| Requirement                                             | CDCF status                                                                                    |
-| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| PHP ≥ 7.4                                               | ✅ PHP **8.4** in docker; `cdcf-redis-translations` already requires 8.3+                      |
-| WP ≥ 6.8 / 6.9                                          | ✅ dev runs the `6` (latest) tag — ⚠️ **production WordPress on Plesk must be verified ≥ 6.9** |
-| Composer plugin tree                                    | ✅ Already the convention (`cdcf-redis-translations`, theme)                                   |
-| Capability-based auth (`edit_posts` / `manage_options`) | ✅ Exactly the model the adapter inherits                                                      |
-| Application Passwords                                   | ✅ Already used by `scripts/cdcf_api.py`                                                       |
+| Requirement                                             | CDCF status                                                                                                                         |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| PHP ≥ 7.4                                               | ✅ PHP **8.4** in docker; `cdcf-redis-translations` already requires 8.3+                                                           |
+| WP ≥ 6.8 / 6.9                                          | ✅ dev runs the `6` (latest) tag — production verified **WP 7.0** with the Abilities API live (`wp-abilities/v1` namespace present) |
+| Composer plugin tree                                    | ✅ Already the convention (`cdcf-redis-translations`, theme)                                                                        |
+| Capability-based auth (`edit_posts` / `manage_options`) | ✅ Exactly the model the adapter inherits                                                                                           |
+| Application Passwords                                   | ✅ Already used by `scripts/cdcf_api.py`                                                                                            |
 
 `composer require wordpress/mcp-adapter` resolves cleanly from Packagist
 (verified: pulls `wordpress/mcp-adapter v0.5.0` + `wordpress/php-mcp-schema
@@ -78,7 +78,7 @@ translation queueing verbatim rather than duplicating them.
 
 ## 4. The prototype: `wordpress/plugins/cdcf-mcp/`
 
-A self-contained plugin that registers a `cdcf` ability category and 18
+A self-contained plugin that registers a `cdcf` ability category and 20
 abilities, then (if the adapter is installed) serves them at
 `/wp-json/cdcf-mcp/mcp`.
 
@@ -89,6 +89,8 @@ abilities, then (if the adapter is installed) serves them at
 | `cdcf/create-technical-council-member`   | …council=`technical_council`                               | `edit_posts`   |
 | `cdcf/create-academic-liaison`           | …council=`academic_council` (needs `collab_post_id`)       | `edit_posts`   |
 | `cdcf/create-academic-collaboration`     | POST `/cdcf/v1/academic-collaboration`                     | `edit_posts`   |
+| `cdcf/create-community-channel`          | POST `/cdcf/v1/community-channel`                          | `edit_posts`   |
+| `cdcf/create-local-group`                | POST `/cdcf/v1/local-group`                                | `edit_posts`   |
 | `cdcf/update-member-bio`                 | `wp_update_post` + ACF + optional re-translate             | `edit_posts`   |
 | `cdcf/delete-member`                     | trash/delete member + all translations                     | `delete_posts` |
 | `cdcf/update-member-relationship`        | POST `/cdcf/v1/relationship` (replace)                     | `edit_posts`   |
@@ -109,15 +111,18 @@ gracefully — abilities still register without the adapter installed; the MCP
 server is only created when `mcp_adapter_init` fires.
 
 Tests (PHPUnit + Brain Monkey + Mockery, matching the `cdcf-redis-translations`
-convention) cover the registry structure and callback behaviour: 19 tests / 262
+convention) cover the registry structure and callback behaviour: 21 tests / 300
 assertions, all green. See `wordpress/plugins/cdcf-mcp/README.md` for how to
 install, activate and connect a client.
 
 ## 5. Caveats to weigh before adopting in production
 
-1. **Production WordPress version (the gating item).** Production runs on Plesk,
-   not docker. The Abilities API requires WP **6.9** in core (or the API plugin
-   on 6.8). Confirm the live `cms.catholicdigitalcommons.org` version first.
+1. **Production WordPress version (the former gating item — now cleared).** The
+   Abilities API requires WP **6.9** in core (or the API plugin on 6.8).
+   Verified: production `cms.catholicdigitalcommons.org` runs **WP 7.0** with the
+   Abilities API live (the `wp-abilities/v1` REST namespace is registered). The
+   MCP **adapter** itself is still not deployed there — it ships with this
+   plugin's `vendor/` (see caveat 4).
 2. **Pre-1.0 dependency.** v0.5.0 with ~2-month-old write support — the API may
    shift, and this exposes a new authenticated endpoint surface on the CMS
    subdomain. The prototype's `server.php` guards against the most likely API
@@ -136,7 +141,8 @@ install, activate and connect a client.
 
 Worth pursuing as a phase-2 experiment, in this order:
 
-1. **Verify** production WP ≥ 6.9 (via `scripts/cdcf_api.py` against production).
+1. ✅ **Verify** production WP ≥ 6.9 — done: production is **WP 7.0** with the
+   Abilities API in core (`wp-abilities/v1` namespace live).
 2. **Pilot locally**: mount the plugin into the docker stack, `composer install`
    inside it, activate, and connect Claude Desktop using a role-limited user.
 3. **Exercise** the translation-aware abilities end-to-end (create a board
