@@ -644,6 +644,10 @@ require_once __DIR__ . '/includes/handlers/update-disposable-domains.php';
 // the disposable-domain lookup can read the blocklist file path.
 require_once __DIR__ . '/includes/security.php';
 
+// Footnote/fragment-anchor protection helper, applied at every wp_kses_post
+// content sink below so colon-bearing anchors (#fn:…/#fnref:…) survive KSES.
+require_once __DIR__ . '/includes/fragment-anchors.php';
+
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/update-disposable-domains', [
         'methods'             => 'POST',
