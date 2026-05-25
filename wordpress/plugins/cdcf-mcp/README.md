@@ -85,12 +85,14 @@ This plugin needs its `vendor/` at runtime (the adapter), so it is intentionally
 - `cdcf/delete-member` is gated on `delete_posts` and trashes (not force-deletes)
   by default.
 - `cdcf/create-user` provisions users but is gated on the custom
-  `cdcf_create_limited_users` capability — granted only to a dedicated bot
-  account via a user-meta flag, never via a role. Native `create_users` is not
-  granted (so core's `POST /wp/v2/users` stays closed to the bot), and the
-  handler hard-limits creation to `author`/`contributor`/`subscriber`. The
-  agent never sees a password; the user gets a set-password email. See the
-  theme's `includes/handlers/create-user.php` and
+  `cdcf_create_limited_users` capability — held automatically by anyone with
+  native `create_users` (administrators), and otherwise grantable to a
+  non-admin bot account via a user-meta flag (an admin ticks a profile
+  checkbox). Native `create_users` is never granted to such a bot (so core's
+  `POST /wp/v2/users` stays closed to it), and the handler hard-limits creation
+  to `author`/`contributor`/`subscriber`. The agent never sees a password; the
+  user gets a set-password email. See the theme's
+  `includes/handlers/create-user.php` and
   `includes/admin/limited-user-provisioning.php`.
 
 ## Tests
