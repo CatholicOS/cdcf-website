@@ -84,6 +84,18 @@ final class CreateUserHandlerTest extends TestCase
         $this->assertSame(400, $response->get_error_data()['status']);
     }
 
+    public function test_rejects_empty_username(): void
+    {
+        Functions\when('is_email')->justReturn(true);
+        Functions\expect('wp_insert_user')->never();
+
+        $response = cdcf_rest_create_user($this->makeRequest(['username' => '']));
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('invalid_username', $response->get_error_code());
+        $this->assertSame(400, $response->get_error_data()['status']);
+    }
+
     public function test_rejects_duplicate_username(): void
     {
         Functions\when('is_email')->justReturn(true);
@@ -133,6 +145,7 @@ final class CreateUserHandlerTest extends TestCase
             'role'         => 'contributor',
             'display_name' => 'Casey Contributor',
             'first_name'   => 'Casey',
+            'last_name'    => 'Contributor',
         ]));
 
         $this->assertInstanceOf(WP_REST_Response::class, $response);
@@ -143,7 +156,7 @@ final class CreateUserHandlerTest extends TestCase
         $this->assertSame('contributor', $captured['role']);
         $this->assertSame('Casey Contributor', $captured['display_name']);
         $this->assertSame('Casey', $captured['first_name']);
-        $this->assertArrayNotHasKey('last_name', $captured); // empty — omitted
+        $this->assertSame('Contributor', $captured['last_name']);
 
         // The response must never echo the password back to the agent.
         $data = $response->get_data();

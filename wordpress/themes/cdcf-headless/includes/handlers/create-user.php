@@ -102,9 +102,9 @@ function cdcf_rest_create_user(WP_REST_Request $request) {
 
     // Send the standard new-user notification to the user only ('user'),
     // never to the admin, so they receive a set-password link.
-    if (function_exists('wp_new_user_notification')) {
-        wp_new_user_notification($user_id, null, 'user');
-    }
+    // wp_new_user_notification() is a core pluggable function, always
+    // defined in a normal request.
+    wp_new_user_notification($user_id, null, 'user');
 
     return new WP_REST_Response([
         'success'  => true,

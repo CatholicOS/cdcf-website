@@ -82,28 +82,28 @@ A self-contained plugin that registers a `cdcf` ability category and 21
 abilities, then (if the adapter is installed) serves them at
 `/wp-json/cdcf-mcp/mcp`.
 
-| Ability                                  | Backing                                                    | Capability     |
-| ---------------------------------------- | ---------------------------------------------------------- | -------------- |
-| `cdcf/create-board-member`               | POST `/cdcf/v1/team-member` (council=`team_members`)       | `edit_posts`   |
-| `cdcf/create-ecclesial-council-member`   | …council=`ecclesial_council`                               | `edit_posts`   |
-| `cdcf/create-technical-council-member`   | …council=`technical_council`                               | `edit_posts`   |
-| `cdcf/create-academic-liaison`           | …council=`academic_council` (needs `collab_post_id`)       | `edit_posts`   |
-| `cdcf/create-author-member`              | POST `/cdcf/v1/team-member` (no council — author profile)  | `edit_posts`   |
-| `cdcf/create-academic-collaboration`     | POST `/cdcf/v1/academic-collaboration`                     | `edit_posts`   |
-| `cdcf/create-community-channel`          | POST `/cdcf/v1/community-channel`                          | `edit_posts`   |
-| `cdcf/create-local-group`                | POST `/cdcf/v1/local-group`                                | `edit_posts`   |
-| `cdcf/update-member-bio`                 | `wp_update_post` + ACF + optional re-translate             | `edit_posts`   |
-| `cdcf/delete-member`                     | trash/delete member + all translations                     | `delete_posts` |
-| `cdcf/update-member-relationship`        | POST `/cdcf/v1/relationship` (replace)                     | `edit_posts`   |
-| `cdcf/add-project-lead`                  | GET+POST `/cdcf/v1/relationship` (append)                  | `edit_posts`   |
-| `cdcf/update-project-description`        | `wp_update_post` + optional re-translate                   | `edit_posts`   |
-| `cdcf/update-project-status`             | POST `/cdcf/v1/project-status`                             | `edit_posts`   |
-| `cdcf/set-project-repos`                 | ACF `project_repo_url` / `project_url` across translations | `edit_posts`   |
-| `cdcf/set-featured-image`                | `set_post_thumbnail` (any post type)                       | `edit_posts`   |
-| `cdcf/list-submitted-projects`           | `project` listing (incl. drafts/pending)                   | `edit_posts`   |
-| `cdcf/list-submitted-community-projects` | `community_project` listing                                | `edit_posts`   |
-| `cdcf/create-page`                       | `wp_insert_post` (page, template + language)               | `edit_pages`   |
-| `cdcf/create-post`                       | `wp_insert_post` (blog post draft)                         | `edit_posts`   |
+| Ability                                  | Backing                                                    | Capability                  |
+| ---------------------------------------- | ---------------------------------------------------------- | --------------------------- |
+| `cdcf/create-board-member`               | POST `/cdcf/v1/team-member` (council=`team_members`)       | `edit_posts`                |
+| `cdcf/create-ecclesial-council-member`   | …council=`ecclesial_council`                               | `edit_posts`                |
+| `cdcf/create-technical-council-member`   | …council=`technical_council`                               | `edit_posts`                |
+| `cdcf/create-academic-liaison`           | …council=`academic_council` (needs `collab_post_id`)       | `edit_posts`                |
+| `cdcf/create-author-member`              | POST `/cdcf/v1/team-member` (no council — author profile)  | `edit_posts`                |
+| `cdcf/create-academic-collaboration`     | POST `/cdcf/v1/academic-collaboration`                     | `edit_posts`                |
+| `cdcf/create-community-channel`          | POST `/cdcf/v1/community-channel`                          | `edit_posts`                |
+| `cdcf/create-local-group`                | POST `/cdcf/v1/local-group`                                | `edit_posts`                |
+| `cdcf/update-member-bio`                 | `wp_update_post` + ACF + optional re-translate             | `edit_posts`                |
+| `cdcf/delete-member`                     | trash/delete member + all translations                     | `delete_posts`              |
+| `cdcf/update-member-relationship`        | POST `/cdcf/v1/relationship` (replace)                     | `edit_posts`                |
+| `cdcf/add-project-lead`                  | GET+POST `/cdcf/v1/relationship` (append)                  | `edit_posts`                |
+| `cdcf/update-project-description`        | `wp_update_post` + optional re-translate                   | `edit_posts`                |
+| `cdcf/update-project-status`             | POST `/cdcf/v1/project-status`                             | `edit_posts`                |
+| `cdcf/set-project-repos`                 | ACF `project_repo_url` / `project_url` across translations | `edit_posts`                |
+| `cdcf/set-featured-image`                | `set_post_thumbnail` (any post type)                       | `edit_posts`                |
+| `cdcf/list-submitted-projects`           | `project` listing (incl. drafts/pending)                   | `edit_posts`                |
+| `cdcf/list-submitted-community-projects` | `community_project` listing                                | `edit_posts`                |
+| `cdcf/create-page`                       | `wp_insert_post` (page, template + language)               | `edit_pages`                |
+| `cdcf/create-post`                       | `wp_insert_post` (blog post draft)                         | `edit_posts`                |
 | `cdcf/create-user`                       | POST `/cdcf/v1/create-user` (allowlisted low-priv roles)   | `cdcf_create_limited_users` |
 
 Each ability declares a JSON input schema and a capability gate; the adapter
