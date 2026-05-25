@@ -443,6 +443,82 @@ final class CallbacksTest extends TestCase
         $this->assertSame(77, $out['post_id']);
     }
 
+    public function test_create_post_protects_footnote_anchor_colons_before_kses(): void
+    {
+        // wp_kses_post is identity here; the create path must already have
+        // encoded the fragment-href colons so the real kses wouldn't strip them.
+        Functions\when('sanitize_text_field')->returnArg();
+        Functions\when('wp_kses_post')->returnArg();
+        Functions\when('sanitize_key')->returnArg();
+        Functions\when('absint')->alias(static fn($v) => abs((int) $v));
+        Functions\when('is_wp_error')->alias(static fn($t) => $t instanceof WP_Error);
+        Functions\when('pll_set_post_language')->justReturn(true);
+        Functions\when('get_post_status')->justReturn('draft');
+        Functions\when('get_edit_post_link')->justReturn('http://e');
+        $captured = null;
+        Functions\when('wp_insert_post')->alias(function ($arr) use (&$captured) {
+            $captured = $arr;
+            return 78;
+        });
+
+        $content = '<sup><a href="#fn:encyclical" id="fnref:encyclical">1</a></sup>'
+            . '<li id="fn:encyclical">note <a href="#fnref:encyclical">↩</a></li>';
+        cdcf_mcp_cb_create_post(['title' => 'Post', 'content' => $content]);
+
+        // Fragment href colons encoded; id colons left literal.
+        $this->assertStringContainsString('href="#fn%3Aencyclical"', $captured['post_content']);
+        $this->assertStringContainsString('href="#fnref%3Aencyclical"', $captured['post_content']);
+        $this->assertStringContainsString('id="fnref:encyclical"', $captured['post_content']);
+        $this->assertStringContainsString('id="fn:encyclical"', $captured['post_content']);
+    }
+
+    // ─── fragment-anchor protection (footnote colon fix) ───────────
+
+    public function test_protect_fragment_anchors_encodes_colons_in_fragment_hrefs(): void
+    {
+        $this->assertSame(
+            '<a href="#fn%3A1">x</a>',
+            cdcf_mcp_protect_fragment_anchors('<a href="#fn:1">x</a>')
+        );
+        // numbered back-ref form
+        $this->assertSame(
+            '<a href="#fnref2%3Amanifesto">y</a>',
+            cdcf_mcp_protect_fragment_anchors('<a href="#fnref2:manifesto">y</a>')
+        );
+        // single quotes too
+        $this->assertSame(
+            "<a href='#fn%3A1'>x</a>",
+            cdcf_mcp_protect_fragment_anchors("<a href='#fn:1'>x</a>")
+        );
+    }
+
+    public function test_protect_fragment_anchors_leaves_urls_ids_and_plain_fragments(): void
+    {
+        // Real URL with scheme colon — untouched.
+        $this->assertSame(
+            '<a href="https://example.org/x">x</a>',
+            cdcf_mcp_protect_fragment_anchors('<a href="https://example.org/x">x</a>')
+        );
+        // id attribute (not href) — untouched even with a colon.
+        $this->assertSame(
+            '<li id="fn:1">n</li>',
+            cdcf_mcp_protect_fragment_anchors('<li id="fn:1">n</li>')
+        );
+        // Colon-free fragment — untouched.
+        $this->assertSame(
+            '<a href="#section">x</a>',
+            cdcf_mcp_protect_fragment_anchors('<a href="#section">x</a>')
+        );
+    }
+
+    public function test_protect_fragment_anchors_is_idempotent(): void
+    {
+        $once  = cdcf_mcp_protect_fragment_anchors('<a href="#fn:1">x</a>');
+        $twice = cdcf_mcp_protect_fragment_anchors($once);
+        $this->assertSame($once, $twice);
+        $this->assertSame('<a href="#fn%3A1">x</a>', $twice);
+    }
+
     public function test_create_user_dispatches_with_whitelisted_fields(): void
     {
         $captured = $this->captureDispatch(['success' => true, 'user_id' => 88]);

@@ -21,6 +21,41 @@ if (defined('ABSPATH') === false) {
 }
 
 /**
+ * Percent-encode colons inside in-page fragment hrefs (href="#…:…") so they
+ * survive wp_kses_post().
+ *
+ * WordPress core's wp_kses_bad_protocol() reads the substring before the first
+ * ":" in an href as a URL scheme. For a footnote anchor like
+ * href="#fn:encyclical" it sees scheme "fn" (the leading "#" is normalized
+ * away), finds it's not an allowed protocol, and strips it — leaving
+ * href="encyclical". This silently breaks every named-anchor footnote /
+ * back-link produced by Markdown converters that use the fn:/fnref: convention
+ * (Python-Markdown, PHP Markdown Extra, …). Numeric anchors (#fn1) have no
+ * colon and are unaffected, which is why pandoc-generated content never hit it.
+ *
+ * Encoding the colon to %3A in the href only (the matching id="fn:encyclical"
+ * keeps its literal colon — kses doesn't protocol-check id values) means kses
+ * sees no scheme delimiter and leaves the href intact, while the browser
+ * percent-decodes the fragment back to "fn:encyclical" when matching it to the
+ * id (HTML fragment navigation decodes before id comparison), so both the
+ * footnote links and the back-links still resolve. Non-fragment hrefs (real
+ * URLs) and colon-free fragments are left untouched; already-encoded %3A is a
+ * no-op, so this is idempotent.
+ */
+function cdcf_mcp_protect_fragment_anchors(string $html): string {
+    $out = preg_replace_callback(
+        '/\bhref\s*=\s*(["\'])(#[^"\']*)\1/i',
+        static function (array $m): string {
+            return 'href=' . $m[1] . str_replace(':', '%3A', $m[2]) . $m[1];
+        },
+        $html
+    );
+    // preg_replace_callback returns null only on PCRE error; fall back to the
+    // original content rather than nulling it out.
+    return $out ?? $html;
+}
+
+/**
  * Dispatch an internal REST request against a registered cdcf/v1 route.
  *
  * Runs in-process as the current user, so the route's own
@@ -148,7 +183,7 @@ function cdcf_mcp_update_content(int $post_id, string $expected_type, array $inp
 
     $update = ['ID' => $post_id];
     if (array_key_exists('content', $input)) {
-        $update['post_content'] = wp_kses_post((string) $input['content']);
+        $update['post_content'] = wp_kses_post(cdcf_mcp_protect_fragment_anchors((string) $input['content']));
     }
     if (!empty($input['title'])) {
         $update['post_title'] = sanitize_text_field($input['title']);
@@ -408,7 +443,9 @@ function cdcf_mcp_create_simple(string $post_type, array $input) {
         'post_type'    => $post_type,
         'post_status'  => $status,
         'post_title'   => $title,
-        'post_content' => isset($input['content']) ? wp_kses_post((string) $input['content']) : '',
+        'post_content' => isset($input['content'])
+            ? wp_kses_post(cdcf_mcp_protect_fragment_anchors((string) $input['content']))
+            : '',
     ];
     if (!empty($input['excerpt'])) {
         $postarr['post_excerpt'] = sanitize_text_field($input['excerpt']);
