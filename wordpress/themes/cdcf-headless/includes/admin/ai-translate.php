@@ -32,8 +32,12 @@ defined('ABSPATH') || exit;
  * parallelism that makes "Translate All" fast is preserved. If the lock
  * can't be acquired (no $wpdb, or timeout) we proceed best-effort rather
  * than fail the translation — the linking is the only at-risk part.
+ *
+ * @return bool True if the group was saved; false if pll_save_post_translations
+ *              reported a persistence failure (caller should not treat the
+ *              translation as successfully linked).
  */
-function cdcf_ai_translate_link_under_lock(int $source_id, string $target_lang, int $post_id): void {
+function cdcf_ai_translate_link_under_lock(int $source_id, string $target_lang, int $post_id): bool {
     global $wpdb;
 
     $lock_name = 'cdcf_pll_link_' . $source_id;
@@ -47,7 +51,9 @@ function cdcf_ai_translate_link_under_lock(int $source_id, string $target_lang, 
         $translations = pll_get_post_translations($source_id);
         $translations[$source_lang] = $source_id;
         $translations[$target_lang] = $post_id;
-        pll_save_post_translations($translations);
+        // pll_save_post_translations() returns false on a real persistence
+        // failure (same contract relied on in handlers/link-translations.php).
+        return pll_save_post_translations($translations) !== false;
     } finally {
         if ($locked) {
             $wpdb->query($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock_name));
@@ -110,7 +116,14 @@ function cdcf_ajax_ai_translate(): void {
             }
         }
 
-        cdcf_ai_translate_link_under_lock($source_id, $target_lang, (int) $post_id);
+        // Abort if the translation couldn't be linked into the Polylang
+        // group — otherwise we'd return success for a post that exists but
+        // is orphaned (not reachable as a translation). Delete the
+        // just-created post so a failed attempt leaves nothing behind.
+        if (!cdcf_ai_translate_link_under_lock($source_id, $target_lang, (int) $post_id)) {
+            wp_delete_post((int) $post_id, true);
+            wp_send_json_error('Failed to link translation group.');
+        }
     }
 
     $source = get_post($source_id);

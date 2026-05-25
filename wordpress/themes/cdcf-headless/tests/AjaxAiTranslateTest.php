@@ -381,6 +381,46 @@ final class AjaxAiTranslateTest extends TestCase
         }
     }
 
+    public function test_autocreate_aborts_and_cleans_up_when_group_link_fails(): void
+    {
+        // pll_save_post_translations reporting false (real persistence
+        // failure) must abort the flow and delete the just-created post,
+        // rather than returning success for an orphaned translation.
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->fakeSource([
+            'post_type'    => 'attachment',
+            'post_mime_type' => 'image/png',
+            'post_title'   => '',
+            'post_content' => '',
+            'post_excerpt' => '',
+        ]));
+        Functions\when('wp_insert_post')->justReturn(800);
+        Functions\when('get_post_meta')->justReturn('');
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('pll_get_post_translations')->justReturn([]);
+        Functions\when('pll_save_post_translations')->justReturn(false); // link fails
+        $deleted = null;
+        Functions\when('wp_delete_post')->alias(
+            function (int $id, bool $force) use (&$deleted): object {
+                $deleted = [$id, $force];
+                return (object) ['ID' => $id];
+            }
+        );
+        $this->setExitToThrow();
+        $this->allowAllFunctionsToExist();
+
+        $_POST = ['source_id' => 100, 'target_lang' => 'it'];
+
+        try {
+            cdcf_ajax_ai_translate();
+            $this->fail('expected CdcfAjaxError');
+        } catch (CdcfAjaxError $e) {
+            $this->assertSame('Failed to link translation group.', $e->data);
+            // The orphaned post is force-deleted.
+            $this->assertSame([800, true], $deleted);
+        }
+    }
+
     // ─── Provided post_id path ────────────────────────────────────────
 
     public function test_skips_autocreate_when_post_id_provided(): void
