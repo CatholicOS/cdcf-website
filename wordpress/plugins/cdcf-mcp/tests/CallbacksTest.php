@@ -472,6 +472,31 @@ final class CallbacksTest extends TestCase
         $this->assertStringContainsString('id="fn:encyclical"', $captured['post_content']);
     }
 
+    public function test_update_content_protects_footnote_anchor_colons_before_kses(): void
+    {
+        // The edit path (cdcf_mcp_update_content) must also encode fragment
+        // href colons before wp_kses_post, mirroring the create path.
+        Functions\when('absint')->alias(static fn($v) => abs((int) $v));
+        Functions\when('get_post')->justReturn((object) ['post_type' => 'project', 'ID' => 8]);
+        Functions\when('wp_kses_post')->returnArg();
+        Functions\when('sanitize_text_field')->returnArg();
+        Functions\when('is_wp_error')->alias(static fn($t) => $t instanceof WP_Error);
+        $captured = null;
+        Functions\when('wp_update_post')->alias(function ($arr) use (&$captured) {
+            $captured = $arr;
+            return 8;
+        });
+
+        $content = '<sup><a href="#fn:manifesto" id="fnref:manifesto">1</a></sup>'
+            . '<li id="fn:manifesto">note <a href="#fnref:manifesto">↩</a></li>';
+        cdcf_mcp_cb_update_project_description(['post_id' => 8, 'content' => $content]);
+
+        $this->assertStringContainsString('href="#fn%3Amanifesto"', $captured['post_content']);
+        $this->assertStringContainsString('href="#fnref%3Amanifesto"', $captured['post_content']);
+        $this->assertStringContainsString('id="fnref:manifesto"', $captured['post_content']);
+        $this->assertStringContainsString('id="fn:manifesto"', $captured['post_content']);
+    }
+
     // ─── fragment-anchor protection (footnote colon fix) ───────────
 
     public function test_protect_fragment_anchors_encodes_colons_in_fragment_hrefs(): void
