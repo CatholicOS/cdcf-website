@@ -30,8 +30,16 @@ const CDCF_LIMITED_USER_META_KEY  = 'cdcf_can_create_users';
 const CDCF_LIMITED_USER_NONCE     = 'cdcf_limited_user_provisioning';
 
 /**
- * Dynamically grant the custom capability to any user carrying the
- * `cdcf_can_create_users` meta flag. Filter for `user_has_cap`.
+ * Dynamically grant the custom capability. Filter for `user_has_cap`.
+ *
+ * Granted to:
+ *   - anyone who already holds native `create_users` (i.e. administrators),
+ *     since they can already create users of any role via core — the custom
+ *     cap adds no reach, it just lets them use cdcf/create-user from their
+ *     own account without a per-account flag; and
+ *   - any user carrying the `cdcf_can_create_users` meta flag, which is how
+ *     a NON-admin bot account (e.g. an editor) is opted in by an admin
+ *     ticking the profile checkbox below.
  *
  * @param array<string,bool> $allcaps All capabilities the user currently has.
  * @param string[]           $caps    Required primitive caps (unused).
@@ -41,7 +49,8 @@ const CDCF_LIMITED_USER_NONCE     = 'cdcf_limited_user_provisioning';
  */
 function cdcf_grant_limited_user_provisioning(array $allcaps, array $caps, array $args, $user): array {
     if ($user instanceof WP_User
-        && get_user_meta($user->ID, CDCF_LIMITED_USER_META_KEY, true)
+        && (!empty($allcaps['create_users'])
+            || get_user_meta($user->ID, CDCF_LIMITED_USER_META_KEY, true))
     ) {
         $allcaps[CDCF_LIMITED_USER_CAP] = true;
     }

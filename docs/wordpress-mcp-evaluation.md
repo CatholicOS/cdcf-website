@@ -225,11 +225,13 @@ Risks and how they're handled:
 7. **User provisioning (`cdcf/create-user`) — escalation-bounded by design.**
    This is the one ability that creates users, so it sits above the per-user
    editor baseline. Three controls keep it from becoming an escalation path:
-   (a) it gates on a **custom capability** `cdcf_create_limited_users`, granted
-   per-account via a user-meta flag (never a role), so it doesn't leak to every
-   editor; (b) native `create_users` is **never** granted — that would also open
-   core's `POST /wp/v2/users`, which accepts any role and is a route we don't
-   control — whereas the custom cap is honoured only by our handler; (c) the
+   (a) it gates on a **custom capability** `cdcf_create_limited_users`, held by
+   administrators (who already have native `create_users`) and otherwise
+   grantable to a single non-admin account via a user-meta flag (never a role),
+   so it doesn't leak to every editor; (b) native `create_users` is **never**
+   granted to such a bot — that would also open core's `POST /wp/v2/users`,
+   which accepts any role and is a route we don't control — whereas the custom
+   cap is honoured only by our handler; (c) the
    handler enforces a hard-coded role allowlist (`author`/`contributor`/
    `subscriber`), rejecting `editor`/`administrator` regardless of caller
    capability. No agent-supplied password is accepted; the user receives the

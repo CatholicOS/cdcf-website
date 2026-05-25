@@ -44,10 +44,27 @@ final class LimitedUserProvisioningTest extends TestCase
         $this->assertTrue($allcaps['edit_posts']); // existing caps preserved
     }
 
+    public function test_grants_cap_to_user_with_create_users(): void
+    {
+        // Administrators already hold create_users, so they get the custom
+        // cap with no meta flag — and short-circuit before any meta lookup.
+        Functions\expect('get_user_meta')->never();
+
+        $allcaps = cdcf_grant_limited_user_provisioning(
+            ['create_users' => true],
+            [],
+            [],
+            new WP_User(1)
+        );
+
+        $this->assertTrue($allcaps[CDCF_LIMITED_USER_CAP]);
+    }
+
     public function test_does_not_grant_cap_when_meta_flag_absent(): void
     {
         Functions\when('get_user_meta')->justReturn('');
 
+        // No create_users either, so neither grant condition holds.
         $allcaps = cdcf_grant_limited_user_provisioning(['edit_posts' => true], [], [], new WP_User(7));
 
         $this->assertArrayNotHasKey(CDCF_LIMITED_USER_CAP, $allcaps);
