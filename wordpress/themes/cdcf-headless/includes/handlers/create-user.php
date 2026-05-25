@@ -27,9 +27,7 @@
  * the human controls the credential and it never transits the agent.
  */
 
-if (defined('ABSPATH') === false) {
-    return;
-}
+defined('ABSPATH') || exit;
 
 /**
  * Roles this endpoint is permitted to create. Deliberately excludes
