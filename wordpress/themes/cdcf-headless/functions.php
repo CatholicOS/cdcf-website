@@ -1118,9 +1118,10 @@ add_action('acf/init', function () {
         'fields' => [
             [
                 'key'   => 'field_member_role',
-                'label' => 'Role',
+                'label' => 'Role (unused)',
                 'name'  => 'member_role',
                 'type'  => 'text',
+                'instructions' => 'Currently not displayed anywhere on the site. Leave empty. (Use the Title field for the line shown under the name.)',
                 'show_in_graphql' => true,
                 'show_in_rest' => true,
             ],
@@ -1129,6 +1130,7 @@ add_action('acf/init', function () {
                 'label' => 'Title',
                 'name'  => 'member_title',
                 'type'  => 'text',
+                'instructions' => 'Subheader shown directly under the name on the bio card (and as the subtitle on the author page) — the person\'s position or affiliation, e.g. "Foundation President" or "Professor of Theology, University of Notre Dame". Not an honorific prefix ("Dr.", "Rev.").',
                 'show_in_graphql' => true,
                 'show_in_rest' => true,
             ],
