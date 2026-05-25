@@ -93,7 +93,7 @@ Uses `@import 'tailwindcss'` (not `@tailwind` directives). Custom utilities via 
 
 ## REST API Endpoints (`cdcf/v1`)
 
-All endpoints require Application Password authentication. Most endpoints require `edit_posts` capability; `/process-queue` and `/maintenance` require `manage_options` (administrator) — see the row notes where capability differs.
+All endpoints require Application Password authentication. Most endpoints require `edit_posts` capability; `/process-queue` and `/maintenance` require `manage_options` (administrator); `/create-user` requires the custom `cdcf_create_limited_users` capability — see the row notes where capability differs.
 
 | Method | Route                        | Description                                                                                                                                                                                                                         |
 | ------ | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -106,6 +106,7 @@ All endpoints require Application Password authentication. Most endpoints requir
 | `POST` | `/local-group`               | Create a local group with auto-translation and Community page linking (see below)                                                                                                                                                   |
 | `POST` | `/maintenance`               | Pause or resume the cdcf-queue-worker by setting/clearing a Redis flag. Body: `action` is `"begin"` or `"end"`; optional `duration_seconds` is clamped server-side to 60–600. Requires administrator (`manage_options`) capability. |
 | `POST` | `/academic-collaboration`    | Create an academic collaboration with auto-translation and Community page linking (see below)                                                                                                                                       |
+| `POST` | `/create-user`               | Provision a low-privilege WordPress user (author/contributor/subscriber only) and email a set-password link. Requires the custom `cdcf_create_limited_users` capability, NOT `edit_posts` (see below).                              |
 
 ### Sanitization convention
 
@@ -146,6 +147,18 @@ Creates an English `academic_collaboration` post, translates it to all 5 languag
 **Parameters:** `title` (required), `collab_description` (required), `collab_university` (required), `collab_department` (optional), `collab_location` (optional — e.g. "Washington D.C., USA"), `collab_website_url` (optional)
 
 **Returns:** `{ success, en_post_id, translations: { en, it, es, fr, pt, de }, errors[] }`
+
+### `POST /create-user`
+
+Provisions a single low-privilege WordPress user (e.g. a blog author) with a server-generated password, then sends the standard WordPress "set your password" email so the human controls the credential. The agent never supplies or receives a password.
+
+Unlike every other `cdcf/v1` endpoint (which sit at the `edit_posts` editor baseline), this one gates on a **custom capability** `cdcf_create_limited_users`. That capability is granted per-user via the `cdcf_can_create_users` user-meta flag — set by an administrator through the "Limited user provisioning" checkbox on the bot account's user-edit screen (`includes/admin/limited-user-provisioning.php`). Native `create_users` is deliberately **never** granted, so core's `POST /wp/v2/users` (which accepts any role, including administrator) stays `403` for the bot.
+
+Two independent guards prevent privilege escalation: (1) the capability gate above, and (2) a hard-coded role allowlist in the handler — only `author`, `contributor`, `subscriber` are accepted; `editor`, `administrator`, and anything else are rejected with a 400 regardless of caller capability.
+
+**Parameters:** `username` (required), `email` (required), `role` (required — one of `author`, `contributor`, `subscriber`), `display_name` (optional — defaults to username), `first_name` (optional), `last_name` (optional)
+
+**Returns:** `{ success, user_id, username, email, role }` (never the password)
 
 ## Adding a New Language
 

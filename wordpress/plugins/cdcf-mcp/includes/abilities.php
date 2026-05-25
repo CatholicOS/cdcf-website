@@ -344,6 +344,25 @@ function cdcf_mcp_ability_definitions(): array {
                 'required'   => ['title'],
             ],
         ],
+        [
+            'name'        => 'cdcf/create-user',
+            'label'       => 'Create Limited User',
+            'description' => 'Provision a low-privilege WordPress user (author, contributor or subscriber only) and email them a set-password link. Cannot create editors or administrators. Requires the cdcf_create_limited_users capability — granted only to a dedicated automation account, not the editor baseline the other abilities use.',
+            'capability'  => 'cdcf_create_limited_users',
+            'callback'    => 'cdcf_mcp_cb_create_user',
+            'input_schema'=> [
+                'type'       => 'object',
+                'properties' => [
+                    'username'     => ['type' => 'string', 'description' => 'Login name (must be unique).'],
+                    'email'        => ['type' => 'string', 'description' => 'Email address (must be unique). Receives the set-password link.'],
+                    'role'         => ['type' => 'string', 'enum' => ['author', 'contributor', 'subscriber'], 'description' => 'WordPress role. Restricted to these three; editor/administrator are rejected.'],
+                    'display_name' => ['type' => 'string', 'description' => 'Display name (defaults to the username).'],
+                    'first_name'   => ['type' => 'string'],
+                    'last_name'    => ['type' => 'string'],
+                ],
+                'required'   => ['username', 'email', 'role'],
+            ],
+        ],
     ];
 }
 

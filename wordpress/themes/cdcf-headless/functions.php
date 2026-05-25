@@ -489,6 +489,45 @@ add_action('rest_api_init', function () {
     ]);
 });
 
+// ─── REST endpoint for provisioning a low-privilege WordPress user ───
+//
+// Creates an author / contributor / subscriber user with a server-generated
+// password and sends the standard set-password email. Unlike every other
+// cdcf/v1 endpoint (editor baseline), this one gates on the custom
+// `cdcf_create_limited_users` capability and hard-codes a role allowlist —
+// see includes/handlers/create-user.php and includes/admin/limited-user-
+// provisioning.php for the security rationale. Native `create_users` is
+// never granted, so core POST /wp/v2/users stays 403 for the bot.
+//
+// POST /wp-json/cdcf/v1/create-user (Application Password auth)
+
+require_once __DIR__ . '/includes/handlers/create-user.php';
+require_once __DIR__ . '/includes/admin/limited-user-provisioning.php';
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/create-user', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_create_user',
+        'permission_callback' => function () {
+            return current_user_can('cdcf_create_limited_users');
+        },
+        'args' => [
+            'username'     => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_user'],
+            'email'        => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
+            'role'         => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_key'],
+            'display_name' => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'first_name'   => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'last_name'    => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+        ],
+    ]);
+});
+
+// Grant the custom cap from the per-user meta flag, and expose the
+// admin-only toggle that sets it (handlers in includes/admin/).
+add_filter('user_has_cap', 'cdcf_grant_limited_user_provisioning', 10, 4);
+add_action('edit_user_profile', 'cdcf_render_limited_user_provisioning_field');
+add_action('edit_user_profile_update', 'cdcf_save_limited_user_provisioning_field');
+
 // ─── REST endpoint for creating a community channel with translations ─
 //
 // Creates an English community_channel post, translates it to all configured
