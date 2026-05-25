@@ -78,7 +78,7 @@ translation queueing verbatim rather than duplicating them.
 
 ## 4. The prototype: `wordpress/plugins/cdcf-mcp/`
 
-A self-contained plugin that registers a `cdcf` ability category and 20
+A self-contained plugin that registers a `cdcf` ability category and 21
 abilities, then (if the adapter is installed) serves them at
 `/wp-json/cdcf-mcp/mcp`.
 
@@ -104,6 +104,7 @@ abilities, then (if the adapter is installed) serves them at
 | `cdcf/list-submitted-community-projects` | `community_project` listing                                | `edit_posts`   |
 | `cdcf/create-page`                       | `wp_insert_post` (page, template + language)               | `edit_pages`   |
 | `cdcf/create-post`                       | `wp_insert_post` (blog post draft)                         | `edit_posts`   |
+| `cdcf/create-user`                       | POST `/cdcf/v1/create-user` (allowlisted low-priv roles)   | `cdcf_create_limited_users` |
 
 Each ability declares a JSON input schema and a capability gate; the adapter
 exposes only abilities flagged `meta.mcp.public => true`. The plugin degrades
@@ -221,6 +222,18 @@ Risks and how they're handled:
    default for every REST route (verified identical on `/wp/v2/*`) and is
    mitigated by the nonce requirement for cookie-auth writes and by app
    passwords not being sent ambiently cross-origin. Not introduced here.
+7. **User provisioning (`cdcf/create-user`) — escalation-bounded by design.**
+   This is the one ability that creates users, so it sits above the per-user
+   editor baseline. Three controls keep it from becoming an escalation path:
+   (a) it gates on a **custom capability** `cdcf_create_limited_users`, granted
+   per-account via a user-meta flag (never a role), so it doesn't leak to every
+   editor; (b) native `create_users` is **never** granted — that would also open
+   core's `POST /wp/v2/users`, which accepts any role and is a route we don't
+   control — whereas the custom cap is honoured only by our handler; (c) the
+   handler enforces a hard-coded role allowlist (`author`/`contributor`/
+   `subscriber`), rejecting `editor`/`administrator` regardless of caller
+   capability. No agent-supplied password is accepted; the user receives the
+   standard set-password email, so credentials never transit the agent.
 
 **Decision.** Ship to production under the **per-user model**: the deploy bundles
 the plugin's `vendor/`, extracts it, and activates it via the REST plugins API.

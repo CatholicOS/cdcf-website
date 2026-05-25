@@ -443,6 +443,28 @@ final class CallbacksTest extends TestCase
         $this->assertSame(77, $out['post_id']);
     }
 
+    public function test_create_user_dispatches_with_whitelisted_fields(): void
+    {
+        $captured = $this->captureDispatch(['success' => true, 'user_id' => 88]);
+        $out = cdcf_mcp_cb_create_user([
+            'username'     => 'casey',
+            'email'        => 'casey@example.org',
+            'role'         => 'author',
+            'display_name' => 'Casey',
+            'first_name'   => '', // empty — filtered out, not sent
+        ]);
+
+        $this->assertSame('POST', $captured()->get_method());
+        $this->assertSame('/cdcf/v1/create-user', $captured()->get_route());
+        $params = $captured()->get_params();
+        $this->assertSame('casey', $params['username']);
+        $this->assertSame('casey@example.org', $params['email']);
+        $this->assertSame('author', $params['role']);
+        $this->assertSame('Casey', $params['display_name']);
+        $this->assertArrayNotHasKey('first_name', $params);
+        $this->assertSame(88, $out['user_id']);
+    }
+
     // ─── helpers ──────────────────────────────────────────────────
 
     /**

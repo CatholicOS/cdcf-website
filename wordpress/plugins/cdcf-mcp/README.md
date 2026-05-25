@@ -19,7 +19,7 @@ rationale and caveats.
 
 ## What it does
 
-Registers a `cdcf` ability category and 20 abilities (see the table in the
+Registers a `cdcf` ability category and 21 abilities (see the table in the
 evaluation doc). Abilities that map onto an existing `cdcf/v1` REST endpoint
 dispatch to it internally via `rest_do_request()`, reusing that endpoint's
 sanitisation, validation, permission checks and translation queueing. The rest
@@ -35,8 +35,9 @@ The plugin degrades gracefully:
   `includes/server.php` guards against pre-1.0 API drift. The adapter ships as a
   PSR-4 Composer library, so the plugin boots it via `\WP\MCP\Plugin::instance()`.
 
-Each ability is capability-gated (`edit_posts`, `edit_pages`, `delete_posts`)
-and flagged `meta.mcp.public => true` so the adapter exposes it.
+Each ability is capability-gated (`edit_posts`, `edit_pages`, `delete_posts`,
+plus the custom `cdcf_create_limited_users` for `cdcf/create-user`) and flagged
+`meta.mcp.public => true` so the adapter exposes it.
 
 ## Layout
 
@@ -83,6 +84,14 @@ This plugin needs its `vendor/` at runtime (the adapter), so it is intentionally
   `/flush-opcache`) are deliberately **not** exposed as abilities.
 - `cdcf/delete-member` is gated on `delete_posts` and trashes (not force-deletes)
   by default.
+- `cdcf/create-user` provisions users but is gated on the custom
+  `cdcf_create_limited_users` capability — granted only to a dedicated bot
+  account via a user-meta flag, never via a role. Native `create_users` is not
+  granted (so core's `POST /wp/v2/users` stays closed to the bot), and the
+  handler hard-limits creation to `author`/`contributor`/`subscriber`. The
+  agent never sees a password; the user gets a set-password email. See the
+  theme's `includes/handlers/create-user.php` and
+  `includes/admin/limited-user-provisioning.php`.
 
 ## Tests
 

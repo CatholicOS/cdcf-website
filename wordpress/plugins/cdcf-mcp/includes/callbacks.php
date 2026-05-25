@@ -444,3 +444,15 @@ function cdcf_mcp_cb_create_page(array $input) {
 function cdcf_mcp_cb_create_post(array $input) {
     return cdcf_mcp_create_simple('post', $input);
 }
+
+/**
+ * Provision a low-privilege WordPress user via /cdcf/v1/create-user. The
+ * endpoint enforces the role allowlist (author/contributor/subscriber) and
+ * the cdcf_create_limited_users capability gate; this callback only forwards
+ * the whitelisted, non-empty fields.
+ */
+function cdcf_mcp_cb_create_user(array $input) {
+    return cdcf_mcp_dispatch_create('/cdcf/v1/create-user', $input, [
+        'username', 'email', 'role', 'display_name', 'first_name', 'last_name',
+    ]);
+}
