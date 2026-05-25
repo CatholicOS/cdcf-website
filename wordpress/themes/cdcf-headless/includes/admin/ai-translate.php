@@ -39,6 +39,9 @@ function cdcf_ajax_ai_translate(): void {
             'post_type'   => $source->post_type,
             'post_status' => 'draft',
             'post_title'  => $source->post_title, // will be overwritten by translation
+            // Inherit the source author; otherwise wp_insert_post defaults to
+            // the user who triggered the translation.
+            'post_author' => $source->post_author,
         ];
 
         // Attachments use 'inherit' status and share the same uploaded file.

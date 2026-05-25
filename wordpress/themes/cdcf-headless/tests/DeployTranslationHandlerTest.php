@@ -71,6 +71,7 @@ final class DeployTranslationHandlerTest extends TestCase
             'post_status' => 'publish',
             'post_title'  => 'Source Title',
             'post_parent' => 0,
+            'post_author' => 7,
         ], $overrides);
     }
 
@@ -252,6 +253,7 @@ final class DeployTranslationHandlerTest extends TestCase
                 'post_status'  => 'publish',
                 'post_title'   => 'Titolo',
                 'post_content' => '<p>contenuto</p>',
+                'post_author'  => 7, // inherited from the source, not the caller
             ],
             $insertArgs
         );

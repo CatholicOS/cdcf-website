@@ -54,6 +54,9 @@ function cdcf_rest_deploy_translation(WP_REST_Request $request) {
             'post_status'  => $source->post_status,
             'post_title'   => $title ?: $source->post_title,
             'post_content' => $content,
+            // Inherit the source author; otherwise wp_insert_post defaults to
+            // the user who triggered the translation.
+            'post_author'  => $source->post_author,
         ];
 
         // Propagate parent: use the parent's translation in the target language.

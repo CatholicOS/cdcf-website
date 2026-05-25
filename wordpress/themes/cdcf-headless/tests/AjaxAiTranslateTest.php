@@ -105,6 +105,7 @@ final class AjaxAiTranslateTest extends TestCase
         $post->post_type      = 'post';
         $post->post_status    = 'publish';
         $post->post_mime_type = '';
+        $post->post_author    = 7;
         foreach ($overrides as $k => $v) {
             $post->$k = $v;
         }
@@ -234,6 +235,8 @@ final class AjaxAiTranslateTest extends TestCase
         } catch (CdcfAjaxSuccess $e) {
             $this->assertSame('inherit', $insertArgs['post_status']);
             $this->assertSame('image/png', $insertArgs['post_mime_type']);
+            // Translation inherits the source author, not the triggering user.
+            $this->assertSame(7, $insertArgs['post_author']);
             $this->assertSame(800, $e->data['post_id']);
             $this->assertStringContainsString('Media duplicated', $e->data['message']);
         }
