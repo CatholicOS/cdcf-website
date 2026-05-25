@@ -19,12 +19,12 @@ rationale and caveats.
 
 ## What it does
 
-Registers a `cdcf` ability category and 20 abilities (see the table in the
+Registers a `cdcf` ability category and 19 abilities (see the table in the
 evaluation doc). Abilities that map onto an existing `cdcf/v1` REST endpoint
 dispatch to it internally via `rest_do_request()`, reusing that endpoint's
 sanitisation, validation, permission checks and translation queueing. The rest
-(delete, content edits, media sideload, listings, plain page/post creation) call
-core WordPress functions directly.
+(delete, content edits, listings, plain page/post creation) call core WordPress
+functions directly.
 
 The plugin degrades gracefully:
 
@@ -35,8 +35,8 @@ The plugin degrades gracefully:
   `includes/server.php` guards against pre-1.0 API drift. The adapter ships as a
   PSR-4 Composer library, so the plugin boots it via `\WP\MCP\Plugin::instance()`.
 
-Each ability is capability-gated (`edit_posts`, `edit_pages`, `delete_posts`,
-`upload_files`) and flagged `meta.mcp.public => true` so the adapter exposes it.
+Each ability is capability-gated (`edit_posts`, `edit_pages`, `delete_posts`)
+and flagged `meta.mcp.public => true` so the adapter exposes it.
 
 ## Layout
 

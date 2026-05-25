@@ -326,49 +326,10 @@ function cdcf_mcp_cb_set_featured_image(array $input) {
     return ['success' => true, 'post_id' => $post_id, 'attachment_id' => $attachment_id];
 }
 
-/**
- * Download a remote file into the media library, optionally setting it as
- * a post's featured image in the same call.
- */
-function cdcf_mcp_cb_upload_media(array $input) {
-    $url = esc_url_raw($input['url'] ?? '');
-    if (!$url) {
-        return new WP_Error('invalid_url', 'A valid url is required.', ['status' => 400]);
-    }
-
-    require_once ABSPATH . 'wp-admin/includes/file.php';
-    require_once ABSPATH . 'wp-admin/includes/media.php';
-    require_once ABSPATH . 'wp-admin/includes/image.php';
-
-    $tmp = download_url($url);
-    if (is_wp_error($tmp)) {
-        return $tmp;
-    }
-
-    $name = basename((string) parse_url($url, PHP_URL_PATH));
-    $file = ['name' => $name !== '' ? $name : 'upload', 'tmp_name' => $tmp];
-
-    $attachment_id = media_handle_sideload($file, 0, $input['title'] ?? null);
-    if (is_wp_error($attachment_id)) {
-        if (file_exists($tmp)) {
-            wp_delete_file($tmp);
-        }
-        return $attachment_id;
-    }
-
-    if (!empty($input['alt_text'])) {
-        update_post_meta($attachment_id, '_wp_attachment_image_alt', sanitize_text_field($input['alt_text']));
-    }
-    if (!empty($input['attach_to_post_id'])) {
-        set_post_thumbnail(absint($input['attach_to_post_id']), $attachment_id);
-    }
-
-    return [
-        'success'       => true,
-        'attachment_id' => (int) $attachment_id,
-        'url'           => wp_get_attachment_url($attachment_id),
-    ];
-}
+// NOTE: cdcf_mcp_cb_upload_media() was removed along with the cdcf/upload-media
+// ability. It sideloaded an agent-supplied URL via download_url(), an SSRF
+// vector with no simple safe guard. See includes/abilities.php and the
+// security review in docs/wordpress-mcp-evaluation.md.
 
 /**
  * Shared listing helper. Defaults to surfacing not-yet-published items

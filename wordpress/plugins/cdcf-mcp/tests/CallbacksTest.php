@@ -382,16 +382,6 @@ final class CallbacksTest extends TestCase
         $this->assertSame('invalid_attachment', $out->get_error_code());
     }
 
-    public function test_upload_media_rejects_an_invalid_url(): void
-    {
-        // The sideload path requires wp-admin/includes files unavailable in the
-        // unit env; the input guard runs first and is what we assert here.
-        Functions\when('esc_url_raw')->justReturn('');
-        $out = cdcf_mcp_cb_upload_media(['url' => 'not a url']);
-        $this->assertInstanceOf(WP_Error::class, $out);
-        $this->assertSame('invalid_url', $out->get_error_code());
-    }
-
     // ─── per-ability coverage: listings + plain post ──────────────
 
     public function test_list_submitted_projects_queries_the_project_type(): void
