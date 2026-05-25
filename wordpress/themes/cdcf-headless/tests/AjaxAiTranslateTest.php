@@ -36,6 +36,7 @@ final class AjaxAiTranslateTest extends TestCase
         Monkey\tearDown();
         Mockery::close();
         $_POST = [];
+        unset($GLOBALS['wpdb']);
         parent::tearDown();
     }
 
@@ -286,6 +287,137 @@ final class AjaxAiTranslateTest extends TestCase
             $this->assertSame('2026/05/file.png', $metaWrites[0][2]);
             $this->assertSame('_wp_attached_file', $metaWrites[0][1]);
             $this->assertSame(800, $e->data['post_id']);
+        }
+    }
+
+    public function test_autocreate_links_group_under_a_source_keyed_lock(): void
+    {
+        // A fake $wpdb that records GET_LOCK / RELEASE_LOCK and grants the
+        // lock. Concurrent "Translate All" requests would otherwise
+        // lost-update the shared Polylang group term.
+        $wpdb = new class {
+            public array $getVar = [];
+            public array $query  = [];
+            public function prepare(string $q, ...$args): string {
+                foreach ($args as $a) {
+                    $q = preg_replace('/%[sd]/', (string) $a, $q, 1);
+                }
+                return $q;
+            }
+            public function get_var(string $q): int { $this->getVar[] = $q; return 1; }
+            public function query(string $q): int { $this->query[] = $q; return 1; }
+        };
+        $GLOBALS['wpdb'] = $wpdb;
+
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->fakeSource([
+            'post_type'    => 'attachment',
+            'post_mime_type' => 'image/png',
+            'post_title'   => '',
+            'post_content' => '',
+            'post_excerpt' => '',
+        ]));
+        Functions\when('wp_insert_post')->justReturn(800);
+        Functions\when('get_post_meta')->justReturn('');
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('pll_get_post_translations')->justReturn([]); // empty source group
+        $saved = null;
+        Functions\when('pll_save_post_translations')->alias(
+            function (array $t) use (&$saved): bool { $saved = $t; return true; }
+        );
+        $this->setExitToThrow();
+        $this->allowAllFunctionsToExist();
+
+        $_POST = ['source_id' => 100, 'target_lang' => 'it'];
+
+        try {
+            cdcf_ajax_ai_translate();
+            $this->fail('expected CdcfAjaxSuccess');
+        } catch (CdcfAjaxSuccess) {
+            // Lock acquired then released, both keyed on the source group id.
+            $this->assertCount(1, $wpdb->getVar);
+            $this->assertStringContainsString('GET_LOCK', $wpdb->getVar[0]);
+            $this->assertStringContainsString('cdcf_pll_link_100', $wpdb->getVar[0]);
+            $this->assertCount(1, $wpdb->query);
+            $this->assertStringContainsString('RELEASE_LOCK', $wpdb->query[0]);
+            $this->assertStringContainsString('cdcf_pll_link_100', $wpdb->query[0]);
+            // Group saved with source (en) + target (it) merged in.
+            $this->assertSame(['en' => 100, 'it' => 800], $saved);
+        }
+    }
+
+    public function test_autocreate_still_links_when_no_wpdb_available(): void
+    {
+        // Degraded path: no $wpdb (or DB lock unavailable) must NOT block the
+        // linking — best-effort, so the translation still completes.
+        unset($GLOBALS['wpdb']);
+
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->fakeSource([
+            'post_type'    => 'attachment',
+            'post_mime_type' => 'image/png',
+            'post_title'   => '',
+            'post_content' => '',
+            'post_excerpt' => '',
+        ]));
+        Functions\when('wp_insert_post')->justReturn(800);
+        Functions\when('get_post_meta')->justReturn('');
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('pll_get_post_translations')->justReturn([]);
+        $saved = null;
+        Functions\when('pll_save_post_translations')->alias(
+            function (array $t) use (&$saved): bool { $saved = $t; return true; }
+        );
+        $this->setExitToThrow();
+        $this->allowAllFunctionsToExist();
+
+        $_POST = ['source_id' => 100, 'target_lang' => 'it'];
+
+        try {
+            cdcf_ajax_ai_translate();
+            $this->fail('expected CdcfAjaxSuccess');
+        } catch (CdcfAjaxSuccess) {
+            $this->assertSame(['en' => 100, 'it' => 800], $saved);
+        }
+    }
+
+    public function test_autocreate_aborts_and_cleans_up_when_group_link_fails(): void
+    {
+        // pll_save_post_translations reporting false (real persistence
+        // failure) must abort the flow and delete the just-created post,
+        // rather than returning success for an orphaned translation.
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->fakeSource([
+            'post_type'    => 'attachment',
+            'post_mime_type' => 'image/png',
+            'post_title'   => '',
+            'post_content' => '',
+            'post_excerpt' => '',
+        ]));
+        Functions\when('wp_insert_post')->justReturn(800);
+        Functions\when('get_post_meta')->justReturn('');
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('pll_get_post_translations')->justReturn([]);
+        Functions\when('pll_save_post_translations')->justReturn(false); // link fails
+        $deleted = null;
+        Functions\when('wp_delete_post')->alias(
+            function (int $id, bool $force) use (&$deleted): object {
+                $deleted = [$id, $force];
+                return (object) ['ID' => $id];
+            }
+        );
+        $this->setExitToThrow();
+        $this->allowAllFunctionsToExist();
+
+        $_POST = ['source_id' => 100, 'target_lang' => 'it'];
+
+        try {
+            cdcf_ajax_ai_translate();
+            $this->fail('expected CdcfAjaxError');
+        } catch (CdcfAjaxError $e) {
+            $this->assertSame('Failed to link translation group.', $e->data);
+            // The orphaned post is force-deleted.
+            $this->assertSame([800, true], $deleted);
         }
     }
 
