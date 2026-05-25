@@ -13,6 +13,48 @@
 
 defined('ABSPATH') || exit;
 
+/**
+ * Link a freshly-created translation into its source's Polylang group,
+ * serialized by a MySQL advisory lock keyed on the source group.
+ *
+ * Polylang stores a translation group as ONE shared `post_translations`
+ * term (a serialized {lang: post_id} map). Linking is a read-modify-write
+ * of that term: read the source's current group, add this language, save.
+ * The "Translate All" button fans out one concurrent AJAX request per
+ * language (Promise.all), and PHP-FPM serves them in parallel workers — so
+ * without serialization the requests lost-update each other's group term,
+ * leaving one or two languages orphaned in a stale term (the asymmetry we
+ * saw on imported team-member photos).
+ *
+ * GET_LOCK keyed on the source id makes the sibling requests queue ONLY
+ * across this ~millisecond critical section; the expensive OpenAI
+ * translation that follows still runs fully concurrently, so the
+ * parallelism that makes "Translate All" fast is preserved. If the lock
+ * can't be acquired (no $wpdb, or timeout) we proceed best-effort rather
+ * than fail the translation — the linking is the only at-risk part.
+ */
+function cdcf_ai_translate_link_under_lock(int $source_id, string $target_lang, int $post_id): void {
+    global $wpdb;
+
+    $lock_name = 'cdcf_pll_link_' . $source_id;
+    $has_db    = isset($wpdb) && is_object($wpdb) && method_exists($wpdb, 'get_var');
+    $locked    = $has_db
+        && (int) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, %d)', $lock_name, 10)) === 1;
+
+    try {
+        pll_set_post_language($post_id, $target_lang);
+        $source_lang  = pll_get_post_language($source_id);
+        $translations = pll_get_post_translations($source_id);
+        $translations[$source_lang] = $source_id;
+        $translations[$target_lang] = $post_id;
+        pll_save_post_translations($translations);
+    } finally {
+        if ($locked) {
+            $wpdb->query($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock_name));
+        }
+    }
+}
+
 function cdcf_ajax_ai_translate(): void {
     check_ajax_referer('cdcf_ai_translate');
 
@@ -68,12 +110,7 @@ function cdcf_ajax_ai_translate(): void {
             }
         }
 
-        pll_set_post_language($post_id, $target_lang);
-        $source_lang = pll_get_post_language($source_id);
-        $translations = pll_get_post_translations($source_id);
-        $translations[$source_lang] = $source_id;
-        $translations[$target_lang] = $post_id;
-        pll_save_post_translations($translations);
+        cdcf_ai_translate_link_under_lock($source_id, $target_lang, (int) $post_id);
     }
 
     $source = get_post($source_id);
