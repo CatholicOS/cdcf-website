@@ -139,11 +139,26 @@ jobs:
           cp -r public .next/standalone/public
           tar -czf /tmp/nextjs-bundle.tar.gz -C .next/standalone .
 
+      # cdcf-mcp ships the MCP adapter as a runtime Composer dependency, so its
+      # vendor/ must be installed (from the committed lock) before bundling.
+      # Unlike cdcf-redis-translations, whose Composer deps are dev-only.
+      - name: Setup PHP for cdcf-mcp runtime deps
+        if: env.ENVIRONMENT == 'production'
+        uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # v2.37.1
+        with:
+          php-version: '8.3'
+          tools: composer
+
       - name: Prepare WP theme and plugin bundles
         if: env.ENVIRONMENT == 'production'
         run: |
           tar -czf /tmp/wp-theme.tar.gz -C wordpress/themes/cdcf-headless .
           tar -czf /tmp/wp-plugin-redis-translations.tar.gz -C wordpress/plugins/cdcf-redis-translations .
+          # Install cdcf-mcp's runtime deps (the MCP adapter) from the lock and
+          # bundle them; the plugin is non-functional without vendor/.
+          composer install --no-dev --no-interaction --no-progress \
+            --working-dir=wordpress/plugins/cdcf-mcp
+          tar -czf /tmp/wp-plugin-cdcf-mcp.tar.gz -C wordpress/plugins/cdcf-mcp .
 
       - name: Setup SSH key
         env:
@@ -258,7 +273,7 @@ jobs:
             echo "Upload attempt $attempt..."
             if scp -i ~/.ssh/deploy_key \
               -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
-              /tmp/wp-theme.tar.gz /tmp/wp-plugin-redis-translations.tar.gz \
+              /tmp/wp-theme.tar.gz /tmp/wp-plugin-redis-translations.tar.gz /tmp/wp-plugin-cdcf-mcp.tar.gz \
               "${VPS_USERNAME}@${VPS_HOST}:/tmp/"; then
               echo "Upload succeeded on attempt $attempt"
               exit 0
@@ -352,7 +367,9 @@ jobs:
                tar -xzf /tmp/wp-theme.tar.gz -C \"$WP_THEME_DIR\" && \
                mkdir -p \"$WP_PLUGINS_DIR/cdcf-redis-translations\" && \
                tar -xzf /tmp/wp-plugin-redis-translations.tar.gz -C \"$WP_PLUGINS_DIR/cdcf-redis-translations\" && \
-               rm /tmp/wp-theme.tar.gz /tmp/wp-plugin-redis-translations.tar.gz"; then
+               mkdir -p \"$WP_PLUGINS_DIR/cdcf-mcp\" && \
+               tar -xzf /tmp/wp-plugin-cdcf-mcp.tar.gz -C \"$WP_PLUGINS_DIR/cdcf-mcp\" && \
+               rm /tmp/wp-theme.tar.gz /tmp/wp-plugin-redis-translations.tar.gz /tmp/wp-plugin-cdcf-mcp.tar.gz"; then
               echo "SSH succeeded on attempt $attempt"
               exit 0
             fi
@@ -378,7 +395,7 @@ jobs:
           WP_URL="$WP_REST_URL/wp/v2/plugins"
           AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
           FAILED=0
-          for PLUGIN in redis-queue/redis-queue cdcf-redis-translations/cdcf-redis-translations; do
+          for PLUGIN in redis-queue/redis-queue cdcf-redis-translations/cdcf-redis-translations cdcf-mcp/cdcf-mcp; do
             # The WP REST plugins route expects a literal "/" in the slug;
             # encoding it as %2F yields rest_plugin_not_found (404).
             CURRENT=$(curl -sS -w '\n%{http_code}' \

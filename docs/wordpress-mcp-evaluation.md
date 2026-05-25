@@ -166,9 +166,9 @@ Worth pursuing as a phase-2 experiment, in this order:
    called the wrong method and never drained the queue), fixed separately.
    Generating the translated _content_ additionally needs `OPENAI_API_KEY` in
    the local stack.
-4. ✅ **Decide** on production exposure — done; see §7. Verdict: **not on
-   production by default yet** — staging-ready, production-eligible once the
-   §7 conditions are met.
+4. ✅ **Decide** on production exposure — done; see §7. Verdict: **deploy to
+   production under the per-user model**, after dropping the SSRF-prone
+   `upload-media` ability (#144).
 
 The translation-aware domain abilities are the differentiator; generic post CRUD
 alone would not justify the added dependency and attack surface.
@@ -192,24 +192,27 @@ CORS). What holds up:
   `sanitize_text_field`, `absint`, `esc_url_raw`, and validate attachment types.
   `delete-member` trashes by default (force is opt-in).
 
-Risks to address **before** production:
+Risks and how they're handled:
 
-1. **SSRF in `upload-media` (medium).** `download_url()` fetches an
-   agent-supplied URL with no host/scheme allowlist or internal-IP guard — an
-   authenticated `upload_files` user could make the CMS fetch internal/metadata
-   endpoints. Comparable to core "insert from URL," but it's the most
-   plugin-specific risk. Add a host allowlist / reject-internal guard, or drop
-   `upload-media` from the production ability set.
-2. **Pre-1.0 dependency (medium).** `wordpress/mcp-adapter` v0.5.0 exposes a new
-   authenticated write surface on the CMS subdomain; pin the version and
-   re-review on every bump.
-3. **Bot role (low–med).** All write abilities need
-   `edit_posts`/`edit_pages`/`delete_posts`/`upload_files`, which an `editor`
-   already has. Use a dedicated bot user with a **custom minimal role**, never
-   `editor`/`administrator`.
-4. **Application Password handling (operational).** It grants the bot user's
-   full capabilities over REST + MCP — scope it, rotate it, store it in a secret
-   manager.
+1. **SSRF in `upload-media` — ✅ resolved.** The ability sideloaded an
+   agent-supplied URL via `download_url()` with no internal-IP/redirect guard.
+   Rather than attempt fiddly SSRF hardening on a non-essential ability, it was
+   **removed** (#144); the prototype is now 19 abilities. Reintroduce only with
+   a vetted SSRF-safe fetch.
+2. **Pre-1.0 dependency (medium) — accepted with a pinned version.**
+   `wordpress/mcp-adapter` is pinned via `composer.lock`; re-review on every
+   bump. This is the residual risk accepted in choosing to ship.
+3. **Privilege model — per-user, no shared bot.** The agent authenticates as a
+   real WP user and inherits that user's capabilities, so each person connecting
+   with their own Application Password is naturally scoped by their role (an
+   Author can only create/edit their own posts; council/page abilities are
+   denied). **Operating rule: do not connect as an administrator** — an admin
+   app password grants the agent full REST reach regardless of the ability list.
+   A dedicated minimal-role bot user is only warranted for unattended automation
+   (not the current use case).
+4. **Application Password handling (operational).** Each user's app password
+   grants their capabilities over the whole REST API — scope per user, rotate,
+   and revoke (per-user) to cut off the agent without disrupting others.
 5. **No server-side write confirmation (low).** The MCP write-confirmation
    round-trip is client-side UX, not a server control — don't treat it as one.
 6. **Inherited REST CORS (low).** The endpoint reflects `Origin` with
@@ -218,11 +221,11 @@ Risks to address **before** production:
    mitigated by the nonce requirement for cookie-auth writes and by app
    passwords not being sent ambiently cross-origin. Not introduced here.
 
-**Decision.** The model is fundamentally sound, but production exposure is
-**deferred**: keep it local/staging-only for now. It becomes production-eligible
-once (a) the adapter reaches a more stable (≥1.0) release **or** the pre-1.0 risk
-is explicitly accepted with a pinned version, (b) `upload-media` is hardened or
-dropped, (c) a dedicated bot user with a custom minimal role is provisioned with
-a scoped/rotated Application Password, and (d) the deploy wires the plugin's
-`vendor/` + activation behind a feature flag / kill switch, keeping
-`manage_options` operations excluded.
+**Decision.** Ship to production under the **per-user model**: the deploy bundles
+the plugin's `vendor/`, extracts it, and activates it via the REST plugins API.
+The endpoint is authenticated (401 for anonymous) and per-ability
+capability-gated, `manage_options` operations stay excluded, and `upload-media`
+is gone. The kill switch is plugin deactivation (wp-admin or the REST plugins
+API). Residual accepted risk: the pre-1.0 adapter dependency (pinned). The one
+operating discipline this relies on is **not using an administrator credential
+for MCP**.
