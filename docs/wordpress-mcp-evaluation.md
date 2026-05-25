@@ -159,10 +159,73 @@ Worth pursuing as a phase-2 experiment, in this order:
    fixed two integration bugs (see §4): the category hook and the explicit
    adapter boot. The prototype had only been exercised against test stubs
    before, so neither showed up until it ran against real core.
-3. **Exercise** the translation-aware abilities end-to-end (create a board
-   member, watch the Redis queue translate it, confirm About-page linking).
-4. **Decide** on production exposure only after the dependency reaches a more
-   stable release and a security review of the endpoint surface.
+3. ✅ **Exercise** the translation-aware abilities end-to-end — done: driving
+   `cdcf-create-board-member` over MCP created the English post + 5 Polylang
+   translation drafts and linked the member into the About page and all 5 of its
+   translations. This surfaced a dev-stack bug (the `redis-worker` entrypoint
+   called the wrong method and never drained the queue), fixed separately.
+   Generating the translated _content_ additionally needs `OPENAI_API_KEY` in
+   the local stack.
+4. ✅ **Decide** on production exposure — done; see §7. Verdict: **deploy to
+   production under the per-user model**, after dropping the SSRF-prone
+   `upload-media` ability (#144).
 
 The translation-aware domain abilities are the differentiator; generic post CRUD
 alone would not justify the added dependency and attack surface.
+
+## 7. Security review + production-exposure decision
+
+Reviewed against the live local stack (auth, authorization, injection/SSRF,
+CORS). What holds up:
+
+- **Authentication is enforced.** Anonymous requests to `/wp-json/cdcf-mcp/mcp`
+  get `401 rest_forbidden` (both discovery and execution).
+- **Authorization is per-ability.** A subscriber can open a session but
+  `tools/call` returns `Permission denied` — each ability's
+  `current_user_can()` gate fires. Discovery (`tools/list`) is open to any
+  authenticated user (tool names/schemas only; not sensitive).
+- **`manage_options` operations are excluded.** The abilities only reach
+  `edit_posts`-level `cdcf/v1` endpoints; `/process-queue`, `/maintenance`,
+  `/flush-opcache` are not exposed.
+- **Inputs are sanitized.** Dispatch abilities reuse the `cdcf/v1` endpoints'
+  args-block sanitization (#111); direct callbacks use `wp_kses_post`,
+  `sanitize_text_field`, `absint`, `esc_url_raw`, and validate attachment types.
+  `delete-member` trashes by default (force is opt-in).
+
+Risks and how they're handled:
+
+1. **SSRF in `upload-media` — ✅ resolved.** The ability sideloaded an
+   agent-supplied URL via `download_url()` with no internal-IP/redirect guard.
+   Rather than attempt fiddly SSRF hardening on a non-essential ability, it was
+   **removed** (#144); the prototype is now 19 abilities. Reintroduce only with
+   a vetted SSRF-safe fetch.
+2. **Pre-1.0 dependency (medium) — accepted with a pinned version.**
+   `wordpress/mcp-adapter` is pinned via `composer.lock`; re-review on every
+   bump. This is the residual risk accepted in choosing to ship.
+3. **Privilege model — per-user, no shared bot.** The agent authenticates as a
+   real WP user and inherits that user's capabilities, so each person connecting
+   with their own Application Password is naturally scoped by their role (an
+   Author can only create/edit their own posts; council/page abilities are
+   denied). **Operating rule: do not connect as an administrator** — an admin
+   app password grants the agent full REST reach regardless of the ability list.
+   A dedicated minimal-role bot user is only warranted for unattended automation
+   (not the current use case).
+4. **Application Password handling (operational).** Each user's app password
+   grants their capabilities over the whole REST API — scope per user, rotate,
+   and revoke (per-user) to cut off the agent without disrupting others.
+5. **No server-side write confirmation (low).** The MCP write-confirmation
+   round-trip is client-side UX, not a server control — don't treat it as one.
+6. **Inherited REST CORS (low).** The endpoint reflects `Origin` with
+   `Access-Control-Allow-Credentials: true`, but this is WordPress core's
+   default for every REST route (verified identical on `/wp/v2/*`) and is
+   mitigated by the nonce requirement for cookie-auth writes and by app
+   passwords not being sent ambiently cross-origin. Not introduced here.
+
+**Decision.** Ship to production under the **per-user model**: the deploy bundles
+the plugin's `vendor/`, extracts it, and activates it via the REST plugins API.
+The endpoint is authenticated (401 for anonymous) and per-ability
+capability-gated, `manage_options` operations stay excluded, and `upload-media`
+is gone. The kill switch is plugin deactivation (wp-admin or the REST plugins
+API). Residual accepted risk: the pre-1.0 adapter dependency (pinned). The one
+operating discipline this relies on is **not using an administrator credential
+for MCP**.
