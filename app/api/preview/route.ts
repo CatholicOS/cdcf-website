@@ -29,8 +29,11 @@ export async function GET(request: NextRequest) {
     return new Response('Unsupported post type', { status: 400 })
   }
 
-  // The slug is concatenated into the redirect path, so reject anything that
-  // could escape it into an absolute/protocol-relative (open-redirect) URL.
+  // The redirect path uses postId (below), not slug — so this is no longer an
+  // open-redirect guard on the path. The slug is still stored in the preview
+  // cookie and later compared by the page routes (previewMatchesSlug), so
+  // reject absolute/protocol-relative-looking values to keep the cookie value
+  // clean and prevent a crafted slug from being persisted into preview state.
   if (/^\/|\/\/|\\|:/.test(slug)) {
     return new Response('Invalid slug', { status: 400 })
   }
