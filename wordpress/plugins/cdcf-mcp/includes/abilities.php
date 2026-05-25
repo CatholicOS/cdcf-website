@@ -264,23 +264,13 @@ function cdcf_mcp_ability_definitions(): array {
                 'required'   => ['post_id', 'attachment_id'],
             ],
         ],
-        [
-            'name'        => 'cdcf/upload-media',
-            'label'       => 'Upload Media From URL',
-            'description' => 'Download a remote image/file into the media library; optionally set it as a post\'s featured image.',
-            'capability'  => 'upload_files',
-            'callback'    => 'cdcf_mcp_cb_upload_media',
-            'input_schema'=> [
-                'type'       => 'object',
-                'properties' => [
-                    'url'               => ['type' => 'string', 'description' => 'Source URL to download.'],
-                    'title'             => ['type' => 'string', 'description' => 'Attachment title (optional).'],
-                    'alt_text'          => ['type' => 'string', 'description' => 'Image alt text (optional).'],
-                    'attach_to_post_id' => ['type' => 'integer', 'description' => 'If set, also set as this post\'s featured image.'],
-                ],
-                'required'   => ['url'],
-            ],
-        ],
+        // NOTE: a `cdcf/upload-media` ability (sideload a remote URL into the
+        // media library) was intentionally removed — download_url() on an
+        // agent-supplied URL is an SSRF vector with no safe, simple guard
+        // (redirect/DNS-rebind bypasses). Editors upload via wp-admin and
+        // cdcf/set-featured-image attaches existing attachments. Reintroduce
+        // only with a vetted SSRF-safe fetch. See the security review in
+        // docs/wordpress-mcp-evaluation.md.
         [
             'name'        => 'cdcf/list-submitted-projects',
             'label'       => 'List Submitted Projects',

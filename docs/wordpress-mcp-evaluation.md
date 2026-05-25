@@ -78,7 +78,7 @@ translation queueing verbatim rather than duplicating them.
 
 ## 4. The prototype: `wordpress/plugins/cdcf-mcp/`
 
-A self-contained plugin that registers a `cdcf` ability category and 20
+A self-contained plugin that registers a `cdcf` ability category and 19
 abilities, then (if the adapter is installed) serves them at
 `/wp-json/cdcf-mcp/mcp`.
 
@@ -99,7 +99,6 @@ abilities, then (if the adapter is installed) serves them at
 | `cdcf/update-project-status`             | POST `/cdcf/v1/project-status`                             | `edit_posts`   |
 | `cdcf/set-project-repos`                 | ACF `project_repo_url` / `project_url` across translations | `edit_posts`   |
 | `cdcf/set-featured-image`                | `set_post_thumbnail` (any post type)                       | `edit_posts`   |
-| `cdcf/upload-media`                      | sideload remote URL → media library                        | `upload_files` |
 | `cdcf/list-submitted-projects`           | `project` listing (incl. drafts/pending)                   | `edit_posts`   |
 | `cdcf/list-submitted-community-projects` | `community_project` listing                                | `edit_posts`   |
 | `cdcf/create-page`                       | `wp_insert_post` (page, template + language)               | `edit_pages`   |

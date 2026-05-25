@@ -71,7 +71,7 @@ final class AbilityDefinitionsTest extends TestCase
 
     public function test_capabilities_are_known_wp_caps(): void
     {
-        $allowed = ['edit_posts', 'edit_pages', 'delete_posts', 'upload_files'];
+        $allowed = ['edit_posts', 'edit_pages', 'delete_posts'];
         foreach (cdcf_mcp_ability_definitions() as $def) {
             $this->assertContains($def['capability'], $allowed, "Unexpected capability for {$def['name']}");
         }
