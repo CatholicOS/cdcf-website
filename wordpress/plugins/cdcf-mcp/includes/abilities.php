@@ -80,6 +80,14 @@ function cdcf_mcp_ability_definitions(): array {
             'input_schema'=> cdcf_mcp_member_input_schema(true),
         ],
         [
+            'name'        => 'cdcf/create-author-member',
+            'label'       => 'Create Author (Team Member)',
+            'description' => 'Create a council-less team member, auto-translate the bio to all site languages, but link it to NO About-page council. Use this for blog authors and other people who need a translated profile (bio, photo, role, social links) without sitting on the Board / Ecclesial / Technical council. After creating, link the member to a WordPress author in wp-admin (the user\'s "Author Profile" field) or add them as a project lead via cdcf/add-project-lead.',
+            'capability'  => 'edit_posts',
+            'callback'    => 'cdcf_mcp_cb_create_author_member',
+            'input_schema'=> cdcf_mcp_member_input_schema(),
+        ],
+        [
             'name'        => 'cdcf/create-academic-collaboration',
             'label'       => 'Create Academic Collaboration',
             'description' => 'Create an academic collaboration, auto-translate, and link it to the Community page.',
