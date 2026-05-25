@@ -77,6 +77,7 @@ final class TranslateHandlerTest extends TestCase
             'post_title'     => 'Original Post',
             'post_parent'    => 0,
             'post_mime_type' => '',
+            'post_author'    => 7,
         ], $overrides);
     }
 
@@ -212,6 +213,7 @@ final class TranslateHandlerTest extends TestCase
                 'post_type'   => 'post',
                 'post_status' => 'draft',
                 'post_title'  => 'Original Post',
+                'post_author' => 7, // inherited from the source, not the caller
             ],
             $inserted
         );
