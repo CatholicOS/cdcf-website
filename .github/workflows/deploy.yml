@@ -9,8 +9,9 @@ name: Build and Deploy
 # All ${{ ... }} interpolations are repo secrets / vars / known choice
 # inputs (trusted). No untrusted github.event.* fields are used.
 #
-# Production-only steps (WP theme + plugin tarballs, plugin activation)
-# are gated behind `if: env.ENVIRONMENT == 'production'`. Staging shares
+# Production-only steps (WP theme + plugin tarballs, plugin activation,
+# OPcache flush) are gated behind `if: env.ENVIRONMENT == 'production'`.
+# Staging shares
 # the same WordPress backend, so we never push theme/plugin from a
 # staging deploy — that would overwrite production code.
 
@@ -438,6 +439,42 @@ jobs:
             echo "One or more plugin activations failed; failing the deploy."
             exit 1
           fi
+
+      - name: Flush OPcache after code deploy
+        if: env.ENVIRONMENT == 'production'
+        env:
+          WP_REST_URL: ${{ vars.WP_REST_URL }}
+          WP_APP_USERNAME: ${{ secrets.WP_APP_USERNAME }}
+          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+        run: |
+          # The theme/plugin tarballs were just extracted over the live files,
+          # but PHP-FPM's OPcache keeps serving the previous bytecode until it
+          # is reset (indefinitely under validate_timestamps=0). "Activate
+          # plugins" above skips reactivation when a plugin is already active,
+          # so it does NOT pick up new code on its own. Reset OPcache here —
+          # before the worker resumes and before the smoke test — so every
+          # path runs the freshly-deployed code. (/cdcf/v1/flush-opcache does
+          # opcache_reset() + opcache_invalidate(functions.php) + flush
+          # rewrite rules; it takes no body.)
+          AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
+          for attempt in 1 2 3; do
+            STATUS=$(curl -sS -o /dev/null -w '%{http_code}' \
+              --connect-timeout 10 --max-time 30 \
+              -X POST "$WP_REST_URL/cdcf/v1/flush-opcache" \
+              -H "Authorization: Basic $AUTH")
+            if [ "$STATUS" = "200" ]; then
+              echo "OPcache flushed."
+              exit 0
+            fi
+            echo "Flush attempt $attempt failed (HTTP $STATUS)"
+            [ "$attempt" -lt 3 ] && sleep 5
+          done
+          # Hard-fail: a green deploy that silently left stale bytecode is the
+          # exact failure this step exists to prevent. The fix is a re-run or a
+          # manual flush; files are already in place. The next step
+          # (Resume queue worker) runs regardless via its always() guard.
+          echo "::error::Failed to flush OPcache after 3 attempts (HTTP $STATUS); deployed code may not be live."
+          exit 1
 
       - name: Resume queue worker after deploy
         if: always() && env.ENVIRONMENT == 'production'
