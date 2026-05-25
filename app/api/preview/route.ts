@@ -29,8 +29,11 @@ export async function GET(request: NextRequest) {
     return new Response('Unsupported post type', { status: 400 })
   }
 
-  // The slug is concatenated into the redirect path, so reject anything that
-  // could escape it into an absolute/protocol-relative (open-redirect) URL.
+  // The redirect path uses postId (below), not slug — so this is no longer an
+  // open-redirect guard on the path. The slug is still stored in the preview
+  // cookie and later compared by the page routes (previewMatchesSlug), so
+  // reject absolute/protocol-relative-looking values to keep the cookie value
+  // clean and prevent a crafted slug from being persisted into preview state.
   if (/^\/|\/\/|\\|:/.test(slug)) {
     return new Response('Invalid slug', { status: 400 })
   }
@@ -53,9 +56,13 @@ export async function GET(request: NextRequest) {
     maxAge: 60 * 60, // 1h; bounds an orphaned preview target if exit isn't hit
   })
 
-  // New drafts have no slug yet — fall back to the numeric id as the segment;
-  // the page route resolves the real post from the cookie regardless.
-  const segment = slug || String(postId)
+  // Address the preview target by its database id, not its slug. The editor
+  // can hand us a stale slug — e.g. after a slug change the block editor hasn't
+  // refreshed, or for a never-published draft with no slug yet — which would
+  // 404 against the published-slug lookup. The id is stable and the page routes
+  // match it directly via previewMatchesSlug(), so id-based segments make
+  // preview immune to slug drift.
+  const segment = String(postId)
   const prefix = lang && lang !== 'en' ? `/${lang}` : ''
   const path =
     type === 'post' ? `${prefix}/blog/${segment}` : `${prefix}/${segment}`
