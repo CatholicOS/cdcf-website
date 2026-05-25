@@ -53,9 +53,13 @@ export async function GET(request: NextRequest) {
     maxAge: 60 * 60, // 1h; bounds an orphaned preview target if exit isn't hit
   })
 
-  // New drafts have no slug yet — fall back to the numeric id as the segment;
-  // the page route resolves the real post from the cookie regardless.
-  const segment = slug || String(postId)
+  // Address the preview target by its database id, not its slug. The editor
+  // can hand us a stale slug — e.g. after a slug change the block editor hasn't
+  // refreshed, or for a never-published draft with no slug yet — which would
+  // 404 against the published-slug lookup. The id is stable and the page routes
+  // match it directly via previewMatchesSlug(), so id-based segments make
+  // preview immune to slug drift.
+  const segment = String(postId)
   const prefix = lang && lang !== 'en' ? `/${lang}` : ''
   const path =
     type === 'post' ? `${prefix}/blog/${segment}` : `${prefix}/${segment}`
