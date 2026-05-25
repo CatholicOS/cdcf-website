@@ -258,6 +258,28 @@ final class CallbacksTest extends TestCase
         $this->assertSame('technical_council', $captured()->get_params()['council']);
     }
 
+    public function test_create_author_member_dispatches_without_a_council(): void
+    {
+        $captured = $this->captureDispatch(['en_post_id' => 70]);
+        $out = cdcf_mcp_cb_create_author_member([
+            'title'       => 'Casey Author',
+            'content'     => '<p>Bio</p>',
+            'member_role' => 'Contributor',
+            'member_title' => '', // empty — filtered out, not sent
+        ]);
+
+        $this->assertSame('POST', $captured()->get_method());
+        $this->assertSame('/cdcf/v1/team-member', $captured()->get_route());
+        $params = $captured()->get_params();
+        // Council-less: the endpoint must not receive a council, so it skips
+        // all About-page relationship linking.
+        $this->assertArrayNotHasKey('council', $params);
+        $this->assertSame('Casey Author', $params['title']);
+        $this->assertSame('Contributor', $params['member_role']);
+        $this->assertArrayNotHasKey('member_title', $params);
+        $this->assertSame(70, $out['en_post_id']);
+    }
+
     public function test_create_academic_collaboration_dispatches_and_filters_empties(): void
     {
         $captured = $this->captureDispatch(['en_post_id' => 60]);

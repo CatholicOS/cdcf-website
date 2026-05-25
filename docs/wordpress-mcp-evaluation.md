@@ -78,7 +78,7 @@ translation queueing verbatim rather than duplicating them.
 
 ## 4. The prototype: `wordpress/plugins/cdcf-mcp/`
 
-A self-contained plugin that registers a `cdcf` ability category and 19
+A self-contained plugin that registers a `cdcf` ability category and 20
 abilities, then (if the adapter is installed) serves them at
 `/wp-json/cdcf-mcp/mcp`.
 
@@ -88,6 +88,7 @@ abilities, then (if the adapter is installed) serves them at
 | `cdcf/create-ecclesial-council-member`   | …council=`ecclesial_council`                               | `edit_posts`   |
 | `cdcf/create-technical-council-member`   | …council=`technical_council`                               | `edit_posts`   |
 | `cdcf/create-academic-liaison`           | …council=`academic_council` (needs `collab_post_id`)       | `edit_posts`   |
+| `cdcf/create-author-member`              | POST `/cdcf/v1/team-member` (no council — author profile)  | `edit_posts`   |
 | `cdcf/create-academic-collaboration`     | POST `/cdcf/v1/academic-collaboration`                     | `edit_posts`   |
 | `cdcf/create-community-channel`          | POST `/cdcf/v1/community-channel`                          | `edit_posts`   |
 | `cdcf/create-local-group`                | POST `/cdcf/v1/local-group`                                | `edit_posts`   |
@@ -197,8 +198,8 @@ Risks and how they're handled:
 1. **SSRF in `upload-media` — ✅ resolved.** The ability sideloaded an
    agent-supplied URL via `download_url()` with no internal-IP/redirect guard.
    Rather than attempt fiddly SSRF hardening on a non-essential ability, it was
-   **removed** (#144); the prototype is now 19 abilities. Reintroduce only with
-   a vetted SSRF-safe fetch.
+   **removed** (#144), dropping the prototype from 20 abilities to 19 at that
+   point. Reintroduce only with a vetted SSRF-safe fetch.
 2. **Pre-1.0 dependency (medium) — accepted with a pinned version.**
    `wordpress/mcp-adapter` is pinned via `composer.lock`; re-review on every
    bump. This is the residual risk accepted in choosing to ship.

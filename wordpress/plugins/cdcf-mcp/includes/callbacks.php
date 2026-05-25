@@ -87,6 +87,22 @@ function cdcf_mcp_cb_create_academic_liaison(array $input) {
 }
 
 /**
+ * Author profile == a council-less team_member. Dispatches to /team-member
+ * with NO council param, so the endpoint creates + auto-translates the post
+ * but skips all About-page relationship linking (its `if (!$council)` path).
+ * The member is then wired up out-of-band: linked to a WordPress user's
+ * `author_team_member` profile field in wp-admin, or added as a project lead
+ * via cdcf/add-project-lead. Cannot reuse cdcf_mcp_create_member(), which
+ * always forces a council.
+ */
+function cdcf_mcp_cb_create_author_member(array $input) {
+    return cdcf_mcp_dispatch_create('/cdcf/v1/team-member', $input, [
+        'title', 'content', 'member_title', 'member_role',
+        'member_linkedin_url', 'member_github_url', 'featured_image_id',
+    ]);
+}
+
+/**
  * Forward the non-empty whitelisted fields of $input to a cdcf/v1 create
  * endpoint. Shared by the Community-page domain creators, which all reuse
  * the endpoint's auto-translation + page-linking verbatim.
