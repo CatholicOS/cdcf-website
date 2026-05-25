@@ -240,4 +240,236 @@ final class CallbacksTest extends TestCase
         $this->assertInstanceOf(WP_Error::class, $out);
         $this->assertSame('missing_title', $out->get_error_code());
     }
+
+    // ─── per-ability coverage: council creators ───────────────────
+
+    public function test_create_ecclesial_council_member_forces_its_council(): void
+    {
+        $captured = $this->captureDispatch();
+        cdcf_mcp_cb_create_ecclesial_council_member(['title' => 'X', 'content' => '<p>b</p>']);
+        $this->assertSame('/cdcf/v1/team-member', $captured()->get_route());
+        $this->assertSame('ecclesial_council', $captured()->get_params()['council']);
+    }
+
+    public function test_create_technical_council_member_forces_its_council(): void
+    {
+        $captured = $this->captureDispatch();
+        cdcf_mcp_cb_create_technical_council_member(['title' => 'X', 'content' => '<p>b</p>']);
+        $this->assertSame('technical_council', $captured()->get_params()['council']);
+    }
+
+    public function test_create_academic_collaboration_dispatches_and_filters_empties(): void
+    {
+        $captured = $this->captureDispatch(['en_post_id' => 60]);
+        $out = cdcf_mcp_cb_create_academic_collaboration([
+            'title'              => 'Notre Dame',
+            'collab_description' => 'd',
+            'collab_university'  => 'University of Notre Dame',
+            'collab_department'  => '', // empty — filtered out
+        ]);
+        $this->assertSame('/cdcf/v1/academic-collaboration', $captured()->get_route());
+        $params = $captured()->get_params();
+        $this->assertSame('University of Notre Dame', $params['collab_university']);
+        $this->assertArrayNotHasKey('collab_department', $params);
+        $this->assertSame(60, $out['en_post_id']);
+    }
+
+    // ─── per-ability coverage: content edits ──────────────────────
+
+    public function test_update_member_bio_updates_post_and_acf_fields(): void
+    {
+        Functions\when('absint')->alias(static fn($v) => abs((int) $v));
+        Functions\when('get_post')->justReturn((object) ['post_type' => 'team_member', 'ID' => 5]);
+        Functions\when('wp_kses_post')->returnArg();
+        Functions\when('sanitize_text_field')->returnArg();
+        Functions\when('wp_update_post')->justReturn(5);
+        Functions\when('is_wp_error')->alias(static fn($t) => $t instanceof WP_Error);
+        $fields = [];
+        Functions\when('update_field')->alias(function ($n, $v) use (&$fields) {
+            $fields[$n] = $v;
+            return true;
+        });
+
+        $out = cdcf_mcp_cb_update_member_bio(['post_id' => 5, 'content' => '<p>new</p>', 'member_role' => 'AI Lead']);
+
+        $this->assertTrue($out['success']);
+        $this->assertSame('AI Lead', $fields['member_role']);
+    }
+
+    public function test_update_member_bio_rejects_wrong_post_type(): void
+    {
+        Functions\when('absint')->alias(static fn($v) => abs((int) $v));
+        Functions\when('get_post')->justReturn((object) ['post_type' => 'project', 'ID' => 5]);
+
+        $out = cdcf_mcp_cb_update_member_bio(['post_id' => 5, 'content' => 'x']);
+        $this->assertInstanceOf(WP_Error::class, $out);
+        $this->assertSame('invalid_post', $out->get_error_code());
+    }
+
+    public function test_update_project_description_updates_the_project(): void
+    {
+        Functions\when('absint')->alias(static fn($v) => abs((int) $v));
+        Functions\when('get_post')->justReturn((object) ['post_type' => 'project', 'ID' => 8]);
+        Functions\when('wp_kses_post')->returnArg();
+        Functions\when('sanitize_text_field')->returnArg();
+        Functions\when('wp_update_post')->justReturn(8);
+        Functions\when('is_wp_error')->alias(static fn($t) => $t instanceof WP_Error);
+
+        $out = cdcf_mcp_cb_update_project_description(['post_id' => 8, 'content' => '<p>desc</p>']);
+        $this->assertTrue($out['success']);
+        $this->assertSame(8, $out['post_id']);
+    }
+
+    public function test_update_project_status_dispatches_to_endpoint(): void
+    {
+        Functions\when('absint')->alias(static fn($v) => abs((int) $v));
+        Functions\when('sanitize_text_field')->returnArg();
+        $captured = $this->captureDispatch(['updated' => true]);
+
+        cdcf_mcp_cb_update_project_status(['post_id' => 3, 'status' => 'active']);
+        $this->assertSame('/cdcf/v1/project-status', $captured()->get_route());
+        $this->assertSame('active', $captured()->get_params()['status']);
+    }
+
+    public function test_set_project_repos_writes_fields_across_translations(): void
+    {
+        Functions\when('absint')->alias(static fn($v) => abs((int) $v));
+        Functions\when('get_post')->justReturn((object) ['post_type' => 'project']);
+        Functions\when('esc_url_raw')->returnArg();
+        Functions\when('pll_get_post_translations')->justReturn(['en' => 5, 'it' => 6]);
+        $writes = [];
+        Functions\when('update_field')->alias(function ($n, $v, $id) use (&$writes) {
+            $writes[] = [$n, (int) $id];
+            return true;
+        });
+
+        $out = cdcf_mcp_cb_set_project_repos([
+            'project_id'       => 5,
+            'project_repo_url' => 'https://github.com/x',
+            'project_url'      => 'https://x.org',
+        ]);
+
+        $this->assertTrue($out['success']);
+        // two fields × two translations
+        $this->assertCount(4, $writes);
+        $this->assertSame([5, 6], $out['updated_posts']);
+    }
+
+    public function test_set_featured_image_sets_the_thumbnail(): void
+    {
+        Functions\when('absint')->alias(static fn($v) => abs((int) $v));
+        Functions\when('get_post')->justReturn((object) ['ID' => 5]);
+        Functions\when('get_post_type')->justReturn('attachment');
+        $thumb = null;
+        Functions\when('set_post_thumbnail')->alias(function ($p, $a) use (&$thumb) {
+            $thumb = [(int) $p, (int) $a];
+            return true;
+        });
+
+        $out = cdcf_mcp_cb_set_featured_image(['post_id' => 5, 'attachment_id' => 9]);
+        $this->assertTrue($out['success']);
+        $this->assertSame([5, 9], $thumb);
+    }
+
+    public function test_set_featured_image_rejects_non_attachment(): void
+    {
+        Functions\when('absint')->alias(static fn($v) => abs((int) $v));
+        Functions\when('get_post')->justReturn((object) ['ID' => 5]);
+        Functions\when('get_post_type')->justReturn('post');
+
+        $out = cdcf_mcp_cb_set_featured_image(['post_id' => 5, 'attachment_id' => 9]);
+        $this->assertInstanceOf(WP_Error::class, $out);
+        $this->assertSame('invalid_attachment', $out->get_error_code());
+    }
+
+    public function test_upload_media_rejects_an_invalid_url(): void
+    {
+        // The sideload path requires wp-admin/includes files unavailable in the
+        // unit env; the input guard runs first and is what we assert here.
+        Functions\when('esc_url_raw')->justReturn('');
+        $out = cdcf_mcp_cb_upload_media(['url' => 'not a url']);
+        $this->assertInstanceOf(WP_Error::class, $out);
+        $this->assertSame('invalid_url', $out->get_error_code());
+    }
+
+    // ─── per-ability coverage: listings + plain post ──────────────
+
+    public function test_list_submitted_projects_queries_the_project_type(): void
+    {
+        $out = $this->runListing('cdcf_mcp_cb_list_submitted_projects', 'project');
+        $this->assertSame('project', $out['queried_type']);
+        $this->assertSame(7, $out['result'][0]['ID']);
+        $this->assertSame('en', $out['result'][0]['language']);
+    }
+
+    public function test_list_submitted_community_projects_queries_that_type(): void
+    {
+        $out = $this->runListing('cdcf_mcp_cb_list_submitted_community_projects', 'community_project');
+        $this->assertSame('community_project', $out['queried_type']);
+    }
+
+    public function test_create_post_inserts_a_blog_post(): void
+    {
+        Functions\when('sanitize_text_field')->returnArg();
+        Functions\when('wp_kses_post')->returnArg();
+        Functions\when('sanitize_key')->returnArg();
+        Functions\when('absint')->alias(static fn($v) => abs((int) $v));
+        Functions\when('is_wp_error')->alias(static fn($t) => $t instanceof WP_Error);
+        Functions\when('pll_set_post_language')->justReturn(true);
+        Functions\when('get_post_status')->justReturn('draft');
+        Functions\when('get_edit_post_link')->justReturn('http://e');
+        Functions\when('set_post_thumbnail')->justReturn(true);
+        $captured = null;
+        Functions\when('wp_insert_post')->alias(function ($arr) use (&$captured) {
+            $captured = $arr;
+            return 77;
+        });
+
+        $out = cdcf_mcp_cb_create_post(['title' => 'Post', 'content' => '<p>x</p>', 'featured_image_id' => 5]);
+
+        $this->assertSame('post', $captured['post_type']);
+        $this->assertSame(77, $out['post_id']);
+    }
+
+    // ─── helpers ──────────────────────────────────────────────────
+
+    /**
+     * Stub rest_do_request to capture the dispatched request; returns a getter.
+     *
+     * @return callable(): WP_REST_Request
+     */
+    private function captureDispatch(array $response = ['ok' => true]): callable
+    {
+        $captured = null;
+        Functions\when('rest_do_request')->alias(function ($req) use (&$captured, $response) {
+            $captured = $req;
+            return new WP_REST_Response($response, 202);
+        });
+        // By-reference so the getter sees the request captured at dispatch time
+        // (an arrow fn would close over the initial null by value).
+        return function () use (&$captured) {
+            return $captured;
+        };
+    }
+
+    /**
+     * Run a listing callback with get_posts/pll stubbed; returns the queried
+     * post_type and the callback's result rows.
+     *
+     * @return array{queried_type: string, result: array<int,array<string,mixed>>}
+     */
+    private function runListing(string $callback, string $expectedType): array
+    {
+        Functions\when('absint')->alias(static fn($v) => abs((int) $v));
+        Functions\when('sanitize_key')->returnArg();
+        Functions\when('pll_get_post_language')->justReturn('en');
+        $queried = null;
+        Functions\when('get_posts')->alias(function ($args) use (&$queried) {
+            $queried = $args['post_type'];
+            return [(object) ['ID' => 7, 'post_title' => 'P', 'post_status' => 'draft', 'post_date' => '2026-01-01']];
+        });
+
+        $result = $callback(['limit' => 5]);
+        return ['queried_type' => (string) $queried, 'result' => $result];
+    }
 }

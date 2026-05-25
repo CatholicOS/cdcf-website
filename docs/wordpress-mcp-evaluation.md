@@ -110,6 +110,17 @@ exposes only abilities flagged `meta.mcp.public => true`. The plugin degrades
 gracefully — abilities still register without the adapter installed; the MCP
 server is only created when `mcp_adapter_init` fires.
 
+Two integration details (surfaced and fixed during the local pilot, below)
+matter when wiring this against the real core API:
+
+- The `cdcf` ability **category** is registered on its own hook
+  (`wp_abilities_api_categories_init`), separate from the abilities hook
+  (`wp_abilities_api_init`). Core rejects any ability whose category isn't
+  already registered, so getting this wrong silently drops every ability.
+- The MCP adapter is a Composer library with PSR-4-only autoloading, so its
+  plugin entry point never runs; the plugin boots it explicitly with
+  `\WP\MCP\Plugin::instance()` so `mcp_adapter_init` fires.
+
 Tests (PHPUnit + Brain Monkey + Mockery, matching the `cdcf-redis-translations`
 convention) cover the registry structure and callback behaviour: 21 tests / 300
 assertions, all green. See `wordpress/plugins/cdcf-mcp/README.md` for how to
@@ -143,8 +154,12 @@ Worth pursuing as a phase-2 experiment, in this order:
 
 1. ✅ **Verify** production WP ≥ 6.9 — done: production is **WP 7.0** with the
    Abilities API in core (`wp-abilities/v1` namespace live).
-2. **Pilot locally**: mount the plugin into the docker stack, `composer install`
-   inside it, activate, and connect Claude Desktop using a role-limited user.
+2. ✅ **Pilot locally** — done: mounted via `docker-compose.override.yml`,
+   activated, and connected over MCP. An authenticated `initialize` +
+   `tools/list` handshake returned all 20 abilities as tools. This surfaced and
+   fixed two integration bugs (see §4): the category hook and the explicit
+   adapter boot. The prototype had only been exercised against test stubs
+   before, so neither showed up until it ran against real core.
 3. **Exercise** the translation-aware abilities end-to-end (create a board
    member, watch the Redis queue translate it, confirm About-page linking).
 4. **Decide** on production exposure only after the dependency reaches a more

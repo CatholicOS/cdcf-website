@@ -360,22 +360,37 @@ function cdcf_mcp_ability_names(): array {
 }
 
 /**
- * Register every CDCF ability with the WordPress Abilities API.
+ * Register the 'cdcf' ability category.
  *
- * Each ability inherits the capability gate declared in its definition
- * and is flagged public so the MCP adapter exposes it as a tool.
+ * MUST run on `wp_abilities_api_categories_init` — core gives categories
+ * their own init hook, separate from abilities, and
+ * wp_register_ability_category() bails (returns null via _doing_it_wrong)
+ * if called on any other action. Since each ability declares
+ * `category => 'cdcf'`, and the abilities registry rejects an ability whose
+ * category isn't registered, getting this hook wrong silently drops every
+ * cdcf ability.
  */
-function cdcf_mcp_register_abilities(): void {
-    if (!function_exists('wp_register_ability')) {
-        return;
-    }
-
-    // Abilities reference the 'cdcf' category, which must exist first.
+function cdcf_mcp_register_category(): void {
     if (function_exists('wp_register_ability_category')) {
         wp_register_ability_category('cdcf', [
             'label'       => 'CDCF',
             'description' => 'Catholic Digital Commons Foundation content-management abilities.',
         ]);
+    }
+}
+
+/**
+ * Register every CDCF ability with the WordPress Abilities API.
+ *
+ * Runs on `wp_abilities_api_init` (the only action on which
+ * wp_register_ability() is accepted). The 'cdcf' category must already be
+ * registered by cdcf_mcp_register_category() on the categories-init hook.
+ * Each ability inherits the capability gate declared in its definition and
+ * is flagged public so the MCP adapter exposes it as a tool.
+ */
+function cdcf_mcp_register_abilities(): void {
+    if (!function_exists('wp_register_ability')) {
+        return;
     }
 
     foreach (cdcf_mcp_ability_definitions() as $def) {

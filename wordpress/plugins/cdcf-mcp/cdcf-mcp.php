@@ -23,5 +23,18 @@ if (file_exists($cdcf_mcp_autoload)) {
 require_once __DIR__ . '/includes/abilities.php';
 require_once __DIR__ . '/includes/server.php';
 
-// Register abilities once the Abilities API has booted (core in WP 6.9+).
+// Register the ability category and abilities on their respective core hooks
+// (WP 6.9+ gives categories and abilities separate init actions; the category
+// must exist before the abilities that reference it, or core drops them).
+add_action('wp_abilities_api_categories_init', 'cdcf_mcp_register_category');
 add_action('wp_abilities_api_init', 'cdcf_mcp_register_abilities');
+
+// Boot the MCP adapter. It is pulled in as a Composer library with PSR-4-only
+// autoloading, so its own plugin entry file (which calls Plugin::instance())
+// never runs — we must boot it explicitly. Plugin::instance() →
+// McpAdapter::instance(), which fires `mcp_adapter_init` on rest_api_init
+// (web) / init (WP-CLI), where includes/server.php creates the cdcf-mcp
+// server. Without this the abilities still register but aren't served over MCP.
+if (class_exists('\\WP\\MCP\\Plugin')) {
+    \WP\MCP\Plugin::instance();
+}

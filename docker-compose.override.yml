@@ -15,3 +15,19 @@ services:
       # getenv('WP_PREVIEW_SECRET') when CDCF_PREVIEW_SECRET isn't defined
       # (it's only define()'d in wp-config on production).
       WP_PREVIEW_SECRET: ${WP_PREVIEW_SECRET}
+    # Pilot: mount the cdcf-mcp prototype plugin. It is deliberately kept out
+    # of the base docker-compose.yml (docs/wordpress-mcp-evaluation.md §5), so
+    # this dev-only override is the opt-in. Its vendor/ (the MCP adapter) is a
+    # RUNTIME dep and must be installed on the host first:
+    #   composer install --working-dir=wordpress/plugins/cdcf-mcp
+    # Activate with: docker compose run --rm wpcli wp plugin activate cdcf-mcp
+    volumes:
+      - ./wordpress/plugins/cdcf-mcp:/var/www/html/wp-content/plugins/cdcf-mcp
+
+  # The CLI services need the same mount to manage/activate the plugin.
+  wp-init:
+    volumes:
+      - ./wordpress/plugins/cdcf-mcp:/var/www/html/wp-content/plugins/cdcf-mcp
+  wpcli:
+    volumes:
+      - ./wordpress/plugins/cdcf-mcp:/var/www/html/wp-content/plugins/cdcf-mcp

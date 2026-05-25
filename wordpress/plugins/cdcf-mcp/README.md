@@ -28,10 +28,12 @@ core WordPress functions directly.
 
 The plugin degrades gracefully:
 
-- Abilities register on `wp_abilities_api_init` whenever `wp_register_ability()`
-  exists — even without the MCP adapter.
+- The `cdcf` category registers on `wp_abilities_api_categories_init` and the
+  abilities on `wp_abilities_api_init` (core's two separate init hooks) whenever
+  the Abilities API is present — even without the MCP adapter.
 - The MCP server is created only when the adapter fires `mcp_adapter_init`, and
-  `includes/server.php` guards against pre-1.0 API drift.
+  `includes/server.php` guards against pre-1.0 API drift. The adapter ships as a
+  PSR-4 Composer library, so the plugin boots it via `\WP\MCP\Plugin::instance()`.
 
 Each ability is capability-gated (`edit_posts`, `edit_pages`, `delete_posts`,
 `upload_files`) and flagged `meta.mcp.public => true` so the adapter exposes it.
