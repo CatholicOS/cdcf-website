@@ -9,16 +9,30 @@ interface PageProps {
   params: Promise<{ lang: string; slug?: string[] }>
 }
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://catholicdigitalcommons.org'
+
+/** Locale-aware absolute URL (default locale has no prefix). */
+function absoluteUrl(lang: string, path: string): string {
+  return `${SITE_URL}/${lang === 'en' ? '' : `${lang}/`}${path}`
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { lang, slug } = await params
   const pageSlug = slug?.join('/') || '/'
 
   const page = await getPage(pageSlug, lang)
-  if (page?.title) {
-    return { title: page.title }
+  if (!page?.title) {
+    return {}
   }
 
-  return {}
+  return {
+    title: page.title,
+    alternates: {
+      // Self-referencing canonical so locale variants aren't treated as
+      // duplicates without a user-selected canonical (GSC indexing fix).
+      canonical: absoluteUrl(lang, slug?.join('/') ?? ''),
+    },
+  }
 }
 
 export default async function CatchAllPage({ params }: PageProps) {
