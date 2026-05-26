@@ -476,6 +476,30 @@ jobs:
           echo "::error::Failed to flush OPcache after 3 attempts (HTTP $STATUS); deployed code may not be live."
           exit 1
 
+      - name: Warm OPcache after reset
+        if: env.ENVIRONMENT == 'production'
+        env:
+          WP_REST_URL: ${{ vars.WP_REST_URL }}
+        run: |
+          # The flush above does a full opcache_reset(), so the next WP request
+          # recompiles WordPress + the theme/plugin from scratch. On a cold
+          # cache that first request can exceed 30s — which is what timed out
+          # the "Resume queue worker" step and made a successful deploy go red.
+          # Prime the cache here with generous-timeout GETs to the REST index
+          # (which boots core + fires rest_api_init → loads functions.php and
+          # the cdcf handlers) so the steps below hit a warm cache.
+          #
+          # Best-effort: a failed warm-up only means the next step pays the
+          # recompile cost, so log and continue rather than fail the deploy.
+          for attempt in 1 2 3; do
+            CODE=$(curl -sS -o /dev/null -w '%{http_code}' \
+              --connect-timeout 10 --max-time 90 "$WP_REST_URL" || echo "000")
+            echo "Warm-up attempt $attempt: HTTP $CODE"
+            [ "$CODE" != "000" ] && [ "$CODE" -ge 200 ] && [ "$CODE" -lt 500 ] && exit 0
+            sleep 3
+          done
+          echo "::warning::OPcache warm-up did not get a healthy response; the next step may pay the cold-cache recompile cost."
+
       - name: Resume queue worker after deploy
         if: always() && env.ENVIRONMENT == 'production'
         env:
@@ -486,7 +510,7 @@ jobs:
           AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
           for attempt in 1 2 3; do
             STATUS=$(curl -sS -o /dev/null -w '%{http_code}' \
-              --connect-timeout 10 --max-time 30 \
+              --connect-timeout 10 --max-time 60 \
               -X POST "$WP_REST_URL/cdcf/v1/maintenance" \
               -H "Authorization: Basic $AUTH" \
               -H "Content-Type: application/json" \
