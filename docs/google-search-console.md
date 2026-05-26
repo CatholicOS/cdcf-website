@@ -1,7 +1,7 @@
 # Google Search Console access
 
 The CDCF website domain is registered in Google Search Console as the property
-`sc-domain:catholicdigitalcommons.org` (owner: priest@johnromanodorazio.com).
+`sc-domain:catholicdigitalcommons.org` (owner: `priest@johnromanodorazio.com`).
 
 ## Querying the GSC API from the CLI
 
