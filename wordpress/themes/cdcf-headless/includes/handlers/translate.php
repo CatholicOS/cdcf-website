@@ -135,6 +135,17 @@ function cdcf_enqueue_post_translation(int $source_id, string $target_lang, int 
                 return new WP_Error('link_failed', 'Failed to link translation group.', ['status' => 500]);
             }
         }
+    } else {
+        // Explicit target post supplied: validate it exists and is genuinely
+        // the source's translation in this language, so the worker never
+        // writes a translation into a stale or arbitrary post.
+        if (!get_post($post_id)) {
+            return new WP_Error('invalid_post', "Translation post {$post_id} not found.", ['status' => 404]);
+        }
+        $canonical = function_exists('pll_get_post') ? (int) pll_get_post($source_id, $target_lang) : 0;
+        if ($canonical !== $post_id) {
+            return new WP_Error('invalid_post', "post_id is not the source's translation for this language.", ['status' => 400]);
+        }
     }
 
     // Enqueue: Redis Queue if available, WP-Cron fallback.
@@ -154,10 +165,14 @@ function cdcf_enqueue_post_translation(int $source_id, string $target_lang, int 
  * Thin wrapper over cdcf_enqueue_post_translation().
  */
 function cdcf_rest_translate(WP_REST_Request $request) {
+    // Values are already sanitized by the route's args-block sanitize_callbacks
+    // (absint / sanitize_text_field); per the cdcf/v1 contract (#111) the
+    // handler trusts them rather than re-sanitizing. The admin-ajax caller,
+    // which reads raw $_POST, sanitizes on its own side before delegating.
     $result = cdcf_enqueue_post_translation(
-        intval($request['source_id'] ?? 0),
-        sanitize_text_field($request['target_lang'] ?? ''),
-        intval($request['post_id'] ?? 0)
+        $request['source_id'],
+        $request['target_lang'],
+        $request['post_id']
     );
     if (is_wp_error($result)) {
         return $result;

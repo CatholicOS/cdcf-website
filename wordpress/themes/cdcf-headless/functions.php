@@ -2140,16 +2140,26 @@ function cdcf_ai_translate_meta_box($post) {
             });
         });
 
-        // "Translate All" button — concurrent via Promise.all
+        // "Translate All" button — fire each concurrently, but report the
+        // real outcome: allSettled so one rejected enqueue doesn't get
+        // swallowed into a blanket "all queued" message.
         var allBtn = document.getElementById('cdcf-ai-translate-all');
         if (allBtn) {
             allBtn.addEventListener('click', function() {
                 if (!confirm('This will queue translations for ALL languages (existing ones are overwritten when the worker runs). Continue?')) return;
                 allBtn.disabled = true;
                 var buttons = Array.from(document.querySelectorAll('.cdcf-ai-translate-btn'));
-                Promise.all(buttons.map(function(btn) {
-                    return translateOne(btn).catch(function() {}); // continue on error
-                })).then(function() { allBtn.textContent = 'All queued — translations will appear shortly.'; });
+                Promise.allSettled(buttons.map(function(btn) {
+                    return translateOne(btn);
+                })).then(function(results) {
+                    var failed = results.filter(function(r) { return r.status === 'rejected'; }).length;
+                    if (failed === 0) {
+                        allBtn.textContent = 'All queued — translations will appear shortly.';
+                    } else {
+                        allBtn.textContent = failed + ' of ' + results.length + ' failed to queue — see per-language status.';
+                        allBtn.disabled = false; // allow a retry of the whole set
+                    }
+                });
             });
         }
     })();

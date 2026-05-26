@@ -121,10 +121,13 @@ final class TranslateHandlerTest extends TestCase
 
     // ─── Direct post_id path (skip resolution) ────────────────────
 
-    public function test_with_provided_post_id_skips_resolution_and_enqueues(): void
+    public function test_with_provided_post_id_validates_and_enqueues(): void
     {
         $this->stubCommonFunctions();
-        Functions\expect('get_post')->never();
+        // Provided post_id is validated (exists + is the source's translation
+        // in this language) but no new post is created.
+        Functions\when('get_post')->justReturn((object) ['ID' => 555]);
+        Functions\when('pll_get_post')->justReturn(555); // canonical translation == provided id
         Functions\expect('wp_insert_post')->never();
 
         $enqueueCalls = [];
@@ -144,6 +147,36 @@ final class TranslateHandlerTest extends TestCase
         $this->assertSame(555, $response->get_data()['post_id']);
         $this->assertSame('redis', $response->get_data()['queue']);
         $this->assertSame('Translation queued.', $response->get_data()['message']);
+    }
+
+    public function test_returns_invalid_post_when_provided_post_id_missing(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn(null); // post_id refers to nothing
+        Functions\expect('cdcf_enqueue_translation')->never();
+        $this->allowAllFunctionsToExist();
+
+        $response = cdcf_rest_translate($this->makeRequest(['post_id' => 555]));
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('invalid_post', $response->get_error_code());
+        $this->assertSame(404, $response->get_error_data()['status']);
+    }
+
+    public function test_returns_invalid_post_when_provided_post_id_is_not_the_translation(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn((object) ['ID' => 555]);
+        // The source's actual translation for this language is a different post.
+        Functions\when('pll_get_post')->justReturn(999);
+        Functions\expect('cdcf_enqueue_translation')->never();
+        $this->allowAllFunctionsToExist();
+
+        $response = cdcf_rest_translate($this->makeRequest(['post_id' => 555]));
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('invalid_post', $response->get_error_code());
+        $this->assertSame(400, $response->get_error_data()['status']);
     }
 
     // ─── Source-post resolution path ──────────────────────────────
