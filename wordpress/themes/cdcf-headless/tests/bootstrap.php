@@ -159,6 +159,7 @@ if (!defined('CDCF_LOCALE_NAMES')) {
 }
 
 require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../includes/fragment-anchors.php';
 require_once __DIR__ . '/../includes/translation.php';
 require_once __DIR__ . '/../includes/frontend-permalinks.php';
 require_once __DIR__ . '/../includes/handlers/relationship.php';

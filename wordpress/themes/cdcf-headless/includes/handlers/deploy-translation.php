@@ -19,7 +19,7 @@ function cdcf_rest_deploy_translation(WP_REST_Request $request) {
     $source_id   = intval($request['source_id'] ?? 0);
     $target_lang = sanitize_text_field($request['target_lang'] ?? '');
     $title       = sanitize_text_field($request['title'] ?? '');
-    $content     = wp_kses_post($request['content'] ?? '');
+    $content     = wp_kses_post(cdcf_protect_fragment_anchors((string) ($request['content'] ?? '')));
 
     if (!$source_id || !$target_lang || !$content) {
         return new WP_Error('missing_params', 'Missing source_id, target_lang, or content.', ['status' => 400]);

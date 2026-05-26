@@ -198,7 +198,7 @@ function cdcf_process_translation($post_id, $source_id, $target_lang) {
     // Write translations.
     $update = [];
     if (isset($result['post_title']))   $update['post_title']   = sanitize_text_field($result['post_title']);
-    if (isset($result['post_content'])) $update['post_content'] = wp_kses_post($result['post_content']);
+    if (isset($result['post_content'])) $update['post_content'] = wp_kses_post(cdcf_protect_fragment_anchors((string) $result['post_content']));
     if (isset($result['post_excerpt'])) $update['post_excerpt'] = sanitize_textarea_field($result['post_excerpt']);
 
     if (!empty($update)) {

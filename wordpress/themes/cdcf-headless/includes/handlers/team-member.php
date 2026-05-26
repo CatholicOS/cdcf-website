@@ -48,7 +48,7 @@ function cdcf_rest_create_team_member(WP_REST_Request $request) {
         'post_type'    => 'team_member',
         'post_status'  => 'publish',
         'post_title'   => $request['title'],
-        'post_content' => wp_kses_post($request['content']),
+        'post_content' => wp_kses_post(cdcf_protect_fragment_anchors((string) $request['content'])),
     ]);
 
     if (is_wp_error($en_post_id) || !$en_post_id) {

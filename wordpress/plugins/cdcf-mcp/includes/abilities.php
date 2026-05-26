@@ -335,7 +335,7 @@ function cdcf_mcp_ability_definitions(): array {
                 'type'       => 'object',
                 'properties' => [
                     'title'             => ['type' => 'string'],
-                    'content'           => ['type' => 'string'],
+                    'content'           => ['type' => 'string', 'description' => 'Post body (HTML). Internal/in-page fragment anchors are preserved — include standard footnote links and back-links as-is (e.g. <a href="#fn:1"> paired with id="fnref:1", and the reverse), with whatever anchor ids your Markdown converter emits. Do not renumber them or strip/avoid colons to work around sanitization; that is handled server-side.'],
                     'excerpt'           => ['type' => 'string'],
                     'status'            => ['type' => 'string', 'enum' => ['draft', 'pending', 'publish', 'private'], 'default' => 'draft'],
                     'featured_image_id' => ['type' => 'integer'],
