@@ -35,6 +35,7 @@ final class TranslateHandlerTest extends TestCase
     {
         Monkey\tearDown();
         Mockery::close();
+        unset($GLOBALS['wpdb']);
         parent::tearDown();
     }
 
@@ -297,6 +298,69 @@ final class TranslateHandlerTest extends TestCase
         cdcf_rest_translate($this->makeRequest());
 
         $this->assertArrayNotHasKey('post_parent', $inserted);
+    }
+
+    // ─── Group linking: lock + failure cleanup ───────────────────
+
+    public function test_links_new_translation_under_a_source_keyed_lock(): void
+    {
+        // $wpdb present → linking is serialized by GET_LOCK / RELEASE_LOCK
+        // keyed on the source group (prevents the concurrent-"Translate All"
+        // lost-update). Sibling concurrency is what this guards.
+        $wpdb = new class {
+            public array $getVar = [];
+            public array $query  = [];
+            public function prepare(string $q, ...$args): string {
+                foreach ($args as $a) {
+                    $q = preg_replace('/%[sd]/', (string) $a, $q, 1);
+                }
+                return $q;
+            }
+            public function get_var(string $q): int { $this->getVar[] = $q; return 1; }
+            public function query(string $q): int { $this->query[] = $q; return 1; }
+        };
+        $GLOBALS['wpdb'] = $wpdb;
+
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->makeSourcePost());
+        Functions\when('pll_get_post')->justReturn(0);
+        Functions\when('wp_insert_post')->justReturn(800);
+        $this->allowAllFunctionsToExist();
+
+        $response = cdcf_rest_translate($this->makeRequest());
+
+        $this->assertSame(800, $response->get_data()['post_id']);
+        $this->assertCount(1, $wpdb->getVar);
+        $this->assertStringContainsString('GET_LOCK', $wpdb->getVar[0]);
+        $this->assertStringContainsString('cdcf_pll_link_100', $wpdb->getVar[0]);
+        $this->assertCount(1, $wpdb->query);
+        $this->assertStringContainsString('RELEASE_LOCK', $wpdb->query[0]);
+
+        unset($GLOBALS['wpdb']);
+    }
+
+    public function test_returns_500_and_deletes_orphan_when_link_fails(): void
+    {
+        // pll_save_post_translations reporting false must abort and delete the
+        // just-created post rather than leave it orphaned (not in any group).
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->makeSourcePost());
+        Functions\when('pll_get_post')->justReturn(0);
+        Functions\when('wp_insert_post')->justReturn(800);
+        Functions\when('pll_save_post_translations')->justReturn(false);
+        $deleted = null;
+        Functions\when('wp_delete_post')->alias(function (int $id, bool $force) use (&$deleted): object {
+            $deleted = [$id, $force];
+            return (object) ['ID' => $id];
+        });
+        Functions\expect('cdcf_enqueue_translation')->never();
+        $this->allowAllFunctionsToExist();
+
+        $response = cdcf_rest_translate($this->makeRequest());
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('link_failed', $response->get_error_code());
+        $this->assertSame([800, true], $deleted);
     }
 
     // ─── Attachment-type handling ─────────────────────────────────
