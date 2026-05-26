@@ -323,13 +323,29 @@ jobs:
           WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
         run: |
           AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
+
+          # Warm the WP REST stack before the timed call. The cms PHP-FPM pool
+          # is `ondemand` with a short idle timeout, so after a quiet period
+          # there may be no live worker — and the "Extract Next.js bundle and
+          # restart" step just before this one floods the shared backend,
+          # spawning cold workers that each bootstrap WordPress (ACF, Polylang,
+          # WPGraphQL, ...) at once. A throwaway GET pays that cold-start cost
+          # so the maintenance POST below sees a warm worker. Best-effort:
+          # `|| true` so a slow/failed warm-up never trips `set -e`.
+          curl -sS -o /dev/null --connect-timeout 10 --max-time 60 \
+            "$WP_REST_URL/" || true
+
           for attempt in 1 2 3; do
+            # `|| true` so a curl transport failure (e.g. timeout, exit 28)
+            # doesn't trip `set -e` and abort the step before the retry loop
+            # and 404/best-effort fallbacks below ever run. On failure curl
+            # still writes the http_code ("000") to stdout via -w.
             STATUS=$(curl -sS -o /tmp/maint-begin.json -w '%{http_code}' \
-              --connect-timeout 10 --max-time 30 \
+              --connect-timeout 10 --max-time 60 \
               -X POST "$WP_REST_URL/cdcf/v1/maintenance" \
               -H "Authorization: Basic $AUTH" \
               -H "Content-Type: application/json" \
-              -d '{"action":"begin","duration_seconds":300}')
+              -d '{"action":"begin","duration_seconds":300}') || true
             if [ "$STATUS" = "200" ]; then
               echo "Worker paused: $(cat /tmp/maint-begin.json)"
               exit 0
@@ -338,9 +354,6 @@ jobs:
             # which is exactly the case during the bootstrap deploy that
             # first introduces it (or any time the plugin is uninstalled).
             # Retrying won't change that, so proceed without the pause.
-            # Skipping is worse than baseline for FPM stress but the only
-            # way to get the endpoint onto production is to let this deploy
-            # finish.
             if [ "$STATUS" = "404" ]; then
               echo "::warning::Maintenance endpoint returned 404; proceeding without pause. Expected on the bootstrap deploy that introduces the endpoint."
               exit 0
@@ -348,8 +361,12 @@ jobs:
             echo "Maintenance begin attempt $attempt failed (HTTP $STATUS)"
             [ "$attempt" -lt 3 ] && sleep 5
           done
-          echo "::error::Failed to pause queue worker; aborting deploy."
-          exit 1
+          # Pausing the worker is a best-effort optimization to reduce FPM
+          # stress during the WP extract; it is not required for correctness
+          # (the begin TTL self-heals, and a missed pause just means baseline
+          # FPM load). A transient backend hiccup must not abort the whole
+          # production deploy, so warn and proceed instead of exiting non-zero.
+          echo "::warning::Failed to pause queue worker after 3 attempts; proceeding without pause (baseline FPM load)."
 
       - name: Extract WP theme and plugin bundles
         if: env.ENVIRONMENT == 'production'
@@ -509,12 +526,15 @@ jobs:
         run: |
           AUTH=$(echo -n "$WP_APP_USERNAME:$WP_APP_PASSWORD" | base64)
           for attempt in 1 2 3; do
+            # `|| true` so a curl transport failure (e.g. timeout, exit 28)
+            # doesn't trip `set -e` and skip the retry loop and the self-heal
+            # warning below. On failure curl still writes "000" via -w.
             STATUS=$(curl -sS -o /dev/null -w '%{http_code}' \
               --connect-timeout 10 --max-time 60 \
               -X POST "$WP_REST_URL/cdcf/v1/maintenance" \
               -H "Authorization: Basic $AUTH" \
               -H "Content-Type: application/json" \
-              -d '{"action":"end"}')
+              -d '{"action":"end"}') || true
             if [ "$STATUS" = "200" ]; then
               echo "Worker resumed."
               exit 0
