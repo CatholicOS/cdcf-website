@@ -253,8 +253,25 @@ Required in `.env.local` (Next.js) or `.env` (Docker Compose):
 
 ## Deployment
 
-Deploys to production via GitHub Actions (SSH tar + scp). Automatic on new release; otherwise trigger manually:
+Deploys via GitHub Actions (`deploy.yml`, SSH tar + scp). A published GitHub **release** always deploys to **production**. A manual `workflow_dispatch` takes an `environment` input (`production` or `staging`) that **defaults to `staging`**.
+
+**The target controls what ships:**
+
+- **`production`** — ships **both** the Next.js frontend **and** the WordPress backend (theme + plugin tarballs, plugin activation, OPcache flush). Use this for any change under `wordpress/themes/**` or `wordpress/plugins/**` — `functions.php`, REST handlers/routes, CPT/ACF registration, etc.
+- **`staging`** — ships **only** the Next.js frontend. All WordPress theme/plugin steps are gated on `env.ENVIRONMENT == 'production'` and are **skipped** on staging (staging shares the production WP backend, so it must never push theme/plugin from a staging deploy).
+
+> ⚠️ A bare `gh workflow run deploy.yml` runs as **staging**, so backend changes are **not** deployed — yet the run still succeeds (the frontend ships and smoke tests pass). Symptom: a new `cdcf/v1` route 404s or theme behaviour is unchanged after a "green" deploy. Always pass `-f environment=production` for backend changes.
 
 ```bash
-gh workflow run deploy.yml      # after pushing to main
+# Deploy frontend + backend (theme/plugin changes) — after pushing to main:
+gh workflow run deploy.yml -f environment=production
+
+# Deploy frontend only (Next.js):
+gh workflow run deploy.yml -f environment=staging   # or just: gh workflow run deploy.yml
+
+# Confirm the WP theme/plugin steps actually ran (must be `success`, not `skipped`):
+gh run view <run-id> --json jobs \
+  -q '.jobs[].steps[] | select(.name|test("WP theme|OPcache|plugins")) | "\(.conclusion)\t\(.name)"'
 ```
+
+The scp upload step occasionally fails transiently with `kex_exchange_identification: read: Connection reset by peer` (VPS SSH rate-limit after back-to-back deploys) — just re-run.
