@@ -72,6 +72,12 @@ python scripts/cdcf_api.py get-relationship --post-id 5 --field team_members
 
 # Update an ACF relationship field (list of post IDs)
 python scripts/cdcf_api.py update-relationship --post-id 5 --field team_members --value 10 12 14
+
+# Link a WordPress user (a blog author) to their team_member bio card
+# (sets author_team_member on the user; pass --team-member-id 0 to clear).
+# Needed because /relationship is post-only and ACF free doesn't expose
+# user fields over core REST.
+python scripts/cdcf_api.py link-author-team-member --user-id 5 --team-member-id 1368
 ```
 
 #### Post Meta / ACF Fields

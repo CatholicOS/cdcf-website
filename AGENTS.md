@@ -93,7 +93,7 @@ Uses `@import 'tailwindcss'` (not `@tailwind` directives). Custom utilities via 
 
 ## REST API Endpoints (`cdcf/v1`)
 
-All endpoints require Application Password authentication. Most endpoints require `edit_posts` capability; `/process-queue` and `/maintenance` require `manage_options` (administrator); `/create-user` requires the custom `cdcf_create_limited_users` capability — see the row notes where capability differs.
+All endpoints require Application Password authentication. Most endpoints require `edit_posts` capability; `/process-queue` and `/maintenance` require `manage_options` (administrator); `/create-user` and `/author-team-member` require the custom `cdcf_create_limited_users` capability — see the row notes where capability differs.
 
 | Method | Route                        | Description                                                                                                                                                                                                                         |
 | ------ | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -107,6 +107,7 @@ All endpoints require Application Password authentication. Most endpoints requir
 | `POST` | `/maintenance`               | Pause or resume the cdcf-queue-worker by setting/clearing a Redis flag. Body: `action` is `"begin"` or `"end"`; optional `duration_seconds` is clamped server-side to 60–600. Requires administrator (`manage_options`) capability. |
 | `POST` | `/academic-collaboration`    | Create an academic collaboration with auto-translation and Community page linking (see below)                                                                                                                                       |
 | `POST` | `/create-user`               | Provision a low-privilege WordPress user (author/contributor/subscriber only) and email a set-password link. Requires the custom `cdcf_create_limited_users` capability, NOT `edit_posts` (see below).                              |
+| `POST` | `/author-team-member`        | Link (or unlink) a WordPress user to their `team_member` bio card by writing the `author_team_member` ACF field on the user (`user_id`, `team_member_id`; pass `0` to clear). Requires `cdcf_create_limited_users` (see below).      |
 
 ### Sanitization convention
 
@@ -156,9 +157,19 @@ Unlike every other `cdcf/v1` endpoint (which sit at the `edit_posts` editor base
 
 Two independent guards prevent privilege escalation: (1) the capability gate above, and (2) a hard-coded role allowlist in the handler — only `author`, `contributor`, `subscriber` are accepted; `editor`, `administrator`, and anything else are rejected with a 400 regardless of caller capability.
 
-**Parameters:** `username` (required), `email` (required), `role` (required — one of `author`, `contributor`, `subscriber`), `display_name` (optional — defaults to username), `first_name` (optional), `last_name` (optional)
+**Parameters:** `username` (required), `email` (required), `role` (required — one of `author`, `contributor`, `subscriber`), `display_name` (optional — defaults to username), `first_name` (optional), `last_name` (optional), `team_member_id` (optional — link the new author to a `team_member` bio card in one call; best-effort, see below)
 
-**Returns:** `{ success, user_id, username, email, role }` (never the password)
+**Returns:** `{ success, user_id, username, email, role, team_member_id, linked, link_errors[] }` (never the password). `linked` is `true` only when a `team_member_id` was supplied and the link succeeded; a link failure is non-fatal (the user + set-password email already exist) and is reported in `link_errors[]`.
+
+### `POST /author-team-member`
+
+Links a WordPress user to their `team_member` bio card by writing the `author_team_member` ACF relationship field on the **user** object (ACF target `user_{id}`). Author pages reuse the linked team_member's translated bio, photo, role, and social links.
+
+This needs a dedicated endpoint because neither generic path works for a user-located ACF field: `/relationship` is post-only (it `absint()`s `post_id` and guards with `get_post()`), and **ACF 6.x free does not expose user field groups via the core REST `acf` property** — a `PUT /wp/v2/users/{id}` with `{"acf":{…}}` is silently dropped (value reads back as `[]`, even when set via wp-admin). The handler uses the canonical `update_field('author_team_member', […], "user_{id}")`. Gated on `cdcf_create_limited_users` (same as `create-user`). Idempotent: re-linking the same id is a no-op (`updated: false`).
+
+**Parameters:** `user_id` (required), `team_member_id` (required — a published `team_member` post ID, or `0` to clear the link)
+
+**Returns:** `{ success, user_id, team_member_id, value: [id]|[], updated }`
 
 ## Adding a New Language
 

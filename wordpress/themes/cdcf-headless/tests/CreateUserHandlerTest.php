@@ -34,12 +34,13 @@ final class CreateUserHandlerTest extends TestCase
     {
         $req = new WP_REST_Request();
         $defaults = [
-            'username'     => 'casey',
-            'email'        => 'casey@example.org',
-            'role'         => 'author',
-            'display_name' => '',
-            'first_name'   => '',
-            'last_name'    => '',
+            'username'       => 'casey',
+            'email'          => 'casey@example.org',
+            'role'           => 'author',
+            'display_name'   => '',
+            'first_name'     => '',
+            'last_name'      => '',
+            'team_member_id' => 0,
         ];
         foreach (array_merge($defaults, $params) as $k => $v) {
             $req->set_param($k, $v);
@@ -201,5 +202,69 @@ final class CreateUserHandlerTest extends TestCase
 
         $this->assertInstanceOf(WP_Error::class, $response);
         $this->assertSame('db', $response->get_error_code());
+    }
+
+    // ─── Optional team_member link (link-on-creation) ─────────────
+
+    /** Stub the common create-success path so each link test can focus on linking. */
+    private function stubSuccessfulCreate(int $new_user_id = 88): void
+    {
+        Functions\when('is_email')->justReturn(true);
+        Functions\when('username_exists')->justReturn(false);
+        Functions\when('email_exists')->justReturn(false);
+        Functions\when('is_wp_error')->alias(static fn($v): bool => $v instanceof WP_Error);
+        Functions\when('wp_generate_password')->justReturn('pw');
+        Functions\when('wp_new_user_notification')->justReturn(null);
+        Functions\when('wp_insert_user')->justReturn($new_user_id);
+    }
+
+    public function test_links_team_member_when_id_provided(): void
+    {
+        $this->stubSuccessfulCreate(88);
+        // The shared helper (loaded via bootstrap) is delegated to with the
+        // freshly-created user id and the requested team_member id.
+        Functions\expect('cdcf_set_author_team_member')
+            ->once()
+            ->with(88, 1368)
+            ->andReturn(true);
+
+        $response = cdcf_rest_create_user($this->makeRequest(['team_member_id' => 1368]));
+
+        $this->assertSame(201, $response->get_status());
+        $data = $response->get_data();
+        $this->assertTrue($data['linked']);
+        $this->assertSame(1368, $data['team_member_id']);
+        $this->assertSame([], $data['link_errors']);
+    }
+
+    public function test_link_failure_is_non_fatal(): void
+    {
+        $this->stubSuccessfulCreate(88);
+        // Helper failure must NOT fail the request — the user and their
+        // set-password email already exist. Surface it in link_errors.
+        Functions\when('cdcf_set_author_team_member')
+            ->justReturn(new WP_Error('invalid_team_member', 'team_member_id must reference a team_member post.'));
+
+        $response = cdcf_rest_create_user($this->makeRequest(['team_member_id' => 999]));
+
+        $this->assertSame(201, $response->get_status());
+        $data = $response->get_data();
+        $this->assertTrue($data['success']);
+        $this->assertFalse($data['linked']);
+        $this->assertNotEmpty($data['link_errors']);
+    }
+
+    public function test_no_link_attempt_when_team_member_id_absent(): void
+    {
+        $this->stubSuccessfulCreate(88);
+        // No team_member_id → helper must never be called.
+        Functions\expect('cdcf_set_author_team_member')->never();
+
+        $response = cdcf_rest_create_user($this->makeRequest([])); // default 0
+
+        $data = $response->get_data();
+        $this->assertFalse($data['linked']);
+        $this->assertSame(0, $data['team_member_id']);
+        $this->assertSame([], $data['link_errors']);
     }
 }
