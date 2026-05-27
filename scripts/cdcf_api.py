@@ -159,17 +159,50 @@ class CdcfClient:
             raise ValueError(f"WPGraphQL errors: {'; '.join(msgs)}")
         return body.get("data", {})
 
+    # WordPress post-type slug -> WPGraphQL single type name. The two diverge
+    # for multi-word CPTs (team_member -> teamMember) and, for acad_collab,
+    # entirely (-> academicCollaboration), so a mechanical snake->camel
+    # transform is not enough. The translation/language helpers query
+    # WPGraphQL by its *single type name*, but get-post/get-meta take the WP
+    # slug — so callers may pass either form here and it is normalized.
+    # Keep in sync with graphql_single_name in
+    # wordpress/themes/cdcf-headless/functions.php.
+    POST_TYPE_GRAPHQL_NAMES = {
+        "page": "page",
+        "post": "post",
+        "project": "project",
+        "team_member": "teamMember",
+        "sponsor": "sponsor",
+        "community_channel": "communityChannel",
+        "local_group": "localGroup",
+        "acad_collab": "academicCollaboration",
+        "community_project": "communityProject",
+        "stat_item": "statItem",
+    }
+
+    @classmethod
+    def _graphql_type_name(cls, post_type: str) -> str:
+        """Normalize a post-type argument to its WPGraphQL single type name.
+
+        Accepts either the WordPress post-type slug (e.g. "team_member", as
+        get-post/get-meta use) or the WPGraphQL single name (e.g. "teamMember").
+        Unknown values pass through unchanged so newly added types still work
+        before this map is updated.
+        """
+        return cls.POST_TYPE_GRAPHQL_NAMES.get(post_type, post_type)
+
     def get_translation_ids(self, post_id: int, post_type: str = "page") -> dict[str, int]:
         """Get all Polylang translation post IDs for a given post.
 
         Returns a dict mapping language code to database ID,
         e.g. {"en": 10, "it": 12, "es": 14, "fr": 16, "pt": 18, "de": 20}
 
-        post_type: the WPGraphQL singular type name — "page", "post", "project",
-                   "teamMember", "communityChannel", "localGroup", "sponsor", "statItem"
+        post_type: either the WordPress post-type slug ("team_member") or the
+                   WPGraphQL single name ("teamMember"); both are accepted.
         """
         # WPGraphQL uses the singular type name as the root query field,
         # and accepts `id` + `idType: DATABASE_ID` for lookup.
+        gql_type = self._graphql_type_name(post_type)
         query = """
         query GetTranslationIds($id: ID!) {
             %(type)s(id: $id, idType: DATABASE_ID) {
@@ -185,11 +218,19 @@ class CdcfClient:
                 }
             }
         }
-        """ % {"type": post_type}
+        """ % {"type": gql_type}
         data = self.graphql(query, {"id": post_id})
-        root = data.get(post_type)
+        root = data.get(gql_type)
         if not root:
-            return {}
+            # A real post always resolves here, so a null root means the id
+            # doesn't exist *for this type* — almost always a wrong --post-type.
+            # Fail loudly rather than returning {} (which reads as "no
+            # translations" and silently hides the mismatch).
+            raise ValueError(
+                f"No {gql_type} found with DATABASE_ID {post_id} "
+                f"(--post-type {post_type!r} resolved to GraphQL type "
+                f"{gql_type!r}). Check the id and post type."
+            )
         result: dict[str, int] = {}
         # Include the queried post itself
         if root.get("language") and root.get("databaseId"):
@@ -201,7 +242,15 @@ class CdcfClient:
         return result
 
     def get_post_language(self, post_id: int, post_type: str = "page") -> str | None:
-        """Get the Polylang language code for a post. Returns e.g. "en" or None."""
+        """Get the Polylang language code for a post.
+
+        Returns e.g. "en", or None if the post exists but has no language
+        assigned. Raises ValueError if no post of this type has the given id.
+
+        post_type: either the WordPress post-type slug ("team_member") or the
+                   WPGraphQL single name ("teamMember"); both are accepted.
+        """
+        gql_type = self._graphql_type_name(post_type)
         query = """
         query GetPostLanguage($id: ID!) {
             %(type)s(id: $id, idType: DATABASE_ID) {
@@ -210,10 +259,16 @@ class CdcfClient:
                 }
             }
         }
-        """ % {"type": post_type}
+        """ % {"type": gql_type}
         data = self.graphql(query, {"id": post_id})
-        root = data.get(post_type)
-        if root and root.get("language"):
+        root = data.get(gql_type)
+        if root is None:
+            raise ValueError(
+                f"No {gql_type} found with DATABASE_ID {post_id} "
+                f"(--post-type {post_type!r} resolved to GraphQL type "
+                f"{gql_type!r}). Check the id and post type."
+            )
+        if root.get("language"):
             return root["language"]["code"].lower()
         return None
 
@@ -577,15 +632,16 @@ def _build_parser() -> argparse.ArgumentParser:
                        help="Get all Polylang translation post IDs for a post")
     p.add_argument("--post-id", type=int, required=True)
     p.add_argument("--post-type", default="page",
-                   help="WPGraphQL type name (page, post, project, teamMember, "
-                        "communityChannel, localGroup, sponsor, statItem)")
+                   help="Post type: WP slug (e.g. team_member) or WPGraphQL "
+                        "name (e.g. teamMember) — both accepted. Default: page")
 
     # get-post-language
     p = sub.add_parser("get-post-language",
                        help="Get the Polylang language code for a post")
     p.add_argument("--post-id", type=int, required=True)
     p.add_argument("--post-type", default="page",
-                   help="WPGraphQL type name (default: page)")
+                   help="Post type: WP slug (e.g. team_member) or WPGraphQL "
+                        "name (e.g. teamMember) — both accepted. Default: page")
 
     return parser
 
