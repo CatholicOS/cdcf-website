@@ -35,6 +35,7 @@ final class TranslateHandlerTest extends TestCase
     {
         Monkey\tearDown();
         Mockery::close();
+        unset($GLOBALS['wpdb']);
         parent::tearDown();
     }
 
@@ -120,10 +121,13 @@ final class TranslateHandlerTest extends TestCase
 
     // ─── Direct post_id path (skip resolution) ────────────────────
 
-    public function test_with_provided_post_id_skips_resolution_and_enqueues(): void
+    public function test_with_provided_post_id_validates_and_enqueues(): void
     {
         $this->stubCommonFunctions();
-        Functions\expect('get_post')->never();
+        // Provided post_id is validated (exists + is the source's translation
+        // in this language) but no new post is created.
+        Functions\when('get_post')->justReturn((object) ['ID' => 555]);
+        Functions\when('pll_get_post')->justReturn(555); // canonical translation == provided id
         Functions\expect('wp_insert_post')->never();
 
         $enqueueCalls = [];
@@ -143,6 +147,36 @@ final class TranslateHandlerTest extends TestCase
         $this->assertSame(555, $response->get_data()['post_id']);
         $this->assertSame('redis', $response->get_data()['queue']);
         $this->assertSame('Translation queued.', $response->get_data()['message']);
+    }
+
+    public function test_returns_invalid_post_when_provided_post_id_missing(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn(null); // post_id refers to nothing
+        Functions\expect('cdcf_enqueue_translation')->never();
+        $this->allowAllFunctionsToExist();
+
+        $response = cdcf_rest_translate($this->makeRequest(['post_id' => 555]));
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('invalid_post', $response->get_error_code());
+        $this->assertSame(404, $response->get_error_data()['status']);
+    }
+
+    public function test_returns_invalid_post_when_provided_post_id_is_not_the_translation(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn((object) ['ID' => 555]);
+        // The source's actual translation for this language is a different post.
+        Functions\when('pll_get_post')->justReturn(999);
+        Functions\expect('cdcf_enqueue_translation')->never();
+        $this->allowAllFunctionsToExist();
+
+        $response = cdcf_rest_translate($this->makeRequest(['post_id' => 555]));
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('invalid_post', $response->get_error_code());
+        $this->assertSame(400, $response->get_error_data()['status']);
     }
 
     // ─── Source-post resolution path ──────────────────────────────
@@ -297,6 +331,69 @@ final class TranslateHandlerTest extends TestCase
         cdcf_rest_translate($this->makeRequest());
 
         $this->assertArrayNotHasKey('post_parent', $inserted);
+    }
+
+    // ─── Group linking: lock + failure cleanup ───────────────────
+
+    public function test_links_new_translation_under_a_source_keyed_lock(): void
+    {
+        // $wpdb present → linking is serialized by GET_LOCK / RELEASE_LOCK
+        // keyed on the source group (prevents the concurrent-"Translate All"
+        // lost-update). Sibling concurrency is what this guards.
+        $wpdb = new class {
+            public array $getVar = [];
+            public array $query  = [];
+            public function prepare(string $q, ...$args): string {
+                foreach ($args as $a) {
+                    $q = preg_replace('/%[sd]/', (string) $a, $q, 1);
+                }
+                return $q;
+            }
+            public function get_var(string $q): int { $this->getVar[] = $q; return 1; }
+            public function query(string $q): int { $this->query[] = $q; return 1; }
+        };
+        $GLOBALS['wpdb'] = $wpdb;
+
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->makeSourcePost());
+        Functions\when('pll_get_post')->justReturn(0);
+        Functions\when('wp_insert_post')->justReturn(800);
+        $this->allowAllFunctionsToExist();
+
+        $response = cdcf_rest_translate($this->makeRequest());
+
+        $this->assertSame(800, $response->get_data()['post_id']);
+        $this->assertCount(1, $wpdb->getVar);
+        $this->assertStringContainsString('GET_LOCK', $wpdb->getVar[0]);
+        $this->assertStringContainsString('cdcf_pll_link_100', $wpdb->getVar[0]);
+        $this->assertCount(1, $wpdb->query);
+        $this->assertStringContainsString('RELEASE_LOCK', $wpdb->query[0]);
+
+        unset($GLOBALS['wpdb']);
+    }
+
+    public function test_returns_500_and_deletes_orphan_when_link_fails(): void
+    {
+        // pll_save_post_translations reporting false must abort and delete the
+        // just-created post rather than leave it orphaned (not in any group).
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->makeSourcePost());
+        Functions\when('pll_get_post')->justReturn(0);
+        Functions\when('wp_insert_post')->justReturn(800);
+        Functions\when('pll_save_post_translations')->justReturn(false);
+        $deleted = null;
+        Functions\when('wp_delete_post')->alias(function (int $id, bool $force) use (&$deleted): object {
+            $deleted = [$id, $force];
+            return (object) ['ID' => $id];
+        });
+        Functions\expect('cdcf_enqueue_translation')->never();
+        $this->allowAllFunctionsToExist();
+
+        $response = cdcf_rest_translate($this->makeRequest());
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('link_failed', $response->get_error_code());
+        $this->assertSame([800, true], $deleted);
     }
 
     // ─── Attachment-type handling ─────────────────────────────────

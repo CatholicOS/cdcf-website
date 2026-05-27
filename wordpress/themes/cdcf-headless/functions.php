@@ -2085,7 +2085,7 @@ function cdcf_ai_translate_meta_box($post) {
         function translateOne(btn) {
             var status = btn.parentElement.querySelector('.cdcf-ai-translate-status');
             btn.disabled = true;
-            status.textContent = 'Translating…';
+            status.textContent = 'Queuing…';
             status.style.color = '#0073aa';
 
             var data = new FormData();
@@ -2100,12 +2100,21 @@ function cdcf_ai_translate_meta_box($post) {
                 .then(function(resp) {
                     if (resp.success) {
                         status.style.color = '#46b450';
+                        // The translation is now queued, not finished — the
+                        // worker fills it in shortly. Reflect that, with an
+                        // Edit link to the (draft) translation post. Built via
+                        // DOM nodes (no innerHTML) since post_id is interpolated.
                         if (resp.data && resp.data.post_id) {
                             btn.dataset.postId = resp.data.post_id;
-                            var editUrl = '<?php echo admin_url('post.php?action=edit&post='); ?>' + resp.data.post_id;
-                            status.innerHTML = '✓ <a href="' + editUrl + '" target="_blank">Edit</a>';
+                            var editUrl = '<?php echo admin_url('post.php?action=edit&post='); ?>' + encodeURIComponent(resp.data.post_id);
+                            status.textContent = '⏳ Queued — ';
+                            var editLink = document.createElement('a');
+                            editLink.href = editUrl;
+                            editLink.target = '_blank';
+                            editLink.textContent = 'Edit';
+                            status.appendChild(editLink);
                         } else {
-                            status.textContent = '✓ Done';
+                            status.textContent = '⏳ Queued';
                         }
                     } else {
                         status.textContent = resp.data || 'Error';
@@ -2115,7 +2124,7 @@ function cdcf_ai_translate_meta_box($post) {
                     }
                 })
                 .catch(function(err) {
-                    if (!status.textContent || status.textContent === 'Translating…') {
+                    if (!status.textContent || status.textContent === 'Queuing…') {
                         status.textContent = 'Failed';
                         status.style.color = '#dc3232';
                         btn.disabled = false;
@@ -2131,16 +2140,26 @@ function cdcf_ai_translate_meta_box($post) {
             });
         });
 
-        // "Translate All" button — concurrent via Promise.all
+        // "Translate All" button — fire each concurrently, but report the
+        // real outcome: allSettled so one rejected enqueue doesn't get
+        // swallowed into a blanket "all queued" message.
         var allBtn = document.getElementById('cdcf-ai-translate-all');
         if (allBtn) {
             allBtn.addEventListener('click', function() {
-                if (!confirm('This will create/overwrite translations for ALL languages. Continue?')) return;
+                if (!confirm('This will queue translations for ALL languages (existing ones are overwritten when the worker runs). Continue?')) return;
                 allBtn.disabled = true;
                 var buttons = Array.from(document.querySelectorAll('.cdcf-ai-translate-btn'));
-                Promise.all(buttons.map(function(btn) {
-                    return translateOne(btn).catch(function() {}); // continue on error
-                })).then(function() { allBtn.textContent = 'All done!'; });
+                Promise.allSettled(buttons.map(function(btn) {
+                    return translateOne(btn);
+                })).then(function(results) {
+                    var failed = results.filter(function(r) { return r.status === 'rejected'; }).length;
+                    if (failed === 0) {
+                        allBtn.textContent = 'All queued — translations will appear shortly.';
+                    } else {
+                        allBtn.textContent = failed + ' of ' + results.length + ' failed to queue — see per-language status.';
+                        allBtn.disabled = false; // allow a retry of the whole set
+                    }
+                });
             });
         }
     })();
