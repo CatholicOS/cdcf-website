@@ -207,9 +207,10 @@ python scripts/cdcf_api.py update-project-status --post-id 42 --status approved
 python scripts/cdcf_api.py get-translation-ids --post-id 5
 # Output: {"en": 5, "it": 12, "es": 14, "fr": 16, "pt": 18, "de": 20}
 
-# Get translation IDs for a specific post type
+# Get translation IDs for a specific post type. --post-type accepts either
+# the WP slug (team_member) or the WPGraphQL name (teamMember).
 python scripts/cdcf_api.py get-translation-ids --post-id 100 --post-type project
-python scripts/cdcf_api.py get-translation-ids --post-id 200 --post-type teamMember
+python scripts/cdcf_api.py get-translation-ids --post-id 200 --post-type team_member
 
 # Get the language of a post
 python scripts/cdcf_api.py get-post-language --post-id 12
@@ -225,7 +226,7 @@ python scripts/cdcf_api.py graphql \
   --variables '{"id": 5}'
 ```
 
-**Supported `--post-type` values:** `page`, `post`, `project`, `teamMember`, `communityChannel`, `localGroup`, `academicCollaboration`, `sponsor`, `statItem`
+**Supported `--post-type` values:** the WordPress slug **or** the WPGraphQL single name is accepted (they're normalized internally): `page`, `post`, `project`, `team_member`/`teamMember`, `community_channel`/`communityChannel`, `local_group`/`localGroup`, `acad_collab`/`academicCollaboration`, `sponsor`, `stat_item`/`statItem`. An unknown id for the given type raises a clear error rather than returning empty.
 
 #### Cache Revalidation
 
