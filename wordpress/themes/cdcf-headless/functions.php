@@ -1188,6 +1188,12 @@ add_action('acf/init', function () {
         'location' => [
             [['param' => 'user_form', 'operator' => '==', 'value' => 'all']],
         ],
+        // Group-level REST exposure (not just the per-field flag above) is what
+        // ACF's core REST integration actually keys on — it's what makes the
+        // field readable/writable under the `acf` property of /wp/v2/users/{id}.
+        // Without it the field is GraphQL-only, so the author→team_member link
+        // can't be set programmatically (a PUT to that field is silently dropped).
+        'show_in_rest' => true,
         'show_in_graphql' => true,
         'graphql_field_name' => 'authorProfile',
         'graphql_types' => ['User'],
