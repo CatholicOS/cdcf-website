@@ -284,6 +284,18 @@ class CdcfClient:
             "post_id": post_id, "field": field, "value": value,
         })
 
+    def link_author_team_member(self, user_id: int, team_member_id: int) -> dict:
+        """POST /cdcf/v1/author-team-member
+
+        Link a WordPress user to their team_member bio card (or pass
+        team_member_id=0 to clear the link). The post-only /relationship
+        endpoint can't target a user, and ACF free doesn't expose user
+        fields via core REST — this is the supported path.
+        """
+        return self._wp_post("cdcf/v1/author-team-member", {
+            "user_id": user_id, "team_member_id": team_member_id,
+        })
+
     # -- Team Member --
 
     def create_team_member(self, title: str, content: str, council: str, **kwargs) -> dict:
@@ -477,6 +489,13 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--field", required=True)
     p.add_argument("--value", type=int, nargs="+", required=True, help="List of post IDs")
 
+    # link-author-team-member
+    p = sub.add_parser("link-author-team-member",
+                       help="Link a WordPress user to their team_member bio card")
+    p.add_argument("--user-id", type=int, required=True)
+    p.add_argument("--team-member-id", type=int, required=True,
+                   help="Published team_member post ID, or 0 to clear the link")
+
     # create-team-member
     p = sub.add_parser("create-team-member", help="Create team member with auto-translation")
     p.add_argument("--title", required=True)
@@ -654,6 +673,9 @@ def _run_cli(args: argparse.Namespace, client: CdcfClient) -> dict:
 
     if cmd == "update-relationship":
         return client.update_relationship(args.post_id, args.field, args.value)
+
+    if cmd == "link-author-team-member":
+        return client.link_author_team_member(args.user_id, args.team_member_id)
 
     if cmd == "create-team-member":
         kwargs = {}

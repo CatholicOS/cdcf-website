@@ -46,12 +46,13 @@ function cdcf_create_user_allowed_roles(): array {
  * server-generated password and dispatch the standard set-password email.
  */
 function cdcf_rest_create_user(WP_REST_Request $request) {
-    $username     = $request['username'];
-    $email        = $request['email'];
-    $role         = $request['role'];
-    $display_name = $request['display_name'];
-    $first_name   = $request['first_name'];
-    $last_name    = $request['last_name'];
+    $username       = $request['username'];
+    $email          = $request['email'];
+    $role           = $request['role'];
+    $display_name   = $request['display_name'];
+    $first_name     = $request['first_name'];
+    $last_name      = $request['last_name'];
+    $team_member_id = (int) $request['team_member_id'];
 
     // ── Role allowlist (privilege-escalation guard) ──
     if (!in_array($role, cdcf_create_user_allowed_roles(), true)) {
@@ -104,11 +105,36 @@ function cdcf_rest_create_user(WP_REST_Request $request) {
     // defined in a normal request.
     wp_new_user_notification($user_id, null, 'user');
 
+    // Optionally link the new author to their team_member bio card. This
+    // is best-effort: the user and their set-password email already exist,
+    // so a link failure must NOT fail the whole request — surface it in
+    // link_errors[] instead (mirrors the team-member handler's errors[]).
+    $linked      = false;
+    $link_errors = [];
+    if ($team_member_id > 0) {
+        // Shared helper from author-team-member.php (required by functions.php
+        // before this handler's route). Guard for the unit-test/isolation
+        // case where only create-user.php is loaded.
+        if (function_exists('cdcf_set_author_team_member')) {
+            $result = cdcf_set_author_team_member((int) $user_id, $team_member_id);
+            if (is_wp_error($result)) {
+                $link_errors[] = $result->get_error_message();
+            } else {
+                $linked = true;
+            }
+        } else {
+            $link_errors[] = 'Author-link helper unavailable; team member not linked.';
+        }
+    }
+
     return new WP_REST_Response([
-        'success'  => true,
-        'user_id'  => (int) $user_id,
-        'username' => $username,
-        'email'    => $email,
-        'role'     => $role,
+        'success'        => true,
+        'user_id'        => (int) $user_id,
+        'username'       => $username,
+        'email'          => $email,
+        'role'           => $role,
+        'team_member_id' => $team_member_id,
+        'linked'         => $linked,
+        'link_errors'    => $link_errors,
     ], 201);
 }

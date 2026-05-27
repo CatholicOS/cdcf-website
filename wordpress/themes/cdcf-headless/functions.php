@@ -518,6 +518,9 @@ add_action('rest_api_init', function () {
             'display_name' => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
             'first_name'   => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
             'last_name'    => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            // Optional: link the new author to their team_member bio card in
+            // one call (best-effort — see cdcf_rest_create_user). 0 = no link.
+            'team_member_id' => ['required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint', 'default' => 0],
         ],
     ]);
 });
@@ -527,6 +530,34 @@ add_action('rest_api_init', function () {
 add_filter('user_has_cap', 'cdcf_grant_limited_user_provisioning', 10, 4);
 add_action('edit_user_profile', 'cdcf_render_limited_user_provisioning_field');
 add_action('edit_user_profile_update', 'cdcf_save_limited_user_provisioning_field');
+
+// ─── REST endpoint for linking an author to their team_member bio card ─
+//
+// Writes the `author_team_member` ACF relationship on the USER object so
+// author pages reuse the team_member's translated bio/photo/role/socials.
+// This needs a dedicated endpoint: /relationship is post-only, and ACF
+// 6.x free doesn't expose user-located field groups via the core REST
+// `acf` property (a PUT is silently dropped). See the handler file.
+// Gated on the same author-provisioning capability as create-user.
+//
+// POST /wp-json/cdcf/v1/author-team-member (Application Password auth)
+
+require_once __DIR__ . '/includes/handlers/author-team-member.php';
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/author-team-member', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_link_author_team_member',
+        'permission_callback' => function () {
+            return current_user_can('cdcf_create_limited_users');
+        },
+        'args' => [
+            'user_id'        => ['required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint'],
+            // 0 clears the link; a positive id must reference a team_member post.
+            'team_member_id' => ['required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint'],
+        ],
+    ]);
+});
 
 // ─── REST endpoint for creating a community channel with translations ─
 //
@@ -1188,12 +1219,10 @@ add_action('acf/init', function () {
         'location' => [
             [['param' => 'user_form', 'operator' => '==', 'value' => 'all']],
         ],
-        // Group-level REST exposure (not just the per-field flag above) is what
-        // ACF's core REST integration actually keys on — it's what makes the
-        // field readable/writable under the `acf` property of /wp/v2/users/{id}.
-        // Without it the field is GraphQL-only, so the author→team_member link
-        // can't be set programmatically (a PUT to that field is silently dropped).
-        'show_in_rest' => true,
+        // NOTE: ACF 6.x (free) does NOT expose user-located field groups via
+        // the core REST `acf` property regardless of show_in_rest, so this
+        // field stays GraphQL-only. To set author_team_member programmatically
+        // use POST /cdcf/v1/author-team-member (update_field on "user_{id}").
         'show_in_graphql' => true,
         'graphql_field_name' => 'authorProfile',
         'graphql_types' => ['User'],
