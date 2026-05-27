@@ -226,7 +226,7 @@ python scripts/cdcf_api.py graphql \
   --variables '{"id": 5}'
 ```
 
-**Supported `--post-type` values:** the WordPress slug **or** the WPGraphQL single name is accepted (they're normalized internally): `page`, `post`, `project`, `team_member`/`teamMember`, `community_channel`/`communityChannel`, `local_group`/`localGroup`, `acad_collab`/`academicCollaboration`, `sponsor`, `stat_item`/`statItem`. An unknown id for the given type raises a clear error rather than returning empty.
+**Supported `--post-type` values:** the WordPress slug **or** the WPGraphQL single name is accepted (they're normalized internally): `page`, `post`, `project`, `team_member`/`teamMember`, `community_channel`/`communityChannel`, `local_group`/`localGroup`, `acad_collab`/`academicCollaboration`, `community_project`/`communityProject`, `sponsor`, `stat_item`/`statItem`. An unknown id for the given type raises a clear error rather than returning empty.
 
 #### Cache Revalidation
 
