@@ -232,6 +232,29 @@ describe('getAllPages mapping', () => {
     expect(page.uriByLocale.get('de')).toBe('/about-6')
   })
 
+  it('passes through a URI that already has no trailing slash', async () => {
+    // Belt-and-suspenders: WordPress in practice always emits trailing slashes
+    // on page URIs, but the trailing-slash strip must be a no-op for already-
+    // clean URIs (and for translations === undefined, a real case for an
+    // English page with no other languages yet).
+    wpQueryMock.mockResolvedValueOnce({
+      pages: {
+        nodes: [
+          {
+            uri: '/about',
+            modified: '2026-05-01',
+          },
+        ],
+      },
+    })
+
+    const [page] = await getAllPages('en')
+
+    expect(page.enUri).toBe('/about')
+    expect(page.uriByLocale.get('en')).toBe('/about')
+    expect(page.availableLocales).toEqual(['en'])
+  })
+
   it('keeps the home URI as "/" (does not strip the lone slash)', async () => {
     // WordPress emits "/" for the front page; the trailing-slash strip must
     // not collapse it to "" or the sitemap will emit "https://…<empty>".
