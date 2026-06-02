@@ -319,6 +319,13 @@ export async function getAcademicCollaboration(
 
 export interface WPSitemapPage {
   enUri: string
+  // Each translation's actual prefix-less URI, keyed by lowercase locale code.
+  // We can't derive these from enUri because Polylang (free) doesn't share
+  // slugs across languages — every non-EN translation gets a "-N" collision
+  // suffix (EN /about, IT /about-2, ES /about-3, FR /about-4, ...). The
+  // sitemap loc and the hreflang alternates need these real slugs; deriving
+  // from enUri would emit URLs that don't match WP's canonical.
+  uriByLocale: Map<string, string>
   modified: string
   availableLocales: string[]
 }
@@ -340,6 +347,14 @@ function stripLocalePrefix(uri: string, locale: string): string {
   return uri.startsWith(`${prefix}/`) ? uri.slice(prefix.length) : uri
 }
 
+// WordPress emits URIs with a trailing slash ("/about/"), but Next.js's server
+// canonical (with trailingSlash defaulting to false) is "/about" — so emitting
+// the WP form into the sitemap produces a 308 redirect on every fetch. Strip
+// the trailing slash here; keep "/" intact for the home page.
+function stripTrailingSlash(uri: string): string {
+  return uri.length > 1 && uri.endsWith('/') ? uri.replace(/\/+$/, '') : uri
+}
+
 export async function getAllPages(
   locale: string,
   options?: FetchOptions
@@ -357,13 +372,25 @@ export async function getAllPages(
       const enTranslationUri = node.translations?.find(
         (t) => t.language.code === 'EN'
       )?.uri
-      const enUri =
+      const rawEnUri =
         locale === 'en'
           ? node.uri
           : enTranslationUri ?? stripLocalePrefix(node.uri, locale)
+      const enUri = stripTrailingSlash(rawEnUri)
+      // Build the per-locale URI map (prefix-LESS paths, ready to be fed to
+      // buildUrl, which re-adds the locale prefix). Includes both this node's
+      // own locale and every Polylang translation. Each entry preserves WP's
+      // actual slug ("/about-2" for IT, "/about-3" for ES, …) so the sitemap
+      // emits the URL Google will actually find indexed.
+      const uriByLocale = new Map<string, string>()
+      uriByLocale.set(locale, stripTrailingSlash(stripLocalePrefix(node.uri, locale)))
+      for (const t of node.translations ?? []) {
+        const tLocale = t.language.code.toLowerCase()
+        uriByLocale.set(tLocale, stripTrailingSlash(stripLocalePrefix(t.uri, tLocale)))
+      }
       const otherLocales = node.translations?.map((t) => t.language.code.toLowerCase()) ?? []
       const availableLocales = Array.from(new Set([locale, ...otherLocales]))
-      return { enUri, modified: node.modified, availableLocales }
+      return { enUri, uriByLocale, modified: node.modified, availableLocales }
     })
   } catch (error) {
     console.error('Failed to fetch all pages:', error)
