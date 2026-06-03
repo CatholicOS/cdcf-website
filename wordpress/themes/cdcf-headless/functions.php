@@ -1876,36 +1876,19 @@ add_filter('preview_post_link', function ($preview_link, $post) {
     // (project, team_member, academic_collaboration, …) have no by-id preview
     // path, so leave their preview link untouched rather than redirect to a
     // 404 on the headless frontend.
-    if (!in_array($post->post_type, ['post', 'page'], true)) {
+    if (!in_array($post->post_type, CDCF_FRONTEND_PREVIEWABLE_TYPES, true)) {
         return $preview_link;
     }
-
-    $frontend = defined('CDCF_FRONTEND_URL')
-        ? CDCF_FRONTEND_URL
-        : 'http://localhost:3000';
-
-    $secret = defined('CDCF_PREVIEW_SECRET')
-        ? CDCF_PREVIEW_SECRET
-        : (getenv('WP_PREVIEW_SECRET') ?: '');
-
-    // Polylang language (slug form, e.g. "en", "it"); empty if Polylang is off.
-    $lang = function_exists('pll_get_post_language')
-        ? pll_get_post_language($post->ID, 'slug')
-        : '';
-
-    // Pass the database id, not just the slug: a never-published draft has no
-    // post_name yet, but the frontend can always resolve it by id.
-    return add_query_arg(
-        [
-            'secret' => $secret,
-            'id'     => $post->ID,
-            'type'   => $post->post_type,
-            'slug'   => $post->post_name,
-            'lang'   => $lang,
-        ],
-        $frontend . '/api/preview'
-    );
+    return cdcf_build_frontend_preview_url($post);
 }, 10, 2);
+
+// The editor's "View" link / hamburger menu / post-list "View" row action on
+// a draft all read get_permalink(). The permalink filter routes them at this
+// admin-post.php handler instead of the default ?p=<id> link. admin_post_
+// prefix means WP core gates the request as logged-in only; the handler
+// further capability-checks edit_post before redirecting to the frontend
+// /api/preview URL (secret added server-side, never embedded in the permalink).
+add_action('admin_post_cdcf_preview_redirect', 'cdcf_redirect_to_frontend_preview');
 
 // ─── Application Password auth for WPGraphQL ─────────────────────────
 // WordPress core only honours Application Passwords on requests it considers

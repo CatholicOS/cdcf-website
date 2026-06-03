@@ -175,4 +175,128 @@ final class FrontendPostPermalinkTest extends TestCase
             cdcf_frontend_permalink($original, $this->makePost(['post_type' => 'team_member']))
         );
     }
+
+    // ─── cdcf_build_frontend_preview_url ──────────────────────────
+
+    public function test_preview_url_carries_id_type_slug_secret_lang(): void
+    {
+        Functions\when('pll_get_post_language')->justReturn('it');
+        // No CDCF_PREVIEW_SECRET / WP_PREVIEW_SECRET in the test process: the
+        // helper still emits an empty `secret` param so failures show as 401
+        // at the frontend rather than as a silently-missing query arg.
+        Functions\when('add_query_arg')->alias(function ($args, $url) {
+            return $url . '?' . http_build_query($args);
+        });
+
+        $url = cdcf_build_frontend_preview_url(
+            $this->makePost(['ID' => 99, 'post_type' => 'page', 'post_name' => 'about'])
+        );
+
+        $this->assertStringStartsWith('http://localhost:3000/api/preview?', $url);
+        $this->assertStringContainsString('id=99', $url);
+        $this->assertStringContainsString('type=page', $url);
+        $this->assertStringContainsString('slug=about', $url);
+        $this->assertStringContainsString('lang=it', $url);
+    }
+
+    public function test_preview_url_works_for_never_published_draft_with_empty_slug(): void
+    {
+        // A brand-new draft has no post_name yet; the URL still emits id so
+        // the frontend can resolve by database id.
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('add_query_arg')->alias(function ($args, $url) {
+            return $url . '?' . http_build_query($args);
+        });
+
+        $url = cdcf_build_frontend_preview_url(
+            $this->makePost(['ID' => 1377, 'post_status' => 'auto-draft', 'post_name' => ''])
+        );
+
+        $this->assertStringContainsString('id=1377', $url);
+    }
+
+    // ─── cdcf_should_redirect_to_preview ──────────────────────────
+
+    public function test_should_redirect_for_draft_post_and_page(): void
+    {
+        $this->assertTrue(cdcf_should_redirect_to_preview(
+            $this->makePost(['post_status' => 'draft'])
+        ));
+        $this->assertTrue(cdcf_should_redirect_to_preview(
+            $this->makePost(['post_type' => 'page', 'post_status' => 'auto-draft'])
+        ));
+        $this->assertTrue(cdcf_should_redirect_to_preview(
+            $this->makePost(['post_type' => 'page', 'post_status' => 'pending'])
+        ));
+    }
+
+    public function test_should_not_redirect_for_published_or_trashed_or_unsupported_types(): void
+    {
+        // Published: handled by the existing path mapper, not the redirect.
+        $this->assertFalse(cdcf_should_redirect_to_preview(
+            $this->makePost(['post_status' => 'publish'])
+        ));
+        // Trashed: not surfaced with editor "View" links.
+        $this->assertFalse(cdcf_should_redirect_to_preview(
+            $this->makePost(['post_status' => 'trash'])
+        ));
+        // CPTs: frontend /api/preview only allows post/page; redirecting a
+        // project/acad_collab draft would 400 there.
+        $this->assertFalse(cdcf_should_redirect_to_preview(
+            $this->makePost(['post_type' => 'project', 'post_status' => 'draft'])
+        ));
+        $this->assertFalse(cdcf_should_redirect_to_preview(
+            $this->makePost(['post_type' => 'acad_collab', 'post_status' => 'draft'])
+        ));
+        // Untyped/typeless input from a misbehaving caller.
+        $this->assertFalse(cdcf_should_redirect_to_preview('not an object'));
+    }
+
+    // ─── cdcf_frontend_permalink (draft branch) ───────────────────
+
+    public function test_filter_routes_draft_post_through_admin_post_redirect(): void
+    {
+        Functions\when('is_graphql_request')->justReturn(false);
+        Functions\when('admin_url')->alias(function ($path) {
+            return 'https://cms.example.org/wp-admin/' . ltrim($path, '/');
+        });
+
+        $link = cdcf_frontend_permalink(
+            'https://cms.example.org/?p=1377',
+            $this->makePost(['ID' => 1377, 'post_status' => 'draft', 'post_name' => ''])
+        );
+
+        $this->assertSame(
+            'https://cms.example.org/wp-admin/admin-post.php?action=cdcf_preview_redirect&id=1377',
+            $link
+        );
+    }
+
+    public function test_filter_does_not_route_published_post_through_redirect(): void
+    {
+        // Verify the draft branch doesn't accidentally catch published posts.
+        Functions\when('is_graphql_request')->justReturn(false);
+        Functions\when('pll_get_post_language')->justReturn('en');
+
+        $this->assertSame(
+            'http://localhost:3000/blog/welcome-to-the-cdcf',
+            cdcf_frontend_permalink('https://cms.example.org/welcome-to-the-cdcf/', $this->makePost())
+        );
+    }
+
+    public function test_filter_does_not_redirect_drafts_of_unsupported_cpts(): void
+    {
+        // Draft project/acad_collab fall through to the default permalink —
+        // no by-id preview route on the frontend for those types.
+        Functions\when('is_graphql_request')->justReturn(false);
+
+        $original = 'https://cms.example.org/?project=foo';
+        $this->assertSame(
+            $original,
+            cdcf_frontend_permalink(
+                $original,
+                $this->makePost(['post_type' => 'project', 'post_status' => 'draft', 'post_name' => 'foo'])
+            )
+        );
+    }
 }
