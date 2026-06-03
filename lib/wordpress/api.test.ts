@@ -350,7 +350,7 @@ describe('getPostsForSitemap mapping', () => {
     })
 
     const [post] = await getPostsForSitemap('en')
-    expect(post.modified).toBe('2026-01-15Z')
+    expect(post.modified).toBe('2026-01-15')
   })
 
   it('lowercases translation language codes', async () => {
@@ -404,7 +404,7 @@ describe('getProjectsForSitemap mapping', () => {
     const [project] = await getProjectsForSitemap('en')
     expect(project).toEqual({
       slug: 'foo',
-      modified: '2026-03-01Z',
+      modified: '2026-03-01',
       translations: [{ code: 'es', slug: 'foo-es' }],
     })
   })
@@ -435,7 +435,7 @@ describe('getAcademicCollaborationsForSitemap mapping', () => {
     const [collab] = await getAcademicCollaborationsForSitemap('en')
     expect(collab).toEqual({
       slug: 'notre-dame',
-      modified: '2026-03-01Z',
+      modified: '2026-03-01',
       translations: [{ code: 'it', slug: 'notre-dame-it' }],
     })
   })
@@ -448,7 +448,7 @@ describe('getAcademicCollaborationsForSitemap mapping', () => {
     })
 
     const [collab] = await getAcademicCollaborationsForSitemap('en')
-    expect(collab.modified).toBe('2026-01-15Z')
+    expect(collab.modified).toBe('2026-01-15')
   })
 
   it('returns [] if wpQuery rejects', async () => {

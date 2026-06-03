@@ -356,11 +356,15 @@ function stripTrailingSlash(uri: string): string {
 }
 
 // WPGraphQL returns *GmtDate fields as "YYYY-MM-DDTHH:MM:SS" with NO timezone
-// designator. The sitemap spec (W3C Datetime) requires a TZ marker whenever a
+// designator. The sitemap spec (W3C Datetime) requires a TZ marker only when a
 // time-of-day is present; without it, Google Search Console rejects the
 // sitemap with "invalid date". The *Gmt variants are by definition UTC, so we
-// append "Z". Idempotent: a value that already ends with Z is left alone.
+// append "Z" — but only when there is actually a time component (the "T"
+// separator). A bare "YYYY-MM-DD" is itself a valid W3C Datetime; appending Z
+// to it would produce the invalid "YYYY-MM-DDZ".
+// Idempotent: a value that already ends with Z is left alone.
 function toLastmodUtc(gmt: string): string {
+  if (!gmt.includes('T')) return gmt
   return gmt.endsWith('Z') ? gmt : `${gmt}Z`
 }
 
