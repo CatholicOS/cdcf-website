@@ -177,8 +177,19 @@ function cdcf_redirect_to_frontend_preview(): void
     if (!is_object($post)) {
         wp_die('Post not found.', 'Preview', ['response' => 404]);
     }
+    // Capability check first, then eligibility. Reversing this would let an
+    // unauthorized caller fingerprint a post id as draft vs published-or-CPT
+    // by reading the 400 vs 403 response code; gating on edit_post first means
+    // only capable users see the more specific eligibility message.
     if (!current_user_can('edit_post', $id)) {
         wp_die('You do not have permission to preview this post.', 'Preview', ['response' => 403]);
+    }
+    // Mirror the cdcf_frontend_permalink draft-branch allowlist (post/page,
+    // not-yet-published). Without this, a capable user could redirect a
+    // published post / CPT through here — the frontend would still 401 or
+    // 400, but the WP-side contract is clearer if we refuse here.
+    if (!cdcf_should_redirect_to_preview($post)) {
+        wp_die('This post is not eligible for frontend preview.', 'Preview', ['response' => 400]);
     }
     wp_redirect(cdcf_build_frontend_preview_url($post));
     exit;

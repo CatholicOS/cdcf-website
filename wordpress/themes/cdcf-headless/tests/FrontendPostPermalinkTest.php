@@ -299,4 +299,128 @@ final class FrontendPostPermalinkTest extends TestCase
             )
         );
     }
+
+    // ─── cdcf_redirect_to_frontend_preview (admin-post handler) ───
+    //
+    // The handler ends with wp_redirect()+exit and uses wp_die() for the
+    // error branches. We stub wp_die/wp_redirect to throw typed exceptions
+    // so each branch is observable without actually exiting PHPUnit, and
+    // we restore $_GET around each case.
+
+    private function stubHandlerTerminators(): void
+    {
+        Functions\when('wp_die')->alias(function ($message = '', $title = '', $args = []) {
+            throw new \RuntimeException(
+                'wp_die:' . (int)($args['response'] ?? 500) . ':' . (string)$message
+            );
+        });
+        Functions\when('wp_redirect')->alias(function ($url) {
+            throw new \RuntimeException('wp_redirect:' . $url);
+        });
+        Functions\when('absint')->alias(fn($v) => abs((int)$v));
+    }
+
+    public function test_handler_400s_on_missing_or_invalid_id(): void
+    {
+        $this->stubHandlerTerminators();
+        $_GET = [];
+
+        try {
+            cdcf_redirect_to_frontend_preview();
+            $this->fail('Expected wp_die for missing id.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringStartsWith('wp_die:400:', $e->getMessage());
+        }
+
+        $_GET = ['id' => '0'];
+        try {
+            cdcf_redirect_to_frontend_preview();
+            $this->fail('Expected wp_die for zero id.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringStartsWith('wp_die:400:', $e->getMessage());
+        }
+
+        $_GET = [];
+    }
+
+    public function test_handler_404s_when_post_not_found(): void
+    {
+        $this->stubHandlerTerminators();
+        Functions\when('get_post')->justReturn(null);
+        $_GET = ['id' => '1377'];
+
+        try {
+            cdcf_redirect_to_frontend_preview();
+            $this->fail('Expected wp_die for missing post.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringStartsWith('wp_die:404:', $e->getMessage());
+        } finally {
+            $_GET = [];
+        }
+    }
+
+    public function test_handler_403s_when_user_lacks_edit_post(): void
+    {
+        // Capability check runs BEFORE eligibility so unauthorized callers
+        // can't fingerprint draft vs published via the response code.
+        $this->stubHandlerTerminators();
+        Functions\when('get_post')->justReturn($this->makePost(['ID' => 1377, 'post_status' => 'draft']));
+        Functions\when('current_user_can')->justReturn(false);
+        $_GET = ['id' => '1377'];
+
+        try {
+            cdcf_redirect_to_frontend_preview();
+            $this->fail('Expected wp_die for missing capability.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringStartsWith('wp_die:403:', $e->getMessage());
+        } finally {
+            $_GET = [];
+        }
+    }
+
+    public function test_handler_400s_when_post_is_not_eligible_for_preview(): void
+    {
+        // A capable user trying to redirect a published post (or a CPT)
+        // through the preview endpoint is rejected — the frontend allowlist
+        // wouldn't accept it either, and we want the WP-side contract clear.
+        $this->stubHandlerTerminators();
+        Functions\when('get_post')->justReturn($this->makePost(['ID' => 5, 'post_status' => 'publish']));
+        Functions\when('current_user_can')->justReturn(true);
+        $_GET = ['id' => '5'];
+
+        try {
+            cdcf_redirect_to_frontend_preview();
+            $this->fail('Expected wp_die for ineligible post.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringStartsWith('wp_die:400:', $e->getMessage());
+            $this->assertStringContainsString('not eligible', $e->getMessage());
+        } finally {
+            $_GET = [];
+        }
+    }
+
+    public function test_handler_redirects_to_frontend_preview_url_on_happy_path(): void
+    {
+        $this->stubHandlerTerminators();
+        Functions\when('get_post')->justReturn(
+            $this->makePost(['ID' => 1377, 'post_status' => 'draft', 'post_name' => 'a-draft'])
+        );
+        Functions\when('current_user_can')->justReturn(true);
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('add_query_arg')->alias(function ($args, $url) {
+            return $url . '?' . http_build_query($args);
+        });
+        $_GET = ['id' => '1377'];
+
+        try {
+            cdcf_redirect_to_frontend_preview();
+            $this->fail('Expected wp_redirect.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringStartsWith('wp_redirect:http://localhost:3000/api/preview?', $e->getMessage());
+            $this->assertStringContainsString('id=1377', $e->getMessage());
+            $this->assertStringContainsString('slug=a-draft', $e->getMessage());
+        } finally {
+            $_GET = [];
+        }
+    }
 }
