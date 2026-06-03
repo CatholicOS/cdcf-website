@@ -365,7 +365,8 @@ function stripTrailingSlash(uri: string): string {
 // Idempotent: a value that already ends with Z is left alone.
 function toLastmodUtc(gmt: string): string {
   if (!gmt.includes('T')) return gmt
-  return gmt.endsWith('Z') ? gmt : `${gmt}Z`
+  if (gmt.endsWith('Z')) return gmt
+  return `${gmt}Z`
 }
 
 export async function getAllPages(
