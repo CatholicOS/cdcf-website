@@ -192,7 +192,10 @@ function cdcf_redirect_to_frontend_preview(): void
         wp_die('This post is not eligible for frontend preview.', 'Preview', ['response' => 400]);
     }
     wp_redirect(cdcf_build_frontend_preview_url($post));
+    // Unreachable in PHPUnit (wp_redirect is stubbed to throw before this).
+    // @codeCoverageIgnoreStart
     exit;
+    // @codeCoverageIgnoreEnd
 }
 
 /**

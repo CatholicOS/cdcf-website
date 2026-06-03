@@ -155,6 +155,17 @@ final class FrontendPostPermalinkTest extends TestCase
         );
     }
 
+    public function test_filter_bails_out_when_get_post_returns_null(): void
+    {
+        // page_link can pass a post id whose post no longer exists
+        // (e.g. trashed mid-request). The filter must return $link verbatim.
+        Functions\when('is_graphql_request')->justReturn(false);
+        Functions\when('get_post')->justReturn(null);
+
+        $original = 'https://cms.example.org/?p=999';
+        $this->assertSame($original, cdcf_frontend_permalink($original, 999));
+    }
+
     public function test_filter_leaves_permalink_untouched_during_graphql_requests(): void
     {
         // Stubbing is_graphql_request both declares it (function_exists true)
@@ -197,6 +208,58 @@ final class FrontendPostPermalinkTest extends TestCase
         $this->assertStringContainsString('type=page', $url);
         $this->assertStringContainsString('slug=about', $url);
         $this->assertStringContainsString('lang=it', $url);
+    }
+
+    /**
+     * Brain Monkey's Functions\when() auto-declares the target function in the
+     * PHP process, and PHP can't undeclare a function — so once ANY earlier
+     * test stubs pll_get_post_language, the helper's function_exists() check
+     * stays true for the rest of the process. Run this case in an isolated
+     * process so the lang-fallback (": ''" arm) is reachable.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_preview_url_emits_empty_lang_when_polylang_is_not_installed(): void
+    {
+        Functions\when('add_query_arg')->alias(function ($args, $url) {
+            return $url . '?' . http_build_query($args);
+        });
+
+        $url = cdcf_build_frontend_preview_url(
+            $this->makePost(['ID' => 7, 'post_type' => 'page', 'post_name' => 'no-polylang'])
+        );
+
+        // lang param is present but empty (no Polylang → no value to fill).
+        $this->assertStringContainsString('lang=', $url);
+        $this->assertStringContainsString('id=7', $url);
+    }
+
+    /**
+     * Constants can't be defined twice in the same PHP process, so the
+     * defined-CDCF_FRONTEND_URL / defined-CDCF_PREVIEW_SECRET truthy arms
+     * of the helper need an isolated process to be observable. PHPUnit's
+     * @runInSeparateProcess takes care of forking the runtime.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_preview_url_uses_defined_constants_when_present(): void
+    {
+        define('CDCF_FRONTEND_URL', 'https://frontend.example.org');
+        define('CDCF_PREVIEW_SECRET', 'shh-it-is-a-secret');
+
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('add_query_arg')->alias(function ($args, $url) {
+            return $url . '?' . http_build_query($args);
+        });
+
+        $url = cdcf_build_frontend_preview_url(
+            $this->makePost(['ID' => 42, 'post_name' => 'hello'])
+        );
+
+        $this->assertStringStartsWith('https://frontend.example.org/api/preview?', $url);
+        $this->assertStringContainsString('secret=shh-it-is-a-secret', $url);
     }
 
     public function test_preview_url_works_for_never_published_draft_with_empty_slug(): void
