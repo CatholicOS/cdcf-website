@@ -334,7 +334,10 @@ describe('getPostsForSitemap mapping', () => {
     expect(result.map((p) => p.slug)).toEqual(['visible'])
   })
 
-  it('falls back to date when modified is missing', async () => {
+  it('falls back to date when modified is missing and translations is undefined', async () => {
+    // Covers both ?? short-circuits in one mock: `p.modifiedGmt ?? p.dateGmt`
+    // (the dateGmt arm) and `p.translations ?? []` (the [] arm). Real WP
+    // responses can omit translations entirely for single-locale posts.
     wpQueryMock.mockResolvedValueOnce({
       posts: {
         nodes: [
@@ -343,7 +346,6 @@ describe('getPostsForSitemap mapping', () => {
             dateGmt: '2026-01-15',
             modifiedGmt: null,
             postSettings: null,
-            translations: [],
           },
         ],
       },
@@ -351,6 +353,7 @@ describe('getPostsForSitemap mapping', () => {
 
     const [post] = await getPostsForSitemap('en')
     expect(post.modified).toBe('2026-01-15')
+    expect(post.translations).toEqual([])
   })
 
   it('lowercases translation language codes', async () => {
@@ -409,6 +412,20 @@ describe('getProjectsForSitemap mapping', () => {
     })
   })
 
+  it('falls back to date when modified is missing and translations is undefined', async () => {
+    // Mirrors the post-fallback test: covers `p.modifiedGmt ?? p.dateGmt`
+    // (dateGmt arm) and `p.translations ?? []` (the [] arm).
+    wpQueryMock.mockResolvedValueOnce({
+      projects: {
+        nodes: [{ slug: 'bar', dateGmt: '2026-01-15', modifiedGmt: null }],
+      },
+    })
+
+    const [project] = await getProjectsForSitemap('en')
+    expect(project.modified).toBe('2026-01-15')
+    expect(project.translations).toEqual([])
+  })
+
   it('returns [] if wpQuery rejects', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     wpQueryMock.mockRejectedValueOnce(new Error('boom'))
@@ -440,15 +457,18 @@ describe('getAcademicCollaborationsForSitemap mapping', () => {
     })
   })
 
-  it('falls back to date when modified is absent', async () => {
+  it('falls back to date when modified is absent and translations is undefined', async () => {
+    // Mirrors the post-fallback test: covers `c.modifiedGmt ?? c.dateGmt`
+    // (dateGmt arm) and `c.translations ?? []` (the [] arm).
     wpQueryMock.mockResolvedValueOnce({
       academicCollaborations: {
-        nodes: [{ slug: 'oxford', dateGmt: '2026-01-15', modifiedGmt: null, translations: [] }],
+        nodes: [{ slug: 'oxford', dateGmt: '2026-01-15', modifiedGmt: null }],
       },
     })
 
     const [collab] = await getAcademicCollaborationsForSitemap('en')
     expect(collab.modified).toBe('2026-01-15')
+    expect(collab.translations).toEqual([])
   })
 
   it('returns [] if wpQuery rejects', async () => {
