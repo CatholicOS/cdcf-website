@@ -42,11 +42,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The cache step runs AFTER `npm ci`, so an unscoped `**/*.ts` glob
+      # traverses node_modules and the key changes on every dependency bump —
+      # cache miss on every build, hence Next's "No build cache found" warning.
+      # Scope the glob to our actual source trees so the key is stable across
+      # dep updates (npm install retains the lock-hash component of the key).
       - name: Cache Next.js build
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .next/cache
-          key: nextjs-pr-${{ hashFiles('package-lock.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx', '**/*.css') }}
+          key: nextjs-pr-${{ hashFiles('package-lock.json') }}-${{ hashFiles('app/**/*.{ts,tsx,css}', 'lib/**/*.{ts,tsx,css}', 'src/**/*.{ts,tsx,css}', 'components/**/*.{ts,tsx,css}', 'css/**/*.{ts,tsx,css}', 'messages/**/*.json', '*.ts', '*.mjs', 'tsconfig.json') }}
           restore-keys: nextjs-pr-${{ hashFiles('package-lock.json') }}-
 
       # Build with the same env vars production uses so we exercise the
