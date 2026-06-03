@@ -391,13 +391,16 @@ describe('getPostsForSitemap mapping', () => {
 
 describe('getProjectsForSitemap mapping', () => {
   it('maps modified, slug, and lowercased translation codes', async () => {
+    // Full ISO datetime input (matches actual WPGraphQL *Gmt format) so
+    // the test exercises toLastmodUtc's Z-append branch through this
+    // mapper, not just the shared helper via getAllPages.
     wpQueryMock.mockResolvedValueOnce({
       projects: {
         nodes: [
           {
             slug: 'foo',
-            dateGmt: '2026-02-01',
-            modifiedGmt: '2026-03-01',
+            dateGmt: '2026-02-01T00:00:00',
+            modifiedGmt: '2026-03-01T12:34:56',
             translations: [{ language: { code: 'ES' }, slug: 'foo-es' }],
           },
         ],
@@ -407,7 +410,7 @@ describe('getProjectsForSitemap mapping', () => {
     const [project] = await getProjectsForSitemap('en')
     expect(project).toEqual({
       slug: 'foo',
-      modified: '2026-03-01',
+      modified: '2026-03-01T12:34:56Z',
       translations: [{ code: 'es', slug: 'foo-es' }],
     })
   })
@@ -436,13 +439,15 @@ describe('getProjectsForSitemap mapping', () => {
 
 describe('getAcademicCollaborationsForSitemap mapping', () => {
   it('maps modified, slug, and lowercased translation codes', async () => {
+    // Full ISO datetime input — exercises toLastmodUtc's Z-append branch
+    // through this mapper (mirrors the projects test).
     wpQueryMock.mockResolvedValueOnce({
       academicCollaborations: {
         nodes: [
           {
             slug: 'notre-dame',
-            dateGmt: '2026-02-01',
-            modifiedGmt: '2026-03-01',
+            dateGmt: '2026-02-01T00:00:00',
+            modifiedGmt: '2026-03-01T12:34:56',
             translations: [{ language: { code: 'IT' }, slug: 'notre-dame-it' }],
           },
         ],
@@ -452,7 +457,7 @@ describe('getAcademicCollaborationsForSitemap mapping', () => {
     const [collab] = await getAcademicCollaborationsForSitemap('en')
     expect(collab).toEqual({
       slug: 'notre-dame',
-      modified: '2026-03-01',
+      modified: '2026-03-01T12:34:56Z',
       translations: [{ code: 'it', slug: 'notre-dame-it' }],
     })
   })
