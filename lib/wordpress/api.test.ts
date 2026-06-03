@@ -133,7 +133,7 @@ describe('getAllPages mapping', () => {
         nodes: [
           {
             uri: '/it/chi-siamo/',
-            modified: '2026-05-01T00:00:00',
+            modifiedGmt: '2026-05-01T00:00:00',
             translations: [
               { language: { code: 'EN' }, uri: '/about/' },
               { language: { code: 'FR' }, uri: '/fr/a-propos/' },
@@ -146,7 +146,7 @@ describe('getAllPages mapping', () => {
     const [page] = await getAllPages('it')
 
     expect(page.enUri).toBe('/about')
-    expect(page.modified).toBe('2026-05-01T00:00:00')
+    expect(page.modified).toBe('2026-05-01T00:00:00Z')
     expect(page.availableLocales.sort()).toEqual(['en', 'fr', 'it'])
     expect(page.uriByLocale.get('it')).toBe('/chi-siamo')
     expect(page.uriByLocale.get('en')).toBe('/about')
@@ -159,7 +159,7 @@ describe('getAllPages mapping', () => {
         nodes: [
           {
             uri: '/about/',
-            modified: '2026-05-01',
+            modifiedGmt: '2026-05-01',
             translations: [{ language: { code: 'IT' }, uri: '/it/chi-siamo/' }],
           },
         ],
@@ -183,7 +183,7 @@ describe('getAllPages mapping', () => {
         nodes: [
           {
             uri: '/pt/governanca/governanca-de-ia/',
-            modified: '2026-05-01',
+            modifiedGmt: '2026-05-01',
             translations: [{ language: { code: 'FR' }, uri: '/fr/gouvernance/gouvernance-de-lia/' }],
           },
         ],
@@ -209,7 +209,7 @@ describe('getAllPages mapping', () => {
         nodes: [
           {
             uri: '/about/',
-            modified: '2026-02-28T14:11:37',
+            modifiedGmt: '2026-02-28T14:11:37',
             translations: [
               { language: { code: 'IT' }, uri: '/it/about-2/' },
               { language: { code: 'ES' }, uri: '/es/about-3/' },
@@ -232,6 +232,27 @@ describe('getAllPages mapping', () => {
     expect(page.uriByLocale.get('de')).toBe('/about-6')
   })
 
+  it('does not double-Z a modifiedGmt that already ends with Z', async () => {
+    // Belt-and-suspenders: the toLastmodUtc helper is idempotent. If WP ever
+    // starts emitting *Gmt fields with a trailing Z (some plugins normalize
+    // them), the helper must not produce "...ZZ" — a sitemap validator would
+    // reject that as an invalid date.
+    wpQueryMock.mockResolvedValueOnce({
+      pages: {
+        nodes: [
+          {
+            uri: '/already-utc',
+            modifiedGmt: '2026-05-01T00:00:00Z',
+          },
+        ],
+      },
+    })
+
+    const [page] = await getAllPages('en')
+
+    expect(page.modified).toBe('2026-05-01T00:00:00Z')
+  })
+
   it('passes through a URI that already has no trailing slash', async () => {
     // Belt-and-suspenders: WordPress in practice always emits trailing slashes
     // on page URIs, but the trailing-slash strip must be a no-op for already-
@@ -242,7 +263,7 @@ describe('getAllPages mapping', () => {
         nodes: [
           {
             uri: '/about',
-            modified: '2026-05-01',
+            modifiedGmt: '2026-05-01',
           },
         ],
       },
@@ -263,7 +284,7 @@ describe('getAllPages mapping', () => {
         nodes: [
           {
             uri: '/',
-            modified: '2026-05-01',
+            modifiedGmt: '2026-05-01',
             translations: [{ language: { code: 'IT' }, uri: '/it/' }],
           },
         ],
@@ -292,15 +313,15 @@ describe('getPostsForSitemap mapping', () => {
         nodes: [
           {
             slug: 'visible',
-            date: '2026-01-01',
-            modified: '2026-04-01',
+            dateGmt: '2026-01-01',
+            modifiedGmt: '2026-04-01',
             postSettings: { hideFromBlog: false },
             translations: [],
           },
           {
             slug: 'hidden',
-            date: '2026-01-02',
-            modified: '2026-04-02',
+            dateGmt: '2026-01-02',
+            modifiedGmt: '2026-04-02',
             postSettings: { hideFromBlog: true },
             translations: [],
           },
@@ -319,8 +340,8 @@ describe('getPostsForSitemap mapping', () => {
         nodes: [
           {
             slug: 'no-modified',
-            date: '2026-01-15',
-            modified: null,
+            dateGmt: '2026-01-15',
+            modifiedGmt: null,
             postSettings: null,
             translations: [],
           },
@@ -329,7 +350,7 @@ describe('getPostsForSitemap mapping', () => {
     })
 
     const [post] = await getPostsForSitemap('en')
-    expect(post.modified).toBe('2026-01-15')
+    expect(post.modified).toBe('2026-01-15Z')
   })
 
   it('lowercases translation language codes', async () => {
@@ -338,8 +359,8 @@ describe('getPostsForSitemap mapping', () => {
         nodes: [
           {
             slug: 'p',
-            date: '2026-01-01',
-            modified: '2026-01-01',
+            dateGmt: '2026-01-01',
+            modifiedGmt: '2026-01-01',
             postSettings: { hideFromBlog: false },
             translations: [
               { language: { code: 'IT' }, slug: 'p-it' },
@@ -372,8 +393,8 @@ describe('getProjectsForSitemap mapping', () => {
         nodes: [
           {
             slug: 'foo',
-            date: '2026-02-01',
-            modified: '2026-03-01',
+            dateGmt: '2026-02-01',
+            modifiedGmt: '2026-03-01',
             translations: [{ language: { code: 'ES' }, slug: 'foo-es' }],
           },
         ],
@@ -383,7 +404,7 @@ describe('getProjectsForSitemap mapping', () => {
     const [project] = await getProjectsForSitemap('en')
     expect(project).toEqual({
       slug: 'foo',
-      modified: '2026-03-01',
+      modified: '2026-03-01Z',
       translations: [{ code: 'es', slug: 'foo-es' }],
     })
   })
@@ -403,8 +424,8 @@ describe('getAcademicCollaborationsForSitemap mapping', () => {
         nodes: [
           {
             slug: 'notre-dame',
-            date: '2026-02-01',
-            modified: '2026-03-01',
+            dateGmt: '2026-02-01',
+            modifiedGmt: '2026-03-01',
             translations: [{ language: { code: 'IT' }, slug: 'notre-dame-it' }],
           },
         ],
@@ -414,7 +435,7 @@ describe('getAcademicCollaborationsForSitemap mapping', () => {
     const [collab] = await getAcademicCollaborationsForSitemap('en')
     expect(collab).toEqual({
       slug: 'notre-dame',
-      modified: '2026-03-01',
+      modified: '2026-03-01Z',
       translations: [{ code: 'it', slug: 'notre-dame-it' }],
     })
   })
@@ -422,12 +443,12 @@ describe('getAcademicCollaborationsForSitemap mapping', () => {
   it('falls back to date when modified is absent', async () => {
     wpQueryMock.mockResolvedValueOnce({
       academicCollaborations: {
-        nodes: [{ slug: 'oxford', date: '2026-01-15', modified: null, translations: [] }],
+        nodes: [{ slug: 'oxford', dateGmt: '2026-01-15', modifiedGmt: null, translations: [] }],
       },
     })
 
     const [collab] = await getAcademicCollaborationsForSitemap('en')
-    expect(collab.modified).toBe('2026-01-15')
+    expect(collab.modified).toBe('2026-01-15Z')
   })
 
   it('returns [] if wpQuery rejects', async () => {

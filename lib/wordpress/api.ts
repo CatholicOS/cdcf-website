@@ -333,7 +333,7 @@ export interface WPSitemapPage {
 interface RawAllPagesNode {
   slug: string
   uri: string
-  modified: string
+  modifiedGmt: string
   translations?: { language: { code: string }; uri: string }[]
 }
 
@@ -353,6 +353,15 @@ function stripLocalePrefix(uri: string, locale: string): string {
 // the trailing slash here; keep "/" intact for the home page.
 function stripTrailingSlash(uri: string): string {
   return uri.length > 1 && uri.endsWith('/') ? uri.replace(/\/+$/, '') : uri
+}
+
+// WPGraphQL returns *GmtDate fields as "YYYY-MM-DDTHH:MM:SS" with NO timezone
+// designator. The sitemap spec (W3C Datetime) requires a TZ marker whenever a
+// time-of-day is present; without it, Google Search Console rejects the
+// sitemap with "invalid date". The *Gmt variants are by definition UTC, so we
+// append "Z". Idempotent: a value that already ends with Z is left alone.
+function toLastmodUtc(gmt: string): string {
+  return gmt.endsWith('Z') ? gmt : `${gmt}Z`
 }
 
 export async function getAllPages(
@@ -390,7 +399,7 @@ export async function getAllPages(
       }
       const otherLocales = node.translations?.map((t) => t.language.code.toLowerCase()) ?? []
       const availableLocales = Array.from(new Set([locale, ...otherLocales]))
-      return { enUri, uriByLocale, modified: node.modified, availableLocales }
+      return { enUri, uriByLocale, modified: toLastmodUtc(node.modifiedGmt), availableLocales }
     })
   } catch (error) {
     console.error('Failed to fetch all pages:', error)
@@ -406,8 +415,8 @@ export interface WPSitemapPost {
 
 interface RawSitemapPost {
   slug: string
-  date: string
-  modified?: string | null
+  dateGmt: string
+  modifiedGmt?: string | null
   postSettings?: { hideFromBlog?: boolean | null } | null
   translations?: { language: { code: string }; slug: string }[]
 }
@@ -425,7 +434,7 @@ export async function getPostsForSitemap(
       .filter((p) => !p.postSettings?.hideFromBlog)
       .map((p) => ({
         slug: p.slug,
-        modified: p.modified ?? p.date,
+        modified: toLastmodUtc(p.modifiedGmt ?? p.dateGmt),
         translations: (p.translations ?? []).map((t) => ({
           code: t.language.code.toLowerCase(),
           slug: t.slug,
@@ -445,8 +454,8 @@ export interface WPSitemapProject {
 
 interface RawSitemapProject {
   slug: string
-  date: string
-  modified?: string | null
+  dateGmt: string
+  modifiedGmt?: string | null
   translations?: { language: { code: string }; slug: string }[]
 }
 
@@ -461,7 +470,7 @@ export async function getProjectsForSitemap(
 
     return data.projects.nodes.map((p) => ({
       slug: p.slug,
-      modified: p.modified ?? p.date,
+      modified: toLastmodUtc(p.modifiedGmt ?? p.dateGmt),
       translations: (p.translations ?? []).map((t) => ({
         code: t.language.code.toLowerCase(),
         slug: t.slug,
@@ -487,7 +496,7 @@ export async function getAcademicCollaborationsForSitemap(
 
     return data.academicCollaborations.nodes.map((c) => ({
       slug: c.slug,
-      modified: c.modified ?? c.date,
+      modified: toLastmodUtc(c.modifiedGmt ?? c.dateGmt),
       translations: (c.translations ?? []).map((t) => ({
         code: t.language.code.toLowerCase(),
         slug: t.slug,

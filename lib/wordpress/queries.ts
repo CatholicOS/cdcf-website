@@ -540,7 +540,7 @@ export const GET_ALL_PAGES = `
       nodes {
         slug
         uri
-        modified
+        modifiedGmt
         translations {
           language { code }
           uri
@@ -557,8 +557,8 @@ export const GET_POSTS_FOR_SITEMAP = `
     posts(where: { language: $language }, first: 1000) {
       nodes {
         slug
-        date
-        modified
+        dateGmt
+        modifiedGmt
         postSettings {
           hideFromBlog
         }
@@ -578,8 +578,8 @@ export const GET_PROJECTS_FOR_SITEMAP = `
     projects(where: { language: $language }, first: 100) {
       nodes {
         slug
-        date
-        modified
+        dateGmt
+        modifiedGmt
         translations {
           language { code }
           slug
@@ -594,8 +594,8 @@ export const GET_ACADEMIC_COLLABORATIONS_FOR_SITEMAP = `
     academicCollaborations(where: { language: $language }, first: 100) {
       nodes {
         slug
-        date
-        modified
+        dateGmt
+        modifiedGmt
         translations {
           language { code }
           slug
