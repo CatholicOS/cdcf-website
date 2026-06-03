@@ -105,16 +105,19 @@ export async function GET(
   const entries: string[] = []
 
   for (const page of pages) {
-    const uri = page.enUri === '/' ? '/' : page.enUri
-    const isHome = uri === '/'
+    // Polylang free can't share slugs across languages: every non-EN page has
+    // an auto-collision suffix ("/about-2" IT, "/about-3" ES, ...). Use the
+    // map of real per-locale URIs so loc and hreflang alternates both point at
+    // WP's canonical URL for each language, not a derived /<lang>+<en-slug>.
+    const ownPath = page.uriByLocale.get(lang) ?? page.enUri
+    const isHome = page.enUri === '/'
     entries.push(
-      urlEntry(
-        buildUrl(lang, uri),
+      urlEntryByLocale(
+        buildUrl(lang, ownPath),
         page.modified,
         'weekly',
         isHome ? 1.0 : 0.8,
-        uri,
-        page.availableLocales
+        page.uriByLocale
       )
     )
   }

@@ -145,9 +145,12 @@ describe('getAllPages mapping', () => {
 
     const [page] = await getAllPages('it')
 
-    expect(page.enUri).toBe('/about/')
+    expect(page.enUri).toBe('/about')
     expect(page.modified).toBe('2026-05-01T00:00:00')
     expect(page.availableLocales.sort()).toEqual(['en', 'fr', 'it'])
+    expect(page.uriByLocale.get('it')).toBe('/chi-siamo')
+    expect(page.uriByLocale.get('en')).toBe('/about')
+    expect(page.uriByLocale.get('fr')).toBe('/a-propos')
   })
 
   it('keeps the node uri as enUri when locale is EN', async () => {
@@ -165,8 +168,10 @@ describe('getAllPages mapping', () => {
 
     const [page] = await getAllPages('en')
 
-    expect(page.enUri).toBe('/about/')
+    expect(page.enUri).toBe('/about')
     expect(page.availableLocales.sort()).toEqual(['en', 'it'])
+    expect(page.uriByLocale.get('en')).toBe('/about')
+    expect(page.uriByLocale.get('it')).toBe('/chi-siamo')
   })
 
   it('strips the Polylang locale prefix when a page has no EN translation', async () => {
@@ -187,8 +192,89 @@ describe('getAllPages mapping', () => {
 
     const [page] = await getAllPages('pt')
 
-    expect(page.enUri).toBe('/governanca/governanca-de-ia/')
+    expect(page.enUri).toBe('/governanca/governanca-de-ia')
     expect(page.availableLocales.sort()).toEqual(['fr', 'pt'])
+    expect(page.uriByLocale.get('pt')).toBe('/governanca/governanca-de-ia')
+    expect(page.uriByLocale.get('fr')).toBe('/gouvernance/gouvernance-de-lia')
+  })
+
+  it('preserves WP slug-collision suffixes per locale (real /about pattern)', async () => {
+    // Polylang free can't share slugs across languages, so every non-EN
+    // translation of /about lands as /<lang>/about-N. The sitemap must emit
+    // those exact URLs in the hreflang alternates, not derive them from the
+    // EN slug, or Google sees a sitemap claiming URLs that don't match WP's
+    // canonical. Mirrors the live WP data for EN page id 5.
+    wpQueryMock.mockResolvedValueOnce({
+      pages: {
+        nodes: [
+          {
+            uri: '/about/',
+            modified: '2026-02-28T14:11:37',
+            translations: [
+              { language: { code: 'IT' }, uri: '/it/about-2/' },
+              { language: { code: 'ES' }, uri: '/es/about-3/' },
+              { language: { code: 'FR' }, uri: '/fr/about-4/' },
+              { language: { code: 'PT' }, uri: '/pt/about-5/' },
+              { language: { code: 'DE' }, uri: '/de/about-6/' },
+            ],
+          },
+        ],
+      },
+    })
+
+    const [page] = await getAllPages('en')
+
+    expect(page.uriByLocale.get('en')).toBe('/about')
+    expect(page.uriByLocale.get('it')).toBe('/about-2')
+    expect(page.uriByLocale.get('es')).toBe('/about-3')
+    expect(page.uriByLocale.get('fr')).toBe('/about-4')
+    expect(page.uriByLocale.get('pt')).toBe('/about-5')
+    expect(page.uriByLocale.get('de')).toBe('/about-6')
+  })
+
+  it('passes through a URI that already has no trailing slash', async () => {
+    // Belt-and-suspenders: WordPress in practice always emits trailing slashes
+    // on page URIs, but the trailing-slash strip must be a no-op for already-
+    // clean URIs (and for translations === undefined, a real case for an
+    // English page with no other languages yet).
+    wpQueryMock.mockResolvedValueOnce({
+      pages: {
+        nodes: [
+          {
+            uri: '/about',
+            modified: '2026-05-01',
+          },
+        ],
+      },
+    })
+
+    const [page] = await getAllPages('en')
+
+    expect(page.enUri).toBe('/about')
+    expect(page.uriByLocale.get('en')).toBe('/about')
+    expect(page.availableLocales).toEqual(['en'])
+  })
+
+  it('keeps the home URI as "/" (does not strip the lone slash)', async () => {
+    // WordPress emits "/" for the front page; the trailing-slash strip must
+    // not collapse it to "" or the sitemap will emit "https://…<empty>".
+    wpQueryMock.mockResolvedValueOnce({
+      pages: {
+        nodes: [
+          {
+            uri: '/',
+            modified: '2026-05-01',
+            translations: [{ language: { code: 'IT' }, uri: '/it/' }],
+          },
+        ],
+      },
+    })
+
+    const [page] = await getAllPages('en')
+
+    expect(page.enUri).toBe('/')
+    expect(page.uriByLocale.get('en')).toBe('/')
+    expect(page.uriByLocale.get('it')).toBe('/')
   })
 
   it('returns [] if wpQuery rejects', async () => {
