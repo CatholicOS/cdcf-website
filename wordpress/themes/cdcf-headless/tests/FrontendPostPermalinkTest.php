@@ -424,11 +424,19 @@ final class FrontendPostPermalinkTest extends TestCase
 
     public function test_handler_403s_when_user_lacks_edit_post(): void
     {
-        // Capability check runs BEFORE eligibility so unauthorized callers
-        // can't fingerprint draft vs published via the response code.
+        // Use a PUBLISHED post (i.e. one that would ALSO fail the
+        // eligibility check) to verify the ordering invariant: the 403 must
+        // come from the capability check, not from the eligibility check
+        // that runs after it. If the order were ever reversed (eligibility
+        // first), this same fixture would produce a 400 and the test would
+        // fail. Also verify current_user_can was invoked with the expected
+        // capability and id, not some looser check.
         $this->stubHandlerTerminators();
-        Functions\when('get_post')->justReturn($this->makePost(['ID' => 1377, 'post_status' => 'draft']));
-        Functions\when('current_user_can')->justReturn(false);
+        Functions\when('get_post')->justReturn($this->makePost(['ID' => 1377, 'post_status' => 'publish']));
+        Functions\expect('current_user_can')
+            ->once()
+            ->with('edit_post', 1377)
+            ->andReturn(false);
         $_GET = ['id' => '1377'];
 
         try {
