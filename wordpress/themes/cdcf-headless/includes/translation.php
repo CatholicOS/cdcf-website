@@ -123,7 +123,10 @@ function cdcf_process_translation($post_id, $source_id, $target_lang) {
     }
 
     $target_name = CDCF_LOCALE_NAMES[$target_lang] ?? $target_lang;
-    $source_lang = pll_default_language('slug');
+    // Read the source language from the post itself so authors can draft in
+    // any locale (e.g. de → en/it/es/fr/pt). Falls back to the site default
+    // for posts not yet linked into a Polylang group.
+    $source_lang = pll_get_post_language($source_id) ?: pll_default_language('slug');
     $source_name = CDCF_LOCALE_NAMES[$source_lang] ?? $source_lang;
 
     // Pull oversized fields out of the batch and chunk them. A single ~30K

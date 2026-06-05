@@ -72,6 +72,10 @@ final class ProcessTranslationTest extends TestCase
             static fn(string $opt) => $opt === 'cdcf_openai_api_key' ? 'sk-test' : null
         );
         Functions\when('pll_default_language')->justReturn('en');
+        // Default to empty so tests that don't care about source language
+        // fall through to pll_default_language. Tests exercising a
+        // non-default source lang override this per-test.
+        Functions\when('pll_get_post_language')->justReturn('');
         Functions\when('get_post_meta')->justReturn('');
         Functions\when('get_field_objects')->justReturn([]);
         Functions\when('get_field')->justReturn('');
@@ -436,6 +440,55 @@ final class ProcessTranslationTest extends TestCase
         $publishCall = end($updates);
         $this->assertSame(99, $publishCall['ID']);
         $this->assertSame('publish', $publishCall['post_status']);
+    }
+
+    // ─── Source-language detection ────────────────────────────────────
+
+    public function test_source_language_read_from_source_post_not_site_default(): void
+    {
+        // An author drafted a bio in German. The OpenAI prompt must say
+        // "translate from German to Italian", not "from English to Italian"
+        // (which it did before the pll_get_post_language($source_id) fix).
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->fakePost(['post_status' => 'draft']));
+        Functions\when('pll_get_post_language')->justReturn('de');
+
+        $capturedSourceName = null;
+        Functions\when('cdcf_openai_translate')->alias(
+            function (array $strings, string $source_name, string $target_name) use (&$capturedSourceName): array {
+                $capturedSourceName = $source_name;
+                return ['post_title' => 'Titolo Tradotto'];
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        cdcf_process_translation(99, 100, 'it');
+
+        $this->assertSame('German', $capturedSourceName);
+    }
+
+    public function test_source_language_falls_back_to_site_default_when_unset(): void
+    {
+        // Source post not yet linked into a Polylang group
+        // (pll_get_post_language → ''); fall back to the site default so
+        // legacy callers (everything that seeds in EN) keep working.
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->fakePost(['post_status' => 'draft']));
+        Functions\when('pll_get_post_language')->justReturn('');
+        Functions\when('pll_default_language')->justReturn('en');
+
+        $capturedSourceName = null;
+        Functions\when('cdcf_openai_translate')->alias(
+            function (array $strings, string $source_name, string $target_name) use (&$capturedSourceName): array {
+                $capturedSourceName = $source_name;
+                return ['post_title' => 'X'];
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        cdcf_process_translation(99, 100, 'it');
+
+        $this->assertSame('English', $capturedSourceName);
     }
 
     public function test_does_not_auto_publish_when_target_already_published(): void
