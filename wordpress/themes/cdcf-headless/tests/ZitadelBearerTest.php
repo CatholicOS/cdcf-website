@@ -19,6 +19,8 @@ use PHPUnit\Framework\TestCase;
  */
 final class ZitadelBearerTest extends TestCase
 {
+    private const TEST_EXPECTED_AUD = '999000111000222000';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -62,6 +64,23 @@ final class ZitadelBearerTest extends TestCase
         ];
     }
 
+    /**
+     * Mint a fake JWT with the given payload claims. Header and signature
+     * are arbitrary strings — only the middle segment is read by the
+     * audience verifier (signature verification is userinfo's job).
+     *
+     * Pass aud=null to omit the claim entirely (for negative tests).
+     */
+    private function mintJwt(array $payloadOverrides = []): string
+    {
+        $payload = array_merge(['aud' => self::TEST_EXPECTED_AUD], $payloadOverrides);
+        if ($payload['aud'] === null) {
+            unset($payload['aud']);
+        }
+        $encoded = rtrim(strtr(base64_encode((string) json_encode($payload)), '+/', '-_'), '=');
+        return 'header-placeholder.' . $encoded . '.signature-placeholder';
+    }
+
     // ─── Early-exit branches ──────────────────────────────────────────
 
     public function test_returns_user_id_unchanged_when_already_authenticated(): void
@@ -96,7 +115,7 @@ final class ZitadelBearerTest extends TestCase
 
     public function test_cache_hit_returns_cached_user_id_without_userinfo_call(): void
     {
-        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer cached.jwt';
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
         $this->stubWp();
         Functions\when('get_transient')->justReturn(99);
         Functions\expect('wp_remote_post')->never();
@@ -108,7 +127,7 @@ final class ZitadelBearerTest extends TestCase
 
     public function test_valid_token_with_verified_email_returns_wp_user_id(): void
     {
-        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer valid.jwt';
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
         $this->stubWp();
         Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
             'sub'            => 'zitadel-user-id-123',
@@ -136,7 +155,10 @@ final class ZitadelBearerTest extends TestCase
 
     public function test_token_hash_used_as_cache_key_not_raw_token(): void
     {
-        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer sensitive.jwt.value';
+        // Mint a JWT with a memorable marker in a non-aud claim so we can
+        // assert the marker doesn't leak into the cache key.
+        $token = $this->mintJwt(['sub' => 'sensitive-marker']);
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $token;
         $this->stubWp();
         Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
             'email'          => 'a@b.org',
@@ -157,13 +179,13 @@ final class ZitadelBearerTest extends TestCase
 
         $this->assertNotNull($captured_key);
         $this->assertStringNotContainsString('sensitive', $captured_key);
-        $this->assertStringNotContainsString('jwt', $captured_key);
-        $this->assertSame('cdcf_zb_' . hash('sha256', 'sensitive.jwt.value'), $captured_key);
+        $this->assertStringNotContainsString($token, $captured_key);
+        $this->assertSame('cdcf_zb_' . hash('sha256', $token), $captured_key);
     }
 
     public function test_email_verified_false_falls_through(): void
     {
-        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer unverified.jwt';
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
         $this->stubWp();
         Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
             'email'          => 'unconfirmed@example.org',
@@ -177,7 +199,7 @@ final class ZitadelBearerTest extends TestCase
 
     public function test_missing_email_falls_through(): void
     {
-        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer noemail.jwt';
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
         $this->stubWp();
         // sub present, email field omitted entirely (some IdPs allow this).
         Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
@@ -194,7 +216,7 @@ final class ZitadelBearerTest extends TestCase
     {
         // First-time login from a Zitadel user the admin hasn't yet
         // mapped to a WP account — fall through, no auto-provisioning.
-        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer unknown.jwt';
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
         $this->stubWp();
         Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
             'email'          => 'stranger@example.org',
@@ -208,7 +230,7 @@ final class ZitadelBearerTest extends TestCase
 
     public function test_userinfo_non_200_falls_through(): void
     {
-        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer expired.jwt';
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
         $this->stubWp();
         Functions\when('wp_remote_post')->justReturn(
             $this->buildUserinfoResponse(401, ['error' => 'invalid_token'])
@@ -221,7 +243,7 @@ final class ZitadelBearerTest extends TestCase
 
     public function test_userinfo_malformed_json_falls_through(): void
     {
-        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer bogus.jwt';
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
         $this->stubWp();
         Functions\when('wp_remote_post')->justReturn([
             'response' => ['code' => 200],
@@ -235,7 +257,7 @@ final class ZitadelBearerTest extends TestCase
 
     public function test_wp_error_from_http_layer_falls_through(): void
     {
-        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer network-died.jwt';
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
         $this->stubWp();
         $err = new WP_Error('http_request_failed', 'connect timeout');
         Functions\when('wp_remote_post')->justReturn($err);
@@ -247,11 +269,96 @@ final class ZitadelBearerTest extends TestCase
 
     // ─── Header-extraction edge cases ────────────────────────────────
 
+    // ─── Audience verification ───────────────────────────────────────
+
+    public function test_token_with_wrong_audience_falls_through_without_userinfo_call(): void
+    {
+        // Sibling-property token: a token validly issued by Zitadel for
+        // LitCal or OntoKit. Userinfo would happily return 200 for it.
+        // Audience check must reject it BEFORE the userinfo round-trip.
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt([
+            'aud' => 'litcal-client-id-not-ours',
+        ]);
+        Functions\expect('wp_remote_post')->never();
+        Functions\expect('get_transient')->never();
+
+        $this->assertFalse(cdcf_zitadel_bearer_authenticate(false));
+    }
+
+    public function test_token_missing_aud_claim_falls_through(): void
+    {
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt(['aud' => null]);
+        Functions\expect('wp_remote_post')->never();
+
+        $this->assertFalse(cdcf_zitadel_bearer_authenticate(false));
+    }
+
+    public function test_token_with_aud_array_containing_match_is_accepted(): void
+    {
+        // RFC 7519 permits aud to be either a string or string[]. Zitadel
+        // emits a single string in practice, but the verifier must accept
+        // either shape.
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt([
+            'aud' => ['some-other-client', self::TEST_EXPECTED_AUD, 'yet-another'],
+        ]);
+        $this->stubWp();
+        Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
+            'email'          => 'a@b.org',
+            'email_verified' => true,
+        ]));
+        Functions\when('get_user_by')->alias(static fn(): WP_User => new WP_User(33));
+
+        $this->assertSame(33, cdcf_zitadel_bearer_authenticate(false));
+    }
+
+    public function test_opaque_token_not_a_jwt_falls_through(): void
+    {
+        // Some IdPs hand out opaque (non-JWT) access tokens. We require
+        // JWT format (configured in cdcf-infra as OIDC_TOKEN_TYPE_JWT) so
+        // the audience check is enforceable. Anything else = hard reject.
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer opaque-token-no-dots';
+        Functions\expect('wp_remote_post')->never();
+
+        $this->assertFalse(cdcf_zitadel_bearer_authenticate(false));
+    }
+
+    public function test_audience_helper_rejects_when_expected_unset(): void
+    {
+        // Direct helper test: the misconfigured-deployment scenario where
+        // CDCF_ZITADEL_EXPECTED_AUD is left at its default '' value.
+        // Constants can't be redefined at runtime in standard PHP, so we
+        // exercise the helper with the empty-expected argument directly.
+        $this->assertFalse(
+            cdcf_zitadel_bearer_audience_ok(['aud' => self::TEST_EXPECTED_AUD], '')
+        );
+        $this->assertFalse(
+            cdcf_zitadel_bearer_audience_ok(['aud' => ['anything']], '')
+        );
+    }
+
+    public function test_audience_helper_constant_time_compare(): void
+    {
+        // Sanity that the helper uses exact-string match (no prefix/
+        // substring acceptance) — a near-miss must fail.
+        $this->assertFalse(cdcf_zitadel_bearer_audience_ok(
+            ['aud' => self::TEST_EXPECTED_AUD . 'x'],
+            self::TEST_EXPECTED_AUD
+        ));
+        $this->assertFalse(cdcf_zitadel_bearer_audience_ok(
+            ['aud' => substr(self::TEST_EXPECTED_AUD, 0, -1)],
+            self::TEST_EXPECTED_AUD
+        ));
+        $this->assertTrue(cdcf_zitadel_bearer_audience_ok(
+            ['aud' => self::TEST_EXPECTED_AUD],
+            self::TEST_EXPECTED_AUD
+        ));
+    }
+
     public function test_token_extracted_from_redirect_http_authorization_fallback(): void
     {
         // Apache + mod_rewrite + FCGI: the original HTTP_AUTHORIZATION
         // may land under REDIRECT_HTTP_AUTHORIZATION instead.
-        $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] = 'Bearer fcgi-fallback.jwt';
+        $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
         $this->stubWp();
         Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
             'email'          => 'a@b.org',

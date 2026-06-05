@@ -28,6 +28,15 @@ const CDCF_ZITADEL_USERINFO_URL = 'https://auth.catholicdigitalcommons.org/oidc/
 const CDCF_ZITADEL_BEARER_CACHE_TTL = 60;
 const CDCF_ZITADEL_USERINFO_TIMEOUT = 5;
 
+// The OIDC client ID of the CDCF Website Web app, as provisioned by
+// cdcf-infra's setup-zitadel.sh --provision-cdcf-website. Must be set in
+// wp-config.php (or via a deploy-time constant injection) before any bearer
+// token will be accepted — without it, audience verification fails closed
+// and every Bearer auth attempt falls through. This guards against a token
+// minted for a sibling umbrella property (LitCal, OntoKit, BibleGet) being
+// replayed against cdcf-website's REST.
+defined('CDCF_ZITADEL_EXPECTED_AUD') || define('CDCF_ZITADEL_EXPECTED_AUD', '');
+
 /**
  * Pull a bearer token out of the incoming request's Authorization
  * header. Handles the three places PHP+Apache+FCGI might surface it
@@ -67,6 +76,60 @@ function cdcf_zitadel_bearer_cache_key(string $token): string {
 }
 
 /**
+ * Decode a JWT's payload segment without signature verification, returning
+ * the parsed claim array or null if the token is not a well-formed JWT.
+ *
+ * Signature verification is delegated to Zitadel's userinfo endpoint — by
+ * the time we reach here on a 200 response, the signature has cryptographic-
+ * ally bound the payload, so reading aud/iss/exp claims from the unverified
+ * payload is integrity-safe (a tampered payload would have failed userinfo's
+ * own signature check upstream).
+ *
+ * Reads only the middle base64url segment; the header and signature segments
+ * are not consulted. Returns null if there are not exactly three segments,
+ * if the middle segment is not valid base64url, or if it doesn't decode to
+ * a JSON object.
+ */
+function cdcf_zitadel_bearer_decode_jwt_payload(string $token): ?array {
+    $parts = explode('.', $token);
+    if (count($parts) !== 3) {
+        return null;
+    }
+    // base64url → base64; add padding (PHP's base64_decode tolerates missing
+    // padding when strict=false, but be explicit so behaviour is stable).
+    $b64 = strtr($parts[1], '-_', '+/');
+    $pad = strlen($b64) % 4;
+    if ($pad !== 0) {
+        $b64 .= str_repeat('=', 4 - $pad);
+    }
+    $json = base64_decode($b64, true);
+    if (!is_string($json)) {
+        return null;
+    }
+    $payload = json_decode($json, true);
+    return is_array($payload) ? $payload : null;
+}
+
+/**
+ * Verify a JWT's `aud` claim contains the expected client ID. Accepts
+ * either a string or string-array `aud` (RFC 7519 permits both). Uses
+ * hash_equals to avoid timing leaks on the comparison.
+ */
+function cdcf_zitadel_bearer_audience_ok(array $claims, string $expected): bool {
+    if ($expected === '') {
+        return false; // Misconfigured — fail closed.
+    }
+    $aud = $claims['aud'] ?? null;
+    $auds = is_array($aud) ? $aud : (is_string($aud) ? [$aud] : []);
+    foreach ($auds as $candidate) {
+        if (is_string($candidate) && hash_equals($expected, $candidate)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * determine_current_user filter callback.
  *
  * @param int|false $user_id Value passed by the previous filter — int
@@ -82,6 +145,27 @@ function cdcf_zitadel_bearer_authenticate($user_id) {
     $token = cdcf_zitadel_bearer_extract_token();
     if ($token === '') {
         return $user_id; // No bearer token to process.
+    }
+
+    // Verify the token was minted for THIS app — not a sibling umbrella
+    // property. Umbrella login names are emails (instance-wide via
+    // UserEmailAsUsername=true), so a token issued for LitCal/OntoKit/
+    // BibleGet would otherwise pass our email-based WP user lookup. We
+    // decode the unverified payload only — signature verification is the
+    // userinfo round-trip's job — and require the aud claim to match the
+    // configured CDCF Website client ID.
+    $claims = cdcf_zitadel_bearer_decode_jwt_payload($token);
+    if (!is_array($claims)) {
+        // Opaque token, or a malformed JWT. We require JWT access tokens
+        // (configured via OIDC_TOKEN_TYPE_JWT in cdcf-infra) so this is a
+        // hard reject.
+        return $user_id;
+    }
+    if (!cdcf_zitadel_bearer_audience_ok($claims, CDCF_ZITADEL_EXPECTED_AUD)) {
+        if (CDCF_ZITADEL_EXPECTED_AUD === '') {
+            error_log('[cdcf-zitadel-bearer] CDCF_ZITADEL_EXPECTED_AUD not configured — rejecting all bearer tokens');
+        }
+        return $user_id;
     }
 
     $cache_key = cdcf_zitadel_bearer_cache_key($token);

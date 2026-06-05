@@ -181,6 +181,12 @@ require_once __DIR__ . '/../includes/handlers/submit-project.php';
 require_once __DIR__ . '/../includes/handlers/create-user.php';
 require_once __DIR__ . '/../includes/handlers/author-team-member.php';
 require_once __DIR__ . '/../includes/admin/limited-user-provisioning.php';
+// Pin the expected audience BEFORE loading zitadel-bearer.php so its
+// `defined() || define(..., '')` default no-ops. Tests reference the same
+// value via ZitadelBearerTest::TEST_EXPECTED_AUD when minting JWTs.
+if (!defined('CDCF_ZITADEL_EXPECTED_AUD')) {
+    define('CDCF_ZITADEL_EXPECTED_AUD', '999000111000222000');
+}
 require_once __DIR__ . '/../includes/auth/zitadel-bearer.php';
 require_once __DIR__ . '/../includes/admin/team-member-council.php';
 require_once __DIR__ . '/../includes/admin/polylang-default-seed.php';
