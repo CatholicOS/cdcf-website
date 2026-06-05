@@ -703,6 +703,17 @@ add_action('rest_api_init', function () {
         'callback'            => 'cdcf_rest_update_my_team_member',
         'permission_callback' => 'cdcf_rest_my_team_member_permission',
         'args' => [
+            // The URL regex already constrains lang to two lowercase
+            // letters; declaring it here adds sanitize/validate parity
+            // with the other args (per AGENTS.md "Sanitization
+            // convention") and gives a typed entry the handler reads
+            // via $request['lang'].
+            'lang' => [
+                'required'          => true,
+                'type'              => 'string',
+                'sanitize_callback' => 'sanitize_key',
+                'validate_callback' => static fn($v): bool => is_string($v) && (bool) preg_match('/^[a-z]{2}$/', $v),
+            ],
             // Hostname allowlists for the social URLs are enforced in
             // the handler body (esc_url_raw can't constrain hostnames).
             // Empty string is allowed throughout: it clears the field.

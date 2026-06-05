@@ -37,11 +37,17 @@ function extractRoles(claim: unknown): string[] {
   return Object.keys(claim as Record<string, unknown>)
 }
 
+// Hard cap on the refresh-token round-trip. Without this the JWT
+// callback can stall an entire page render if Zitadel is unreachable.
+const REFRESH_TIMEOUT_MS = 5000
+
 async function refreshAccessToken(token: JWT): Promise<JWT> {
   const issuer = process.env.AUTH_ZITADEL_ISSUER
   if (!issuer || !token.refreshToken) {
     return { ...token, error: 'RefreshAccessTokenError' }
   }
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS)
   try {
     const response = await fetch(`${issuer}/oauth/v2/token`, {
       method: 'POST',
@@ -52,6 +58,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
         grant_type: 'refresh_token',
         refresh_token: token.refreshToken,
       }),
+      signal: controller.signal,
     })
     const tokens = (await response.json()) as {
       access_token?: string
@@ -73,8 +80,13 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
       error: undefined,
     }
   } catch (err) {
+    // AbortError surfaces here exactly like other fetch errors so the
+    // RefreshAccessTokenError fall-through covers both timeout and
+    // network failures uniformly.
     console.error('[auth] refresh failed:', err)
     return { ...token, error: 'RefreshAccessTokenError' }
+  } finally {
+    clearTimeout(timer)
   }
 }
 

@@ -53,6 +53,11 @@ final class MyTeamMemberHandlerTest extends TestCase
         Functions\when('get_current_user_id')->justReturn($user_id);
         Functions\when('is_wp_error')->alias(static fn($v): bool => $v instanceof WP_Error);
         Functions\when('rest_ensure_response')->returnArg(1);
+        // Default get_post returns a valid team_member; PATCH tests that
+        // care about the target-post-validity branch override this.
+        Functions\when('get_post')->alias(
+            fn(int $id) => $this->fakePost($id)
+        );
     }
 
     private function fakePost(int $id, string $lang_slug = 'en', array $overrides = []): stdClass
@@ -469,6 +474,73 @@ final class MyTeamMemberHandlerTest extends TestCase
         $this->assertSame(['it'], $response['queued']);
         $this->assertCount(1, $response['errors']);
         $this->assertStringContainsString('de:', $response['errors'][0]);
+    }
+
+    public function test_patch_rejects_when_target_post_missing_or_wrong_type(): void
+    {
+        // Polylang group claims an EN entry but get_post returns false
+        // (post deleted) or a non-team_member CPT — the handler must
+        // 404 rather than wp_update_post against a stale id.
+        $this->stubCommon(7);
+        Functions\when('get_field')->justReturn(702);
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 702,
+            'de' => 9999, // stale
+        ]);
+        Functions\when('get_post')->alias(
+            fn(int $id) => $id === 9999
+                ? null
+                : $this->fakePost($id, 'en')
+        );
+        Functions\expect('wp_update_post')->never();
+
+        $response = cdcf_rest_update_my_team_member($this->buildPatchRequest('de'));
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('rest_no_translation_for_lang', $response->get_error_code());
+        $this->assertSame(404, $response->get_error_data()['status']);
+    }
+
+    public function test_patch_rejects_when_target_post_is_wrong_cpt(): void
+    {
+        $this->stubCommon(7);
+        Functions\when('get_field')->justReturn(702);
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 702,
+        ]);
+        Functions\when('get_post')->alias(
+            fn(int $id) => $this->fakePost($id, 'en', ['post_type' => 'post'])
+        );
+        Functions\expect('wp_update_post')->never();
+
+        $response = cdcf_rest_update_my_team_member($this->buildPatchRequest('en'));
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('rest_no_translation_for_lang', $response->get_error_code());
+    }
+
+    public function test_patch_no_op_skips_fan_out(): void
+    {
+        // A PATCH with no mutable field supplied (no content, no ACF
+        // fields) must NOT enqueue 5 OpenAI re-translation jobs that
+        // would produce identical output. Returns the same envelope
+        // shape but with empty queued / errors.
+        $this->stubCommon(7);
+        Functions\when('get_field')->justReturn(702);
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 702,
+            'de' => 703,
+            'it' => 704,
+        ]);
+        Functions\expect('wp_update_post')->never();
+        Functions\expect('update_field')->never();
+        Functions\expect('cdcf_enqueue_post_translation')->never();
+
+        $response = cdcf_rest_update_my_team_member($this->buildPatchRequest('en'));
+
+        $this->assertSame(702, $response['post_id']);
+        $this->assertSame([], $response['queued']);
+        $this->assertSame([], $response['errors']);
     }
 
     /**

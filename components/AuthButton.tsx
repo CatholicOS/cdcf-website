@@ -104,13 +104,17 @@ export default function AuthButton() {
       {isOpen && (
         <div
           role="menu"
-          // Mouse handlers also live on the trigger button; the menu has
-          // its own pair so hovering INTO the menu cancels the
-          // close-on-leave timer scheduled when the cursor left the
-          // button. Without them, moving the cursor from button to menu
-          // would close the menu mid-traversal.
+          // Mouse + focus handlers also live on the trigger button; the
+          // menu mirrors them so transitions INTO the menu (cursor OR
+          // keyboard) cancel the close-on-leave timer scheduled when the
+          // cursor or focus left the button. Without onFocus here,
+          // tabbing from the button into a menu item would let the
+          // 150ms timer fire and close the menu mid-traversal — React's
+          // onFocus bubbles, so item focus reaches us here.
           onMouseEnter={openDropdown}
           onMouseLeave={scheduleClose}
+          onFocus={openDropdown}
+          onBlur={scheduleClose}
           className="absolute right-0 top-full min-w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
         >
           {session.user.email && (

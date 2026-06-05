@@ -216,6 +216,19 @@ function cdcf_rest_update_my_team_member(WP_REST_Request $request) {
         );
     }
 
+    // Verify the target post actually exists and is a team_member.
+    // A polluted Polylang group could otherwise route an edit to a
+    // deleted or wrong-CPT post — surface that as a 404 rather than
+    // silently writing wp_update_post against an invalid id.
+    $target_post = get_post($target_post_id);
+    if (!$target_post || $target_post->post_type !== 'team_member') {
+        return new WP_Error(
+            'rest_no_translation_for_lang',
+            sprintf('The %s translation entry is invalid (deleted or wrong post type).', $requested_lang),
+            ['status' => 404]
+        );
+    }
+
     // URL validation: LinkedIn + GitHub allowed hosts. Sanitization
     // (esc_url_raw) already ran via the args block; we only enforce
     // the hostname allowlist here.
@@ -238,7 +251,9 @@ function cdcf_rest_update_my_team_member(WP_REST_Request $request) {
 
     // Apply edits. content is only updated when the request actually
     // supplied a value (so a PATCH that only changes member_title
-    // doesn't clobber the bio HTML).
+    // doesn't clobber the bio HTML). Track whether ANY field was
+    // actually supplied so a no-op PATCH skips the fan-out below.
+    $did_update = false;
     $content = $request->get_param('content');
     if (is_string($content)) {
         $upd = wp_update_post(
@@ -248,12 +263,25 @@ function cdcf_rest_update_my_team_member(WP_REST_Request $request) {
         if (is_wp_error($upd)) {
             return $upd;
         }
+        $did_update = true;
     }
     foreach (['member_title', 'member_linkedin_url', 'member_github_url'] as $field) {
         $value = $request->get_param($field);
         if (is_string($value) && function_exists('update_field')) {
             update_field($field, $value, $target_post_id);
+            $did_update = true;
         }
+    }
+
+    // No-op PATCH (no mutable field supplied) → don't burn OpenAI
+    // quota on five re-translation jobs that would produce identical
+    // output. Return the same envelope shape for caller stability.
+    if (!$did_update) {
+        return rest_ensure_response([
+            'post_id' => $target_post_id,
+            'queued'  => [],
+            'errors'  => [],
+        ]);
     }
 
     // Fan out re-translation to the other (n-1) languages, reusing the

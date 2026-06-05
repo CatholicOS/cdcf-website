@@ -214,8 +214,11 @@ function cdcf_zitadel_bearer_authenticate($user_id) {
 
     $cache_key = cdcf_zitadel_bearer_cache_key($token);
     $cached = get_transient($cache_key);
-    if (is_int($cached) && $cached > 0) {
-        return $cached;
+    // DB-backed transients round-trip the value through MySQL and can come
+    // back as a numeric string even when set as int — accept either shape
+    // so the 60s cache actually hits in the no-object-cache (default) case.
+    if (is_numeric($cached) && (int) $cached > 0) {
+        return (int) $cached;
     }
 
     $response = wp_remote_post(CDCF_ZITADEL_USERINFO_URL, [
