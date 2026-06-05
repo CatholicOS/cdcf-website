@@ -77,16 +77,16 @@ export default function AuthButton() {
   }
 
   return (
-    <div
-      className="relative"
-      onMouseEnter={openDropdown}
-      onMouseLeave={scheduleClose}
-    >
+    <div className="relative">
       <button
         type="button"
         className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
         aria-haspopup="menu"
         aria-expanded={isOpen}
+        onMouseEnter={openDropdown}
+        onMouseLeave={scheduleClose}
+        onFocus={openDropdown}
+        onBlur={scheduleClose}
         onKeyDown={handleKeyDown}
       >
         <UserIcon className="h-5 w-5" />
@@ -104,6 +104,13 @@ export default function AuthButton() {
       {isOpen && (
         <div
           role="menu"
+          // Mouse handlers also live on the trigger button; the menu has
+          // its own pair so hovering INTO the menu cancels the
+          // close-on-leave timer scheduled when the cursor left the
+          // button. Without them, moving the cursor from button to menu
+          // would close the menu mid-traversal.
+          onMouseEnter={openDropdown}
+          onMouseLeave={scheduleClose}
           className="absolute right-0 top-full min-w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
         >
           {session.user.email && (

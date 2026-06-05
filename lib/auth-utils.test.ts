@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { Session } from 'next-auth'
 
 // Mock `next/navigation`'s redirect — Next throws a special "NEXT_REDIRECT"
 // error when it's called inside a Server Component. We capture the call
@@ -102,21 +103,19 @@ describe('getAccessToken', () => {
   })
 
   it('returns undefined when the session carries a refresh error', () => {
-    expect(
-      getAccessToken({
-        accessToken: 'still-here-but-stale',
-        error: 'RefreshAccessTokenError',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any)
-    ).toBeUndefined()
+    const session: Session = {
+      accessToken: 'still-here-but-stale',
+      error: 'RefreshAccessTokenError',
+      expires: '2099-01-01T00:00:00.000Z',
+    }
+    expect(getAccessToken(session)).toBeUndefined()
   })
 
   it('returns the access token for a healthy session', () => {
-    expect(
-      getAccessToken({
-        accessToken: 'jwt-abc',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any)
-    ).toBe('jwt-abc')
+    const session: Session = {
+      accessToken: 'jwt-abc',
+      expires: '2099-01-01T00:00:00.000Z',
+    }
+    expect(getAccessToken(session)).toBe('jwt-abc')
   })
 })
