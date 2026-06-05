@@ -93,7 +93,7 @@ Uses `@import 'tailwindcss'` (not `@tailwind` directives). Custom utilities via 
 
 ## REST API Endpoints (`cdcf/v1`)
 
-All endpoints require Application Password authentication. Most endpoints require `edit_posts` capability; `/process-queue` and `/maintenance` require `manage_options` (administrator); `/create-user` and `/author-team-member` require the custom `cdcf_create_limited_users` capability — see the row notes where capability differs.
+All endpoints accept either **Application Password** (for the Python CLI and other server-side callers) or **Zitadel OIDC bearer tokens** (for the Next.js frontend acting on behalf of a signed-in user — see [Zitadel bearer authentication](#zitadel-bearer-authentication) below). Most endpoints require `edit_posts` capability; `/process-queue` and `/maintenance` require `manage_options` (administrator); `/create-user` and `/author-team-member` require the custom `cdcf_create_limited_users` capability — see the row notes where capability differs.
 
 | Method | Route                        | Description                                                                                                                                                                                                                         |
 | ------ | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -170,6 +170,17 @@ This needs a dedicated endpoint because neither generic path works for a user-lo
 **Parameters:** `user_id` (required), `team_member_id` (required — a published `team_member` post ID, or `0` to clear the link)
 
 **Returns:** `{ success, user_id, team_member_id, value: [id]|[], updated }`
+
+### Zitadel bearer authentication
+
+`wordpress/themes/cdcf-headless/includes/auth/zitadel-bearer.php` hooks `determine_current_user` at priority 20 and accepts `Authorization: Bearer <access_token>` headers issued by the umbrella Zitadel at `https://auth.catholicdigitalcommons.org`. The Next.js frontend uses this on user-initiated REST writes (e.g. the upcoming bio self-edit flow) so the user's WP REST capability check enforces the same authorization the WP admin UI would. Behaviour:
+
+- Validates each bearer token against `/oidc/v1/userinfo`; accepts only when `email_verified=true` and the `email` claim maps to an existing WP user (lookup via `get_user_by('email', …)` — no auto-provisioning, drift is reconciled by a Zitadel admin manually).
+- Caches accepted `(sha256(token) → user_id)` pairs in a 60-second transient — raw tokens never land in the WP options table.
+- Fails closed on any unhappy path (non-200 userinfo, malformed JSON, unverified email, no WP user match): returns the previous filter's `$user_id` unchanged so Application Passwords + auth cookies + other auth methods keep working untouched.
+- The userinfo endpoint URL, cache TTL, and HTTP timeout are class-level constants (`CDCF_ZITADEL_USERINFO_URL`, `CDCF_ZITADEL_BEARER_CACHE_TTL`, `CDCF_ZITADEL_USERINFO_TIMEOUT`).
+
+The Python CLI (`scripts/cdcf_api.py`) continues to use Application Password auth — it has no Zitadel access token to present.
 
 ## Adding a New Language
 

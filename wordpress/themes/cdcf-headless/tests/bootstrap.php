@@ -181,6 +181,7 @@ require_once __DIR__ . '/../includes/handlers/submit-project.php';
 require_once __DIR__ . '/../includes/handlers/create-user.php';
 require_once __DIR__ . '/../includes/handlers/author-team-member.php';
 require_once __DIR__ . '/../includes/admin/limited-user-provisioning.php';
+require_once __DIR__ . '/../includes/auth/zitadel-bearer.php';
 require_once __DIR__ . '/../includes/admin/team-member-council.php';
 require_once __DIR__ . '/../includes/admin/polylang-default-seed.php';
 require_once __DIR__ . '/../includes/admin/ai-translate.php';

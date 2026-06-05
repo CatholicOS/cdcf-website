@@ -679,6 +679,13 @@ require_once __DIR__ . '/includes/security.php';
 // content sink below so colon-bearing anchors (#fn:…/#fnref:…) survive KSES.
 require_once __DIR__ . '/includes/fragment-anchors.php';
 
+// Zitadel bearer-token authenticator. Lets the Next.js frontend authenticate
+// WP REST writes for the team-member bio self-edit flow without an
+// Application Password round-trip. Priority 20 keeps it AFTER core's cookie
+// and Application Password resolvers, so existing auth paths are untouched.
+require_once __DIR__ . '/includes/auth/zitadel-bearer.php';
+add_filter('determine_current_user', 'cdcf_zitadel_bearer_authenticate', 20);
+
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/update-disposable-domains', [
         'methods'             => 'POST',
