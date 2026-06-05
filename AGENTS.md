@@ -261,6 +261,7 @@ Required in `.env.local` (Next.js) or `.env` (Docker Compose):
 - `WP_APP_USERNAME`, `WP_APP_PASSWORD` — WordPress Application Password (used by the Python client)
 - `WP_PREVIEW_SECRET` — Shared secret for preview + revalidation
 - `WP_DB_ROOT_PASSWORD`, `WP_DB_NAME`, `WP_DB_USER`, `WP_DB_PASSWORD` — Database config
+- `AUTH_ZITADEL_ID`, `AUTH_ZITADEL_SECRET`, `AUTH_ZITADEL_ISSUER`, `AUTH_SECRET` — Auth.js v5 OIDC client config (see `lib/auth.ts`). The client_id/secret come from cdcf-infra's `setup-zitadel.sh --provision-cdcf-website` handoff; the issuer is `https://auth.catholicdigitalcommons.org`; `AUTH_SECRET` is generated per-env via `openssl rand -base64 32`. The same `AUTH_ZITADEL_ID` value also needs to be set as a `CDCF_ZITADEL_EXPECTED_AUD` constant in WordPress's `wp-config.php` (the bearer-validator's audience pin — see [Zitadel bearer authentication](#zitadel-bearer-authentication) above).
 - Docker Compose reads `.env` not `.env.local` for variable substitution
 
 ## Deployment

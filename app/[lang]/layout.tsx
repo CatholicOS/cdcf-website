@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from 'next'
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
+import { SessionProvider } from 'next-auth/react'
 import { Inter, Merriweather, Playfair_Display } from 'next/font/google'
+import { auth } from '@/lib/auth'
 import { locales } from '@/src/i18n/routing'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -89,17 +91,19 @@ export default async function LangLayout({
   }
 
   setRequestLocale(lang)
-  const messages = await getMessages()
+  const [messages, session] = await Promise.all([getMessages(), auth()])
 
   return (
     <html lang={lang} className={`${inter.variable} ${merriweather.variable} ${playfairDisplay.variable}`} suppressHydrationWarning>
       <body className="flex min-h-screen flex-col bg-white font-sans text-gray-900 antialiased">
-        <NextIntlClientProvider messages={messages}>
-          <PreviewBanner />
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </NextIntlClientProvider>
+        <SessionProvider session={session}>
+          <NextIntlClientProvider messages={messages}>
+            <PreviewBanner />
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </NextIntlClientProvider>
+        </SessionProvider>
       </body>
     </html>
   )
