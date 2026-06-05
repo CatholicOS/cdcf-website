@@ -97,6 +97,9 @@ if (!class_exists('WP_REST_Response')) {
 if (!class_exists('WP_User')) {
     class WP_User {
         public int $ID;
+        public string $user_email = '';
+        public string $user_login = '';
+        public string $display_name = '';
 
         public function __construct(int $id = 0) {
             $this->ID = $id;

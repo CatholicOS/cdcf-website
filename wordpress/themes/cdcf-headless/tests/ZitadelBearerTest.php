@@ -49,6 +49,7 @@ final class ZitadelBearerTest extends TestCase
     {
         Functions\when('is_wp_error')->alias(static fn($v): bool => $v instanceof WP_Error);
         Functions\when('sanitize_email')->returnArg(1);
+        Functions\when('is_email')->alias(static fn(string $v): bool => str_contains($v, '@'));
         Functions\when('get_transient')->justReturn(false);
         Functions\when('set_transient')->justReturn(true);
         Functions\when('wp_remote_retrieve_response_code')->alias(
@@ -57,10 +58,33 @@ final class ZitadelBearerTest extends TestCase
         Functions\when('wp_remote_retrieve_body')->alias(
             static fn(array $r): string => (string) ($r['body'] ?? '')
         );
+        // Default: no WP user has the Zitadel sub bound yet, so the
+        // sub-primary-key lookup misses and execution falls through to
+        // the email path (matches the pre-Phase-5 test expectations).
+        // Tests of the sub-hit branch override this.
+        Functions\when('get_users')->justReturn([]);
+        // No-op writes for the bind/migration paths so legacy tests
+        // that only care about email-lookup don't blow up.
+        Functions\when('update_user_meta')->justReturn(true);
+        Functions\when('wp_update_user')->justReturn(1);
     }
 
+    /**
+     * Build a fake wp_remote_post response that round-trips through the
+     * validator's `wp_remote_retrieve_*` helpers.
+     *
+     * Default 200-body shape includes a `sub` claim because Phase 5
+     * requires it for user resolution. Tests of the sub-missing branch
+     * must override by passing 'sub' => null explicitly — omitting the
+     * key triggers default injection (see the array_key_exists check
+     * below). The default keeps most happy-path call sites from
+     * having to carry an unrelated detail.
+     */
     private function buildUserinfoResponse(int $code, array $body): array
     {
+        if ($code === 200 && !array_key_exists('sub', $body)) {
+            $body['sub'] = 'zitadel-sub-default';
+        }
         return [
             'response' => ['code' => $code],
             'body'     => json_encode($body),
@@ -215,20 +239,49 @@ final class ZitadelBearerTest extends TestCase
         $this->assertFalse(cdcf_zitadel_bearer_authenticate(false));
     }
 
-    public function test_no_matching_wp_user_falls_through(): void
+    public function test_no_matching_wp_user_auto_provisions_subscriber(): void
     {
-        // First-time login from a Zitadel user the admin hasn't yet
-        // mapped to a WP account — fall through, no auto-provisioning.
+        // First-time login from a Zitadel user not yet mapped to a WP
+        // account — auto-provision as Subscriber (Phase 5).
+        // PRE-PHASE-5 BEHAVIOUR (kept as a documentation marker): the
+        // validator used to fall through here per locked decision #1
+        // ("no auto-provisioning"). Phase 5 deliberately reversed that
+        // for the Subscriber path — see the auto_provisions tests
+        // below. Email-verified-false and sub-missing fallthrough
+        // cases are still asserted by their respective tests.
         $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
         $this->stubWp();
         Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
+            'sub'            => 'zitadel-sub-stranger',
             'email'          => 'stranger@example.org',
             'email_verified' => true,
         ]));
         Functions\when('get_user_by')->justReturn(false);
-        Functions\expect('set_transient')->never();
+        // Auto-provision branch: wp_insert_user returns the new id, the
+        // validator binds the sub via update_user_meta + caches by id.
+        $inserted = null;
+        Functions\when('wp_insert_user')->alias(
+            function (array $args) use (&$inserted): int {
+                $inserted = $args;
+                return 42;
+            }
+        );
+        Functions\when('wp_generate_password')->justReturn('random-pw');
+        $bound_sub = null;
+        Functions\when('update_user_meta')->alias(
+            function (int $uid, string $key, string $val) use (&$bound_sub): bool {
+                if ($key === 'cdcf_zitadel_sub') {
+                    $bound_sub = ['uid' => $uid, 'sub' => $val];
+                }
+                return true;
+            }
+        );
 
-        $this->assertFalse(cdcf_zitadel_bearer_authenticate(false));
+        $this->assertSame(42, cdcf_zitadel_bearer_authenticate(false));
+        $this->assertSame('stranger@example.org', $inserted['user_login']);
+        $this->assertSame('stranger@example.org', $inserted['user_email']);
+        $this->assertSame('subscriber', $inserted['role']);
+        $this->assertSame(['uid' => 42, 'sub' => 'zitadel-sub-stranger'], $bound_sub);
     }
 
     public function test_userinfo_non_200_falls_through(): void
@@ -354,6 +407,198 @@ final class ZitadelBearerTest extends TestCase
             ['aud' => self::TEST_EXPECTED_AUD],
             [self::TEST_EXPECTED_AUD]
         ));
+    }
+
+    // ─── Sub primary-key + email-drift sync + auto-provisioning (Phase 5) ───
+
+    public function test_sub_primary_key_lookup_hits_no_email_drift(): void
+    {
+        // sub-bound user exists, claim email matches WP user_email → no
+        // wp_update_user call. Returns the existing id.
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
+        $this->stubWp();
+        Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
+            'sub'            => 'zitadel-sub-existing',
+            'email'          => 'editor@example.org',
+            'email_verified' => true,
+        ]));
+        Functions\when('get_users')->alias(function (array $args): array {
+            if (($args['meta_key'] ?? '') === 'cdcf_zitadel_sub'
+                && ($args['meta_value'] ?? '') === 'zitadel-sub-existing'
+            ) {
+                $u = new WP_User(17);
+                $u->user_email = 'editor@example.org';
+                return [$u];
+            }
+            return [];
+        });
+        Functions\expect('get_user_by')->never();
+        Functions\expect('wp_update_user')->never();
+        Functions\expect('wp_insert_user')->never();
+
+        $this->assertSame(17, cdcf_zitadel_bearer_authenticate(false));
+    }
+
+    public function test_sub_match_with_drifted_email_updates_wp_user_email(): void
+    {
+        // sub-bound user exists but the Zitadel email has since changed.
+        // Validator MUST update wp_users.user_email so the two stay in
+        // sync, and MUST NOT create a second WP user.
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
+        $this->stubWp();
+        Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
+            'sub'            => 'zitadel-sub-renamed',
+            'email'          => 'new-email@example.org',
+            'email_verified' => true,
+        ]));
+        Functions\when('get_users')->alias(function (): array {
+            $u = new WP_User(8);
+            $u->user_email = 'OLD-email@example.org';
+            return [$u];
+        });
+        $updated = null;
+        Functions\when('wp_update_user')->alias(
+            function (array $args) use (&$updated): int {
+                $updated = $args;
+                return $args['ID'];
+            }
+        );
+        Functions\expect('wp_insert_user')->never();
+
+        $this->assertSame(8, cdcf_zitadel_bearer_authenticate(false));
+        $this->assertSame(8, $updated['ID']);
+        $this->assertSame('new-email@example.org', $updated['user_email']);
+    }
+
+    public function test_sub_miss_email_match_binds_sub_meta_for_migration(): void
+    {
+        // Pre-Phase-5 WP user exists with the right email but no sub
+        // bound yet. Validator binds the sub via update_user_meta so
+        // future requests take the sub-primary-key fast path.
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
+        $this->stubWp();
+        Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
+            'sub'            => 'zitadel-sub-legacy',
+            'email'          => 'legacy@example.org',
+            'email_verified' => true,
+        ]));
+        Functions\when('get_user_by')->alias(static fn(): WP_User => new WP_User(3));
+        $bind = null;
+        Functions\when('update_user_meta')->alias(
+            function (int $uid, string $key, string $val) use (&$bind): bool {
+                if ($key === 'cdcf_zitadel_sub') {
+                    $bind = ['uid' => $uid, 'sub' => $val];
+                }
+                return true;
+            }
+        );
+        Functions\expect('wp_insert_user')->never();
+
+        $this->assertSame(3, cdcf_zitadel_bearer_authenticate(false));
+        $this->assertSame(['uid' => 3, 'sub' => 'zitadel-sub-legacy'], $bind);
+    }
+
+    public function test_sub_claim_missing_falls_through_without_provisioning(): void
+    {
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
+        $this->stubWp();
+        Functions\when('wp_remote_post')->justReturn([
+            'response' => ['code' => 200],
+            // Explicit body without sub to defeat the default sub injection.
+            'body'     => json_encode([
+                'email'          => 'no-sub@example.org',
+                'email_verified' => true,
+            ]),
+        ]);
+        Functions\expect('get_users')->never();
+        Functions\expect('get_user_by')->never();
+        Functions\expect('wp_insert_user')->never();
+
+        $this->assertFalse(cdcf_zitadel_bearer_authenticate(false));
+    }
+
+    public function test_auto_provision_uses_zitadel_name_for_display_name(): void
+    {
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
+        $this->stubWp();
+        Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
+            'sub'            => 'zitadel-sub-new',
+            'email'          => 'newauthor@example.org',
+            'email_verified' => true,
+            'name'           => 'Jane Doe',
+        ]));
+        Functions\when('get_user_by')->justReturn(false);
+        $captured = null;
+        Functions\when('wp_insert_user')->alias(
+            function (array $args) use (&$captured): int {
+                $captured = $args;
+                return 50;
+            }
+        );
+        Functions\when('wp_generate_password')->justReturn('random');
+
+        cdcf_zitadel_bearer_authenticate(false);
+
+        $this->assertSame('Jane Doe', $captured['display_name']);
+        $this->assertSame('subscriber', $captured['role']);
+    }
+
+    public function test_auto_provision_falls_back_to_email_for_display_name_when_name_missing(): void
+    {
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
+        $this->stubWp();
+        Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
+            'sub'            => 'zitadel-sub-nameless',
+            'email'          => 'nameless@example.org',
+            'email_verified' => true,
+        ]));
+        Functions\when('get_user_by')->justReturn(false);
+        $captured = null;
+        Functions\when('wp_insert_user')->alias(
+            function (array $args) use (&$captured): int {
+                $captured = $args;
+                return 51;
+            }
+        );
+        Functions\when('wp_generate_password')->justReturn('random');
+
+        cdcf_zitadel_bearer_authenticate(false);
+
+        $this->assertSame('nameless@example.org', $captured['display_name']);
+    }
+
+    public function test_auto_provision_race_recovers_via_sub_relookup(): void
+    {
+        // Two parallel sign-ins for the same sub both reach the auto-
+        // provision branch. The first wp_insert_user wins; the second
+        // gets WP_Error (user_email_exists) and must recover by re-
+        // querying for the sub-bound user — same id, no duplicate.
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
+        $this->stubWp();
+        Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
+            'sub'            => 'zitadel-sub-race',
+            'email'          => 'race@example.org',
+            'email_verified' => true,
+        ]));
+        // get_users called twice: first time (initial lookup) → empty,
+        // second time (post-race recovery) → winner's row.
+        $call = 0;
+        Functions\when('get_users')->alias(function () use (&$call): array {
+            $call++;
+            if ($call >= 2) {
+                $u = new WP_User(99);
+                $u->user_email = 'race@example.org';
+                return [$u];
+            }
+            return [];
+        });
+        Functions\when('get_user_by')->justReturn(false);
+        Functions\when('wp_insert_user')->justReturn(
+            new WP_Error('existing_user_email', 'Sorry, that email address is already used!')
+        );
+        Functions\when('wp_generate_password')->justReturn('random');
+
+        $this->assertSame(99, cdcf_zitadel_bearer_authenticate(false));
     }
 
     // ─── Multi-audience allow-list (issue #173) ──────────────────────
