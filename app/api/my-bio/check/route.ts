@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { fetchMyTeamMember } from '@/lib/bio-api'
+import { fetchMyTeamMember, type BioDiscovery } from '@/lib/bio-api'
 
 // GET /api/my-bio/check
 // Tiny proxy used by the AuthButton header dropdown to decide whether
@@ -21,7 +21,7 @@ export async function GET() {
     return NextResponse.json({ linked: false, available_languages: [] })
   }
   try {
-    const discovery = await fetchMyTeamMember(session)
+    const discovery: BioDiscovery = await fetchMyTeamMember(session)
     return NextResponse.json({
       linked: true,
       team_member_id: discovery.team_member_id,
