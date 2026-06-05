@@ -28,13 +28,22 @@ const CDCF_ZITADEL_USERINFO_URL = 'https://auth.catholicdigitalcommons.org/oidc/
 const CDCF_ZITADEL_BEARER_CACHE_TTL = 60;
 const CDCF_ZITADEL_USERINFO_TIMEOUT = 5;
 
-// The OIDC client ID of the CDCF Website Web app, as provisioned by
-// cdcf-infra's setup-zitadel.sh --provision-cdcf-website. Must be set in
-// wp-config.php (or via a deploy-time constant injection) before any bearer
-// token will be accepted — without it, audience verification fails closed
-// and every Bearer auth attempt falls through. This guards against a token
-// minted for a sibling umbrella property (LitCal, OntoKit, BibleGet) being
-// replayed against cdcf-website's REST.
+// Comma-separated allow-list of OIDC client IDs we accept on bearer
+// tokens — as provisioned by cdcf-infra's
+// setup-zitadel.sh --provision-cdcf-website. The CDCF Org owns TWO
+// confidential apps: one for production (prod origin only, devMode=false)
+// and one for non-production (staging + localhost dev, devMode=true), so
+// the shared WP backend must accept both client IDs. See cdcf-infra
+// auth/handoffs/cdcf-website.md and issue #173 for the full shape.
+//
+// Must be set in wp-config.php before any bearer token will be accepted —
+// without it (or with only whitespace), audience verification fails closed
+// and every Bearer auth attempt falls through. This is what blocks tokens
+// minted for sibling umbrella properties (LitCal, OntoKit, BibleGet) from
+// being replayed against cdcf-website's REST.
+//
+// Example wp-config.php line:
+//   define('CDCF_ZITADEL_EXPECTED_AUD', '<prod_client_id>,<nonprod_client_id>');
 defined('CDCF_ZITADEL_EXPECTED_AUD') || define('CDCF_ZITADEL_EXPECTED_AUD', '');
 
 /**
@@ -111,22 +120,56 @@ function cdcf_zitadel_bearer_decode_jwt_payload(string $token): ?array {
 }
 
 /**
- * Verify a JWT's `aud` claim contains the expected client ID. Accepts
- * either a string or string-array `aud` (RFC 7519 permits both). Uses
- * hash_equals to avoid timing leaks on the comparison.
+ * Verify a JWT's `aud` claim contains at least one of the allow-listed
+ * client IDs. Accepts either a string or string-array `aud` (RFC 7519
+ * permits both). Uses hash_equals to avoid timing leaks on each
+ * comparison.
+ *
+ * The shared WP backend serves both the production and the non-production
+ * Next.js frontends, each of which is registered as its own confidential
+ * client under the CDCF Org and therefore mints tokens with a different
+ * `aud` claim. Accepting both client IDs at the WP layer is what lets a
+ * single deploy serve catholicdigitalcommons.org + staging.* + localhost
+ * dev — see issue #173.
+ *
+ * @param array<string,mixed> $claims  Decoded JWT payload.
+ * @param array<int,string>   $allowed Allow-list of accepted client IDs.
+ *                                     Empty/whitespace entries must be
+ *                                     stripped by the caller; an empty
+ *                                     allow-list reaches this function
+ *                                     as `[]` and fails closed.
  */
-function cdcf_zitadel_bearer_audience_ok(array $claims, string $expected): bool {
-    if ($expected === '') {
+function cdcf_zitadel_bearer_audience_ok(array $claims, array $allowed): bool {
+    if (empty($allowed)) {
         return false; // Misconfigured — fail closed.
     }
     $aud = $claims['aud'] ?? null;
-    $auds = is_array($aud) ? $aud : (is_string($aud) ? [$aud] : []);
-    foreach ($auds as $candidate) {
-        if (is_string($candidate) && hash_equals($expected, $candidate)) {
-            return true;
+    $token_auds = is_array($aud) ? $aud : (is_string($aud) ? [$aud] : []);
+    foreach ($token_auds as $token_aud) {
+        if (!is_string($token_aud)) {
+            continue;
+        }
+        foreach ($allowed as $allowed_aud) {
+            if (is_string($allowed_aud) && hash_equals($allowed_aud, $token_aud)) {
+                return true;
+            }
         }
     }
     return false;
+}
+
+/**
+ * Parse the CDCF_ZITADEL_EXPECTED_AUD constant into the allow-list.
+ * Accepts comma-separated values, trims whitespace, drops empty entries.
+ * Returns [] when the constant is unset, empty, or whitespace-only —
+ * which makes every audience check fail closed.
+ */
+function cdcf_zitadel_bearer_parse_allowed_auds(string $raw): array {
+    if ($raw === '') {
+        return [];
+    }
+    $parts = array_map('trim', explode(',', $raw));
+    return array_values(array_filter($parts, static fn(string $p): bool => $p !== ''));
 }
 
 /**
@@ -161,9 +204,10 @@ function cdcf_zitadel_bearer_authenticate($user_id) {
         // hard reject.
         return $user_id;
     }
-    if (!cdcf_zitadel_bearer_audience_ok($claims, CDCF_ZITADEL_EXPECTED_AUD)) {
-        if (CDCF_ZITADEL_EXPECTED_AUD === '') {
-            error_log('[cdcf-zitadel-bearer] CDCF_ZITADEL_EXPECTED_AUD not configured — rejecting all bearer tokens');
+    $allowed = cdcf_zitadel_bearer_parse_allowed_auds(CDCF_ZITADEL_EXPECTED_AUD);
+    if (!cdcf_zitadel_bearer_audience_ok($claims, $allowed)) {
+        if (empty($allowed)) {
+            error_log('[cdcf-zitadel-bearer] CDCF_ZITADEL_EXPECTED_AUD not configured (or only whitespace) — rejecting all bearer tokens');
         }
         return $user_id;
     }

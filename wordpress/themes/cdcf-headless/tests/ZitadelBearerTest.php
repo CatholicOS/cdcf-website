@@ -20,6 +20,9 @@ use PHPUnit\Framework\TestCase;
 final class ZitadelBearerTest extends TestCase
 {
     private const TEST_EXPECTED_AUD = '999000111000222000';
+    // Second entry of the allow-list defined in tests/bootstrap.php — used
+    // by the multi-aud integration test (issue #173).
+    private const TEST_EXPECTED_AUD_NONPROD = '888000111000222000';
 
     protected function setUp(): void
     {
@@ -322,36 +325,127 @@ final class ZitadelBearerTest extends TestCase
         $this->assertFalse(cdcf_zitadel_bearer_authenticate(false));
     }
 
-    public function test_audience_helper_rejects_when_expected_unset(): void
+    public function test_audience_helper_rejects_when_allow_list_empty(): void
     {
-        // Direct helper test: the misconfigured-deployment scenario where
-        // CDCF_ZITADEL_EXPECTED_AUD is left at its default '' value.
-        // Constants can't be redefined at runtime in standard PHP, so we
-        // exercise the helper with the empty-expected argument directly.
+        // Misconfigured deployment: CDCF_ZITADEL_EXPECTED_AUD left at the
+        // default '' value (or whitespace-only) — every token must reject.
+        // PHP constants can't be redefined at runtime, so test the helper
+        // with the empty-allow-list argument directly.
         $this->assertFalse(
-            cdcf_zitadel_bearer_audience_ok(['aud' => self::TEST_EXPECTED_AUD], '')
+            cdcf_zitadel_bearer_audience_ok(['aud' => self::TEST_EXPECTED_AUD], [])
         );
         $this->assertFalse(
-            cdcf_zitadel_bearer_audience_ok(['aud' => ['anything']], '')
+            cdcf_zitadel_bearer_audience_ok(['aud' => ['anything']], [])
         );
     }
 
     public function test_audience_helper_constant_time_compare(): void
     {
-        // Sanity that the helper uses exact-string match (no prefix/
-        // substring acceptance) — a near-miss must fail.
+        // Exact-string match — no prefix/substring acceptance.
         $this->assertFalse(cdcf_zitadel_bearer_audience_ok(
             ['aud' => self::TEST_EXPECTED_AUD . 'x'],
-            self::TEST_EXPECTED_AUD
+            [self::TEST_EXPECTED_AUD]
         ));
         $this->assertFalse(cdcf_zitadel_bearer_audience_ok(
             ['aud' => substr(self::TEST_EXPECTED_AUD, 0, -1)],
-            self::TEST_EXPECTED_AUD
+            [self::TEST_EXPECTED_AUD]
         ));
         $this->assertTrue(cdcf_zitadel_bearer_audience_ok(
             ['aud' => self::TEST_EXPECTED_AUD],
-            self::TEST_EXPECTED_AUD
+            [self::TEST_EXPECTED_AUD]
         ));
+    }
+
+    // ─── Multi-audience allow-list (issue #173) ──────────────────────
+
+    public function test_audience_helper_accepts_match_against_second_allow_list_entry(): void
+    {
+        // The shared WP backend serves both prod and non-prod frontends,
+        // each registered as its own Zitadel client. A token minted by the
+        // non-prod client must match the second allow-list entry.
+        $allowed = ['prod-client-id', 'nonprod-client-id'];
+        $this->assertTrue(cdcf_zitadel_bearer_audience_ok(
+            ['aud' => 'nonprod-client-id'],
+            $allowed
+        ));
+        $this->assertTrue(cdcf_zitadel_bearer_audience_ok(
+            ['aud' => 'prod-client-id'],
+            $allowed
+        ));
+    }
+
+    public function test_audience_helper_rejects_token_aud_matching_none_of_allow_list(): void
+    {
+        $this->assertFalse(cdcf_zitadel_bearer_audience_ok(
+            ['aud' => 'litcal-client-id'],
+            ['cdcf-prod', 'cdcf-nonprod']
+        ));
+    }
+
+    public function test_audience_helper_aud_array_matches_any_allow_list_entry(): void
+    {
+        // RFC 7519 permits aud as a string OR string-array. A token whose
+        // aud is an array containing one of our allowed values must accept.
+        $this->assertTrue(cdcf_zitadel_bearer_audience_ok(
+            ['aud' => ['unrelated', 'cdcf-nonprod', 'other-thing']],
+            ['cdcf-prod', 'cdcf-nonprod']
+        ));
+    }
+
+    public function test_nonprod_aud_token_authenticates_through_full_filter(): void
+    {
+        // End-to-end: a token minted by the non-prod cdcf-website client
+        // (aud = second entry of the allow-list) must pass audience check,
+        // hit userinfo, and resolve to a WP user — same as a prod token.
+        // This is the integration-level shape of issue #173.
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt([
+            'aud' => self::TEST_EXPECTED_AUD_NONPROD,
+        ]);
+        $this->stubWp();
+        Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
+            'email'          => 'author@example.org',
+            'email_verified' => true,
+        ]));
+        Functions\when('get_user_by')->alias(static fn(): WP_User => new WP_User(55));
+
+        $this->assertSame(55, cdcf_zitadel_bearer_authenticate(false));
+    }
+
+    // ─── Parser ──────────────────────────────────────────────────────
+
+    public function test_parse_allowed_auds_handles_comma_separated_list(): void
+    {
+        $this->assertSame(
+            ['abc', 'def'],
+            cdcf_zitadel_bearer_parse_allowed_auds('abc,def')
+        );
+    }
+
+    public function test_parse_allowed_auds_trims_whitespace_around_entries(): void
+    {
+        $this->assertSame(
+            ['abc', 'def'],
+            cdcf_zitadel_bearer_parse_allowed_auds(' abc , def ')
+        );
+    }
+
+    public function test_parse_allowed_auds_drops_empty_and_whitespace_only_entries(): void
+    {
+        // Trailing comma, double comma, lone whitespace entry: all dropped
+        // so a config-typo doesn't accidentally widen the allow-list.
+        $this->assertSame(
+            ['abc', 'def'],
+            cdcf_zitadel_bearer_parse_allowed_auds('abc,,def,   ,')
+        );
+    }
+
+    public function test_parse_allowed_auds_returns_empty_for_unset_constant(): void
+    {
+        // The defined()|define() default for the constant is '' — the
+        // parser must turn that into [] so the helper fails closed.
+        $this->assertSame([], cdcf_zitadel_bearer_parse_allowed_auds(''));
+        $this->assertSame([], cdcf_zitadel_bearer_parse_allowed_auds('   '));
+        $this->assertSame([], cdcf_zitadel_bearer_parse_allowed_auds(',,,'));
     }
 
     public function test_token_extracted_from_redirect_http_authorization_fallback(): void

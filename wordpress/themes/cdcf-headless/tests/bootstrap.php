@@ -181,11 +181,14 @@ require_once __DIR__ . '/../includes/handlers/submit-project.php';
 require_once __DIR__ . '/../includes/handlers/create-user.php';
 require_once __DIR__ . '/../includes/handlers/author-team-member.php';
 require_once __DIR__ . '/../includes/admin/limited-user-provisioning.php';
-// Pin the expected audience BEFORE loading zitadel-bearer.php so its
-// `defined() || define(..., '')` default no-ops. Tests reference the same
-// value via ZitadelBearerTest::TEST_EXPECTED_AUD when minting JWTs.
+// Pin the expected-audience allow-list BEFORE loading zitadel-bearer.php
+// so its `defined() || define(..., '')` default no-ops. Tests reference
+// the prod value via ZitadelBearerTest::TEST_EXPECTED_AUD when minting
+// JWTs; the second entry exists so the multi-aud integration tests
+// (issue #173) can mint a token with the non-prod aud and assert it
+// still authenticates through the full pipeline.
 if (!defined('CDCF_ZITADEL_EXPECTED_AUD')) {
-    define('CDCF_ZITADEL_EXPECTED_AUD', '999000111000222000');
+    define('CDCF_ZITADEL_EXPECTED_AUD', '999000111000222000, 888000111000222000');
 }
 require_once __DIR__ . '/../includes/auth/zitadel-bearer.php';
 require_once __DIR__ . '/../includes/admin/team-member-council.php';
