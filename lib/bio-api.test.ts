@@ -29,6 +29,8 @@ let fetchMock: ReturnType<typeof vi.fn>
 beforeEach(() => {
   vi.resetAllMocks()
   process.env.WP_REST_URL = 'https://wp.example.org/wp-json'
+  // Clear so tests of the fallback branch start from a clean slate.
+  delete process.env.WP_GRAPHQL_URL
   mockedGetAccessToken.mockReturnValue('token-abc')
   fetchMock = vi.fn()
   vi.stubGlobal('fetch', fetchMock)
@@ -89,13 +91,27 @@ describe('fetchMyTeamMember', () => {
     expect(err.code).toBe('rest_no_team_member_link')
   })
 
-  it('throws when WP_REST_URL is unset', async () => {
+  it('throws when both WP_REST_URL and WP_GRAPHQL_URL are unset', async () => {
     delete process.env.WP_REST_URL
+    delete process.env.WP_GRAPHQL_URL
 
     const err = await fetchMyTeamMember(session).catch((e) => e)
     expect(err).toBeInstanceOf(BioApiError)
     expect(err.status).toBe(500)
     expect(err.code).toBe('config_missing')
+  })
+
+  it('derives the REST URL from WP_GRAPHQL_URL when WP_REST_URL is unset', async () => {
+    delete process.env.WP_REST_URL
+    process.env.WP_GRAPHQL_URL = 'https://cms.example.org/graphql'
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, { team_member_id: 1, available_languages: [] })
+    )
+
+    await fetchMyTeamMember(session)
+
+    const [url] = fetchMock.mock.calls[0]
+    expect(url).toBe('https://cms.example.org/wp-json/cdcf/v1/my-team-member')
   })
 })
 

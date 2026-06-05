@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { BioApiError, fetchMyTeamMember } from '@/lib/bio-api'
+import { fetchMyTeamMember } from '@/lib/bio-api'
 
 // GET /api/my-bio/check
 // Tiny proxy used by the AuthButton header dropdown to decide whether
@@ -8,10 +8,13 @@ import { BioApiError, fetchMyTeamMember } from '@/lib/bio-api'
 // rather than just a boolean so the editor page can reuse the same
 // fetch without a second round-trip if desired.
 //
-// Anonymous callers get {linked: false} with HTTP 200 (the dropdown
-// shouldn't blink a 401 on every header render for logged-out users).
-// Authenticated callers without a team_member link get the same shape
-// — the WP-side endpoint returns a 403 we translate to "no link".
+// Fails soft on EVERY error path: this is a UI-decoration endpoint, not
+// a security boundary. Showing or hiding the dropdown entry must never
+// surface a 500 to the browser console. Anonymous, unlinked, expired
+// token, unreachable WP, missing env vars — all collapse to
+// {linked: false} with HTTP 200, and the underlying error is
+// console.error'd server-side for diagnosis. The /[lang]/my-bio page
+// itself still surfaces real errors as the appropriate localized copy.
 export async function GET() {
   const session = await auth()
   if (!session?.user) {
@@ -25,9 +28,7 @@ export async function GET() {
       available_languages: discovery.available_languages,
     })
   } catch (err) {
-    if (err instanceof BioApiError && (err.status === 401 || err.status === 403)) {
-      return NextResponse.json({ linked: false, available_languages: [] })
-    }
-    throw err
+    console.error('[my-bio/check] discovery failed (degrading to linked=false):', err)
+    return NextResponse.json({ linked: false, available_languages: [] })
   }
 }

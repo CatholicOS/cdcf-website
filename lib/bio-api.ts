@@ -50,9 +50,20 @@ export class BioApiError extends Error {
 }
 
 function getWpRestUrl(): string {
-  const url = process.env.WP_REST_URL
+  // Fall back to WP_GRAPHQL_URL → /wp-json so deploys that only configure
+  // the GraphQL endpoint (the historical default — WP_REST_URL was added
+  // later for the Python CLI) still work for these helpers. Both vars
+  // resolve to the same WordPress origin in every production-shaped
+  // deploy.
+  const url =
+    process.env.WP_REST_URL ??
+    process.env.WP_GRAPHQL_URL?.replace(/\/graphql\/?$/, '/wp-json')
   if (!url) {
-    throw new BioApiError('WP_REST_URL not configured', 500, 'config_missing')
+    throw new BioApiError(
+      'Neither WP_REST_URL nor WP_GRAPHQL_URL is configured',
+      500,
+      'config_missing'
+    )
   }
   return url.replace(/\/$/, '')
 }
