@@ -287,6 +287,26 @@
   "Auth": {
     "signIn": "Iniciar sesi\u00f3n",
     "signOut": "Cerrar sesi\u00f3n",
-    "loading": "Cargando\u2026"
+    "loading": "Cargando\u2026",
+    "editMyBio": "Editar mi biograf\u00eda"
+  },
+  "MyBio": {
+    "title": "Editar mi biograf\u00eda",
+    "intro": "Actualiza tu biograf\u00eda en el idioma que prefieras \u2014 las traducciones a los otros 5 idiomas se pondr\u00e1n en cola autom\u00e1ticamente.",
+    "languageLabel": "Idioma",
+    "postTitleLabel": "Nombre",
+    "contentLabel": "Biograf\u00eda",
+    "memberTitleLabel": "Cargo / afiliaci\u00f3n",
+    "linkedinLabel": "URL de LinkedIn",
+    "githubLabel": "URL de GitHub",
+    "save": "Guardar cambios",
+    "saving": "Guardando\u2026",
+    "savedQueued": "Guardado. Traducciones en cola para {langs}.",
+    "savedNoChange": "Guardado.",
+    "saveError": "No se pudo guardar: {error}",
+    "unsavedSwitch": "Tienes cambios sin guardar. \u00bfDescartarlos y cambiar de idioma?",
+    "notLinked": "Tu cuenta no est\u00e1 vinculada a un perfil de team_member. Contacta a un administrador.",
+    "noLanguages": "A\u00fan no hay versiones en otros idiomas para editar.",
+    "loadError": "No se pudo cargar esta versi\u00f3n de tu biograf\u00eda."
   }
 }

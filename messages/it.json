@@ -287,6 +287,26 @@
   "Auth": {
     "signIn": "Accedi",
     "signOut": "Esci",
-    "loading": "Caricamento\u2026"
+    "loading": "Caricamento\u2026",
+    "editMyBio": "Modifica la mia bio"
+  },
+  "MyBio": {
+    "title": "Modifica la mia bio",
+    "intro": "Aggiorna la tua bio nella lingua che preferisci \u2014 le traduzioni nelle altre 5 lingue verranno accodate automaticamente.",
+    "languageLabel": "Lingua",
+    "postTitleLabel": "Nome",
+    "contentLabel": "Bio",
+    "memberTitleLabel": "Ruolo / affiliazione",
+    "linkedinLabel": "URL LinkedIn",
+    "githubLabel": "URL GitHub",
+    "save": "Salva",
+    "saving": "Salvataggio\u2026",
+    "savedQueued": "Salvato. Traduzioni accodate per {langs}.",
+    "savedNoChange": "Salvato.",
+    "saveError": "Impossibile salvare: {error}",
+    "unsavedSwitch": "Hai modifiche non salvate. Scartarle e cambiare lingua?",
+    "notLinked": "Il tuo account non \u00e8 collegato a un profilo team_member. Contatta un amministratore.",
+    "noLanguages": "Nessuna versione linguistica disponibile per la modifica.",
+    "loadError": "Impossibile caricare questa versione della tua bio."
   }
 }
