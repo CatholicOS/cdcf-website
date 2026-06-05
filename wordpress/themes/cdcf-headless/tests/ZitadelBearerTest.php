@@ -75,9 +75,10 @@ final class ZitadelBearerTest extends TestCase
      *
      * Default 200-body shape includes a `sub` claim because Phase 5
      * requires it for user resolution. Tests of the sub-missing branch
-     * override by passing 'sub' => null (or omitting it) in the body
-     * arg — but a default makes the call site of most happy-path tests
-     * not need to carry an unrelated detail.
+     * must override by passing 'sub' => null explicitly — omitting the
+     * key triggers default injection (see the array_key_exists check
+     * below). The default keeps most happy-path call sites from
+     * having to carry an unrelated detail.
      */
     private function buildUserinfoResponse(int $code, array $body): array
     {
@@ -240,8 +241,8 @@ final class ZitadelBearerTest extends TestCase
 
     public function test_no_matching_wp_user_auto_provisions_subscriber(): void
     {
-        // First-time login from a Zitadel user the admin hasn't yet
-        // mapped to a WP account — fall through, no auto-provisioning.
+        // First-time login from a Zitadel user not yet mapped to a WP
+        // account — auto-provision as Subscriber (Phase 5).
         // PRE-PHASE-5 BEHAVIOUR (kept as a documentation marker): the
         // validator used to fall through here per locked decision #1
         // ("no auto-provisioning"). Phase 5 deliberately reversed that

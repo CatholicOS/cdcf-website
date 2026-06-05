@@ -5,8 +5,18 @@
  * Hooks into determine_current_user. When the request carries an
  * `Authorization: Bearer <token>` header and no earlier filter has
  * already authenticated the request, validates the token against
- * Zitadel's /oidc/v1/userinfo endpoint and resolves the WP user by
- * the email claim.
+ * Zitadel's /oidc/v1/userinfo endpoint and resolves the WP user.
+ *
+ * Resolution order (see cdcf_zitadel_bearer_resolve_user):
+ *   1. By Zitadel `sub` claim (user_meta `cdcf_zitadel_sub`) — the
+ *      immutable cross-system identity primary key. If the claim's
+ *      email differs from `user_email`, WP is updated to match.
+ *   2. By email (one-time migration for users created before sub
+ *      binding existed) — writes the sub user-meta on match.
+ *   3. Auto-provision a Subscriber when both lookups miss
+ *      (Phase 5 — supersedes the prior "no auto-provisioning"
+ *      stance for the Subscriber path; elevated roles still flow
+ *      through Phase 6's admin-approval workflow).
  *
  * Caches accepted (token-hash → user_id) pairs in a transient for a
  * short TTL (60s by default). The cache key is sha256(token) so raw
@@ -14,12 +24,11 @@
  *
  * Falls through (returns $user_id unchanged) on any failure path so
  * Application Passwords, auth cookies, and other auth methods keep
- * working unaffected. First-time logins for a Zitadel user with no
- * matching WP account also fall through — no automatic provisioning
- * (per plan: a Zitadel admin manually creates the WP user + the
- * author_team_member link, then the user logs in).
+ * working unaffected. Hard fall-through conditions: opaque/non-JWT
+ * token, audience mismatch, non-200 userinfo, malformed JSON,
+ * `email_verified !== true`, and missing `sub` claim.
  *
- * See ~/.claude/plans/cdcf-bio-edit-zitadel.md Phase 1b.
+ * See ~/.claude/plans/cdcf-role-mirroring.md Phase 5 Track B.
  */
 
 defined('ABSPATH') || exit;
@@ -248,7 +257,10 @@ function cdcf_zitadel_bearer_authenticate($user_id) {
         error_log('[cdcf-zitadel-bearer] userinfo returned malformed JSON');
         return $user_id;
     }
-    if (empty($userinfo['email_verified']) || empty($userinfo['email'])) {
+    // Strict boolean true — reject non-boolean truthy payloads (e.g.
+    // string "true", 1) so a spec-violating IdP can't trick the
+    // verified-email gate. The umbrella Zitadel emits a real bool.
+    if (($userinfo['email_verified'] ?? null) !== true || empty($userinfo['email'])) {
         // Either no email at all, or unverified. We require both for
         // the email → WP user lookup to be trustworthy AND for
         // auto-provisioning to be safe.
