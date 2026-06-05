@@ -93,21 +93,23 @@ Uses `@import 'tailwindcss'` (not `@tailwind` directives). Custom utilities via 
 
 ## REST API Endpoints (`cdcf/v1`)
 
-All endpoints require Application Password authentication. Most endpoints require `edit_posts` capability; `/process-queue` and `/maintenance` require `manage_options` (administrator); `/create-user` and `/author-team-member` require the custom `cdcf_create_limited_users` capability — see the row notes where capability differs.
+All endpoints accept either **Application Password** (for the Python CLI and other server-side callers) or **Zitadel OIDC bearer tokens** (for the Next.js frontend acting on behalf of a signed-in user — see [Zitadel bearer authentication](#zitadel-bearer-authentication) below). Most endpoints require `edit_posts` capability; `/process-queue` and `/maintenance` require `manage_options` (administrator); `/create-user` and `/author-team-member` require the custom `cdcf_create_limited_users` capability — see the row notes where capability differs.
 
-| Method | Route                        | Description                                                                                                                                                                                                                         |
-| ------ | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`  | `/relationship`              | Read an ACF relationship field (`post_id`, `field`)                                                                                                                                                                                 |
-| `POST` | `/relationship`              | Update an ACF relationship field (`post_id`, `field`, `value[]`)                                                                                                                                                                    |
-| `POST` | `/translate`                 | Translate a post to a target language via OpenAI (`source_id`, `target_lang`, optional `post_id`)                                                                                                                                   |
-| `POST` | `/update-disposable-domains` | Download latest disposable email domain blocklist from GitHub (called daily by Redis worker)                                                                                                                                        |
-| `POST` | `/team-member`               | Create a team member with auto-translation and About page linking (see below)                                                                                                                                                       |
-| `POST` | `/community-channel`         | Create a community channel with auto-translation and Community page linking (see below)                                                                                                                                             |
-| `POST` | `/local-group`               | Create a local group with auto-translation and Community page linking (see below)                                                                                                                                                   |
-| `POST` | `/maintenance`               | Pause or resume the cdcf-queue-worker by setting/clearing a Redis flag. Body: `action` is `"begin"` or `"end"`; optional `duration_seconds` is clamped server-side to 60–600. Requires administrator (`manage_options`) capability. |
-| `POST` | `/academic-collaboration`    | Create an academic collaboration with auto-translation and Community page linking (see below)                                                                                                                                       |
-| `POST` | `/create-user`               | Provision a low-privilege WordPress user (author/contributor/subscriber only) and email a set-password link. Requires the custom `cdcf_create_limited_users` capability, NOT `edit_posts` (see below).                              |
-| `POST` | `/author-team-member`        | Link (or unlink) a WordPress user to their `team_member` bio card by writing the `author_team_member` ACF field on the user (`user_id`, `team_member_id`; pass `0` to clear). Requires `cdcf_create_limited_users` (see below).     |
+| Method  | Route                        | Description                                                                                                                                                                                                                         |
+| ------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`   | `/relationship`              | Read an ACF relationship field (`post_id`, `field`)                                                                                                                                                                                 |
+| `POST`  | `/relationship`              | Update an ACF relationship field (`post_id`, `field`, `value[]`)                                                                                                                                                                    |
+| `POST`  | `/translate`                 | Translate a post to a target language via OpenAI (`source_id`, `target_lang`, optional `post_id`)                                                                                                                                   |
+| `POST`  | `/update-disposable-domains` | Download latest disposable email domain blocklist from GitHub (called daily by Redis worker)                                                                                                                                        |
+| `POST`  | `/team-member`               | Create a team member with auto-translation and About page linking (see below)                                                                                                                                                       |
+| `POST`  | `/community-channel`         | Create a community channel with auto-translation and Community page linking (see below)                                                                                                                                             |
+| `POST`  | `/local-group`               | Create a local group with auto-translation and Community page linking (see below)                                                                                                                                                   |
+| `POST`  | `/maintenance`               | Pause or resume the cdcf-queue-worker by setting/clearing a Redis flag. Body: `action` is `"begin"` or `"end"`; optional `duration_seconds` is clamped server-side to 60–600. Requires administrator (`manage_options`) capability. |
+| `POST`  | `/academic-collaboration`    | Create an academic collaboration with auto-translation and Community page linking (see below)                                                                                                                                       |
+| `POST`  | `/create-user`               | Provision a low-privilege WordPress user (author/contributor/subscriber only) and email a set-password link. Requires the custom `cdcf_create_limited_users` capability, NOT `edit_posts` (see below).                              |
+| `POST`  | `/author-team-member`        | Link (or unlink) a WordPress user to their `team_member` bio card by writing the `author_team_member` ACF field on the user (`user_id`, `team_member_id`; pass `0` to clear). Requires `cdcf_create_limited_users` (see below).     |
+| `GET`   | `/my-team-member`            | Discover the caller's linked `team_member` post + every Polylang sibling translation. Returns 403 when the caller has no `author_team_member` link. Phase 3 of bio self-edit.                                                       |
+| `PATCH` | `/my-team-member/{lang}`     | Edit the `{lang}` version of the caller's bio (content + member_title/linkedin/github) and queue re-translation to the other 5 langs from the just-saved source. Ownership enforced via the Polylang group. See below.              |
 
 ### Sanitization convention
 
@@ -170,6 +172,51 @@ This needs a dedicated endpoint because neither generic path works for a user-lo
 **Parameters:** `user_id` (required), `team_member_id` (required — a published `team_member` post ID, or `0` to clear the link)
 
 **Returns:** `{ success, user_id, team_member_id, value: [id]|[], updated }`
+
+### `GET /my-team-member`
+
+Discovery endpoint for the **authenticated** user's own bio. Resolves the caller's `author_team_member` ACF link → loads the full Polylang translation group → returns the post id plus a list of available language versions. Used by the Next.js bio editor on page load to populate the language selector and decide which version to open.
+
+Authorization: the caller must be authenticated (cookie / Application Password / Zitadel bearer all work) AND must have a populated `author_team_member` link. No additional capability is required beyond authentication — the ownership signal IS the link itself, since the link is admin-managed.
+
+**Parameters:** none.
+
+**Returns:** `{ team_member_id, available_languages: [{ slug, post_id, title, status }, …] }`. Posts whose `post_type` doesn't equal `team_member` are filtered out (defensive against polluted Polylang groups).
+
+**Status codes:** `200` on success, `401` when unauthenticated, `403` when authenticated but no `author_team_member` link is set.
+
+### `PATCH /my-team-member/{lang}`
+
+Edit the `{lang}` version of the caller's bio and queue re-translation to the other 5 languages from the just-saved source. `{lang}` is a 2-letter Polylang slug (`en`/`it`/`es`/`fr`/`pt`/`de`).
+
+**Authorization invariant:** the caller's `author_team_member` link must point at a post that is in the **same Polylang translation group** as the `{lang}` target post. The handler walks `pll_get_post_translations()` from the linked post, looks up the `{lang}` entry, and confirms the linked post id appears somewhere in that group — defending against stale links across moved Polylang groups. The user can edit ANY language version (not just the one their link directly references) — a German author whose admin set their link at the English post can still edit the German sibling.
+
+**Source-of-truth model:** whichever language the caller saves becomes the new source for that edit cycle. The handler hands the just-updated post to `cdcf_enqueue_post_translation()` once per OTHER language in the group, reusing the existing redis queue + Polylang link layer. The OpenAI prompt reads the source language from the source post (since PR #171), so editing in any locale produces correct translations in the other 5.
+
+**Parameters** (all optional — a partial PATCH only writes what's supplied):
+
+- `content` — bio HTML (sanitized by `wp_kses_post`)
+- `member_title` — subheader text (`sanitize_text_field`)
+- `member_linkedin_url` — must point at `linkedin.com` (or subdomain) or be empty
+- `member_github_url` — must point at `github.com` (or subdomain) or be empty
+
+URLs are sanitized via `esc_url_raw` at args time and then host-checked in the handler body (`esc_url_raw` can't constrain the hostname). Empty string clears the field.
+
+**Returns:** `{ post_id, queued: [lang, lang, …], errors: [string, …] }`. `queued` lists the languages whose re-translation jobs were enqueued; `errors` lists per-sibling enqueue failures (the endpoint does NOT abort on a single failed enqueue — the just-saved source-language post is already persisted at that point).
+
+**Status codes:** `200` on success, `401` unauthenticated, `403` link missing OR ownership invariant violated, `404` when no `{lang}` translation exists in the caller's Polylang group, `400` on URL host-allowlist violation, `500` on `wp_update_post` failure.
+
+### Zitadel bearer authentication
+
+`wordpress/themes/cdcf-headless/includes/auth/zitadel-bearer.php` hooks `determine_current_user` at priority 20 and accepts `Authorization: Bearer <access_token>` headers issued by the umbrella Zitadel at `https://auth.catholicdigitalcommons.org`. The Next.js frontend uses this on user-initiated REST writes (e.g. the upcoming bio self-edit flow) so the user's WP REST capability check enforces the same authorization the WP admin UI would. Behaviour:
+
+- **Audience verification first** (before any network round-trip). The token must be a JWT (configured via `OIDC_TOKEN_TYPE_JWT` in cdcf-infra) and its `aud` claim must contain at least one entry from a **comma-separated allow-list** in the `CDCF_ZITADEL_EXPECTED_AUD` constant in `wp-config.php`. The shared WP backend serves both production (`catholicdigitalcommons.org`) and non-production (`staging.catholicdigitalcommons.org` + `localhost:3000` dev) frontends, each registered as its own Zitadel client and minting tokens with a different `aud` — so the constant typically holds two client IDs, e.g. `define('CDCF_ZITADEL_EXPECTED_AUD', '<prod_client_id>,<nonprod_client_id>')`. Without this check, a token validly issued by Zitadel for a sibling property (LitCal/OntoKit/BibleGet) would otherwise pass the email-based WP user lookup, because umbrella login names are emails globally (`UserEmailAsUsername=true`). `CDCF_ZITADEL_EXPECTED_AUD` defaults to `''`, and an empty / whitespace-only / all-comma value parses to `[]` and fails every audience check closed — no Bearer token is accepted at all until the constant is set. The constant's value comes from the handoff produced by `cdcf-infra/auth/setup-zitadel.sh --provision-cdcf-website` (which emits both client IDs).
+- **Userinfo round-trip** validates the token's signature, expiry, and revocation status against `/oidc/v1/userinfo`; accepts only when `email_verified=true` and the `email` claim maps to an existing WP user (lookup via `get_user_by('email', …)` — no auto-provisioning, drift is reconciled by a Zitadel admin manually).
+- **Transient cache** of accepted `(sha256(token) → user_id)` pairs for 60 seconds — raw tokens never land in the WP options table.
+- **Fails closed on every unhappy path** (opaque non-JWT token, wrong audience, non-200 userinfo, malformed JSON, unverified email, no WP user match): returns the previous filter's `$user_id` unchanged so Application Passwords + auth cookies + other auth methods keep working untouched.
+- Tunable knobs are class-level constants: `CDCF_ZITADEL_USERINFO_URL`, `CDCF_ZITADEL_BEARER_CACHE_TTL`, `CDCF_ZITADEL_USERINFO_TIMEOUT`, `CDCF_ZITADEL_EXPECTED_AUD`.
+
+The Python CLI (`scripts/cdcf_api.py`) continues to use Application Password auth — it has no Zitadel access token to present.
 
 ## Adding a New Language
 
@@ -249,6 +296,7 @@ Required in `.env.local` (Next.js) or `.env` (Docker Compose):
 - `WP_APP_USERNAME`, `WP_APP_PASSWORD` — WordPress Application Password (used by the Python client)
 - `WP_PREVIEW_SECRET` — Shared secret for preview + revalidation
 - `WP_DB_ROOT_PASSWORD`, `WP_DB_NAME`, `WP_DB_USER`, `WP_DB_PASSWORD` — Database config
+- `AUTH_ZITADEL_ID`, `AUTH_ZITADEL_SECRET`, `AUTH_ZITADEL_ISSUER`, `AUTH_SECRET` — Auth.js v5 OIDC client config (see `lib/auth.ts`). The client_id/secret come from cdcf-infra's `setup-zitadel.sh --provision-cdcf-website` handoff; the issuer is `https://auth.catholicdigitalcommons.org`; `AUTH_SECRET` is generated per-env via `openssl rand -base64 32`. Each frontend (prod vs non-prod) pins **its own** `AUTH_ZITADEL_ID` (the one its sign-in flow uses). On the **shared** WordPress backend, `wp-config.php` must define `CDCF_ZITADEL_EXPECTED_AUD` as a **comma-separated allow-list of BOTH client IDs** — see [Zitadel bearer authentication](#zitadel-bearer-authentication) above for the full shape. Setting only one client ID there would 403 tokens minted by the other frontend.
 - Docker Compose reads `.env` not `.env.local` for variable substitution
 
 ## Deployment

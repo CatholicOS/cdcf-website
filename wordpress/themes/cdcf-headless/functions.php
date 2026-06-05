@@ -679,6 +679,52 @@ require_once __DIR__ . '/includes/security.php';
 // content sink below so colon-bearing anchors (#fn:…/#fnref:…) survive KSES.
 require_once __DIR__ . '/includes/fragment-anchors.php';
 
+// Zitadel bearer-token authenticator. Lets the Next.js frontend authenticate
+// WP REST writes for the team-member bio self-edit flow without an
+// Application Password round-trip. Priority 20 keeps it AFTER core's cookie
+// and Application Password resolvers, so existing auth paths are untouched.
+require_once __DIR__ . '/includes/auth/zitadel-bearer.php';
+add_filter('determine_current_user', 'cdcf_zitadel_bearer_authenticate', 20);
+
+// Bio self-edit endpoints — discovery + per-language edit. Authorization
+// piggybacks on the author_team_member ACF link an admin sets via the
+// /cdcf/v1/author-team-member endpoint; the bearer authenticator above
+// resolves the WP user from the Zitadel access token.
+require_once __DIR__ . '/includes/handlers/my-team-member.php';
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/my-team-member', [
+        'methods'             => 'GET',
+        'callback'            => 'cdcf_rest_get_my_team_member',
+        'permission_callback' => 'cdcf_rest_my_team_member_permission',
+    ]);
+    register_rest_route('cdcf/v1', '/my-team-member/(?P<lang>[a-z]{2})', [
+        'methods'             => 'PATCH',
+        'callback'            => 'cdcf_rest_update_my_team_member',
+        'permission_callback' => 'cdcf_rest_my_team_member_permission',
+        'args' => [
+            // The URL regex already constrains lang to two lowercase
+            // letters; declaring it here adds sanitize/validate parity
+            // with the other args (per AGENTS.md "Sanitization
+            // convention") and gives a typed entry the handler reads
+            // via $request['lang'].
+            'lang' => [
+                'required'          => true,
+                'type'              => 'string',
+                'sanitize_callback' => 'sanitize_key',
+                'validate_callback' => static fn($v): bool => is_string($v) && (bool) preg_match('/^[a-z]{2}$/', $v),
+            ],
+            // Hostname allowlists for the social URLs are enforced in
+            // the handler body (esc_url_raw can't constrain hostnames).
+            // Empty string is allowed throughout: it clears the field.
+            'content'             => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post'],
+            'member_title'        => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'member_linkedin_url' => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw'],
+            'member_github_url'   => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw'],
+        ],
+    ]);
+});
+
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/update-disposable-domains', [
         'methods'             => 'POST',

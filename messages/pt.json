@@ -283,5 +283,10 @@
     "openSourceProjects": "Projetos de Código Aberto",
     "contributors": "Colaboradores",
     "languages": "Idiomas"
+  },
+  "Auth": {
+    "signIn": "Entrar",
+    "signOut": "Sair",
+    "loading": "A carregar\u2026"
   }
 }

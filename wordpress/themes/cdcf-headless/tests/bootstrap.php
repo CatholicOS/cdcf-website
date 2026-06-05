@@ -103,6 +103,16 @@ if (!class_exists('WP_User')) {
         }
     }
 }
+if (!class_exists('WP_Post')) {
+    class WP_Post {
+        public int $ID = 0;
+        public string $post_title = '';
+        public string $post_content = '';
+        public string $post_excerpt = '';
+        public string $post_status = 'publish';
+        public string $post_type = 'post';
+    }
+}
 if (!class_exists('WP_Query')) {
     class WP_Query {
         public bool $main_query = true;
@@ -180,7 +190,18 @@ require_once __DIR__ . '/../includes/handlers/submit-project-send-code.php';
 require_once __DIR__ . '/../includes/handlers/submit-project.php';
 require_once __DIR__ . '/../includes/handlers/create-user.php';
 require_once __DIR__ . '/../includes/handlers/author-team-member.php';
+require_once __DIR__ . '/../includes/handlers/my-team-member.php';
 require_once __DIR__ . '/../includes/admin/limited-user-provisioning.php';
+// Pin the expected-audience allow-list BEFORE loading zitadel-bearer.php
+// so its `defined() || define(..., '')` default no-ops. Tests reference
+// the prod value via ZitadelBearerTest::TEST_EXPECTED_AUD when minting
+// JWTs; the second entry exists so the multi-aud integration tests
+// (issue #173) can mint a token with the non-prod aud and assert it
+// still authenticates through the full pipeline.
+if (!defined('CDCF_ZITADEL_EXPECTED_AUD')) {
+    define('CDCF_ZITADEL_EXPECTED_AUD', '999000111000222000, 888000111000222000');
+}
+require_once __DIR__ . '/../includes/auth/zitadel-bearer.php';
 require_once __DIR__ . '/../includes/admin/team-member-council.php';
 require_once __DIR__ . '/../includes/admin/polylang-default-seed.php';
 require_once __DIR__ . '/../includes/admin/ai-translate.php';

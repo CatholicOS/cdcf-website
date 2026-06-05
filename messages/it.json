@@ -283,5 +283,10 @@
     "openSourceProjects": "Progetti Open Source",
     "contributors": "Contributori",
     "languages": "Lingue"
+  },
+  "Auth": {
+    "signIn": "Accedi",
+    "signOut": "Esci",
+    "loading": "Caricamento\u2026"
   }
 }
