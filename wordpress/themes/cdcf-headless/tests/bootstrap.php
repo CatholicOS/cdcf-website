@@ -103,6 +103,16 @@ if (!class_exists('WP_User')) {
         }
     }
 }
+if (!class_exists('WP_Post')) {
+    class WP_Post {
+        public int $ID = 0;
+        public string $post_title = '';
+        public string $post_content = '';
+        public string $post_excerpt = '';
+        public string $post_status = 'publish';
+        public string $post_type = 'post';
+    }
+}
 if (!class_exists('WP_Query')) {
     class WP_Query {
         public bool $main_query = true;
@@ -180,6 +190,7 @@ require_once __DIR__ . '/../includes/handlers/submit-project-send-code.php';
 require_once __DIR__ . '/../includes/handlers/submit-project.php';
 require_once __DIR__ . '/../includes/handlers/create-user.php';
 require_once __DIR__ . '/../includes/handlers/author-team-member.php';
+require_once __DIR__ . '/../includes/handlers/my-team-member.php';
 require_once __DIR__ . '/../includes/admin/limited-user-provisioning.php';
 // Pin the expected-audience allow-list BEFORE loading zitadel-bearer.php
 // so its `defined() || define(..., '')` default no-ops. Tests reference

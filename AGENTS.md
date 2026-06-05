@@ -108,6 +108,8 @@ All endpoints accept either **Application Password** (for the Python CLI and oth
 | `POST` | `/academic-collaboration`    | Create an academic collaboration with auto-translation and Community page linking (see below)                                                                                                                                       |
 | `POST` | `/create-user`               | Provision a low-privilege WordPress user (author/contributor/subscriber only) and email a set-password link. Requires the custom `cdcf_create_limited_users` capability, NOT `edit_posts` (see below).                              |
 | `POST` | `/author-team-member`        | Link (or unlink) a WordPress user to their `team_member` bio card by writing the `author_team_member` ACF field on the user (`user_id`, `team_member_id`; pass `0` to clear). Requires `cdcf_create_limited_users` (see below).     |
+| `GET`  | `/my-team-member`            | Discover the caller's linked `team_member` post + every Polylang sibling translation. Returns 403 when the caller has no `author_team_member` link. Phase 3 of bio self-edit.                                                       |
+| `PATCH`| `/my-team-member/{lang}`     | Edit the `{lang}` version of the caller's bio (content + member_title/linkedin/github) and queue re-translation to the other 5 langs from the just-saved source. Ownership enforced via the Polylang group. See below.              |
 
 ### Sanitization convention
 
@@ -170,6 +172,38 @@ This needs a dedicated endpoint because neither generic path works for a user-lo
 **Parameters:** `user_id` (required), `team_member_id` (required — a published `team_member` post ID, or `0` to clear the link)
 
 **Returns:** `{ success, user_id, team_member_id, value: [id]|[], updated }`
+
+### `GET /my-team-member`
+
+Discovery endpoint for the **authenticated** user's own bio. Resolves the caller's `author_team_member` ACF link → loads the full Polylang translation group → returns the post id plus a list of available language versions. Used by the Next.js bio editor on page load to populate the language selector and decide which version to open.
+
+Authorization: the caller must be authenticated (cookie / Application Password / Zitadel bearer all work) AND must have a populated `author_team_member` link. No additional capability is required beyond authentication — the ownership signal IS the link itself, since the link is admin-managed.
+
+**Parameters:** none.
+
+**Returns:** `{ team_member_id, available_languages: [{ slug, post_id, title, status }, …] }`. Posts whose `post_type` doesn't equal `team_member` are filtered out (defensive against polluted Polylang groups).
+
+**Status codes:** `200` on success, `401` when unauthenticated, `403` when authenticated but no `author_team_member` link is set.
+
+### `PATCH /my-team-member/{lang}`
+
+Edit the `{lang}` version of the caller's bio and queue re-translation to the other 5 languages from the just-saved source. `{lang}` is a 2-letter Polylang slug (`en`/`it`/`es`/`fr`/`pt`/`de`).
+
+**Authorization invariant:** the caller's `author_team_member` link must point at a post that is in the **same Polylang translation group** as the `{lang}` target post. The handler walks `pll_get_post_translations()` from the linked post, looks up the `{lang}` entry, and confirms the linked post id appears somewhere in that group — defending against stale links across moved Polylang groups. The user can edit ANY language version (not just the one their link directly references) — a German author whose admin set their link at the English post can still edit the German sibling.
+
+**Source-of-truth model:** whichever language the caller saves becomes the new source for that edit cycle. The handler hands the just-updated post to `cdcf_enqueue_post_translation()` once per OTHER language in the group, reusing the existing redis queue + Polylang link layer. The OpenAI prompt reads the source language from the source post (since PR #171), so editing in any locale produces correct translations in the other 5.
+
+**Parameters** (all optional — a partial PATCH only writes what's supplied):
+- `content` — bio HTML (sanitized by `wp_kses_post`)
+- `member_title` — subheader text (`sanitize_text_field`)
+- `member_linkedin_url` — must point at `linkedin.com` (or subdomain) or be empty
+- `member_github_url` — must point at `github.com` (or subdomain) or be empty
+
+URLs are sanitized via `esc_url_raw` at args time and then host-checked in the handler body (`esc_url_raw` can't constrain the hostname). Empty string clears the field.
+
+**Returns:** `{ post_id, queued: [lang, lang, …], errors: [string, …] }`. `queued` lists the languages whose re-translation jobs were enqueued; `errors` lists per-sibling enqueue failures (the endpoint does NOT abort on a single failed enqueue — the just-saved source-language post is already persisted at that point).
+
+**Status codes:** `200` on success, `401` unauthenticated, `403` link missing OR ownership invariant violated, `404` when no `{lang}` translation exists in the caller's Polylang group, `400` on URL host-allowlist violation, `500` on `wp_update_post` failure.
 
 ### Zitadel bearer authentication
 
