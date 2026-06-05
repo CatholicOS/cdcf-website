@@ -5,6 +5,7 @@ import {
   BioApiError,
   fetchMyTeamMember,
   fetchTeamMemberPost,
+  type BioDiscovery,
   type BioPostContent,
 } from '@/lib/bio-api'
 import BioEditor from '@/components/BioEditor'
@@ -29,7 +30,7 @@ export default async function MyBioPage({
   }
   const t = await getTranslations('MyBio')
 
-  let discovery
+  let discovery: BioDiscovery
   try {
     discovery = await fetchMyTeamMember(session)
   } catch (err) {

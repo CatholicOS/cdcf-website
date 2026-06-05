@@ -173,9 +173,13 @@ export default function BioEditor({
 
       <fieldset className="space-y-4" disabled={isLoadingLang || isSaving}>
         <div>
-          <label className="block text-xs font-medium uppercase tracking-wide text-gray-500">
+          {/* Not a <label>: there's no editable input here — the team
+              member's display name is admin-managed and surfaced read-
+              only. A <label> with no associated control fails the
+              jsx-a11y rule. */}
+          <span className="block text-xs font-medium uppercase tracking-wide text-gray-500">
             {t('postTitleLabel')}
-          </label>
+          </span>
           <p className="mt-1 text-base">{currentTitle}</p>
         </div>
 
