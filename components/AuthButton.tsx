@@ -5,19 +5,21 @@ import { useSession, signIn, signOut } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
 import { ChevronDownIcon, UserIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
+import { Link } from '@/src/i18n/navigation'
 
 /**
  * Header sign-in / sign-out control.
  *
  * Unauthenticated → "Sign in" button kicking off the Zitadel OIDC flow.
- * Authenticated   → user dropdown with email + sign-out. Future entries
- * (e.g. "Edit my bio") will be conditional on session.user.roles or on
- * a server-resolved teamMemberId — kept out of this Phase 2 cut.
+ * Authenticated   → user dropdown with email + sign-out, plus an "Edit
+ * my bio" entry when the caller is linked to a team_member post (resolved
+ * via the /api/my-bio/check route).
  */
 export default function AuthButton() {
   const { data: session, status } = useSession()
   const t = useTranslations('Auth')
   const [isOpen, setIsOpen] = useState(false)
+  const [hasBioLink, setHasBioLink] = useState(false)
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const openDropdown = useCallback(() => {
@@ -55,6 +57,30 @@ export default function AuthButton() {
       }
     }
   }, [])
+
+  // Resolve the user's team_member link via the server route once the
+  // session is authenticated. The route is cheap (it short-circuits to
+  // 200 for anon and for authenticated-but-not-linked users), so a
+  // single fire-and-forget request keeps the dropdown decision off the
+  // hot path. We don't reset hasBioLink when the session disappears —
+  // the dropdown is gated on `session.user` below, so any stale `true`
+  // is invisible until the user signs in again, at which point the
+  // effect re-fires.
+  useEffect(() => {
+    if (status !== 'authenticated') return
+    const controller = new AbortController()
+    fetch('/api/my-bio/check', { signal: controller.signal, cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (body && typeof body === 'object' && 'linked' in body) {
+          setHasBioLink(Boolean(body.linked))
+        }
+      })
+      .catch(() => {
+        /* aborted or network error — leave hasBioLink as-is */
+      })
+    return () => controller.abort()
+  }, [status])
 
   if (status === 'loading') {
     return (
@@ -121,6 +147,16 @@ export default function AuthButton() {
             <div className="mb-1 border-b border-gray-100 px-4 py-2 text-xs text-gray-500">
               {session.user.email}
             </div>
+          )}
+          {hasBioLink && (
+            <Link
+              href="/my-bio"
+              role="menuitem"
+              onClick={() => setIsOpen(false)}
+              className="block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+            >
+              {t('editMyBio')}
+            </Link>
           )}
           <button
             type="button"

@@ -2,6 +2,21 @@ import NextAuth, { type DefaultSession } from 'next-auth'
 import type { JWT } from 'next-auth/jwt'
 import Zitadel from 'next-auth/providers/zitadel'
 
+// Plesk Passenger surfaces the bind address (0.0.0.0:3000) to Next.js
+// standalone instead of the public hostname, so Auth.js's redirect_uri
+// construction — even with trustHost: true — produces
+// https://0.0.0.0:3000/api/auth/callback/zitadel, which Zitadel
+// rejects with "invalid_request: requested redirect_uri is missing in
+// the client configuration". The canonical fix per Auth.js v5 is to set
+// AUTH_URL to the public origin. We already configure NEXT_PUBLIC_SITE_URL
+// per environment (prod / staging / dev) at build time + runtime via Plesk's
+// app env, so promote it to AUTH_URL when AUTH_URL itself isn't set.
+// See `project_plesk_passenger_port_leak` memory + proxy.ts for the
+// sibling fix that normalizes redirect-Location leaks the same way.
+if (!process.env.AUTH_URL && process.env.NEXT_PUBLIC_SITE_URL) {
+  process.env.AUTH_URL = process.env.NEXT_PUBLIC_SITE_URL
+}
+
 // Augment NextAuth's session/JWT types with the claims we surface.
 // Kept inline (rather than in a separate .d.ts) so this file is the
 // single source of truth for the shape we expose to consumers.

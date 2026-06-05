@@ -287,6 +287,26 @@
   "Auth": {
     "signIn": "Sign in",
     "signOut": "Sign out",
-    "loading": "Loading\u2026"
+    "loading": "Loading\u2026",
+    "editMyBio": "Edit my bio"
+  },
+  "MyBio": {
+    "title": "Edit my bio",
+    "intro": "Update your bio in the language you're most comfortable with \u2014 translations into the other 5 languages will be queued automatically.",
+    "languageLabel": "Language",
+    "postTitleLabel": "Name",
+    "contentLabel": "Bio",
+    "memberTitleLabel": "Position / affiliation",
+    "linkedinLabel": "LinkedIn URL",
+    "githubLabel": "GitHub URL",
+    "save": "Save changes",
+    "saving": "Saving\u2026",
+    "savedQueued": "Saved. Translations queued for {langs}.",
+    "savedNoChange": "Saved.",
+    "saveError": "Could not save: {error}",
+    "unsavedSwitch": "You have unsaved changes. Discard them and switch language?",
+    "notLinked": "Your account isn't linked to a team_member profile. Contact an administrator.",
+    "noLanguages": "No language versions are available to edit yet.",
+    "loadError": "Could not load this version of your bio."
   }
 }
