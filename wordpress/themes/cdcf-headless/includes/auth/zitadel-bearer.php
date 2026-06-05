@@ -250,17 +250,145 @@ function cdcf_zitadel_bearer_authenticate($user_id) {
     }
     if (empty($userinfo['email_verified']) || empty($userinfo['email'])) {
         // Either no email at all, or unverified. We require both for
-        // the email → WP user lookup to be trustworthy.
+        // the email → WP user lookup to be trustworthy AND for
+        // auto-provisioning to be safe.
+        return $user_id;
+    }
+    // The Zitadel `sub` claim is the immutable primary key for the
+    // cross-system user identity. We refuse to auto-provision (or even
+    // resolve by email) without it because email is mutable in Zitadel,
+    // and using email-only would silently create a second WP user every
+    // time the operator changed their Zitadel email.
+    if (empty($userinfo['sub']) || !is_string($userinfo['sub'])) {
+        error_log('[cdcf-zitadel-bearer] userinfo missing sub claim');
         return $user_id;
     }
 
-    $user = get_user_by('email', sanitize_email((string) $userinfo['email']));
-    if (!($user instanceof WP_User)) {
+    $resolved_id = cdcf_zitadel_bearer_resolve_user(
+        (string) $userinfo['sub'],
+        sanitize_email((string) $userinfo['email']),
+        is_string($userinfo['name'] ?? null) ? $userinfo['name'] : ''
+    );
+    if ($resolved_id <= 0) {
         return $user_id;
     }
 
-    set_transient($cache_key, (int) $user->ID, CDCF_ZITADEL_BEARER_CACHE_TTL);
-    return (int) $user->ID;
+    set_transient($cache_key, $resolved_id, CDCF_ZITADEL_BEARER_CACHE_TTL);
+    return $resolved_id;
+}
+
+/**
+ * Resolve (or auto-provision) the WP user for the given Zitadel
+ * identity. Returns the WP user id, or 0 on hard failure (in which
+ * case the caller falls through and the request remains unauthenticated).
+ *
+ * Lookup order:
+ *  1. By Zitadel `sub` claim, stored as user meta `cdcf_zitadel_sub`.
+ *     The sub is immutable across Zitadel email changes, so it's the
+ *     primary key for cross-system identity. If found and the claim's
+ *     email differs from the WP `user_email`, update WP to match — the
+ *     email-drift sync that prevents a second WP user from being
+ *     created when a Zitadel user changes their email.
+ *  2. By email (one-time migration for WP users created before this
+ *     change). On match, write the sub user-meta so future requests
+ *     take the fast path.
+ *  3. Auto-provision a Subscriber. WP `user_login` = full email
+ *     (immutable per WP, matches the umbrella Zitadel
+ *     `UserEmailAsUsername=true` invariant at creation time). Random
+ *     password is generated and never surfaced — sign-in must always
+ *     flow through Zitadel.
+ *
+ * See Phase 5 of ~/.claude/plans/cdcf-role-mirroring.md for the design.
+ */
+function cdcf_zitadel_bearer_resolve_user(string $sub, string $email, string $display_name): int {
+    // 1. sub primary key.
+    $user = cdcf_zitadel_bearer_user_by_sub($sub);
+    if ($user instanceof WP_User) {
+        if ($email !== '' && strcasecmp((string) $user->user_email, $email) !== 0) {
+            $upd = wp_update_user(['ID' => (int) $user->ID, 'user_email' => $email]);
+            if (is_wp_error($upd)) {
+                error_log('[cdcf-zitadel-bearer] email drift sync failed for user ' . $user->ID . ': ' . $upd->get_error_message());
+            }
+        }
+        return (int) $user->ID;
+    }
+
+    // 2. Email fallback (migration of pre-existing users).
+    if ($email === '' || !is_email($email)) {
+        return 0;
+    }
+    $user = get_user_by('email', $email);
+    if ($user instanceof WP_User) {
+        update_user_meta((int) $user->ID, 'cdcf_zitadel_sub', $sub);
+        return (int) $user->ID;
+    }
+
+    // 3. Auto-provision a Subscriber.
+    return cdcf_zitadel_bearer_auto_provision_subscriber($sub, $email, $display_name);
+}
+
+/**
+ * Find the WP user whose `cdcf_zitadel_sub` user-meta equals $sub.
+ * Returns null if no match. Reads via get_users() with a single-row
+ * limit so we never return ambiguous results.
+ */
+function cdcf_zitadel_bearer_user_by_sub(string $sub): ?WP_User {
+    if ($sub === '') {
+        return null;
+    }
+    $matches = get_users([
+        'meta_key'    => 'cdcf_zitadel_sub',
+        'meta_value'  => $sub,
+        'number'      => 1,
+        'count_total' => false,
+        'fields'      => 'all',
+    ]);
+    if (empty($matches) || !($matches[0] instanceof WP_User)) {
+        return null;
+    }
+    return $matches[0];
+}
+
+/**
+ * wp_insert_user() a Subscriber for the given Zitadel identity and
+ * bind the sub user-meta. On race (two parallel sign-ins for the same
+ * sub each reaching the auto-provision branch), the second
+ * wp_insert_user fails with user_email_exists; we re-resolve by sub
+ * — populated by the winner — and return that id rather than creating
+ * a duplicate.
+ *
+ * Returns the WP user id on success, 0 on hard failure.
+ */
+function cdcf_zitadel_bearer_auto_provision_subscriber(string $sub, string $email, string $display_name): int {
+    $result = wp_insert_user([
+        'user_login'   => $email,
+        'user_email'   => $email,
+        'role'         => 'subscriber',
+        'user_pass'    => wp_generate_password(64, true, true),
+        'display_name' => $display_name !== '' ? $display_name : $email,
+    ]);
+
+    if (is_wp_error($result)) {
+        // Race with a parallel auto-provision: try the sub primary
+        // key once more; if the winner already bound, that's our id.
+        $racer = cdcf_zitadel_bearer_user_by_sub($sub);
+        if ($racer instanceof WP_User) {
+            return (int) $racer->ID;
+        }
+        // Also try email — the parallel writer might have bound by
+        // email-fallback rather than auto-provision (different path,
+        // same outcome).
+        $by_email = get_user_by('email', $email);
+        if ($by_email instanceof WP_User) {
+            update_user_meta((int) $by_email->ID, 'cdcf_zitadel_sub', $sub);
+            return (int) $by_email->ID;
+        }
+        error_log('[cdcf-zitadel-bearer] auto-provision failed for ' . $email . ': ' . $result->get_error_message());
+        return 0;
+    }
+
+    update_user_meta((int) $result, 'cdcf_zitadel_sub', $sub);
+    return (int) $result;
 }
 
 // Hook wiring lives in functions.php (alongside the require_once for this
