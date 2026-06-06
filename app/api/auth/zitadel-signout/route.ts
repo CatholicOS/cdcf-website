@@ -45,20 +45,42 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     secureCookie: isSecure,
   })
 
-  // Clear the Auth.js v5 session cookies. We touch both the prefixed and
-  // unprefixed names so a misconfigured env (e.g. HTTPS deploy that
-  // forgot to set AUTH_URL) still gets cleaned up, never stranding the
-  // user logged-in-locally-but-logged-out-of-Zitadel.
+  // Clear EVERY Auth.js v5 cookie the browser sent. We enumerate
+  // req.cookies rather than hard-coding base names because Auth.js
+  // CHUNKS large session JWTs across `.0` / `.1` / `.2` suffixed
+  // cookies (the JWE grows past Zitadel's id_token + the project:roles
+  // claim + refresh_token, easily exceeding the ~4KB per-cookie limit)
+  // — a hard-coded `__Secure-authjs.session-token` delete would
+  // silently miss the chunks and leave the user effectively still
+  // signed in. Observed on staging where the JWE was split into
+  // `.0` (~4KB) + `.1` (~700B) cookies.
+  //
+  // We also explicitly set Max-Age=0 with the prefix-appropriate flags
+  // (Secure for `__Secure-` / `__Host-`, no Domain for `__Host-`)
+  // because browsers IGNORE deletion responses that don't match the
+  // prefix semantics — Next's cookies().delete() default flags are
+  // wrong for prefixed cookies and the cookies survive the response.
+  const AUTHJS_PREFIXES = ['authjs.', '__Secure-authjs.', '__Host-authjs.']
   const store = await cookies()
-  for (const name of [
-    'authjs.session-token',
-    '__Secure-authjs.session-token',
-    'authjs.csrf-token',
-    '__Host-authjs.csrf-token',
-    'authjs.callback-url',
-    '__Secure-authjs.callback-url',
-  ]) {
-    store.delete(name)
+  for (const c of req.cookies.getAll()) {
+    if (!AUTHJS_PREFIXES.some((p) => c.name.startsWith(p))) continue
+    const isHostPrefix = c.name.startsWith('__Host-')
+    const isPrefixSecure = isHostPrefix || c.name.startsWith('__Secure-')
+    store.set(c.name, '', {
+      maxAge: 0,
+      path: '/',
+      httpOnly: true,
+      // __Host- and __Secure- prefixes REQUIRE Secure on both set and
+      // delete; for unprefixed names fall back to whatever isSecure
+      // says (matches lib/auth.ts's HTTPS detection).
+      secure: isPrefixSecure || isSecure,
+      sameSite: 'lax',
+      // __Host- cookies must NOT have a Domain attribute — leaving it
+      // unset preserves that constraint. For non-Host names, also
+      // leaving Domain unset is fine: cookies set without Domain are
+      // scoped to the exact host the browser sees, which matches how
+      // Auth.js writes them in the first place.
+    })
   }
 
   const issuer = process.env.AUTH_ZITADEL_ISSUER
