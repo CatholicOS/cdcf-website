@@ -62,7 +62,13 @@ export default function BioEditor({
       Link.configure({
         openOnClick: false,
         autolink: false,
-        HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
+        // `rel` is the only attribute we force globally — every link
+        // gets `noopener noreferrer` for tabnabbing-prevention even
+        // when `target` is `_self`, since outbound HTTPS clicks can
+        // still leak `Referer` we don't want. `target` is intentionally
+        // omitted from the global HTMLAttributes so each link can
+        // carry its own value (configured via the toolbar popover).
+        HTMLAttributes: { rel: 'noopener noreferrer' },
       }),
     ],
     content: initialPost.content,
@@ -75,6 +81,21 @@ export default function BioEditor({
         // border-b-0 — together they form a single visual block.
         class:
           'prose max-w-none min-h-[16rem] rounded-b-md border border-t-0 border-gray-300 bg-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cdcf-navy',
+      },
+      // Suppress link-click navigation inside the editable surface.
+      // The Link extension's `openOnClick: false` only stops its own
+      // open-on-click handler; the browser still follows an
+      // `<a href="…" target="_blank">` when the user clicks it plainly
+      // (or Ctrl/Cmd-clicks any `<a>`). Intercept at the editor level
+      // so plain clicks ALWAYS just position the cursor — the only
+      // navigation path is the toolbar popover's "Navigate to URL"
+      // action (uses window.open out-of-band, bypassing this handler).
+      handleClick(_view, _pos, event) {
+        const target = event.target as HTMLElement | null
+        if (target?.closest('a')) {
+          event.preventDefault()
+        }
+        return false
       },
     },
   })
