@@ -118,21 +118,19 @@ describe('fetchMyTeamMember', () => {
 // ─── fetchTeamMemberPost ─────────────────────────────────────────────
 
 describe('fetchTeamMemberPost', () => {
-  it('hits /wp/v2 with context=edit and normalises the response', async () => {
+  it('hits /cdcf/v1/my-team-member/{lang} and normalises the flat response', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse(200, {
         id: 703,
-        title: { raw: 'Mein Name' },
-        content: { raw: '<p>Hallo.</p>', rendered: '<p>Hallo.</p>' },
-        acf: {
-          member_title: 'Theologe',
-          member_linkedin_url: 'https://linkedin.com/in/me',
-          member_github_url: '',
-        },
+        title: 'Mein Name',
+        content: '<p>Hallo.</p>',
+        member_title: 'Theologe',
+        member_linkedin_url: 'https://linkedin.com/in/me',
+        member_github_url: '',
       })
     )
 
-    const post = await fetchTeamMemberPost(session, 703)
+    const post = await fetchTeamMemberPost(session, 'de')
 
     expect(post).toEqual({
       id: 703,
@@ -144,33 +142,35 @@ describe('fetchTeamMemberPost', () => {
     })
     const [url] = fetchMock.mock.calls[0]
     expect(url).toBe(
-      'https://wp.example.org/wp-json/wp/v2/team_member/703?context=edit'
+      'https://wp.example.org/wp-json/cdcf/v1/my-team-member/de'
     )
   })
 
-  it('falls back to rendered title/content when raw is absent', async () => {
-    fetchMock.mockResolvedValue(
-      jsonResponse(200, {
-        id: 999,
-        title: { rendered: 'Rendered Name' },
-        content: { rendered: '<p>Rendered.</p>' },
-        acf: {},
-      })
-    )
+  it('returns empty strings + undefined optional fields when keys are absent', async () => {
+    // Missing keys (no title, no content, ACF unset) shouldn't throw —
+    // string fields collapse to '' and optional ones to undefined so
+    // the editor renders a blank-but-functional form.
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: 999 }))
 
-    const post = await fetchTeamMemberPost(session, 999)
+    const post = await fetchTeamMemberPost(session, 'en')
 
-    expect(post.title).toBe('Rendered Name')
-    expect(post.content).toBe('<p>Rendered.</p>')
+    expect(post.id).toBe(999)
+    expect(post.title).toBe('')
+    expect(post.content).toBe('')
     expect(post.member_title).toBeUndefined()
+    expect(post.member_linkedin_url).toBeUndefined()
+    expect(post.member_github_url).toBeUndefined()
   })
 
   it('propagates non-200 errors as BioApiError', async () => {
-    fetchMock.mockResolvedValue(jsonResponse(404, { code: 'rest_post_invalid_id' }))
+    fetchMock.mockResolvedValue(
+      jsonResponse(404, { code: 'rest_no_translation_for_lang' })
+    )
 
-    const err = await fetchTeamMemberPost(session, 1).catch((e) => e)
+    const err = await fetchTeamMemberPost(session, 'pt').catch((e) => e)
     expect(err).toBeInstanceOf(BioApiError)
     expect(err.status).toBe(404)
+    expect(err.code).toBe('rest_no_translation_for_lang')
   })
 })
 

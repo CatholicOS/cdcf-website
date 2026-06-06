@@ -698,29 +698,50 @@ add_action('rest_api_init', function () {
         'callback'            => 'cdcf_rest_get_my_team_member',
         'permission_callback' => 'cdcf_rest_my_team_member_permission',
     ]);
+    // GET reads + PATCH edits use the same ownership invariant (the
+    // `author_team_member` link must point at SOME post in the Polylang
+    // group containing {lang}'s post). Registering both methods on the
+    // same path keeps URL contract + permission_callback consistent;
+    // each method has its own args declaration so body sanitization
+    // stays per-verb.
     register_rest_route('cdcf/v1', '/my-team-member/(?P<lang>[a-z]{2})', [
-        'methods'             => 'PATCH',
-        'callback'            => 'cdcf_rest_update_my_team_member',
-        'permission_callback' => 'cdcf_rest_my_team_member_permission',
-        'args' => [
-            // The URL regex already constrains lang to two lowercase
-            // letters; declaring it here adds sanitize/validate parity
-            // with the other args (per AGENTS.md "Sanitization
-            // convention") and gives a typed entry the handler reads
-            // via $request['lang'].
-            'lang' => [
-                'required'          => true,
-                'type'              => 'string',
-                'sanitize_callback' => 'sanitize_key',
-                'validate_callback' => static fn($v): bool => is_string($v) && (bool) preg_match('/^[a-z]{2}$/', $v),
+        [
+            'methods'             => 'GET',
+            'callback'            => 'cdcf_rest_get_my_team_member_lang',
+            'permission_callback' => 'cdcf_rest_my_team_member_permission',
+            'args' => [
+                'lang' => [
+                    'required'          => true,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_key',
+                    'validate_callback' => static fn($v): bool => is_string($v) && (bool) preg_match('/^[a-z]{2}$/', $v),
+                ],
             ],
-            // Hostname allowlists for the social URLs are enforced in
-            // the handler body (esc_url_raw can't constrain hostnames).
-            // Empty string is allowed throughout: it clears the field.
-            'content'             => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post'],
-            'member_title'        => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
-            'member_linkedin_url' => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw'],
-            'member_github_url'   => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw'],
+        ],
+        [
+            'methods'             => 'PATCH',
+            'callback'            => 'cdcf_rest_update_my_team_member',
+            'permission_callback' => 'cdcf_rest_my_team_member_permission',
+            'args' => [
+                // The URL regex already constrains lang to two lowercase
+                // letters; declaring it here adds sanitize/validate parity
+                // with the other args (per AGENTS.md "Sanitization
+                // convention") and gives a typed entry the handler reads
+                // via $request['lang'].
+                'lang' => [
+                    'required'          => true,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_key',
+                    'validate_callback' => static fn($v): bool => is_string($v) && (bool) preg_match('/^[a-z]{2}$/', $v),
+                ],
+                // Hostname allowlists for the social URLs are enforced in
+                // the handler body (esc_url_raw can't constrain hostnames).
+                // Empty string is allowed throughout: it clears the field.
+                'content'             => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'wp_kses_post'],
+                'member_title'        => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+                'member_linkedin_url' => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw'],
+                'member_github_url'   => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw'],
+            ],
         ],
     ]);
 });

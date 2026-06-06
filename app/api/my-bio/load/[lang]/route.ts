@@ -32,7 +32,7 @@ export async function GET(
         { status: 404 }
       )
     }
-    const post = await fetchTeamMemberPost(session, entry.post_id)
+    const post = await fetchTeamMemberPost(session, lang)
     return NextResponse.json(post)
   } catch (err) {
     if (err instanceof BioApiError) {

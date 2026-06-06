@@ -174,6 +174,86 @@ function cdcf_rest_get_my_team_member(WP_REST_Request $request) {
 }
 
 /**
+ * GET /cdcf/v1/my-team-member/{lang} — read the {lang} version of the
+ * caller's bio.
+ *
+ * Exists because core REST `GET /wp/v2/team_member/{id}?context=edit`
+ * requires `edit_post` capability on the specific post — Phase 5
+ * auto-provisioned Subscribers who own a bio via `author_team_member`
+ * have NO `edit_post` cap and would hit `rest_forbidden_context` even
+ * though they legitimately own the post for bio-edit purposes. The
+ * ownership signal here is the same one PATCH uses (the
+ * `author_team_member` link + Polylang-group membership), not a
+ * capability — so a linked Subscriber correctly succeeds.
+ *
+ * Returns the flat shape the bio editor consumes
+ * (id/title/content/member_title/member_linkedin_url/member_github_url)
+ * with `raw` strings (no rendering filters) so the editor doesn't
+ * round-trip user-typed markup through `the_content` filters and
+ * cause drift on subsequent saves.
+ */
+function cdcf_rest_get_my_team_member_lang(WP_REST_Request $request) {
+    $user_id        = get_current_user_id();
+    $linked_id      = cdcf_my_team_member_resolve_link($user_id);
+    $requested_lang = (string) $request['lang'];
+
+    if ($linked_id <= 0) {
+        return new WP_Error(
+            'rest_no_team_member_link',
+            'Your account is not linked to a team_member post.',
+            ['status' => 403]
+        );
+    }
+
+    $group = cdcf_my_team_member_collect_group($linked_id);
+    if (!isset($group[$requested_lang])) {
+        return new WP_Error(
+            'rest_no_translation_for_lang',
+            sprintf('No %s translation exists for this team_member.', $requested_lang),
+            ['status' => 404]
+        );
+    }
+    $target_post_id = $group[$requested_lang];
+
+    // Ownership invariant: the user's link must point at SOME post in
+    // the resolved Polylang group (same check the PATCH handler runs).
+    if (!in_array($linked_id, $group, true)) {
+        return new WP_Error(
+            'rest_forbidden',
+            'You do not own this team_member.',
+            ['status' => 403]
+        );
+    }
+
+    $post = get_post($target_post_id);
+    if (!$post || $post->post_type !== 'team_member') {
+        return new WP_Error(
+            'rest_no_translation_for_lang',
+            sprintf('The %s translation entry is invalid (deleted or wrong post type).', $requested_lang),
+            ['status' => 404]
+        );
+    }
+
+    return rest_ensure_response([
+        'id'                  => (int) $post->ID,
+        'title'               => (string) $post->post_title,
+        // post_content is the unfiltered, editor-shaped string — no
+        // wpautop / oembed / shortcode processing applied. That's what
+        // the bio editor wants to put back into TipTap.
+        'content'             => (string) $post->post_content,
+        'member_title'        => function_exists('get_field')
+            ? (string) (get_field('member_title', $target_post_id) ?: '')
+            : '',
+        'member_linkedin_url' => function_exists('get_field')
+            ? (string) (get_field('member_linkedin_url', $target_post_id) ?: '')
+            : '',
+        'member_github_url'   => function_exists('get_field')
+            ? (string) (get_field('member_github_url', $target_post_id) ?: '')
+            : '',
+    ]);
+}
+
+/**
  * PATCH /cdcf/v1/my-team-member/{lang} — edit.
  *
  * Updates the {lang} version of the caller's bio (post_content + the

@@ -108,16 +108,19 @@ export async function fetchMyTeamMember(session: Session | null): Promise<BioDis
 
 export async function fetchTeamMemberPost(
   session: Session | null,
-  postId: number
+  lang: string
 ): Promise<BioPostContent> {
-  // Hits the core /wp/v2 endpoint (NOT /cdcf/v1) — Polylang exposes the
-  // language siblings as independent posts so we can fetch the {lang}
-  // version directly. The ?_embed=false keeps the payload tight.
-  // Use context=edit so unfiltered content is returned for editing
-  // (default 'view' returns the rendered/sanitized HTML which we'd
-  // then re-edit, causing drift).
+  // Hits the custom /cdcf/v1/my-team-member/{lang} endpoint, NOT core
+  // /wp/v2/team_member/{id}?context=edit. The core REST GET requires
+  // `edit_post` capability on the specific post — Phase 5
+  // auto-provisioned Subscribers who own a bio via `author_team_member`
+  // have no `edit_post` cap and would hit `rest_forbidden_context`,
+  // even though the Phase 5 design treats the link as the ownership
+  // signal (not a capability). The custom endpoint applies the same
+  // Polylang-group ownership check the PATCH counterpart uses, so a
+  // linked Subscriber correctly succeeds.
   const response = await fetch(
-    `${getWpRestUrl()}/wp/v2/team_member/${postId}?context=edit`,
+    `${getWpRestUrl()}/cdcf/v1/my-team-member/${lang}`,
     {
       headers: bearerHeader(session),
       cache: 'no-store',
@@ -131,31 +134,27 @@ export async function fetchTeamMemberPost(
 }
 
 function normaliseTeamMemberPost(body: unknown): BioPostContent {
+  // The custom /cdcf/v1/my-team-member/{lang} endpoint returns a flat
+  // shape — id/title/content as plain strings, ACF fields as flat keys
+  // — rather than core REST's nested `title.raw|rendered` /
+  // `content.raw|rendered` / `acf.*` shape. Runtime type guards stay
+  // because the response could still be malformed (network
+  // intermediary, etc.).
   const obj = (body ?? {}) as {
     id?: unknown
-    title?: { rendered?: unknown; raw?: unknown }
-    content?: { rendered?: unknown; raw?: unknown }
-    acf?: {
-      member_title?: unknown
-      member_linkedin_url?: unknown
-      member_github_url?: unknown
-    }
+    title?: unknown
+    content?: unknown
+    member_title?: unknown
+    member_linkedin_url?: unknown
+    member_github_url?: unknown
   }
-  const titleSrc =
-    (typeof obj.title?.raw === 'string' && obj.title.raw) ||
-    (typeof obj.title?.rendered === 'string' && obj.title.rendered) ||
-    ''
-  const contentSrc =
-    (typeof obj.content?.raw === 'string' && obj.content.raw) ||
-    (typeof obj.content?.rendered === 'string' && obj.content.rendered) ||
-    ''
   return {
     id: typeof obj.id === 'number' ? obj.id : 0,
-    title: titleSrc,
-    content: contentSrc,
-    member_title: stringOrUndefined(obj.acf?.member_title),
-    member_linkedin_url: stringOrUndefined(obj.acf?.member_linkedin_url),
-    member_github_url: stringOrUndefined(obj.acf?.member_github_url),
+    title: typeof obj.title === 'string' ? obj.title : '',
+    content: typeof obj.content === 'string' ? obj.content : '',
+    member_title: stringOrUndefined(obj.member_title),
+    member_linkedin_url: stringOrUndefined(obj.member_linkedin_url),
+    member_github_url: stringOrUndefined(obj.member_github_url),
   }
 }
 

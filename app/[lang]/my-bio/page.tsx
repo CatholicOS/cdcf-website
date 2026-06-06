@@ -67,7 +67,7 @@ export default async function MyBioPage({
 
   let initialPost: BioPostContent
   try {
-    initialPost = await fetchTeamMemberPost(session, preferred.post_id)
+    initialPost = await fetchTeamMemberPost(session, preferred.slug)
   } catch (err) {
     // Stale group entry — should be caught by the WP-side post-type
     // check too, but fall through gracefully here as well.
