@@ -609,6 +609,45 @@ final class ZitadelBearerTest extends TestCase
         $this->assertSame('named@example.org', $captured['display_name']);
     }
 
+    public function test_auto_provision_treats_whitespace_only_name_claims_as_absent(): void
+    {
+        // A spec-violating IdP that emits the name claims as whitespace
+        // strings ('   ') would otherwise pass the `!== ''` filter in
+        // the auto-provision branch and land in wp_insert_user as
+        // visibly-empty display_name / first_name / last_name fields,
+        // even though the user typed something. Trim at the extraction
+        // site so the existing emptiness checks collapse whitespace-
+        // only to absent and WP's own defaults apply.
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
+        $this->stubWp();
+        Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
+            'sub'            => 'zitadel-sub-whitespace',
+            'email'          => 'whitespace@example.org',
+            'email_verified' => true,
+            'name'           => '   ',
+            'given_name'     => "\t",
+            'family_name'    => " \n ",
+        ]));
+        Functions\when('get_user_by')->justReturn(false);
+        $captured = null;
+        Functions\when('wp_insert_user')->alias(
+            function (array $args) use (&$captured): int {
+                $captured = $args;
+                return 53;
+            }
+        );
+        Functions\when('wp_generate_password')->justReturn('random');
+
+        cdcf_zitadel_bearer_authenticate(false);
+
+        // display_name falls back to the email (same as the
+        // name-absent test); first_name + last_name keys are omitted
+        // (not passed as ''), letting WP keep its own defaults.
+        $this->assertSame('whitespace@example.org', $captured['display_name']);
+        $this->assertArrayNotHasKey('first_name', $captured);
+        $this->assertArrayNotHasKey('last_name', $captured);
+    }
+
     public function test_auto_provision_race_recovers_via_sub_relookup(): void
     {
         // Two parallel sign-ins for the same sub both reach the auto-

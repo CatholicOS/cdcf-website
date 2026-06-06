@@ -277,16 +277,21 @@ function cdcf_zitadel_bearer_authenticate($user_id) {
     }
 
     // Pull the OIDC standard profile claims that map to WP user fields
-    // on auto-provision. Each falls back to '' when absent — the
-    // downstream resolver handles missing pieces (e.g. empty display_name
-    // falls back to email so the WP user row is never literally blank).
+    // on auto-provision. Trim before normalizing so a whitespace-only
+    // claim — `"   "` — doesn't slip through the downstream `!== ''`
+    // checks and write a visibly-empty display_name / first_name /
+    // last_name to the WP user row. Non-string claims and missing keys
+    // both collapse to ''; the downstream resolver then handles the
+    // empty case (e.g. empty display_name falls back to email).
+    $name_claim = fn(string $key): string =>
+        is_string($userinfo[$key] ?? null) ? trim($userinfo[$key]) : '';
     $resolved_id = cdcf_zitadel_bearer_resolve_user(
         (string) $userinfo['sub'],
         sanitize_email((string) $userinfo['email']),
         [
-            'display_name' => is_string($userinfo['name'] ?? null) ? $userinfo['name'] : '',
-            'first_name'   => is_string($userinfo['given_name'] ?? null) ? $userinfo['given_name'] : '',
-            'last_name'    => is_string($userinfo['family_name'] ?? null) ? $userinfo['family_name'] : '',
+            'display_name' => $name_claim('name'),
+            'first_name'   => $name_claim('given_name'),
+            'last_name'    => $name_claim('family_name'),
         ]
     );
     if ($resolved_id <= 0) {
