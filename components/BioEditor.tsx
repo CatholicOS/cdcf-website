@@ -8,6 +8,7 @@ import Link from '@tiptap/extension-link'
 import clsx from 'clsx'
 
 import type { BioLanguage, BioPostContent } from '@/lib/bio-api'
+import BioEditorToolbar from '@/components/BioEditorToolbar'
 
 type EditableFields = {
   member_title: string
@@ -69,8 +70,11 @@ export default function BioEditor({
     onUpdate: markDirty,
     editorProps: {
       attributes: {
+        // rounded-b-md (not rounded-md) + border-t-0 because the
+        // BioEditorToolbar sits flush above us with rounded-t-md +
+        // border-b-0 — together they form a single visual block.
         class:
-          'prose max-w-none min-h-[16rem] rounded-md border border-gray-300 bg-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cdcf-navy',
+          'prose max-w-none min-h-[16rem] rounded-b-md border border-t-0 border-gray-300 bg-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cdcf-navy',
       },
     },
   })
@@ -191,6 +195,7 @@ export default function BioEditor({
             {t('contentLabel')}
           </label>
           <div id="bio-content" className="mt-1">
+            <BioEditorToolbar editor={editor} />
             <EditorContent editor={editor} />
           </div>
         </div>

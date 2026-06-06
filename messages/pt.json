@@ -307,6 +307,18 @@
     "unsavedSwitch": "Tem altera\u00e7\u00f5es por guardar. Descart\u00e1-las e mudar de idioma?",
     "notLinked": "A sua conta n\u00e3o est\u00e1 ligada a um perfil team_member. Contacte um administrador.",
     "noLanguages": "Ainda n\u00e3o h\u00e1 vers\u00f5es lingu\u00edsticas dispon\u00edveis para edi\u00e7\u00e3o.",
-    "loadError": "N\u00e3o foi poss\u00edvel carregar esta vers\u00e3o da sua bio."
+    "loadError": "N\u00e3o foi poss\u00edvel carregar esta vers\u00e3o da sua bio.",
+    "toolbar": {
+      "ariaLabel": "Barra de formata\u00e7\u00e3o da bio",
+      "bold": "Negrito",
+      "italic": "It\u00e1lico",
+      "h2": "T\u00edtulo 2",
+      "h3": "T\u00edtulo 3",
+      "bulletList": "Lista com marcadores",
+      "orderedList": "Lista numerada",
+      "link": "Inserir ou editar liga\u00e7\u00e3o",
+      "unlink": "Remover liga\u00e7\u00e3o",
+      "linkUrlPrompt": "Inserir o URL (deixar em branco para remover a liga\u00e7\u00e3o):"
+    }
   }
 }

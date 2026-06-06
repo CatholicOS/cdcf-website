@@ -307,6 +307,18 @@
     "unsavedSwitch": "Vous avez des modifications non enregistr\u00e9es. Les abandonner et changer de langue ?",
     "notLinked": "Votre compte n'est pas li\u00e9 \u00e0 un profil team_member. Contactez un administrateur.",
     "noLanguages": "Aucune version linguistique n'est disponible \u00e0 la modification.",
-    "loadError": "Impossible de charger cette version de votre bio."
+    "loadError": "Impossible de charger cette version de votre bio.",
+    "toolbar": {
+      "ariaLabel": "Barre de mise en forme de la bio",
+      "bold": "Gras",
+      "italic": "Italique",
+      "h2": "Titre 2",
+      "h3": "Titre 3",
+      "bulletList": "Liste à puces",
+      "orderedList": "Liste numérotée",
+      "link": "Insérer ou modifier le lien",
+      "unlink": "Supprimer le lien",
+      "linkUrlPrompt": "Saisir l'URL (laisser vide pour supprimer le lien) :"
+    }
   }
 }

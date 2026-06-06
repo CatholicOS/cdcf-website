@@ -307,6 +307,18 @@
     "unsavedSwitch": "Hai modifiche non salvate. Scartarle e cambiare lingua?",
     "notLinked": "Il tuo account non \u00e8 collegato a un profilo team_member. Contatta un amministratore.",
     "noLanguages": "Nessuna versione linguistica disponibile per la modifica.",
-    "loadError": "Impossibile caricare questa versione della tua bio."
+    "loadError": "Impossibile caricare questa versione della tua bio.",
+    "toolbar": {
+      "ariaLabel": "Barra di formattazione della bio",
+      "bold": "Grassetto",
+      "italic": "Corsivo",
+      "h2": "Titolo 2",
+      "h3": "Titolo 3",
+      "bulletList": "Elenco puntato",
+      "orderedList": "Elenco numerato",
+      "link": "Inserisci o modifica il collegamento",
+      "unlink": "Rimuovi il collegamento",
+      "linkUrlPrompt": "Inserisci l'URL (lascia vuoto per rimuovere il collegamento):"
+    }
   }
 }
