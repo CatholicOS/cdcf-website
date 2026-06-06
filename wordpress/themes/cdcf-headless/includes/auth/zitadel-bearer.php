@@ -276,10 +276,18 @@ function cdcf_zitadel_bearer_authenticate($user_id) {
         return $user_id;
     }
 
+    // Pull the OIDC standard profile claims that map to WP user fields
+    // on auto-provision. Each falls back to '' when absent — the
+    // downstream resolver handles missing pieces (e.g. empty display_name
+    // falls back to email so the WP user row is never literally blank).
     $resolved_id = cdcf_zitadel_bearer_resolve_user(
         (string) $userinfo['sub'],
         sanitize_email((string) $userinfo['email']),
-        is_string($userinfo['name'] ?? null) ? $userinfo['name'] : ''
+        [
+            'display_name' => is_string($userinfo['name'] ?? null) ? $userinfo['name'] : '',
+            'first_name'   => is_string($userinfo['given_name'] ?? null) ? $userinfo['given_name'] : '',
+            'last_name'    => is_string($userinfo['family_name'] ?? null) ? $userinfo['family_name'] : '',
+        ]
     );
     if ($resolved_id <= 0) {
         return $user_id;
@@ -310,9 +318,17 @@ function cdcf_zitadel_bearer_authenticate($user_id) {
  *     password is generated and never surfaced — sign-in must always
  *     flow through Zitadel.
  *
+ * The $profile array carries the OIDC profile claims used on
+ * auto-provision (display_name from `name`, first_name from
+ * `given_name`, last_name from `family_name`). Each key is a string,
+ * may be empty, and is ignored on the sub-hit / email-hit paths
+ * (those return an existing WP user we don't want to overwrite).
+ *
  * See Phase 5 of ~/.claude/plans/cdcf-role-mirroring.md for the design.
+ *
+ * @param array{display_name:string,first_name:string,last_name:string} $profile
  */
-function cdcf_zitadel_bearer_resolve_user(string $sub, string $email, string $display_name): int {
+function cdcf_zitadel_bearer_resolve_user(string $sub, string $email, array $profile): int {
     // 1. sub primary key.
     $user = cdcf_zitadel_bearer_user_by_sub($sub);
     if ($user instanceof WP_User) {
@@ -336,7 +352,7 @@ function cdcf_zitadel_bearer_resolve_user(string $sub, string $email, string $di
     }
 
     // 3. Auto-provision a Subscriber.
-    return cdcf_zitadel_bearer_auto_provision_subscriber($sub, $email, $display_name);
+    return cdcf_zitadel_bearer_auto_provision_subscriber($sub, $email, $profile);
 }
 
 /**
@@ -370,15 +386,29 @@ function cdcf_zitadel_bearer_user_by_sub(string $sub): ?WP_User {
  * a duplicate.
  *
  * Returns the WP user id on success, 0 on hard failure.
+ *
+ * @param array{display_name:string,first_name:string,last_name:string} $profile
  */
-function cdcf_zitadel_bearer_auto_provision_subscriber(string $sub, string $email, string $display_name): int {
-    $result = wp_insert_user([
+function cdcf_zitadel_bearer_auto_provision_subscriber(string $sub, string $email, array $profile): int {
+    // Empty first/last/display are passed through unset rather than as
+    // '' so wp_insert_user uses its own defaults (and a missing
+    // display_name falls back to the email) instead of overwriting with
+    // blanks — keeps a partial-profile sign-up from producing a
+    // visibly-empty WP user row.
+    $args = [
         'user_login'   => $email,
         'user_email'   => $email,
         'role'         => 'subscriber',
         'user_pass'    => wp_generate_password(64, true, true),
-        'display_name' => $display_name !== '' ? $display_name : $email,
-    ]);
+        'display_name' => $profile['display_name'] !== '' ? $profile['display_name'] : $email,
+    ];
+    if ($profile['first_name'] !== '') {
+        $args['first_name'] = $profile['first_name'];
+    }
+    if ($profile['last_name'] !== '') {
+        $args['last_name'] = $profile['last_name'];
+    }
+    $result = wp_insert_user($args);
 
     if (is_wp_error($result)) {
         // Race with a parallel auto-provision: try the sub primary

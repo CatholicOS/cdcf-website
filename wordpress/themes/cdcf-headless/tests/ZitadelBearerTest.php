@@ -526,6 +526,8 @@ final class ZitadelBearerTest extends TestCase
             'email'          => 'newauthor@example.org',
             'email_verified' => true,
             'name'           => 'Jane Doe',
+            'given_name'     => 'Jane',
+            'family_name'    => 'Doe',
         ]));
         Functions\when('get_user_by')->justReturn(false);
         $captured = null;
@@ -540,6 +542,8 @@ final class ZitadelBearerTest extends TestCase
         cdcf_zitadel_bearer_authenticate(false);
 
         $this->assertSame('Jane Doe', $captured['display_name']);
+        $this->assertSame('Jane', $captured['first_name']);
+        $this->assertSame('Doe', $captured['last_name']);
         $this->assertSame('subscriber', $captured['role']);
     }
 
@@ -565,6 +569,44 @@ final class ZitadelBearerTest extends TestCase
         cdcf_zitadel_bearer_authenticate(false);
 
         $this->assertSame('nameless@example.org', $captured['display_name']);
+        // first_name / last_name omitted (not present as keys) when the
+        // Zitadel claims are absent — wp_insert_user keeps its defaults
+        // rather than writing literal empty strings to the WP user row.
+        $this->assertArrayNotHasKey('first_name', $captured);
+        $this->assertArrayNotHasKey('last_name', $captured);
+    }
+
+    public function test_auto_provision_passes_given_and_family_name_to_wp_insert_user(): void
+    {
+        // Given a sign-up where the Zitadel claims include given_name +
+        // family_name (but no aggregate `name`), wp_insert_user receives
+        // first_name + last_name so the WP user row isn't visibly empty.
+        // display_name still falls back to email when `name` is absent —
+        // composing it from given_name + family_name is a UI concern.
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $this->mintJwt();
+        $this->stubWp();
+        Functions\when('wp_remote_post')->justReturn($this->buildUserinfoResponse(200, [
+            'sub'            => 'zitadel-sub-named',
+            'email'          => 'named@example.org',
+            'email_verified' => true,
+            'given_name'     => 'Sam',
+            'family_name'    => 'Park',
+        ]));
+        Functions\when('get_user_by')->justReturn(false);
+        $captured = null;
+        Functions\when('wp_insert_user')->alias(
+            function (array $args) use (&$captured): int {
+                $captured = $args;
+                return 52;
+            }
+        );
+        Functions\when('wp_generate_password')->justReturn('random');
+
+        cdcf_zitadel_bearer_authenticate(false);
+
+        $this->assertSame('Sam', $captured['first_name']);
+        $this->assertSame('Park', $captured['last_name']);
+        $this->assertSame('named@example.org', $captured['display_name']);
     }
 
     public function test_auto_provision_race_recovers_via_sub_relookup(): void
