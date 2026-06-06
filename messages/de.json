@@ -307,6 +307,18 @@
     "unsavedSwitch": "Du hast nicht gespeicherte \u00c4nderungen. Verwerfen und Sprache wechseln?",
     "notLinked": "Dein Konto ist mit keinem team_member-Profil verkn\u00fcpft. Wende dich an einen Administrator.",
     "noLanguages": "Es sind noch keine Sprachversionen zur Bearbeitung verf\u00fcgbar.",
-    "loadError": "Diese Version deiner Bio konnte nicht geladen werden."
+    "loadError": "Diese Version deiner Bio konnte nicht geladen werden.",
+    "toolbar": {
+      "ariaLabel": "Bio-Formatierungsleiste",
+      "bold": "Fett",
+      "italic": "Kursiv",
+      "h2": "Überschrift 2",
+      "h3": "Überschrift 3",
+      "bulletList": "Aufzählung",
+      "orderedList": "Nummerierte Liste",
+      "link": "Link einfügen oder bearbeiten",
+      "unlink": "Link entfernen",
+      "linkUrlPrompt": "URL eingeben (leer lassen, um den Link zu entfernen):"
+    }
   }
 }

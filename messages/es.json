@@ -307,6 +307,18 @@
     "unsavedSwitch": "Tienes cambios sin guardar. \u00bfDescartarlos y cambiar de idioma?",
     "notLinked": "Tu cuenta no est\u00e1 vinculada a un perfil de team_member. Contacta a un administrador.",
     "noLanguages": "A\u00fan no hay versiones en otros idiomas para editar.",
-    "loadError": "No se pudo cargar esta versi\u00f3n de tu biograf\u00eda."
+    "loadError": "No se pudo cargar esta versi\u00f3n de tu biograf\u00eda.",
+    "toolbar": {
+      "ariaLabel": "Barra de formato de la biograf\u00eda",
+      "bold": "Negrita",
+      "italic": "Cursiva",
+      "h2": "Encabezado 2",
+      "h3": "Encabezado 3",
+      "bulletList": "Lista con vi\u00f1etas",
+      "orderedList": "Lista numerada",
+      "link": "Insertar o editar enlace",
+      "unlink": "Quitar enlace",
+      "linkUrlPrompt": "Introduce la URL (d\u00e9jala vac\u00eda para quitar el enlace):"
+    }
   }
 }
