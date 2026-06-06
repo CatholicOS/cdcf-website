@@ -123,6 +123,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // offline_access → refresh token; the project:roles scope
           // makes Zitadel include the role claim in the id_token.
           scope: `openid profile email offline_access ${ZITADEL_ROLES_CLAIM}`,
+          // Force the Zitadel account chooser on every sign-in so an
+          // active SSO session for a sibling property (LitCal/OntoKit/
+          // BibleGet) or the umbrella IAM admin doesn't silently pass
+          // through to cdcf-website. The user must actively pick which
+          // account they want to sign in as. Pairs with the RP-initiated
+          // logout route — together they keep account switching usable.
+          //
+          // hasProjectCheck on the CDCF Website Zitadel project (TODO,
+          // separate cdcf-infra PR) will be the structural enforcement;
+          // this prompt is the application-layer UX guard that ships
+          // ahead of that infra change.
+          prompt: 'select_account',
         },
       },
     }),

@@ -159,24 +159,28 @@ export default function AuthButton() {
             </Link>
           )}
           {/*
-            Full browser navigation (window.location, not next-auth/react's
-            signOut() or next/link) so the request goes through our
-            RP-initiated logout route — which clears the Auth.js cookies
-            AND 302s through Zitadel's /oidc/v1/end_session to terminate
-            the upstream SSO session. signOut() alone leaves Zitadel's
-            session intact; next/link would skip the API route entirely
-            via client-side routing.
+            Form POST (not next-auth/react's signOut() or next/link or a
+            window.location GET) so the request reaches our RP-initiated
+            logout route as POST — which clears the Auth.js cookies AND
+            303s through Zitadel's /oidc/v1/end_session to terminate the
+            upstream SSO session. POST (rather than GET) makes the route
+            CSRF-safe: a sign-out endpoint mutates state, and a GET form
+            would be triggerable via `<img src>` on any third-party page.
+            The browser handles the 303 and follows with GET to Zitadel.
           */}
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              window.location.href = '/api/auth/zitadel-signout'
-            }}
-            className="block w-full px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+          <form
+            action="/api/auth/zitadel-signout"
+            method="POST"
+            className="block"
           >
-            {t('signOut')}
-          </button>
+            <button
+              type="submit"
+              role="menuitem"
+              className="block w-full px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+            >
+              {t('signOut')}
+            </button>
+          </form>
         </div>
       )}
     </div>

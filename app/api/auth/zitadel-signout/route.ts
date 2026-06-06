@@ -12,15 +12,28 @@ import { getToken } from 'next-auth/jwt'
  * logout endpoint, which kills the upstream session and bounces back to
  * post_logout_redirect_uri (registered per env in setup-zitadel.sh).
  *
+ * Exposed only on POST: a sign-out endpoint mutates state, so it must
+ * not be triggerable via `<img>` or other cross-origin GET vectors.
+ * Auth.js v5's built-in /api/auth/signout enforces POST for the same
+ * reason. The success path returns 303 See Other so the browser follows
+ * the upstream Zitadel URL with GET (the verb /oidc/v1/end_session
+ * expects), without replaying the POST.
+ *
  * See cdcf-infra/auth/handoffs/cdcf-website.md for the registered
  * post-logout URIs per Zitadel client.
  */
-export async function GET(req: NextRequest): Promise<NextResponse> {
-  // Whether Auth.js v5 used Secure-prefixed cookie names. The cookie
-  // naming convention is tied to whether the deployment is HTTPS — same
-  // signal Auth.js uses internally — so derive from AUTH_URL rather than
-  // a separate flag.
-  const isSecure = (process.env.AUTH_URL ?? '').startsWith('https://')
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  // Mirror lib/auth.ts's runtime AUTH_URL determination: AUTH_URL takes
+  // precedence, else NEXT_PUBLIC_SITE_URL (inlined at build time into
+  // server code by Next's DefinePlugin). Doing this independently rather
+  // than reading process.env.AUTH_URL alone covers a cold-start where
+  // this route handler runs BEFORE lib/auth.ts's top-level `process.env.
+  // AUTH_URL = ...` fallback has executed — otherwise isSecure would be
+  // false on HTTPS and we'd look up the cookie by the wrong (unprefixed)
+  // name, failing to read token.idToken and skipping id_token_hint.
+  const siteUrl =
+    process.env.AUTH_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? ''
+  const isSecure = siteUrl.startsWith('https://')
 
   // Pull the id_token from the JWT BEFORE we delete the cookie. getToken
   // reads from the request cookies (an immutable snapshot at request
@@ -52,9 +65,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Without an issuer there's nothing to redirect to for the upstream
   // session termination — fall back to the local sign-in page so the
   // user at least lands somewhere sensible. The local session is gone
-  // either way.
+  // either way. Use 303 here too so the browser follows with GET.
   if (!issuer) {
-    return NextResponse.redirect(new URL('/', req.url))
+    return NextResponse.redirect(new URL('/', req.url), 303)
   }
 
   const endSession = new URL('/oidc/v1/end_session', issuer)
@@ -73,11 +86,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
   // post_logout_redirect_uri must be one of the URIs registered on the
   // Zitadel OIDC app for this client_id (setup-zitadel.sh registers the
-  // public origin per env). AUTH_URL matches that by construction.
-  const postLogout = process.env.AUTH_URL
-  if (typeof postLogout === 'string' && postLogout !== '') {
-    endSession.searchParams.set('post_logout_redirect_uri', postLogout)
+  // public origin per env). Use the same fallback chain as siteUrl above
+  // so misconfigured deploys still produce a registered URI rather than
+  // silently dropping the param and bouncing to Zitadel's default.
+  if (siteUrl !== '') {
+    endSession.searchParams.set('post_logout_redirect_uri', siteUrl)
   }
 
-  return NextResponse.redirect(endSession.toString())
+  // 303 — the incoming method was POST; the browser must follow with GET
+  // because /oidc/v1/end_session is GET-only and we don't want to replay
+  // the cookie-clearing POST against Zitadel.
+  return NextResponse.redirect(endSession.toString(), 303)
 }
