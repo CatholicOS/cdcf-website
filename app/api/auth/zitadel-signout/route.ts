@@ -35,6 +35,51 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     process.env.AUTH_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? ''
   const isSecure = siteUrl.startsWith('https://')
 
+  // CSRF defence — state-changing POST must originate from our own
+  // origin. SameSite=Lax on the Auth.js session cookies already keeps
+  // them from being sent on a cross-site POST (so the cookie-deletion
+  // path below would no-op), but a malicious cross-site POST would
+  // still bounce the user through Zitadel's end_session confirmation
+  // page on the response redirect — annoying, plus we shouldn't rely
+  // on browser cookie behaviour to make a state-mutating endpoint
+  // safe. Modern browsers send Origin on every POST (cross-origin and
+  // same-origin); Referer is the fallback for the rare client that
+  // strips it. If both are missing or neither matches our expected
+  // origin, refuse to mutate state. Auth.js v5's built-in
+  // /api/auth/signout uses a CSRF token cookie for the same purpose;
+  // we get equivalent protection from same-origin enforcement with
+  // strictly less state to wire through the client side.
+  const expectedOrigin = (() => {
+    if (siteUrl === '') return ''
+    try {
+      const u = new URL(siteUrl)
+      return `${u.protocol}//${u.host}`
+    } catch {
+      return ''
+    }
+  })()
+  if (expectedOrigin === '') {
+    // Can't determine our own origin — refuse to mutate state. A
+    // visible 403 here surfaces the misconfiguration; the alternative
+    // (skipping the CSRF check on a broken deploy) silently accepts
+    // cross-site sign-outs.
+    return new NextResponse('Forbidden', { status: 403 })
+  }
+  const requestOriginMatches = (header: string | null): boolean => {
+    if (header === null || header === '') return false
+    try {
+      const u = new URL(header)
+      return `${u.protocol}//${u.host}` === expectedOrigin
+    } catch {
+      return false
+    }
+  }
+  const origin = req.headers.get('origin')
+  const referer = req.headers.get('referer')
+  if (!requestOriginMatches(origin) && !requestOriginMatches(referer)) {
+    return new NextResponse('Forbidden', { status: 403 })
+  }
+
   // Pull the id_token from the JWT BEFORE we delete the cookie. getToken
   // reads from the request cookies (an immutable snapshot at request
   // start), so deleting from the response cookie store first wouldn't
