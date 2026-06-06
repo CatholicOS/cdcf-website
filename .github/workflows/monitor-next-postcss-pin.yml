@@ -1,0 +1,141 @@
+name: Monitor Next.js postcss pin
+
+# We keep a top-level `overrides.postcss` entry in package.json because
+# next still hard-pins postcss@8.4.31 (vulnerable to GHSA-qx2v-qp2m-jg93
+# / CVE-2026-41305, fixed in postcss 8.5.10). When next eventually bumps
+# its postcss pin to a safe version, we can drop the override — this
+# workflow notices that and files / updates a tracking issue so we don't
+# carry the override forever.
+#
+# See commit 92f3f2b (override introduction) and #187 (the $postcss
+# self-reference fix that unblocked Dependabot).
+
+on:
+  schedule:
+    # Mondays at 06:00 UTC. Aligned with the weekly Dependabot batch so
+    # the issue lands on the day the maintainer is already triaging deps.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+# Defence against concurrent triggers (manual + scheduled overlap) racing
+# on the same tracking issue.
+concurrency:
+  group: monitor-next-postcss-pin
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve next's pinned postcss version
+        id: pin
+        run: |
+          set -euo pipefail
+          # Query the npm registry for the *latest* dist-tagged next
+          # release rather than what's currently in package-lock.json —
+          # we want to catch a pin change as soon as it's published.
+          # `npm view` exits non-zero on registry errors, which we want
+          # to surface (don't `|| true`).
+          PINNED=$(npm view next dependencies.postcss --json | jq -r '.')
+          NEXT_VERSION=$(npm view next version --json | jq -r '.')
+          if [ -z "$PINNED" ] || [ "$PINNED" = "null" ]; then
+            echo "::error::npm view returned no postcss pin for next — registry shape may have changed"
+            exit 1
+          fi
+          {
+            echo "pinned=$PINNED"
+            echo "next_version=$NEXT_VERSION"
+          } >> "$GITHUB_OUTPUT"
+          echo "next@$NEXT_VERSION pins postcss=$PINNED"
+
+      - name: Decide whether to file/update tracking issue
+        id: decide
+        env:
+          # The exact-version pin our override was introduced to defeat.
+          # When next moves off this, dropping the override becomes
+          # plausible (subject to confirming no other CVE in the meantime).
+          OVERRIDE_TRIGGER: 8.4.31
+          PINNED: ${{ steps.pin.outputs.pinned }}
+        run: |
+          set -euo pipefail
+          if [ "$PINNED" = "$OVERRIDE_TRIGGER" ]; then
+            echo "next still pins postcss=$OVERRIDE_TRIGGER — override still required, no action"
+            echo "needs_review=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "next has moved off postcss=$OVERRIDE_TRIGGER (now $PINNED) — file/update tracking issue"
+            echo "needs_review=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: File or update tracking issue
+        if: steps.decide.outputs.needs_review == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PINNED: ${{ steps.pin.outputs.pinned }}
+          NEXT_VERSION: ${{ steps.pin.outputs.next_version }}
+          # The CVE-fix floor — postcss <8.5.10 is still vulnerable per
+          # GHSA-qx2v-qp2m-jg93. If next has merely bumped to e.g.
+          # 8.5.0, the override still has work to do and the issue body
+          # should call that out.
+          SAFE_FLOOR: 8.5.10
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # Idempotent: search for an existing open issue keyed by the
+          # marker label below. If one exists, comment with the latest
+          # observation rather than opening a duplicate.
+          MARKER_LABEL="deps:postcss-override-watch"
+
+          # Ensure the label exists (idempotent — `gh label create` will
+          # exit non-zero if it does, so swallow that).
+          gh label create "$MARKER_LABEL" \
+            --description "Tracks the next-postcss-pin watcher" \
+            --color BFD4F2 2>/dev/null || true
+
+          EXISTING=$(gh issue list \
+            --state open \
+            --label "$MARKER_LABEL" \
+            --json number,title \
+            --jq '.[0].number')
+
+          # Body is a heredoc so newlines / backticks survive intact.
+          BODY=$(cat <<EOF
+          Latest published \`next\` (\`$NEXT_VERSION\`) now pins \`postcss=$PINNED\`,
+          which is different from the original vulnerable pin \`8.4.31\` that
+          motivated the top-level \`overrides.postcss\` entry in \`package.json\`
+          (commit 92f3f2b).
+
+          **Action**: if \`$PINNED\` is **>=$SAFE_FLOOR**, the GHSA-qx2v-qp2m-jg93 /
+          CVE-2026-41305 floor is cleared, and the override can be dropped:
+
+          1. Remove the \`overrides.postcss\` block from \`package.json\`.
+          2. \`npm install\` and confirm \`npm ls postcss\` no longer shows a nested
+             \`node_modules/next/node_modules/postcss\` directory (it should
+             dedupe to the top-level direct devDep).
+          3. \`npm audit\` must remain at 0 vulnerabilities.
+          4. CI build + the smoke suite must still pass.
+
+          If \`$PINNED\` is **<$SAFE_FLOOR**, leave the override in place — next
+          has only shifted the pin within the vulnerable range and the override
+          is still doing real work.
+
+          ---
+
+          Detected by [\`monitor-next-postcss-pin.yml\`]($RUN_URL).
+          EOF
+          )
+
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+            echo "Updating existing tracking issue #$EXISTING"
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            echo "Opening new tracking issue"
+            gh issue create \
+              --title "next bumped postcss pin — review dropping overrides.postcss" \
+              --body "$BODY" \
+              --label "$MARKER_LABEL"
+          fi
