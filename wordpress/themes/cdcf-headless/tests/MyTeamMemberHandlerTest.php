@@ -278,6 +278,141 @@ final class MyTeamMemberHandlerTest extends TestCase
         $this->assertSame('en', $response['available_languages'][0]['slug']);
     }
 
+    // ─── GET /{lang} (per-language read) ─────────────────────────────
+
+    public function test_get_lang_returns_post_content_and_acf_fields(): void
+    {
+        // Happy path: linked user fetches the DE version of their bio.
+        // Returns the flat shape the editor consumes — id, title,
+        // content as strings, ACF fields as flat keys. Crucially, no
+        // edit_post capability check fires anywhere — the ownership
+        // signal is the link + Polylang-group membership alone.
+        $this->stubCommon(7);
+        Functions\when('get_field')->alias(
+            function (string $field, $key) {
+                if ($field === 'author_team_member') return 703;
+                if ($field === 'member_title') return 'Theologe';
+                if ($field === 'member_linkedin_url') return 'https://linkedin.com/in/me';
+                if ($field === 'member_github_url') return '';
+                return null;
+            }
+        );
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 702,
+            'de' => 703,
+        ]);
+        Functions\when('get_post')->alias(
+            fn(int $id) => $this->fakePost($id, $id === 703 ? 'de' : 'en', [
+                'post_title'   => 'Mein Name',
+                'post_content' => '<p>Hallo.</p>',
+            ])
+        );
+
+        $req = new WP_REST_Request();
+        $req['lang'] = 'de';
+        $response = cdcf_rest_get_my_team_member_lang($req);
+
+        $this->assertSame(703, $response['id']);
+        $this->assertSame('Mein Name', $response['title']);
+        $this->assertSame('<p>Hallo.</p>', $response['content']);
+        $this->assertSame('Theologe', $response['member_title']);
+        $this->assertSame('https://linkedin.com/in/me', $response['member_linkedin_url']);
+        $this->assertSame('', $response['member_github_url']);
+    }
+
+    public function test_get_lang_rejects_lang_not_in_group(): void
+    {
+        // User asks for the (nonexistent) Italian version of a bio
+        // that only has en + de — return a 404, not a 500.
+        $this->stubCommon(7);
+        Functions\when('get_field')->justReturn(702);
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 702,
+            'de' => 703,
+        ]);
+
+        $req = new WP_REST_Request();
+        $req['lang'] = 'it';
+        $response = cdcf_rest_get_my_team_member_lang($req);
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('rest_no_translation_for_lang', $response->get_error_code());
+        $this->assertSame(404, $response->get_error_data()['status']);
+    }
+
+    public function test_get_lang_returns_403_when_link_missing_at_body_time(): void
+    {
+        // Defensive TOCTOU re-check: permission_callback already
+        // rejected the no-link case, but the body still verifies in
+        // case the link was cleared between gate and handler. Force
+        // resolve_link to 0 and confirm the body returns 403, never
+        // touching pll_get_post_translations or get_post.
+        $this->stubCommon(7);
+        Functions\when('get_field')->justReturn(0);
+        Functions\expect('pll_get_post_translations')->never();
+        Functions\expect('get_post')->never();
+
+        $req = new WP_REST_Request();
+        $req['lang'] = 'en';
+        $response = cdcf_rest_get_my_team_member_lang($req);
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('rest_no_team_member_link', $response->get_error_code());
+        $this->assertSame(403, $response->get_error_data()['status']);
+    }
+
+    public function test_get_lang_returns_403_when_link_outside_resolved_group(): void
+    {
+        // Pathological state: the user's `author_team_member` link
+        // points at post 800, but pll_get_post_translations returns a
+        // group that doesn't contain 800. Could happen if a
+        // mis-administered Polylang group split — defend against it so
+        // a stale link can't slip through and grant edit access to
+        // a post the user doesn't actually own.
+        $this->stubCommon(7);
+        Functions\when('get_field')->justReturn(800);
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 702,
+            'de' => 703,
+        ]);
+        Functions\expect('get_post')->never();
+
+        $req = new WP_REST_Request();
+        $req['lang'] = 'de';
+        $response = cdcf_rest_get_my_team_member_lang($req);
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('rest_forbidden', $response->get_error_code());
+        $this->assertSame(403, $response->get_error_data()['status']);
+    }
+
+    public function test_get_lang_returns_404_when_target_post_wrong_type(): void
+    {
+        // Stale Polylang group entry: the group maps `de` to post id
+        // 9999, but that post is a 'post' not a 'team_member' (or has
+        // been deleted). Surface a 404 rather than silently shaping
+        // the response from an unrelated post.
+        $this->stubCommon(7);
+        Functions\when('get_field')->justReturn(702);
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 702,
+            'de' => 9999,
+        ]);
+        Functions\when('get_post')->alias(
+            fn(int $id) => $id === 9999
+                ? $this->fakePost(9999, 'de', ['post_type' => 'post'])
+                : $this->fakePost($id, 'en')
+        );
+
+        $req = new WP_REST_Request();
+        $req['lang'] = 'de';
+        $response = cdcf_rest_get_my_team_member_lang($req);
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('rest_no_translation_for_lang', $response->get_error_code());
+        $this->assertSame(404, $response->get_error_data()['status']);
+    }
+
     // ─── PATCH happy + edge paths ────────────────────────────────────
 
     /** Build a WP_REST_Request stand-in with the given params + URL var. */
