@@ -38,6 +38,14 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # GH Actions Environment scope: `vars.NEXT_PUBLIC_SITE_URL` (and any
+    # future per-env var) is resolved against the matching Environment —
+    # `production` or `staging` — instead of via repo-level
+    # `_PROD`/`_STAGING`-suffixed pairs + a shell `case` resolver. The
+    # ternary mirrors the same release-vs-dispatch routing the
+    # `ENVIRONMENT` env var below uses, so a release always picks
+    # `production` regardless of workflow_dispatch defaults.
+    environment: ${{ github.event_name == 'release' && 'production' || inputs.environment }}
     env:
       # Release events always map to production; workflow_dispatch uses
       # the user-selected environment.
@@ -62,33 +70,29 @@ jobs:
         run: npm ci
 
       - name: Resolve environment-specific values (fail-fast)
-        # The `${{ X == 'production' && A || B }}` ternary that GitHub
-        # Actions supports treats empty strings as falsy — if the prod
-        # var was missing, prod deploys would silently fall back to the
-        # staging value. Resolve in shell with explicit non-empty checks
-        # so misconfiguration surfaces here, before we build or deploy.
+        # Both NEXT_PUBLIC_SITE_URL and APP_DIR live in a GH Actions
+        # Environment scope (one per env) and are resolved automatically
+        # via the job-level `environment:` declaration — no more shell
+        # `case` over `_PROD`/`_STAGING`-suffixed repo vars.
+        #
+        # Empty-string defence still belongs here: an Environment that
+        # doesn't define one of these (or one resolved against a release
+        # where the Environment got renamed) silently falls back to ''
+        # and would bake the wrong URL into the bundle or extract the
+        # tarball into the runner's cwd. Fail loud at this step instead.
         #
         # Also validates the production-only WP_THEME_DIR / WP_PLUGINS_DIR
         # vars (used directly in later production steps): if either were
         # empty, `tar -xzf ... -C ""` would extract to the current
         # directory on the VPS instead of failing, corrupting the deploy.
         env:
-          SITE_URL_PROD: ${{ vars.NEXT_PUBLIC_SITE_URL_PROD }}
-          SITE_URL_STAGING: ${{ vars.NEXT_PUBLIC_SITE_URL_STAGING }}
-          APP_DIR_PROD: ${{ vars.VPS_APP_DIR }}
-          APP_DIR_STAGING: ${{ vars.VPS_STAGING_APP_DIR }}
+          SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+          APP_DIR: ${{ vars.APP_DIR }}
           WP_THEME_DIR: ${{ vars.WP_THEME_DIR }}
           WP_PLUGINS_DIR: ${{ vars.WP_PLUGINS_DIR }}
         run: |
           case "$ENVIRONMENT" in
-            production)
-              SITE_URL="$SITE_URL_PROD"
-              APP_DIR="$APP_DIR_PROD"
-              ;;
-            staging)
-              SITE_URL="$SITE_URL_STAGING"
-              APP_DIR="$APP_DIR_STAGING"
-              ;;
+            production|staging) ;;
             *)
               echo "ERROR: ENVIRONMENT=$ENVIRONMENT (expected 'production' or 'staging')"
               exit 1
@@ -96,11 +100,11 @@ jobs:
           esac
 
           if [ -z "$SITE_URL" ]; then
-            echo "ERROR: NEXT_PUBLIC_SITE_URL for $ENVIRONMENT is empty (expected vars.NEXT_PUBLIC_SITE_URL_$(echo "$ENVIRONMENT" | tr '[:lower:]' '[:upper:]'))"
+            echo "ERROR: NEXT_PUBLIC_SITE_URL for $ENVIRONMENT is empty (expected on the '$ENVIRONMENT' GH Actions Environment as vars.NEXT_PUBLIC_SITE_URL)"
             exit 1
           fi
           if [ -z "$APP_DIR" ]; then
-            echo "ERROR: APP_DIR for $ENVIRONMENT is empty (expected vars.VPS_APP_DIR or vars.VPS_STAGING_APP_DIR)"
+            echo "ERROR: APP_DIR for $ENVIRONMENT is empty (expected on the '$ENVIRONMENT' GH Actions Environment as vars.APP_DIR)"
             exit 1
           fi
 

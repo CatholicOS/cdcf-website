@@ -349,18 +349,21 @@ Secrets (encrypted, used as credentials):
 | `WP_APP_USERNAME` | WordPress application-password username (for plugin activation) |
 | `WP_APP_PASSWORD` | WordPress application password                                  |
 
-Variables (plain config, visible in workflow logs):
+**Repository-scoped variables** (plain config, visible in workflow logs, shared across all jobs and environments):
 
-| Variable                       | Description                                                                        |
-| ------------------------------ | ---------------------------------------------------------------------------------- |
-| `WP_GRAPHQL_URL`               | WordPress GraphQL endpoint (e.g. `https://cms.catholicdigitalcommons.org/graphql`) |
-| `WP_REST_URL`                  | WordPress REST root (e.g. `https://cms.catholicdigitalcommons.org/wp-json`)        |
-| `NEXT_PUBLIC_SITE_URL_PROD`    | Public URL of the production site (e.g. `https://catholicdigitalcommons.org`)      |
-| `NEXT_PUBLIC_SITE_URL_STAGING` | Public URL of the staging site (e.g. `https://staging.catholicdigitalcommons.org`) |
-| `VPS_APP_DIR`                  | Production Next.js app directory on the VPS                                        |
-| `VPS_STAGING_APP_DIR`          | Staging Next.js app directory on the VPS                                           |
-| `WP_THEME_DIR`                 | WordPress theme directory (e.g. `/var/www/vhosts/.../wp-content/themes`)           |
-| `WP_PLUGINS_DIR`               | WordPress plugins directory (e.g. `/var/www/vhosts/.../wp-content/plugins`)        |
+| Variable         | Description                                                                        |
+| ---------------- | ---------------------------------------------------------------------------------- |
+| `WP_GRAPHQL_URL` | WordPress GraphQL endpoint (e.g. `https://cms.catholicdigitalcommons.org/graphql`) |
+| `WP_REST_URL`    | WordPress REST root (e.g. `https://cms.catholicdigitalcommons.org/wp-json`)        |
+| `WP_THEME_DIR`   | WordPress theme directory (e.g. `/var/www/vhosts/.../wp-content/themes`)           |
+| `WP_PLUGINS_DIR` | WordPress plugins directory (e.g. `/var/www/vhosts/.../wp-content/plugins`)        |
+
+**Environment-scoped variables** (defined per GitHub Actions Environment under Settings → Environments → `production` / `staging`; resolved automatically by the deploy job's `environment:` declaration):
+
+- `NEXT_PUBLIC_SITE_URL` — public URL of the site for this Environment (e.g. `https://catholicdigitalcommons.org` on `production`, `https://staging.catholicdigitalcommons.org` on `staging`). Baked into the client bundle at build time, so each Environment's value is captured in its own deploy artifact.
+- `APP_DIR` — Next.js app directory on the VPS for this Environment (e.g. `/var/www/vhosts/.../httpdocs` on `production`, `/var/www/vhosts/.../staging.catholicdigitalcommons.org` on `staging`). Targets the `tar -xzf` extract step + the Plesk Passenger `tmp/restart.txt` touch that completes the deploy.
+
+> **Deprecated**: the repo-level `NEXT_PUBLIC_SITE_URL_PROD`, `NEXT_PUBLIC_SITE_URL_STAGING`, `VPS_APP_DIR`, and `VPS_STAGING_APP_DIR` variables are no longer read by the workflow — `NEXT_PUBLIC_SITE_URL` and `APP_DIR` on the matching GH Actions Environment supersede them. Remove the suffixed/prefixed entries from Settings → Variables → Repository once a deploy against each Environment has succeeded.
 
 ### Docker (Local Development Only)
 
