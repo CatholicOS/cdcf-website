@@ -51,6 +51,26 @@ declare module 'next-auth/jwt' {
 
 const ZITADEL_ROLES_CLAIM = 'urn:zitadel:iam:org:project:roles'
 
+// Zitadel-supported scope that restricts authentication AND new-user
+// registration to a single Organization within the instance. Without it,
+// the umbrella Zitadel happily authorizes any instance-wide user against
+// cdcf-website's client_id — and registration drops new users into the
+// instance's default Org (typically the bootstrap ZITADEL Org), not the
+// CDCF Org. Setting AUTH_ZITADEL_ORG_ID to the CDCF Org ID (see the
+// cdcf-infra handoff doc) makes Zitadel: route registrations into the
+// CDCF Org, reject login attempts from sibling-property Org users and
+// from the umbrella IAM admin. Reference: Zitadel docs, "Restrict Login
+// to a single Organization".
+//
+// If unset, behavior falls back to instance-wide auth (the original
+// PR #172 behaviour) so a misconfigured deploy still works for CDCF Org
+// users — it just doesn't enforce the cross-Org isolation.
+function buildOrgScope(): string {
+  const orgId = process.env.AUTH_ZITADEL_ORG_ID
+  if (typeof orgId !== 'string' || orgId === '') return ''
+  return ` urn:zitadel:iam:org:id:${orgId}`
+}
+
 function extractRoles(claim: unknown): string[] {
   // Zitadel emits the project-roles claim as
   //   { "<roleKey>": { "<orgId>": "<orgName>" }, ... }
@@ -121,19 +141,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       authorization: {
         params: {
           // offline_access → refresh token; the project:roles scope
-          // makes Zitadel include the role claim in the id_token.
-          scope: `openid profile email offline_access ${ZITADEL_ROLES_CLAIM}`,
+          // makes Zitadel include the role claim in the id_token; the
+          // org:id scope (when AUTH_ZITADEL_ORG_ID is set) restricts
+          // auth + registration to the CDCF Org — see buildOrgScope.
+          scope:
+            `openid profile email offline_access ${ZITADEL_ROLES_CLAIM}` +
+            buildOrgScope(),
           // Force the Zitadel account chooser on every sign-in so an
           // active SSO session for a sibling property (LitCal/OntoKit/
           // BibleGet) or the umbrella IAM admin doesn't silently pass
           // through to cdcf-website. The user must actively pick which
           // account they want to sign in as. Pairs with the RP-initiated
           // logout route — together they keep account switching usable.
-          //
-          // hasProjectCheck on the CDCF Website Zitadel project (TODO,
-          // separate cdcf-infra PR) will be the structural enforcement;
-          // this prompt is the application-layer UX guard that ships
-          // ahead of that infra change.
           prompt: 'select_account',
         },
       },
