@@ -70,18 +70,16 @@ jobs:
         run: npm ci
 
       - name: Resolve environment-specific values (fail-fast)
-        # NEXT_PUBLIC_SITE_URL now lives in a GH Actions Environment scope
-        # (one per env) and is resolved automatically via the job-level
-        # `environment:` declaration — no more shell `case` over
-        # `_PROD`/`_STAGING`-suffixed repo vars. APP_DIR still uses
-        # repo-level pairs (VPS_APP_DIR / VPS_STAGING_APP_DIR) until
-        # those are migrated to Environment scope too; that migration
-        # is a follow-up — the same pattern applies.
+        # Both NEXT_PUBLIC_SITE_URL and APP_DIR live in a GH Actions
+        # Environment scope (one per env) and are resolved automatically
+        # via the job-level `environment:` declaration — no more shell
+        # `case` over `_PROD`/`_STAGING`-suffixed repo vars.
         #
         # Empty-string defence still belongs here: an Environment that
-        # doesn't define NEXT_PUBLIC_SITE_URL (or one resolved against a
-        # release where the Environment got renamed) silently falls
-        # back to '' and would bake the wrong URL into the bundle.
+        # doesn't define one of these (or one resolved against a release
+        # where the Environment got renamed) silently falls back to ''
+        # and would bake the wrong URL into the bundle or extract the
+        # tarball into the runner's cwd. Fail loud at this step instead.
         #
         # Also validates the production-only WP_THEME_DIR / WP_PLUGINS_DIR
         # vars (used directly in later production steps): if either were
@@ -89,14 +87,12 @@ jobs:
         # directory on the VPS instead of failing, corrupting the deploy.
         env:
           SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
-          APP_DIR_PROD: ${{ vars.VPS_APP_DIR }}
-          APP_DIR_STAGING: ${{ vars.VPS_STAGING_APP_DIR }}
+          APP_DIR: ${{ vars.APP_DIR }}
           WP_THEME_DIR: ${{ vars.WP_THEME_DIR }}
           WP_PLUGINS_DIR: ${{ vars.WP_PLUGINS_DIR }}
         run: |
           case "$ENVIRONMENT" in
-            production) APP_DIR="$APP_DIR_PROD" ;;
-            staging)    APP_DIR="$APP_DIR_STAGING" ;;
+            production|staging) ;;
             *)
               echo "ERROR: ENVIRONMENT=$ENVIRONMENT (expected 'production' or 'staging')"
               exit 1
@@ -108,7 +104,7 @@ jobs:
             exit 1
           fi
           if [ -z "$APP_DIR" ]; then
-            echo "ERROR: APP_DIR for $ENVIRONMENT is empty (expected vars.VPS_APP_DIR or vars.VPS_STAGING_APP_DIR)"
+            echo "ERROR: APP_DIR for $ENVIRONMENT is empty (expected on the '$ENVIRONMENT' GH Actions Environment as vars.APP_DIR)"
             exit 1
           fi
 
