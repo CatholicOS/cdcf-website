@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSession, signIn, signOut } from 'next-auth/react'
+import { useSession, signIn } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
 import { ChevronDownIcon, UserIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
@@ -158,10 +158,21 @@ export default function AuthButton() {
               {t('editMyBio')}
             </Link>
           )}
+          {/*
+            Full browser navigation (window.location, not next-auth/react's
+            signOut() or next/link) so the request goes through our
+            RP-initiated logout route — which clears the Auth.js cookies
+            AND 302s through Zitadel's /oidc/v1/end_session to terminate
+            the upstream SSO session. signOut() alone leaves Zitadel's
+            session intact; next/link would skip the API route entirely
+            via client-side routing.
+          */}
           <button
             type="button"
             role="menuitem"
-            onClick={() => signOut()}
+            onClick={() => {
+              window.location.href = '/api/auth/zitadel-signout'
+            }}
             className="block w-full px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
           >
             {t('signOut')}

@@ -35,6 +35,13 @@ declare module 'next-auth/jwt' {
   interface JWT {
     accessToken?: string
     refreshToken?: string
+    // The OIDC id_token from initial sign-in. Required as id_token_hint
+    // on Zitadel's RP-initiated logout endpoint so the upstream session
+    // is terminated alongside our local cookie (otherwise the next
+    // sign-in silently reuses the Zitadel SSO session and the user
+    // can't switch accounts). Not refreshed — Zitadel issues a fresh
+    // id_token on each sign-in, the original is enough for end_session.
+    idToken?: string
     expiresAt?: number
     roles?: string[]
     locale?: string
@@ -127,6 +134,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (account) {
         token.accessToken = account.access_token
         token.refreshToken = account.refresh_token
+        token.idToken = account.id_token
         token.expiresAt = account.expires_at
       }
       if (profile) {
