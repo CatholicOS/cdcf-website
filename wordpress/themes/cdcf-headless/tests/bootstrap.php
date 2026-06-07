@@ -183,6 +183,7 @@ require_once __DIR__ . '/../includes/handlers/local-group.php';
 require_once __DIR__ . '/../includes/handlers/academic-collaboration.php';
 require_once __DIR__ . '/../includes/handlers/update-disposable-domains.php';
 require_once __DIR__ . '/../includes/handlers/translate.php';
+require_once __DIR__ . '/../includes/handlers/translate-all.php';
 require_once __DIR__ . '/../includes/handlers/deploy-translation.php';
 require_once __DIR__ . '/../includes/handlers/translation-status.php';
 require_once __DIR__ . '/../includes/handlers/link-translations.php';
