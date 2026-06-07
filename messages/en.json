@@ -305,6 +305,8 @@
     "savedNoChange": "Saved.",
     "saveError": "Could not save: {error}",
     "unsavedSwitch": "You have unsaved changes. Discard them and switch language?",
+    "wordCount": "{count, plural, =0 {No words yet} one {# word} other {# words}}",
+    "wordCountTarget": "target {min}–{max} words",
     "notLinked": "Your account isn't linked to a team_member profile. Contact an administrator.",
     "noLanguages": "No language versions are available to edit yet.",
     "loadError": "Could not load this version of your bio.",

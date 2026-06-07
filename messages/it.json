@@ -305,6 +305,8 @@
     "savedNoChange": "Salvato.",
     "saveError": "Impossibile salvare: {error}",
     "unsavedSwitch": "Hai modifiche non salvate. Scartarle e cambiare lingua?",
+    "wordCount": "{count, plural, =0 {Nessuna parola} one {# parola} other {# parole}}",
+    "wordCountTarget": "obiettivo {min}-{max} parole",
     "notLinked": "Il tuo account non \u00e8 collegato a un profilo team_member. Contatta un amministratore.",
     "noLanguages": "Nessuna versione linguistica disponibile per la modifica.",
     "loadError": "Impossibile caricare questa versione della tua bio.",

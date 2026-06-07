@@ -305,6 +305,8 @@
     "savedNoChange": "Guardado.",
     "saveError": "No se pudo guardar: {error}",
     "unsavedSwitch": "Tienes cambios sin guardar. \u00bfDescartarlos y cambiar de idioma?",
+    "wordCount": "{count, plural, =0 {Sin palabras} one {# palabra} other {# palabras}}",
+    "wordCountTarget": "objetivo {min}-{max} palabras",
     "notLinked": "Tu cuenta no est\u00e1 vinculada a un perfil de team_member. Contacta a un administrador.",
     "noLanguages": "A\u00fan no hay versiones en otros idiomas para editar.",
     "loadError": "No se pudo cargar esta versi\u00f3n de tu biograf\u00eda.",

@@ -10,6 +10,27 @@ import clsx from 'clsx'
 import type { BioLanguage, BioPostContent } from '@/lib/bio-api'
 import BioEditorToolbar from '@/components/BioEditorToolbar'
 
+// Bio length targets. The team agreed bios should land around 80 words; the
+// zones below give the author live feedback as they type. Boundaries are
+// inclusive on the green side so 70 and 90 read as "good", not "borderline".
+const BIO_TARGET_MIN = 70
+const BIO_TARGET_MAX = 90
+const BIO_WARNING_MIN = 60
+const BIO_WARNING_MAX = 100
+
+function countWords(text: string): number {
+  // Plain whitespace split is fine for the 6 European languages we support.
+  // CJK / Arabic would need Intl.Segmenter with granularity: 'word'.
+  const trimmed = text.trim()
+  return trimmed === '' ? 0 : trimmed.split(/\s+/).length
+}
+
+function wordCountZone(count: number): 'green' | 'orange' | 'red' {
+  if (count >= BIO_TARGET_MIN && count <= BIO_TARGET_MAX) return 'green'
+  if (count >= BIO_WARNING_MIN && count <= BIO_WARNING_MAX) return 'orange'
+  return 'red'
+}
+
 type EditableFields = {
   member_title: string
   member_linkedin_url: string
@@ -41,6 +62,7 @@ export default function BioEditor({
   const [isDirty, setIsDirty] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoadingLang, setIsLoadingLang] = useState(false)
+  const [wordCount, setWordCount] = useState(0)
   const [status, setStatus] = useState<
     | { kind: 'idle' }
     | { kind: 'success'; queued: string[] }
@@ -81,7 +103,13 @@ export default function BioEditor({
     ],
     content: initialPost.content,
     immediatelyRender: false,
-    onUpdate: markDirty,
+    onCreate({ editor }) {
+      setWordCount(countWords(editor.getText()))
+    },
+    onUpdate({ editor }) {
+      markDirty()
+      setWordCount(countWords(editor.getText()))
+    },
     editorProps: {
       attributes: {
         // rounded-b-md (not rounded-md) + border-t-0 because the
@@ -135,6 +163,12 @@ export default function BioEditor({
         setCurrentTitle(post.title)
         setFields(postToEditable(post))
         editor?.commands.setContent(post.content, { emitUpdate: false })
+        // setContent with emitUpdate: false suppresses onUpdate by design
+        // (we don't want the language switch to flip isDirty), so sync the
+        // word count manually here.
+        if (editor) {
+          setWordCount(countWords(editor.getText()))
+        }
         setIsDirty(false)
       } catch (err) {
         setStatus({ kind: 'error', message: (err as Error).message })
@@ -226,6 +260,22 @@ export default function BioEditor({
           <div id="bio-content" className="mt-1">
             <BioEditorToolbar editor={editor} />
             <EditorContent editor={editor} />
+            <div className="mt-1 flex items-center justify-end gap-3 text-xs">
+              <span
+                className={clsx(
+                  'font-medium tabular-nums',
+                  wordCountZone(wordCount) === 'green' && 'text-green-700',
+                  wordCountZone(wordCount) === 'orange' && 'text-orange-600',
+                  wordCountZone(wordCount) === 'red' && 'text-red-700'
+                )}
+                aria-live="polite"
+              >
+                {t('wordCount', { count: wordCount })}
+              </span>
+              <span className="text-gray-500">
+                {t('wordCountTarget', { min: BIO_TARGET_MIN, max: BIO_TARGET_MAX })}
+              </span>
+            </div>
           </div>
         </div>
 
