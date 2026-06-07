@@ -297,6 +297,7 @@
     "postTitleLabel": "Name",
     "contentLabel": "Bio",
     "memberTitleLabel": "Position / Zugeh\u00f6rigkeit",
+    "memberTitleBoardReadonly": "Gesperrt, weil dies deine offizielle Position im Vorstand widerspiegelt. Wende dich an einen Administrator, um sie zu \u00e4ndern.",
     "linkedinLabel": "LinkedIn-URL",
     "githubLabel": "GitHub-URL",
     "save": "\u00c4nderungen speichern",

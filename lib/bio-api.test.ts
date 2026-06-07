@@ -139,6 +139,10 @@ describe('fetchTeamMemberPost', () => {
       member_title: 'Theologe',
       member_linkedin_url: 'https://linkedin.com/in/me',
       member_github_url: '',
+      // Defaults to false when the WP response omits the field — see
+      // normaliseTeamMemberPost's boolean guard. Real Board-member
+      // payloads carry is_board_member: true.
+      is_board_member: false,
     })
     const [url] = fetchMock.mock.calls[0]
     expect(url).toBe(

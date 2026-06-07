@@ -37,6 +37,11 @@ final class MyTeamMemberHandlerTest extends TestCase
                 ? parse_url($url)
                 : parse_url($url, $component)
         );
+        // Default: no About page in the WP install — drives the new
+        // cdcf_my_team_member_is_board_member() helper's safe-fallback
+        // path so existing tests don't have to opt in. Board-specific
+        // tests override via stubAboutPages().
+        Functions\when('get_pages')->justReturn([]);
     }
 
     protected function tearDown(): void
@@ -702,5 +707,208 @@ final class MyTeamMemberHandlerTest extends TestCase
 
         $this->assertInstanceOf(WP_Error::class, $response);
         $this->assertSame('rest_forbidden', $response->get_error_code());
+    }
+
+    // ─── Board-of-Directors read-only on member_title ────────────────
+
+    /**
+     * Stub get_field to route on the field name so the board check
+     * can return an array while ACF-on-user / ACF-on-post calls keep
+     * returning their usual scalars. Returns a closure-aware ACF stub.
+     *
+     * @param int   $linked_team_member_id The author_team_member value
+     *                                     for `user_{id}` callers.
+     * @param array<int,int> $board_ids The team_members ACF on the
+     *                                     English About page.
+     */
+    private function stubBoardAcf(int $linked_team_member_id, array $board_ids): void
+    {
+        Functions\when('get_field')->alias(
+            static function (string $field, $target_id = 0, bool $format = true) use (
+                $linked_team_member_id,
+                $board_ids
+            ) {
+                unset($format);
+                if ($field === 'team_members') {
+                    return $board_ids;
+                }
+                if ($field === 'author_team_member') {
+                    return $linked_team_member_id;
+                }
+                // Other ACF reads (member_title etc.) in tests that use
+                // this stub don't need a meaningful value.
+                return '';
+            }
+        );
+    }
+
+    /** Stub get_pages so the English-About-page lookup succeeds. */
+    private function stubAboutPages(int $about_id): void
+    {
+        $page = new stdClass();
+        $page->ID = $about_id;
+        Functions\when('get_pages')->justReturn([$page]);
+        Functions\when('pll_get_post_language')->justReturn('en');
+    }
+
+    public function test_is_board_member_returns_true_when_en_id_in_team_members_field(): void
+    {
+        $this->stubAboutPages(99);
+        Functions\when('get_field')->alias(
+            static fn(string $f) => $f === 'team_members' ? [702, 800, 1100] : ''
+        );
+
+        $result = cdcf_my_team_member_is_board_member(['en' => 702, 'it' => 703]);
+        $this->assertTrue($result);
+    }
+
+    public function test_is_board_member_returns_false_when_en_id_not_on_board(): void
+    {
+        $this->stubAboutPages(99);
+        Functions\when('get_field')->alias(
+            static fn(string $f) => $f === 'team_members' ? [800, 1100] : ''
+        );
+
+        $result = cdcf_my_team_member_is_board_member(['en' => 702, 'it' => 703]);
+        $this->assertFalse($result);
+    }
+
+    public function test_is_board_member_returns_false_when_group_has_no_en_sibling(): void
+    {
+        // Defensive: a group without an EN entry should never be reported
+        // as on the Board even if the field has entries — we can't safely
+        // compare without the canonical English id.
+        $this->stubAboutPages(99);
+        Functions\when('get_field')->alias(
+            static fn(string $f) => $f === 'team_members' ? [702] : ''
+        );
+
+        $result = cdcf_my_team_member_is_board_member(['it' => 703, 'de' => 704]);
+        $this->assertFalse($result);
+    }
+
+    public function test_is_board_member_returns_false_when_no_about_page(): void
+    {
+        Functions\when('get_pages')->justReturn([]);
+        Functions\when('get_field')->alias(
+            static fn(string $f) => $f === 'team_members' ? [702] : ''
+        );
+
+        $result = cdcf_my_team_member_is_board_member(['en' => 702]);
+        $this->assertFalse($result);
+    }
+
+    public function test_is_board_member_returns_false_when_field_missing_or_wrong_type(): void
+    {
+        $this->stubAboutPages(99);
+        // Field returns false (ACF "no value") instead of an array — must
+        // not be treated as a positive match.
+        Functions\when('get_field')->justReturn(false);
+
+        $result = cdcf_my_team_member_is_board_member(['en' => 702]);
+        $this->assertFalse($result);
+    }
+
+    public function test_get_english_about_page_id_prefers_en_tagged_page(): void
+    {
+        $en  = new stdClass();
+        $en->ID = 50;
+        $it  = new stdClass();
+        $it->ID = 60;
+        Functions\when('get_pages')->justReturn([$it, $en]);
+        Functions\when('pll_get_post_language')->alias(
+            static fn(int $id) => $id === 50 ? 'en' : 'it'
+        );
+
+        $this->assertSame(50, cdcf_my_team_member_get_english_about_page_id());
+    }
+
+    public function test_get_english_about_page_id_returns_zero_when_no_about_page(): void
+    {
+        Functions\when('get_pages')->justReturn([]);
+        $this->assertSame(0, cdcf_my_team_member_get_english_about_page_id());
+    }
+
+    public function test_discovery_includes_is_board_member_true_for_board(): void
+    {
+        $this->stubCommon(7);
+        $this->stubAboutPages(99);
+        $this->stubBoardAcf(702, [702, 800]);
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 702, 'it' => 703,
+        ]);
+
+        $response = cdcf_rest_get_my_team_member(new WP_REST_Request());
+        $this->assertSame(702, $response['team_member_id']);
+        $this->assertTrue($response['is_board_member']);
+    }
+
+    public function test_discovery_includes_is_board_member_false_for_non_board(): void
+    {
+        $this->stubCommon(7);
+        $this->stubAboutPages(99);
+        $this->stubBoardAcf(702, [800, 1100]); // 702 NOT on the board
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 702, 'it' => 703,
+        ]);
+
+        $response = cdcf_rest_get_my_team_member(new WP_REST_Request());
+        $this->assertFalse($response['is_board_member']);
+    }
+
+    public function test_patch_rejects_member_title_write_when_caller_is_board_member(): void
+    {
+        $this->stubCommon(7);
+        $this->stubAboutPages(99);
+        $this->stubBoardAcf(702, [702, 800]); // caller is on the Board
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 702, 'it' => 703, 'de' => 704,
+        ]);
+        // wp_update_post / enqueue must NOT run when we reject upfront —
+        // assert with expect() so a regression is loud.
+        Functions\expect('wp_update_post')->never();
+        Functions\expect('cdcf_enqueue_post_translation')->never();
+
+        $response = cdcf_rest_update_my_team_member($this->buildPatchRequest('de', [
+            'member_title' => 'Self-promoted Title',
+        ]));
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('rest_member_title_readonly', $response->get_error_code());
+        $this->assertSame(403, $response->get_error_data()['status']);
+    }
+
+    public function test_patch_allows_other_field_writes_when_caller_is_board_member(): void
+    {
+        // Board members CAN edit content / linkedin / github — only
+        // member_title is locked. Verify the other fields still work.
+        $this->stubCommon(7);
+        $this->stubAboutPages(99);
+        $this->stubBoardAcf(702, [702, 800]);
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 702, 'it' => 703, 'de' => 704,
+        ]);
+        Functions\when('wp_update_post')->alias(
+            static fn(array $args) => $args['ID']
+        );
+        $captured_fields = [];
+        Functions\when('update_field')->alias(
+            static function (string $f, $v, int $id) use (&$captured_fields): bool {
+                $captured_fields[$f] = $v;
+                return true;
+            }
+        );
+        Functions\when('cdcf_enqueue_post_translation')->justReturn(
+            ['post_id' => 0, 'queue' => 'redis', 'errors' => []]
+        );
+
+        $response = cdcf_rest_update_my_team_member($this->buildPatchRequest('de', [
+            'content'             => '<p>Updated bio.</p>',
+            'member_linkedin_url' => 'https://www.linkedin.com/in/me',
+        ]));
+
+        $this->assertSame(704, $response['post_id']);
+        $this->assertArrayHasKey('member_linkedin_url', $captured_fields);
+        $this->assertArrayNotHasKey('member_title', $captured_fields);
     }
 }

@@ -297,6 +297,7 @@
     "postTitleLabel": "Nome",
     "contentLabel": "Bio",
     "memberTitleLabel": "Ruolo / affiliazione",
+    "memberTitleBoardReadonly": "Bloccato perché riflette il tuo ruolo formale nel Consiglio di Amministrazione. Contatta un amministratore per modificarlo.",
     "linkedinLabel": "URL LinkedIn",
     "githubLabel": "URL GitHub",
     "save": "Salva",

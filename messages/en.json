@@ -297,6 +297,7 @@
     "postTitleLabel": "Name",
     "contentLabel": "Bio",
     "memberTitleLabel": "Position / affiliation",
+    "memberTitleBoardReadonly": "Locked because this reflects your formal Board of Directors position. Contact an administrator to change it.",
     "linkedinLabel": "LinkedIn URL",
     "githubLabel": "GitHub URL",
     "save": "Save changes",

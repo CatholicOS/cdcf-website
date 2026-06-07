@@ -21,6 +21,14 @@ export type BioLanguage = {
 export type BioDiscovery = {
   team_member_id: number
   available_languages: BioLanguage[]
+  /**
+   * True when the caller's team_member is on the Board of Directors
+   * (English About page's `team_members` ACF relationship field).
+   * Board titles reflect formal council positions and the
+   * member_title (Position / Affiliation) field is server-side
+   * read-only for them — the bio editor disables that input.
+   */
+  is_board_member?: boolean
 }
 
 export type BioPostContent = {
@@ -30,6 +38,12 @@ export type BioPostContent = {
   member_title?: string
   member_linkedin_url?: string
   member_github_url?: string
+  /**
+   * Surfaced here too (in addition to BioDiscovery) so a hot
+   * language switch in the bio editor doesn't need a second
+   * round-trip to decide read-only state for member_title.
+   */
+  is_board_member?: boolean
 }
 
 export type BioSaveResponse = {
@@ -147,6 +161,7 @@ function normaliseTeamMemberPost(body: unknown): BioPostContent {
     member_title?: unknown
     member_linkedin_url?: unknown
     member_github_url?: unknown
+    is_board_member?: unknown
   }
   return {
     id: typeof obj.id === 'number' ? obj.id : 0,
@@ -155,6 +170,8 @@ function normaliseTeamMemberPost(body: unknown): BioPostContent {
     member_title: stringOrUndefined(obj.member_title),
     member_linkedin_url: stringOrUndefined(obj.member_linkedin_url),
     member_github_url: stringOrUndefined(obj.member_github_url),
+    is_board_member:
+      typeof obj.is_board_member === 'boolean' ? obj.is_board_member : false,
   }
 }
 

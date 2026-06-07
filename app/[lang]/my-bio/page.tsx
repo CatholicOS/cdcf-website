@@ -90,6 +90,9 @@ export default async function MyBioPage({
         availableLanguages={available}
         initialLang={preferred.slug}
         initialPost={initialPost}
+        isBoardMember={
+          discovery.is_board_member ?? initialPost.is_board_member ?? false
+        }
       />
     </main>
   )

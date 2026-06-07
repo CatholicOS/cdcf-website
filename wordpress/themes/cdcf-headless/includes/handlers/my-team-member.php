@@ -82,6 +82,70 @@ function cdcf_my_team_member_collect_group(int $team_member_id): array {
 }
 
 /**
+ * Find the English About-page id. Used by Board-of-Directors membership
+ * lookups, which key off the canonical English page's ACF relationship.
+ * Returns 0 when there is no about.php-templated page at all (test envs,
+ * post-fresh-install) so callers can short-circuit cleanly.
+ */
+function cdcf_my_team_member_get_english_about_page_id(): int {
+    if (!function_exists('get_pages')) {
+        return 0;
+    }
+    $about_pages = get_pages([
+        'meta_key'   => '_wp_page_template',
+        'meta_value' => 'templates/about.php',
+    ]);
+    if (empty($about_pages)) {
+        return 0;
+    }
+    foreach ($about_pages as $page) {
+        $lang = function_exists('pll_get_post_language')
+            ? pll_get_post_language($page->ID, 'slug')
+            : 'en';
+        if ($lang === 'en') {
+            return (int) $page->ID;
+        }
+    }
+    // No EN-tagged About page found — fall back to the first one so
+    // callers don't see a false negative when Polylang isn't active or
+    // language tags are missing on legacy posts.
+    return (int) $about_pages[0]->ID;
+}
+
+/**
+ * Return true when the caller's team_member is on the Board of Directors.
+ * Board membership lives inverse on the English About page's `team_members`
+ * ACF relationship field — there's no council meta on the team_member post
+ * itself — so we look up the caller's English sibling from the already-
+ * collected Polylang group and check membership there.
+ *
+ * Used to drive the read-only "Position / Affiliation" treatment in the
+ * bio editor (Board titles reflect formal council positions and aren't
+ * editable by the member themselves).
+ *
+ * @param array<string,int> $group Polylang group, as returned by
+ *                                 cdcf_my_team_member_collect_group().
+ */
+function cdcf_my_team_member_is_board_member(array $group): bool {
+    if (!function_exists('get_field')) {
+        return false;
+    }
+    $english_id = isset($group['en']) ? (int) $group['en'] : 0;
+    if ($english_id <= 0) {
+        return false;
+    }
+    $about_id = cdcf_my_team_member_get_english_about_page_id();
+    if ($about_id <= 0) {
+        return false;
+    }
+    $board_ids = get_field('team_members', $about_id, false);
+    if (!is_array($board_ids)) {
+        return false;
+    }
+    return in_array($english_id, array_map('intval', $board_ids), true);
+}
+
+/**
  * Validate that a URL is empty or points at the given allowed hostname
  * (exact or subdomain). Returns true on accept. Empty strings are
  * accepted so the caller can clear the field.
@@ -170,6 +234,7 @@ function cdcf_rest_get_my_team_member(WP_REST_Request $request) {
     return rest_ensure_response([
         'team_member_id'      => $team_member_id,
         'available_languages' => $available,
+        'is_board_member'     => cdcf_my_team_member_is_board_member($group),
     ]);
 }
 
@@ -250,6 +315,10 @@ function cdcf_rest_get_my_team_member_lang(WP_REST_Request $request) {
         'member_github_url'   => function_exists('get_field')
             ? (string) (get_field('member_github_url', $target_post_id) ?: '')
             : '',
+        // Surfaced on the load endpoint too (in addition to the discovery
+        // endpoint) so a hot language switch in the bio editor doesn't
+        // need a second round-trip to decide read-only state.
+        'is_board_member'     => cdcf_my_team_member_is_board_member($group),
     ]);
 }
 
@@ -306,6 +375,23 @@ function cdcf_rest_update_my_team_member(WP_REST_Request $request) {
             'rest_no_translation_for_lang',
             sprintf('The %s translation entry is invalid (deleted or wrong post type).', $requested_lang),
             ['status' => 404]
+        );
+    }
+
+    // Board-of-Directors members can't edit their Position / Affiliation
+    // (member_title) — that field reflects their formal council position
+    // and is set by an administrator, not the member themselves. Reject
+    // the write at the boundary; the bio editor disables the input on
+    // the read side too. Empty/null member_title is fine (clear is also
+    // a "no change" for our purposes).
+    if (
+        cdcf_my_team_member_is_board_member($group)
+        && is_string($request->get_param('member_title'))
+    ) {
+        return new WP_Error(
+            'rest_member_title_readonly',
+            'member_title is read-only for Board of Directors members. Contact an administrator to change it.',
+            ['status' => 403]
         );
     }
 

@@ -49,10 +49,18 @@ export default function BioEditor({
   availableLanguages,
   initialLang,
   initialPost,
+  isBoardMember = false,
 }: {
   availableLanguages: BioLanguage[]
   initialLang: string
   initialPost: BioPostContent
+  /**
+   * When true, the "Position / Affiliation" (member_title) input is
+   * rendered as disabled and a hint explains why. The backend
+   * (PATCH /cdcf/v1/my-team-member/{lang}) ALSO rejects member_title
+   * writes from Board members; this prop only drives the UI.
+   */
+  isBoardMember?: boolean
 }) {
   const t = useTranslations('MyBio')
 
@@ -184,14 +192,21 @@ export default function BioEditor({
     setIsSaving(true)
     setStatus({ kind: 'idle' })
     try {
+      // Defense in depth: even though the input is disabled, strip
+      // member_title from the request when the caller is on the
+      // Board so a tampered DOM can't sneak a change past the
+      // server. The PATCH handler rejects this anyway, but failing
+      // cleanly client-side keeps the user-visible flow consistent.
+      const { member_title: localMemberTitle, ...rest } = fields
+      const payload: Record<string, unknown> = {
+        lang: currentLang,
+        content: editor.getHTML(),
+        ...(isBoardMember ? rest : { ...rest, member_title: localMemberTitle }),
+      }
       const response = await fetch('/api/my-bio/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lang: currentLang,
-          content: editor.getHTML(),
-          ...fields,
-        }),
+        body: JSON.stringify(payload),
       })
       const body = (await response.json()) as
         | { post_id: number; queued: string[]; errors: string[] }
@@ -213,7 +228,7 @@ export default function BioEditor({
     } finally {
       setIsSaving(false)
     }
-  }, [currentLang, editor, fields])
+  }, [currentLang, editor, fields, isBoardMember])
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -291,8 +306,22 @@ export default function BioEditor({
             type="text"
             value={fields.member_title}
             onChange={(e) => updateField('member_title', e.target.value)}
-            className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-cdcf-navy focus:outline-none focus:ring-1 focus:ring-cdcf-navy"
+            disabled={isBoardMember}
+            readOnly={isBoardMember}
+            aria-describedby={isBoardMember ? 'member_title_readonly_hint' : undefined}
+            className={clsx(
+              'mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-cdcf-navy focus:outline-none focus:ring-1 focus:ring-cdcf-navy',
+              isBoardMember && 'cursor-not-allowed bg-gray-50 text-gray-500'
+            )}
           />
+          {isBoardMember && (
+            <p
+              id="member_title_readonly_hint"
+              className="mt-1 text-xs text-gray-500"
+            >
+              {t('memberTitleBoardReadonly')}
+            </p>
+          )}
         </div>
 
         <div>
