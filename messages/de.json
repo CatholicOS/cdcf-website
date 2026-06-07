@@ -305,6 +305,8 @@
     "savedNoChange": "Gespeichert.",
     "saveError": "Speichern fehlgeschlagen: {error}",
     "unsavedSwitch": "Du hast nicht gespeicherte \u00c4nderungen. Verwerfen und Sprache wechseln?",
+    "wordCount": "{count, plural, =0 {Keine W\u00f6rter} one {# Wort} other {# W\u00f6rter}}",
+    "wordCountTarget": "Ziel {min}-{max} W\u00f6rter",
     "notLinked": "Dein Konto ist mit keinem team_member-Profil verkn\u00fcpft. Wende dich an einen Administrator.",
     "noLanguages": "Es sind noch keine Sprachversionen zur Bearbeitung verf\u00fcgbar.",
     "loadError": "Diese Version deiner Bio konnte nicht geladen werden.",

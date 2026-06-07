@@ -305,6 +305,8 @@
     "savedNoChange": "Enregistr\u00e9.",
     "saveError": "\u00c9chec de l'enregistrement : {error}",
     "unsavedSwitch": "Vous avez des modifications non enregistr\u00e9es. Les abandonner et changer de langue ?",
+    "wordCount": "{count, plural, =0 {Aucun mot} one {# mot} other {# mots}}",
+    "wordCountTarget": "cible {min}-{max} mots",
     "notLinked": "Votre compte n'est pas li\u00e9 \u00e0 un profil team_member. Contactez un administrateur.",
     "noLanguages": "Aucune version linguistique n'est disponible \u00e0 la modification.",
     "loadError": "Impossible de charger cette version de votre bio.",
