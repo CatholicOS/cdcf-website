@@ -2293,26 +2293,89 @@ function cdcf_ai_translate_meta_box($post) {
             });
         });
 
-        // "Translate All" button — fire each concurrently, but report the
-        // real outcome: allSettled so one rejected enqueue doesn't get
-        // swallowed into a blanket "all queued" message.
+        // "Translate All" button — POST to cdcf_ai_translate_all so the five
+        // target-language drafts are created and linked into Polylang in ONE
+        // atomic call. Replaces the prior fan-out of five concurrent
+        // cdcf_ai_translate requests, which lost-update the Polylang
+        // translation group (read-modify-write race; 2-3 of 5 languages
+        // ended up orphaned). The server returns the per-language post_ids
+        // map; we then start each per-language status poll the same way the
+        // single-language flow does, so the UI behaviour is unchanged.
         var allBtn = document.getElementById('cdcf-ai-translate-all');
         if (allBtn) {
             allBtn.addEventListener('click', function() {
                 if (!confirm('This will queue translations for ALL languages (existing ones are overwritten when the worker runs). Continue?')) return;
                 allBtn.disabled = true;
                 var buttons = Array.from(document.querySelectorAll('.cdcf-ai-translate-btn'));
-                Promise.allSettled(buttons.map(function(btn) {
-                    return translateOne(btn);
-                })).then(function(results) {
-                    var failed = results.filter(function(r) { return r.status === 'rejected'; }).length;
-                    if (failed === 0) {
-                        allBtn.textContent = 'All queued — translations will appear shortly.';
-                    } else {
-                        allBtn.textContent = failed + ' of ' + results.length + ' failed to queue — see per-language status.';
-                        allBtn.disabled = false; // allow a retry of the whole set
-                    }
+                buttons.forEach(function(btn) {
+                    var s = btn.parentElement.querySelector('.cdcf-ai-translate-status');
+                    btn.disabled = true;
+                    s.textContent = 'Queuing…';
+                    s.style.color = '#0073aa';
                 });
+
+                // sourceId is the same on every per-language button — they all
+                // descend from the same source post — so just read it off
+                // the first one.
+                var sourceId = buttons.length > 0 ? buttons[0].dataset.sourceId : '';
+                var data = new FormData();
+                data.append('action', 'cdcf_ai_translate_all');
+                data.append('source_id', sourceId);
+                data.append('_wpnonce', document.getElementById('cdcf_ai_translate_nonce').value);
+
+                fetch(ajaxurl, { method: 'POST', body: data })
+                    .then(function(r) { return r.json(); })
+                    .then(function(resp) {
+                        if (!resp.success) {
+                            allBtn.textContent = 'Failed to queue: ' + (resp.data || 'unknown error');
+                            allBtn.disabled = false;
+                            buttons.forEach(function(btn) {
+                                var s = btn.parentElement.querySelector('.cdcf-ai-translate-status');
+                                s.textContent = '';
+                                btn.disabled = false;
+                            });
+                            return;
+                        }
+                        var postIds = (resp.data && resp.data.post_ids) || {};
+                        var serverErrors = (resp.data && resp.data.errors) || [];
+                        var queuedCount = 0;
+                        buttons.forEach(function(btn) {
+                            var lang = btn.dataset.targetLang;
+                            var pid = postIds[lang];
+                            var s = btn.parentElement.querySelector('.cdcf-ai-translate-status');
+                            if (pid) {
+                                btn.dataset.postId = pid;
+                                setBadgeQueued(s, pid);
+                                pollStatus(btn, s, pid);
+                                queuedCount++;
+                            } else {
+                                // Server reported a per-language create failure (rare;
+                                // recorded in resp.data.errors). Surface it on that
+                                // language's badge.
+                                setBadgeFailed(s, 'enqueue failed');
+                                btn.disabled = false;
+                            }
+                        });
+                        if (queuedCount === buttons.length) {
+                            allBtn.textContent = 'All queued — translations will appear shortly.';
+                        } else {
+                            allBtn.textContent = (buttons.length - queuedCount) + ' of ' + buttons.length + ' failed to queue — see per-language status.';
+                            allBtn.disabled = false;
+                        }
+                        if (serverErrors.length) {
+                            console.warn('cdcf_ai_translate_all server-side errors:', serverErrors);
+                        }
+                    })
+                    .catch(function(err) {
+                        allBtn.textContent = 'Failed to queue (network error)';
+                        allBtn.disabled = false;
+                        buttons.forEach(function(btn) {
+                            var s = btn.parentElement.querySelector('.cdcf-ai-translate-status');
+                            s.textContent = '';
+                            btn.disabled = false;
+                        });
+                        console.error(err);
+                    });
             });
         }
     })();
@@ -2349,8 +2412,10 @@ add_action('cdcf_async_translate', 'cdcf_process_translation', 10, 3);
 // unit-tested in isolation (Brain Monkey + Mockery).
 
 require_once __DIR__ . '/includes/handlers/translate.php';
+require_once __DIR__ . '/includes/handlers/translate-all.php';
 require_once __DIR__ . '/includes/handlers/deploy-translation.php';
 require_once __DIR__ . '/includes/handlers/translation-status.php';
+add_action('wp_ajax_cdcf_ai_translate_all', 'cdcf_ajax_ai_translate_all');
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/translate', [
@@ -2363,6 +2428,17 @@ add_action('rest_api_init', function () {
             'source_id'   => ['required' => true,  'type' => 'integer', 'sanitize_callback' => 'absint'],
             'target_lang' => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
             'post_id'     => ['required' => false, 'type' => 'integer', 'sanitize_callback' => 'absint', 'default' => 0],
+        ],
+    ]);
+
+    register_rest_route('cdcf/v1', '/translate-all', [
+        'methods'             => 'POST',
+        'permission_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        'callback' => 'cdcf_rest_translate_all',
+        'args' => [
+            'source_id' => ['required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint'],
         ],
     ]);
 
