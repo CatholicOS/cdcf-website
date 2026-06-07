@@ -208,6 +208,16 @@ URLs are sanitized via `esc_url_raw` at args time and then host-checked in the h
 
 **Status codes:** `200` on success, `401` unauthenticated, `403` link missing OR ownership invariant violated, `404` when no `{lang}` translation exists in the caller's Polylang group, `400` on URL host-allowlist violation, `500` on `wp_update_post` failure.
 
+### `POST /translate-all`
+
+Atomic counterpart to `POST /translate`. Where the per-language `/translate` endpoint races against itself when 5 callers fire concurrently against the same source (the meta-box "Translate All" fan-out lost-updated the Polylang translation group and orphaned 2-3 of 5 languages — observed on media 1385 and 1409), this endpoint creates-or-reuses ALL non-source target-language drafts and links them into the source's Polylang group in **one** `pll_save_post_translations()` call. The Polylang link-state is then race-free by construction. Each newly-created draft is enqueued for the worker the same way `/translate` enqueues a single one. Capability gate: `edit_posts`.
+
+**Parameters:** `source_id` (required — integer; the source post id).
+
+**Returns:** `{ source_id, source_lang, post_ids: { lang: post_id, ... }, queued: [lang, ...], queue: "redis" | "wp-cron", message, errors: [string, ...] }`. `post_ids` excludes the source language. `errors` carries non-fatal warnings (e.g. an individual language draft failed to create — the other survivors are still linked + queued; or attachment plumbing copy failed but the post itself exists). On unrecoverable failure (`pll_save_post_translations` returns `false`) every newly-created draft is force-deleted before the error is returned, so a failed call leaves no orphans behind.
+
+**Status codes:** `202` on success (translations queued, worker will run them), `400` on missing/zero `source_id` or when only the source language is configured (`no_targets`), `404` when the source post doesn't exist, `500` when Polylang is missing, when the source has no language and no Polylang default is set, when every per-language create fails (`all_creates_failed`), or when the single atomic `pll_save_post_translations()` call fails (`link_failed` — drafts rolled back).
+
 ### `GET /translation-status`
 
 Read the lifecycle of a queued AI translation. `cdcf_enqueue_post_translation()` writes `enqueued` to the target post's meta the moment the job is accepted by Redis (or the WP-Cron fallback); `cdcf_process_translation()` flips it through `processing` → `completed`/`failed` as the worker drains the queue. This endpoint surfaces that meta so the Languages → AI Translation meta-box JS can poll for completion instead of leaving the "⏳ Queued" badge stuck until the user reloads (the regression PR #156 introduced when it moved the meta-box from synchronous OpenAI calls to enqueue-and-return).

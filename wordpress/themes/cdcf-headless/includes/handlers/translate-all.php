@@ -175,8 +175,11 @@ function cdcf_enqueue_all_translations(int $source_id) {
 
     if (pll_save_post_translations($translations) === false) {
         // Rollback: delete only the posts we created in this call. Reused
-        // ones (translations from a prior session) are left alone.
-        foreach ($created_new as $pid => $_) {
+        // ones (translations from a prior session) are left alone. We only
+        // need the keys (post ids); the value is just a presence marker, so
+        // iterate via array_keys() to keep static analysis from flagging an
+        // unused $value placeholder.
+        foreach (array_keys($created_new) as $pid) {
             wp_delete_post((int) $pid, true);
         }
         return new WP_Error('link_failed', 'Failed to save translation group.', ['status' => 500]);
