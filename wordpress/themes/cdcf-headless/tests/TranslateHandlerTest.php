@@ -29,6 +29,14 @@ final class TranslateHandlerTest extends TestCase
     {
         parent::setUp();
         Monkey\setUp();
+
+        // cdcf_enqueue_post_translation now stamps _cdcf_translation_status
+        // = 'enqueued' on the target post (cleared via delete_post_meta
+        // for prior completed_at/error). Stub once here so each individual
+        // happy-/sad-path test doesn't have to know about that side
+        // effect; tests that care can still expect()-override.
+        Functions\when('update_post_meta')->justReturn(true);
+        Functions\when('delete_post_meta')->justReturn(true);
     }
 
     protected function tearDown(): void
@@ -458,6 +466,9 @@ final class TranslateHandlerTest extends TestCase
             [
                 [800, '_wp_attached_file',      '2026/05/file.png'],
                 [800, '_wp_attachment_metadata', ['width' => 800, 'height' => 600]],
+                // Status meta the meta-box UI polls to flip "Queued" →
+                // "Done"/"Failed" — written by cdcf_translation_status_set_enqueued().
+                [800, '_cdcf_translation_status', 'enqueued'],
             ],
             $metaWrites
         );

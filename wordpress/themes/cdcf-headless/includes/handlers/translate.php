@@ -157,6 +157,11 @@ function cdcf_enqueue_post_translation(int $source_id, string $target_lang, int 
         $queue = 'wp-cron';
     }
 
+    // Status meta the meta-box UI polls to flip "Queued" → "Done"/"Failed".
+    if (function_exists('cdcf_translation_status_set_enqueued')) {
+        cdcf_translation_status_set_enqueued((int) $post_id);
+    }
+
     return ['post_id' => (int) $post_id, 'queue' => $queue, 'errors' => $errors];
 }
 
