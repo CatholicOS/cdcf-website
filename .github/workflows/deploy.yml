@@ -167,13 +167,29 @@ jobs:
       - name: Prepare WP theme and plugin bundles
         if: env.ENVIRONMENT == 'production'
         run: |
-          tar -czf /tmp/wp-theme-${BUNDLE_TAG}.tar.gz -C wordpress/themes/cdcf-headless .
-          tar -czf /tmp/wp-plugin-redis-translations-${BUNDLE_TAG}.tar.gz -C wordpress/plugins/cdcf-redis-translations .
+          # Strip dev-only artifacts from the bundles so production doesn't
+          # ship the PHPUnit test suite, composer manifests, or Patchwork
+          # config. None of these are loaded at WP runtime (the autoloader
+          # in vendor/ doesn't need composer.json|.lock; Patchwork only runs
+          # via Brain Monkey under PHPUnit), and shipping tests/*.php under
+          # wp-content puts handler internals on disk where a misconfigured
+          # vhost could in principle serve them.
+          DEV_EXCLUDES=(
+            --exclude='./tests'
+            --exclude='./composer.json'
+            --exclude='./composer.lock'
+            --exclude='./phpunit.xml.dist'
+            --exclude='./patchwork.json'
+            --exclude='./.phpunit.cache'
+            --exclude='./.phpunit.result.cache'
+          )
+          tar "${DEV_EXCLUDES[@]}" -czf /tmp/wp-theme-${BUNDLE_TAG}.tar.gz -C wordpress/themes/cdcf-headless .
+          tar "${DEV_EXCLUDES[@]}" -czf /tmp/wp-plugin-redis-translations-${BUNDLE_TAG}.tar.gz -C wordpress/plugins/cdcf-redis-translations .
           # Install cdcf-mcp's runtime deps (the MCP adapter) from the lock and
           # bundle them; the plugin is non-functional without vendor/.
           composer install --no-dev --no-interaction --no-progress \
             --working-dir=wordpress/plugins/cdcf-mcp
-          tar -czf /tmp/wp-plugin-cdcf-mcp-${BUNDLE_TAG}.tar.gz -C wordpress/plugins/cdcf-mcp .
+          tar "${DEV_EXCLUDES[@]}" -czf /tmp/wp-plugin-cdcf-mcp-${BUNDLE_TAG}.tar.gz -C wordpress/plugins/cdcf-mcp .
 
       - name: Setup SSH key
         env:
