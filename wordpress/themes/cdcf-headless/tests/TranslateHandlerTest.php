@@ -421,15 +421,29 @@ final class TranslateHandlerTest extends TestCase
             return 800;
         });
         // Attachment meta lookups return empty so the conditional copy
-        // branches are exercised but not the update_post_meta side effect.
+        // branches are exercised. Record every update_post_meta call so we
+        // can assert no _wp_attached_file / _wp_attachment_metadata write
+        // happened. (Bare ->never() no longer applies — the post-enqueue
+        // status meta legitimately writes _cdcf_translation_status here.)
         Functions\when('get_post_meta')->justReturn('');
-        Functions\expect('update_post_meta')->never();
+        $metaWrites = [];
+        Functions\when('update_post_meta')->alias(
+            function (int $post_id, string $key, $value) use (&$metaWrites): bool {
+                $metaWrites[] = [$post_id, $key, $value];
+                return true;
+            }
+        );
         $this->allowAllFunctionsToExist();
 
         cdcf_rest_translate($this->makeRequest());
 
         $this->assertSame('inherit', $inserted['post_status']);
         $this->assertSame('image/png', $inserted['post_mime_type']);
+        $attachmentMetaKeys = array_filter(
+            $metaWrites,
+            static fn(array $w): bool => in_array($w[1], ['_wp_attached_file', '_wp_attachment_metadata'], true)
+        );
+        $this->assertSame([], $attachmentMetaKeys);
     }
 
     public function test_attachment_copies_wp_attached_file_and_metadata(): void
