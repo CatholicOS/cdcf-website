@@ -318,7 +318,14 @@
       "orderedList": "Lista numerada",
       "link": "Inserir ou editar liga\u00e7\u00e3o",
       "unlink": "Remover liga\u00e7\u00e3o",
-      "linkUrlPrompt": "Inserir o URL (deixar em branco para remover a liga\u00e7\u00e3o):"
+      "linkPopoverLabel": "Defini\u00e7\u00f5es da liga\u00e7\u00e3o",
+      "linkUrlLabel": "URL",
+      "linkTargetLabel": "Abrir em",
+      "linkTargetSelf": "Mesma janela",
+      "linkTargetBlank": "Novo separador ou janela",
+      "linkNavigate": "Ir para o URL",
+      "apply": "Aplicar",
+      "cancel": "Cancelar"
     }
   }
 }

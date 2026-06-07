@@ -318,7 +318,14 @@
       "orderedList": "Nummerierte Liste",
       "link": "Link einfügen oder bearbeiten",
       "unlink": "Link entfernen",
-      "linkUrlPrompt": "URL eingeben (leer lassen, um den Link zu entfernen):"
+      "linkPopoverLabel": "Link-Einstellungen",
+      "linkUrlLabel": "URL",
+      "linkTargetLabel": "Öffnen in",
+      "linkTargetSelf": "Selbes Fenster",
+      "linkTargetBlank": "Neuer Tab oder neues Fenster",
+      "linkNavigate": "Zur URL navigieren",
+      "apply": "Übernehmen",
+      "cancel": "Abbrechen"
     }
   }
 }

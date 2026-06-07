@@ -318,7 +318,14 @@
       "orderedList": "Elenco numerato",
       "link": "Inserisci o modifica il collegamento",
       "unlink": "Rimuovi il collegamento",
-      "linkUrlPrompt": "Inserisci l'URL (lascia vuoto per rimuovere il collegamento):"
+      "linkPopoverLabel": "Impostazioni del collegamento",
+      "linkUrlLabel": "URL",
+      "linkTargetLabel": "Apri in",
+      "linkTargetSelf": "Stessa finestra",
+      "linkTargetBlank": "Nuova scheda o finestra",
+      "linkNavigate": "Vai all'URL",
+      "apply": "Applica",
+      "cancel": "Annulla"
     }
   }
 }

@@ -39,8 +39,13 @@ const siteDescription =
   'Nurturing open-source projects that serve the Catholic community worldwide.'
 
 export const metadata: Metadata = {
+  // Use `||` (not `??`) so an env var defined-but-empty in CI — e.g.
+  // a PR-build workflow that doesn't set NEXT_PUBLIC_SITE_URL — falls
+  // through to the production default instead of feeding '' into
+  // `new URL()`, which throws ERR_INVALID_URL during page collection
+  // and fails the build.
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://catholicdigitalcommons.org'
+    process.env.NEXT_PUBLIC_SITE_URL || 'https://catholicdigitalcommons.org'
   ),
   title: {
     default: 'Catholic Digital Commons Foundation',
