@@ -173,6 +173,7 @@ if (!defined('CDCF_LOCALE_NAMES')) {
 
 require_once __DIR__ . '/../includes/security.php';
 require_once __DIR__ . '/../includes/fragment-anchors.php';
+require_once __DIR__ . '/../includes/translation-status.php';
 require_once __DIR__ . '/../includes/translation.php';
 require_once __DIR__ . '/../includes/frontend-permalinks.php';
 require_once __DIR__ . '/../includes/handlers/relationship.php';
@@ -183,6 +184,7 @@ require_once __DIR__ . '/../includes/handlers/academic-collaboration.php';
 require_once __DIR__ . '/../includes/handlers/update-disposable-domains.php';
 require_once __DIR__ . '/../includes/handlers/translate.php';
 require_once __DIR__ . '/../includes/handlers/deploy-translation.php';
+require_once __DIR__ . '/../includes/handlers/translation-status.php';
 require_once __DIR__ . '/../includes/handlers/link-translations.php';
 require_once __DIR__ . '/../includes/handlers/project-status.php';
 require_once __DIR__ . '/../includes/handlers/flush-opcache.php';

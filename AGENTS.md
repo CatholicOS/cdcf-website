@@ -95,21 +95,22 @@ Uses `@import 'tailwindcss'` (not `@tailwind` directives). Custom utilities via 
 
 All endpoints accept either **Application Password** (for the Python CLI and other server-side callers) or **Zitadel OIDC bearer tokens** (for the Next.js frontend acting on behalf of a signed-in user — see [Zitadel bearer authentication](#zitadel-bearer-authentication) below). Most endpoints require `edit_posts` capability; `/process-queue` and `/maintenance` require `manage_options` (administrator); `/create-user` and `/author-team-member` require the custom `cdcf_create_limited_users` capability — see the row notes where capability differs.
 
-| Method  | Route                        | Description                                                                                                                                                                                                                         |
-| ------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`   | `/relationship`              | Read an ACF relationship field (`post_id`, `field`)                                                                                                                                                                                 |
-| `POST`  | `/relationship`              | Update an ACF relationship field (`post_id`, `field`, `value[]`)                                                                                                                                                                    |
-| `POST`  | `/translate`                 | Translate a post to a target language via OpenAI (`source_id`, `target_lang`, optional `post_id`)                                                                                                                                   |
-| `POST`  | `/update-disposable-domains` | Download latest disposable email domain blocklist from GitHub (called daily by Redis worker)                                                                                                                                        |
-| `POST`  | `/team-member`               | Create a team member with auto-translation and About page linking (see below)                                                                                                                                                       |
-| `POST`  | `/community-channel`         | Create a community channel with auto-translation and Community page linking (see below)                                                                                                                                             |
-| `POST`  | `/local-group`               | Create a local group with auto-translation and Community page linking (see below)                                                                                                                                                   |
-| `POST`  | `/maintenance`               | Pause or resume the cdcf-queue-worker by setting/clearing a Redis flag. Body: `action` is `"begin"` or `"end"`; optional `duration_seconds` is clamped server-side to 60–600. Requires administrator (`manage_options`) capability. |
-| `POST`  | `/academic-collaboration`    | Create an academic collaboration with auto-translation and Community page linking (see below)                                                                                                                                       |
-| `POST`  | `/create-user`               | Provision a low-privilege WordPress user (author/contributor/subscriber only) and email a set-password link. Requires the custom `cdcf_create_limited_users` capability, NOT `edit_posts` (see below).                              |
-| `POST`  | `/author-team-member`        | Link (or unlink) a WordPress user to their `team_member` bio card by writing the `author_team_member` ACF field on the user (`user_id`, `team_member_id`; pass `0` to clear). Requires `cdcf_create_limited_users` (see below).     |
-| `GET`   | `/my-team-member`            | Discover the caller's linked `team_member` post + every Polylang sibling translation. Returns 403 when the caller has no `author_team_member` link. Phase 3 of bio self-edit.                                                       |
-| `PATCH` | `/my-team-member/{lang}`     | Edit the `{lang}` version of the caller's bio (content + member_title/linkedin/github) and queue re-translation to the other 5 langs from the just-saved source. Ownership enforced via the Polylang group. See below.              |
+| Method  | Route                        | Description                                                                                                                                                                                                                          |
+| ------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET`   | `/relationship`              | Read an ACF relationship field (`post_id`, `field`)                                                                                                                                                                                  |
+| `POST`  | `/relationship`              | Update an ACF relationship field (`post_id`, `field`, `value[]`)                                                                                                                                                                     |
+| `POST`  | `/translate`                 | Translate a post to a target language via OpenAI (`source_id`, `target_lang`, optional `post_id`)                                                                                                                                    |
+| `POST`  | `/update-disposable-domains` | Download latest disposable email domain blocklist from GitHub (called daily by Redis worker)                                                                                                                                         |
+| `POST`  | `/team-member`               | Create a team member with auto-translation and About page linking (see below)                                                                                                                                                        |
+| `POST`  | `/community-channel`         | Create a community channel with auto-translation and Community page linking (see below)                                                                                                                                              |
+| `POST`  | `/local-group`               | Create a local group with auto-translation and Community page linking (see below)                                                                                                                                                    |
+| `POST`  | `/maintenance`               | Pause or resume the cdcf-queue-worker by setting/clearing a Redis flag. Body: `action` is `"begin"` or `"end"`; optional `duration_seconds` is clamped server-side to 60–600. Requires administrator (`manage_options`) capability.  |
+| `POST`  | `/academic-collaboration`    | Create an academic collaboration with auto-translation and Community page linking (see below)                                                                                                                                        |
+| `POST`  | `/create-user`               | Provision a low-privilege WordPress user (author/contributor/subscriber only) and email a set-password link. Requires the custom `cdcf_create_limited_users` capability, NOT `edit_posts` (see below).                               |
+| `POST`  | `/author-team-member`        | Link (or unlink) a WordPress user to their `team_member` bio card by writing the `author_team_member` ACF field on the user (`user_id`, `team_member_id`; pass `0` to clear). Requires `cdcf_create_limited_users` (see below).      |
+| `GET`   | `/my-team-member`            | Discover the caller's linked `team_member` post + every Polylang sibling translation. Returns 403 when the caller has no `author_team_member` link. Phase 3 of bio self-edit.                                                        |
+| `PATCH` | `/my-team-member/{lang}`     | Edit the `{lang}` version of the caller's bio (content + member_title/linkedin/github) and queue re-translation to the other 5 langs from the just-saved source. Ownership enforced via the Polylang group. See below.               |
+| `GET`   | `/translation-status`        | Read the queued-translation lifecycle (`enqueued`/`processing`/`completed`/`failed`/`unknown`) recorded on a target post. Used by the AI-translate meta-box JS to poll until the worker is done so the badge can flip past "Queued". |
 
 ### Sanitization convention
 
@@ -205,6 +206,20 @@ URLs are sanitized via `esc_url_raw` at args time and then host-checked in the h
 **Returns:** `{ post_id, queued: [lang, lang, …], errors: [string, …] }`. `queued` lists the languages whose re-translation jobs were enqueued; `errors` lists per-sibling enqueue failures (the endpoint does NOT abort on a single failed enqueue — the just-saved source-language post is already persisted at that point).
 
 **Status codes:** `200` on success, `401` unauthenticated, `403` link missing OR ownership invariant violated, `404` when no `{lang}` translation exists in the caller's Polylang group, `400` on URL host-allowlist violation, `500` on `wp_update_post` failure.
+
+### `GET /translation-status`
+
+Read the lifecycle of a queued AI translation. `cdcf_enqueue_post_translation()` writes `enqueued` to the target post's meta the moment the job is accepted by Redis (or the WP-Cron fallback); `cdcf_process_translation()` flips it through `processing` → `completed`/`failed` as the worker drains the queue. This endpoint surfaces that meta so the Languages → AI Translation meta-box JS can poll for completion instead of leaving the "⏳ Queued" badge stuck until the user reloads (the regression PR #156 introduced when it moved the meta-box from synchronous OpenAI calls to enqueue-and-return).
+
+**Parameters:** `post_id` (required) — the target translation post id, NOT the source. The post must exist; missing/zero ids return `400`, non-existent post ids return `404`.
+
+**Returns:** `{ post_id, status, completed_at, error }`.
+
+- `status` is one of `enqueued`, `processing`, `completed`, `failed`, or `unknown`. `unknown` is returned when the post has no status meta — either because it predates this feature or because it was never enqueued through `cdcf_enqueue_post_translation()`. The meta-box JS treats `unknown` the same as `completed` (no spinner) so legacy posts don't poll forever.
+- `completed_at` is a Unix timestamp set on success; `0` when the worker hasn't finished yet.
+- `error` is a short message (≤500 chars) recorded on the `failed` path, empty otherwise.
+
+**Status codes:** `200` on success, `400` when `post_id` is missing or zero, `404` when the post doesn't exist.
 
 ### Zitadel bearer authentication
 

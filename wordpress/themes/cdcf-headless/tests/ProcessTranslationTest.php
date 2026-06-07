@@ -29,6 +29,14 @@ final class ProcessTranslationTest extends TestCase
         // error_log is noisy in the orchestrator (every branch logs).
         // Silence so PHPUnit output stays clean.
         Patchwork\redefine('error_log', static fn(string $msg): bool => true);
+
+        // The orchestrator now writes _cdcf_translation_status post-meta
+        // at every exit (entry → processing, returns → completed/failed)
+        // so the meta-box UI can poll for completion. Stub at setUp
+        // level rather than in stubCommonFunctions() because some tests
+        // exercise pre-source-load branches without calling that helper.
+        Functions\when('update_post_meta')->justReturn(true);
+        Functions\when('delete_post_meta')->justReturn(true);
     }
 
     protected function tearDown(): void

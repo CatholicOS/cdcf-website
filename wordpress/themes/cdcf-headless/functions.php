@@ -2167,6 +2167,85 @@ function cdcf_ai_translate_meta_box($post) {
     ?>
     <script>
     (function() {
+        // Status polling: after the AJAX enqueue returns, the badge starts
+        // at "⏳ Queued" and we poll GET /cdcf/v1/translation-status until
+        // the worker reports "completed" / "failed", at which point the
+        // badge flips. The status meta is written by the worker
+        // (cdcf_process_translation) so this poll is a thin read.
+        var STATUS_POLL_URL = '<?php echo esc_url_raw(rest_url('cdcf/v1/translation-status')); ?>';
+        var STATUS_NONCE    = '<?php echo esc_js(wp_create_nonce('wp_rest')); ?>';
+        var EDIT_URL_BASE   = '<?php echo admin_url('post.php?action=edit&post='); ?>';
+        var POLL_INTERVAL_MS = 5000;
+        var POLL_MAX_ATTEMPTS = 60; // ≈5 min before giving up + leaving "Queued"
+
+        function setBadgeQueued(status, postId) {
+            // postId may be 0 (target post hadn't been resolved yet); only
+            // emit the Edit link when we actually have one.
+            status.style.color = '#0073aa';
+            status.textContent = '⏳ Queued';
+            if (postId) {
+                status.textContent = '⏳ Queued — ';
+                var a = document.createElement('a');
+                a.href = EDIT_URL_BASE + encodeURIComponent(postId);
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.textContent = 'Edit';
+                status.appendChild(a);
+            }
+        }
+
+        function setBadgeCompleted(status, postId) {
+            status.style.color = '#46b450';
+            status.textContent = '✅ Done';
+            if (postId) {
+                status.textContent = '✅ Done — ';
+                var a = document.createElement('a');
+                a.href = EDIT_URL_BASE + encodeURIComponent(postId);
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.textContent = 'Edit';
+                status.appendChild(a);
+            }
+        }
+
+        function setBadgeFailed(status, message) {
+            status.style.color = '#dc3232';
+            // textContent (not innerHTML) — server-returned error strings
+            // are not trusted as markup.
+            status.textContent = '❌ Failed' + (message ? ': ' + message : '');
+        }
+
+        function pollStatus(btn, status, postId) {
+            if (!postId) return;
+            var attempts = 0;
+            var timer = setInterval(function() {
+                attempts++;
+                if (attempts > POLL_MAX_ATTEMPTS) {
+                    clearInterval(timer);
+                    return; // leave the "Queued" badge so the user can reload
+                }
+                fetch(STATUS_POLL_URL + '?post_id=' + encodeURIComponent(postId), {
+                    credentials: 'same-origin',
+                    headers: { 'X-WP-Nonce': STATUS_NONCE },
+                })
+                    .then(function(r) { return r.ok ? r.json() : null; })
+                    .then(function(resp) {
+                        if (!resp || !resp.status) return;
+                        if (resp.status === 'completed' || resp.status === 'unknown') {
+                            clearInterval(timer);
+                            setBadgeCompleted(status, postId);
+                            btn.disabled = false;
+                        } else if (resp.status === 'failed') {
+                            clearInterval(timer);
+                            setBadgeFailed(status, resp.error || '');
+                            btn.disabled = false;
+                        }
+                        // "enqueued" / "processing" → keep polling
+                    })
+                    .catch(function() { /* transient network blip — try again next tick */ });
+            }, POLL_INTERVAL_MS);
+        }
+
         function translateOne(btn) {
             var status = btn.parentElement.querySelector('.cdcf-ai-translate-status');
             btn.disabled = true;
@@ -2184,23 +2263,12 @@ function cdcf_ai_translate_meta_box($post) {
                 .then(function(r) { return r.json(); })
                 .then(function(resp) {
                     if (resp.success) {
-                        status.style.color = '#46b450';
-                        // The translation is now queued, not finished — the
-                        // worker fills it in shortly. Reflect that, with an
-                        // Edit link to the (draft) translation post. Built via
-                        // DOM nodes (no innerHTML) since post_id is interpolated.
-                        if (resp.data && resp.data.post_id) {
-                            btn.dataset.postId = resp.data.post_id;
-                            var editUrl = '<?php echo admin_url('post.php?action=edit&post='); ?>' + encodeURIComponent(resp.data.post_id);
-                            status.textContent = '⏳ Queued — ';
-                            var editLink = document.createElement('a');
-                            editLink.href = editUrl;
-                            editLink.target = '_blank';
-                            editLink.textContent = 'Edit';
-                            status.appendChild(editLink);
-                        } else {
-                            status.textContent = '⏳ Queued';
+                        var postId = (resp.data && resp.data.post_id) ? resp.data.post_id : 0;
+                        if (postId) {
+                            btn.dataset.postId = postId;
                         }
+                        setBadgeQueued(status, postId);
+                        pollStatus(btn, status, postId);
                     } else {
                         status.textContent = resp.data || 'Error';
                         status.style.color = '#dc3232';
@@ -2266,6 +2334,7 @@ add_action('wp_ajax_cdcf_ai_translate', 'cdcf_ajax_ai_translate');
 // unit-tested in isolation. Required here — after CDCF_TRANSLATABLE_ACF_TYPES
 // and CDCF_LOCALE_NAMES are defined above — because the orchestrator
 // consults both at runtime.
+require_once __DIR__ . '/includes/translation-status.php';
 require_once __DIR__ . '/includes/translation.php';
 add_action('cdcf_async_translate', 'cdcf_process_translation', 10, 3);
 
@@ -2281,6 +2350,7 @@ add_action('cdcf_async_translate', 'cdcf_process_translation', 10, 3);
 
 require_once __DIR__ . '/includes/handlers/translate.php';
 require_once __DIR__ . '/includes/handlers/deploy-translation.php';
+require_once __DIR__ . '/includes/handlers/translation-status.php';
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/translate', [
@@ -2307,6 +2377,17 @@ add_action('rest_api_init', function () {
             'target_lang' => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
             'title'       => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
             'content'     => ['required' => true,  'type' => 'string'],
+        ],
+    ]);
+
+    register_rest_route('cdcf/v1', '/translation-status', [
+        'methods'             => 'GET',
+        'permission_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        'callback' => 'cdcf_rest_translation_status',
+        'args' => [
+            'post_id' => ['required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint'],
         ],
     ]);
 });

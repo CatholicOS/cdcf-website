@@ -78,9 +78,19 @@ function cdcf_chunk_html_content(string $html, int $max_chars = CDCF_TRANSLATION
  *                        callers (Redis Queue job, REST handler) can retry.
  */
 function cdcf_process_translation($post_id, $source_id, $target_lang) {
+    // Flip the UI badge from "Queued" to "Processing" so polling reflects
+    // that the worker has actually picked up the job. Guarded so the unit
+    // tests that don't load the status helper don't blow up.
+    if (function_exists('cdcf_translation_status_set_processing')) {
+        cdcf_translation_status_set_processing((int) $post_id);
+    }
+
     $source = get_post($source_id);
     if (!$source) {
         error_log("cdcf_process_translation: Source post {$source_id} not found.");
+        if (function_exists('cdcf_translation_status_set_failed')) {
+            cdcf_translation_status_set_failed((int) $post_id, "Source post {$source_id} not found.");
+        }
         return new WP_Error('source_missing', "Source post {$source_id} not found.");
     }
 
@@ -112,6 +122,9 @@ function cdcf_process_translation($post_id, $source_id, $target_lang) {
 
     if (empty($strings)) {
         error_log("cdcf_process_translation: No translatable content for post {$source_id}.");
+        if (function_exists('cdcf_translation_status_set_completed')) {
+            cdcf_translation_status_set_completed((int) $post_id);
+        }
         return true; // No-op success: nothing to translate, not a failure to retry.
     }
 
@@ -119,6 +132,9 @@ function cdcf_process_translation($post_id, $source_id, $target_lang) {
     $api_key = get_option('cdcf_openai_api_key');
     if (!$api_key) {
         error_log('cdcf_process_translation: OpenAI API key not configured.');
+        if (function_exists('cdcf_translation_status_set_failed')) {
+            cdcf_translation_status_set_failed((int) $post_id, 'OpenAI API key not configured.');
+        }
         return new WP_Error('no_api_key', 'OpenAI API key not configured.');
     }
 
@@ -151,6 +167,9 @@ function cdcf_process_translation($post_id, $source_id, $target_lang) {
         : [];
     if (is_wp_error($result)) {
         error_log('cdcf_process_translation: OpenAI error – ' . $result->get_error_message());
+        if (function_exists('cdcf_translation_status_set_failed')) {
+            cdcf_translation_status_set_failed((int) $post_id, 'OpenAI error – ' . $result->get_error_message());
+        }
         return $result; // Surface to caller so retry logic engages.
     }
 
@@ -174,6 +193,12 @@ function cdcf_process_translation($post_id, $source_id, $target_lang) {
                     $target_lang,
                     $chunk_result->get_error_message()
                 ));
+                if (function_exists('cdcf_translation_status_set_failed')) {
+                    cdcf_translation_status_set_failed(
+                        (int) $post_id,
+                        sprintf('Chunk %d/%d (%s): %s', $i + 1, $total, $key, $chunk_result->get_error_message())
+                    );
+                }
                 return $chunk_result;
             }
             // OpenAI may return a JSON object missing the expected key (model
@@ -248,6 +273,9 @@ function cdcf_process_translation($post_id, $source_id, $target_lang) {
     }
 
     error_log("cdcf_process_translation: Translation complete for post {$post_id} ({$target_lang}).");
+    if (function_exists('cdcf_translation_status_set_completed')) {
+        cdcf_translation_status_set_completed((int) $post_id);
+    }
     return true;
 }
 
