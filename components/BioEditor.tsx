@@ -58,7 +58,15 @@ export default function BioEditor({
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      // StarterKit v3 bundles the Link extension by default. Registering
+      // our own Link.configure() alongside the bundled one produces a
+      // "multiple instances of the Link extension" console warning AND
+      // the bundled instance's default openOnClick=true wins the click
+      // race so plain clicks still navigate out of the editor. Disable
+      // the bundled link so our explicit configuration is the only one
+      // ProseMirror knows about. See
+      // https://tiptap.dev/docs/editor/extensions/marks/link
+      StarterKit.configure({ link: false }),
       Link.configure({
         openOnClick: false,
         autolink: false,
