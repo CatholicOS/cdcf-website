@@ -297,6 +297,7 @@
     "postTitleLabel": "Nom",
     "contentLabel": "Bio",
     "memberTitleLabel": "Fonction / affiliation",
+    "memberTitleBoardReadonly": "Verrouillé car cela reflète votre fonction officielle au Conseil d'administration. Contactez un administrateur pour la modifier.",
     "linkedinLabel": "URL LinkedIn",
     "githubLabel": "URL GitHub",
     "save": "Enregistrer",

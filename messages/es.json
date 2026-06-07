@@ -297,6 +297,7 @@
     "postTitleLabel": "Nombre",
     "contentLabel": "Biograf\u00eda",
     "memberTitleLabel": "Cargo / afiliaci\u00f3n",
+    "memberTitleBoardReadonly": "Bloqueado porque refleja tu cargo formal en la Junta Directiva. Contacta a un administrador para cambiarlo.",
     "linkedinLabel": "URL de LinkedIn",
     "githubLabel": "URL de GitHub",
     "save": "Guardar cambios",
