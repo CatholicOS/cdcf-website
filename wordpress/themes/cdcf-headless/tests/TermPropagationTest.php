@@ -405,30 +405,30 @@ final class TermPropagationTest extends TestCase
         $this->assertNull(cdcf_get_or_create_translated_term($this->fakeTerm(169, 'confession'), 'it'));
     }
 
-    public function test_get_or_create_adopts_existing_term_on_slug_collision(): void
+    public function test_get_or_create_treats_pll_get_term_self_fallback_as_no_sibling(): void
     {
-        // wp_insert_term returns a term_exists WP_Error with the colliding
-        // term's ID in data. The handler should adopt that ID and still
-        // Polylang-link it.
+        // Regression guard for the production-2026-06-08 corruption of
+        // ConfessIt EN term 171 ("examen"): some Polylang versions return
+        // the input term_id itself from pll_get_term when no
+        // target-language sibling exists. Without a self-equality guard,
+        // the handler treats this fallback as "found a sibling", assigns
+        // the EN term to a non-EN post, and pll_set_term_language flips
+        // the EN term's language to match the non-EN target. Here we
+        // stub pll_get_term to return the input id and assert the
+        // handler falls through to OpenAI + wp_insert_term instead of
+        // returning the EN id.
         $this->stubCommonFunctions();
-        Functions\when('pll_get_term')->justReturn(0);
+        Functions\when('pll_get_term')->alias(
+            static fn(int $term_id, string $lang): int => $term_id // self-fallback
+        );
         Functions\when('cdcf_openai_translate')->justReturn(['term' => 'confessione']);
-        Functions\when('wp_insert_term')->justReturn(
-            new WP_Error('term_exists', 'A term with this slug exists', 880)
-        );
+        Functions\when('wp_insert_term')->justReturn(['term_id' => 802]);
 
-        $polyCall = new stdClass();
-        $polyCall->set_lang = null;
-        $polyCall->save_translations = null;
+        $captured = new stdClass();
+        $captured->set_lang = null;
         Functions\when('pll_set_term_language')->alias(
-            function (int $term_id, string $lang) use ($polyCall): bool {
-                $polyCall->set_lang = [$term_id, $lang];
-                return true;
-            }
-        );
-        Functions\when('pll_save_term_translations')->alias(
-            function (array $translations) use ($polyCall): bool {
-                $polyCall->save_translations = $translations;
+            function (int $term_id, string $lang) use ($captured): bool {
+                $captured->set_lang = [$term_id, $lang];
                 return true;
             }
         );
@@ -436,9 +436,67 @@ final class TermPropagationTest extends TestCase
 
         $result = cdcf_get_or_create_translated_term($this->fakeTerm(169, 'confession'), 'it');
 
+        $this->assertSame(802, $result, 'must create a new IT term, not reuse the EN id 169');
+        // pll_set_term_language must operate on the NEW term (802), not on
+        // the EN term (169) — that was the bug that flipped EN 171 to fr.
+        $this->assertSame([802, 'it'], $captured->set_lang);
+    }
+
+    public function test_get_or_create_reuses_collision_term_when_already_my_polylang_sibling(): void
+    {
+        // Idempotent path on slug collision: the colliding term IS
+        // already a sibling of our EN term in this language (e.g. the
+        // hook fired twice for the same post). Return its id; do NOT
+        // re-run pll_set_term_language or pll_save_term_translations.
+        $this->stubCommonFunctions();
+        Functions\when('pll_get_term')->justReturn(0); // no sibling via direct lookup
+        Functions\when('cdcf_openai_translate')->justReturn(['term' => 'confessione']);
+        Functions\when('wp_insert_term')->justReturn(
+            new WP_Error('term_exists', 'A term with this slug exists', 880)
+        );
+        // The collision-resolution path queries the EN term's polylang
+        // group; here term 880 IS already its IT sibling.
+        Functions\when('pll_get_term_translations')->justReturn([
+            'en' => 169, 'it' => 880,
+        ]);
+        Functions\expect('pll_set_term_language')->never();
+        Functions\expect('pll_save_term_translations')->never();
+        $this->allowAllFunctionsToExist();
+
+        $result = cdcf_get_or_create_translated_term($this->fakeTerm(169, 'confession'), 'it');
+
         $this->assertSame(880, $result);
-        $this->assertSame([880, 'it'], $polyCall->set_lang);
-        $this->assertSame(['en' => 169, 'it' => 880], $polyCall->save_translations);
+    }
+
+    public function test_get_or_create_returns_null_when_collision_term_belongs_to_different_sibling(): void
+    {
+        // The corruption case: two distinct EN terms whose OpenAI
+        // translations land on the same target word (e.g. EN "examen"
+        // + EN "examination" both translate to "examen" in Romance
+        // languages). The colliding term is already linked to a
+        // DIFFERENT EN sibling; adopting + rewriting its polylang group
+        // would orphan that other link AND can flip term languages.
+        // Skip with a logged warning, return null.
+        $this->stubCommonFunctions();
+        Functions\when('pll_get_term')->justReturn(0);
+        Functions\when('cdcf_openai_translate')->justReturn(['term' => 'examen']);
+        Functions\when('wp_insert_term')->justReturn(
+            new WP_Error('term_exists', 'A term with this slug exists', 880)
+        );
+        // EN term 173 ("examination")'s polylang group does NOT have
+        // term 880 as its IT sibling — 880 belongs to a different EN
+        // sibling (e.g. EN 171 "examen", which translated to the same
+        // word in Italian).
+        Functions\when('pll_get_term_translations')->justReturn([
+            'en' => 173, // (we're asking about term 173, but 880 is not in this map)
+        ]);
+        Functions\expect('pll_set_term_language')->never();
+        Functions\expect('pll_save_term_translations')->never();
+        $this->allowAllFunctionsToExist();
+
+        $result = cdcf_get_or_create_translated_term($this->fakeTerm(173, 'examination'), 'it');
+
+        $this->assertNull($result);
     }
 
     public function test_get_or_create_links_new_term_into_polylang_group(): void
