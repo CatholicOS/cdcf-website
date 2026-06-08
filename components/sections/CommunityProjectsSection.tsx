@@ -6,6 +6,7 @@ import clsx from 'clsx'
 import { GlobeAltIcon } from '@heroicons/react/24/outline'
 import { useTranslations } from 'next-intl'
 import type { WPCommunityProject } from '@/lib/wordpress/types'
+import RepoLanguages from '@/components/projects/RepoLanguages'
 import ReferCommunityProjectModal from './ReferCommunityProjectModal'
 
 interface CommunityProjectsSectionProps {
@@ -88,8 +89,8 @@ export default function CommunityProjectsSection({
               key={project.slug}
               className="cdcf-card flex flex-col"
             >
-              <div className="flex items-start justify-between">
-                {project.featuredImage?.node && (
+              {project.featuredImage?.node && (
+                <div className="flex items-start">
                   <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg">
                     <Image
                       src={project.featuredImage.node.sourceUrl}
@@ -99,17 +100,18 @@ export default function CommunityProjectsSection({
                       className="h-full w-full object-contain"
                     />
                   </div>
-                )}
-                {project.communityProjectFields.projectCategory && (
-                  <span className="ml-auto rounded-full bg-cdcf-navy/10 px-2.5 py-0.5 text-xs font-medium text-cdcf-navy">
-                    {project.communityProjectFields.projectCategory}
-                  </span>
-                )}
-              </div>
+                </div>
+              )}
 
-              <h3 className="mt-4 font-serif text-lg font-bold text-cdcf-navy">
+              <h3 className={clsx('font-serif text-lg font-bold text-cdcf-navy', project.featuredImage?.node && 'mt-4')}>
                 {project.title}
               </h3>
+
+              {project.communityProjectFields.projectCategory && (
+                <span className="mt-1 text-xs font-medium text-cdcf-gold">
+                  {project.communityProjectFields.projectCategory}
+                </span>
+              )}
 
               {project.projectTags?.nodes?.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
@@ -157,6 +159,12 @@ export default function CommunityProjectsSection({
                       {t('viewGitHub')}
                     </a>
                   )}
+                </div>
+              )}
+
+              {project.communityProjectFields.projectGithubUrl && (
+                <div className="mt-3">
+                  <RepoLanguages repos={[project.communityProjectFields.projectGithubUrl]} />
                 </div>
               )}
             </div>

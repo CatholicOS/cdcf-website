@@ -31,7 +31,9 @@ const LANGUAGE_COLORS: Record<string, string> = {
 
 interface RepoLanguagesProps {
   repos: string[]
-  label: string
+  // Heading text shown above the language pills. Omit on space-
+  // constrained surfaces (e.g. card grids) to render pills only.
+  label?: string
 }
 
 type LanguageData = Record<string, Record<string, number>>
@@ -87,7 +89,7 @@ export default function RepoLanguages({ repos, label }: RepoLanguagesProps) {
 
   if (loading) {
     return (
-      <div className="mt-2 flex gap-2">
+      <div className="flex gap-2">
         {[1, 2, 3].map((i) => (
           <div
             key={i}
@@ -113,10 +115,12 @@ export default function RepoLanguages({ repos, label }: RepoLanguagesProps) {
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-        {label}
-      </h3>
-      <div className="mt-2 flex flex-wrap gap-2">
+      {label && (
+        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+          {label}
+        </h3>
+      )}
+      <div className={label ? 'mt-2 flex flex-wrap gap-2' : 'flex flex-wrap gap-2'}>
         {sorted.map(([lang]) => (
           <span
             key={lang}
