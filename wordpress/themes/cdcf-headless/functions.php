@@ -2945,6 +2945,20 @@ add_action('transition_post_status', 'cdcf_repend_submission_on_untrash', 10, 3)
 // hooks (sitemap revalidation and the untrash/re-pend hook).
 add_action('transition_post_status', 'cdcf_enqueue_translations_on_publish', 20, 3);
 
+// ─── Auto-Link Public Referrals to Parent Page on Publish ────────────
+//
+// When a community_project or local_group referral (or any of its
+// auto-translated siblings) transitions to publish, link it into the
+// matching-language parent page's relationship field — same end state
+// the admin CREATE endpoints reach inline. Without this, an admin
+// approves a referral but the post never surfaces on the frontend.
+//
+// Priority 25 so it runs after the priority-20 enqueue-translations
+// hook (the new EN-source publish first creates the sibling drafts,
+// then each sibling's later publish-transition fires this hook to do
+// its own parent-page link).
+add_action('transition_post_status', 'cdcf_link_referral_on_publish', 25, 3);
+
 // ─── Project Submission: Meta Box ────────────────────────────────────
 
 /**

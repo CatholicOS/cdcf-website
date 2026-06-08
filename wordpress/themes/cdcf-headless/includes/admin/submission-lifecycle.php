@@ -185,3 +185,90 @@ function cdcf_enqueue_translations_on_publish($new_status, $old_status, $post): 
 
     cdcf_enqueue_translations_for_submission($source_id, $post->post_type);
 }
+
+/**
+ * transition_post_status hook: when a public-referral submission
+ * (community_project or local_group) is published — including each
+ * auto-translated sibling promoted to publish by the worker — append
+ * it to the matching-language parent page's relationship field.
+ *
+ * Why this exists: the admin CREATE endpoints (/community-channel,
+ * /local-group, /academic-collaboration) link inline at creation time.
+ * The PUBLIC REFERRAL endpoints (refer-community-project,
+ * refer-local-group) skip that step because the referred post is
+ * created `pending` and only surfaces once an admin approves it.
+ * Without this hook, an approved referral is published but never
+ * appears on the frontend until an admin manually edits the parent
+ * page and adds it to the relationship field.
+ *
+ * Unlike cdcf_enqueue_translations_on_publish (which is EN-source-only
+ * since the translation worker handles the siblings), this hook fires
+ * once PER language sibling — each language's parent page needs its own
+ * same-language post linked. Gating on cdcf_is_public_submission()
+ * filters out the admin-create flow, which already linked inline.
+ *
+ * Idempotent: skips if the post is already in the field.
+ *
+ * Registered with priority 25 from functions.php — after the
+ * priority-20 enqueue-translations hook.
+ */
+function cdcf_link_referral_on_publish($new_status, $old_status, $post): void {
+    if ($new_status !== 'publish' || $old_status === 'publish') {
+        return;
+    }
+
+    $map = [
+        'community_project' => ['template' => 'templates/projects.php',  'field' => 'community_projects'],
+        'local_group'       => ['template' => 'templates/community.php', 'field' => 'local_groups'],
+    ];
+    if (!isset($map[$post->post_type])) {
+        return;
+    }
+
+    if (!cdcf_is_public_submission($post->ID)) {
+        return;
+    }
+
+    if (
+        !function_exists('pll_get_post_language')
+        || !function_exists('pll_get_post_translations')
+    ) {
+        return;
+    }
+
+    $post_lang = pll_get_post_language($post->ID, 'slug');
+    if (!$post_lang) {
+        return;
+    }
+
+    $template = $map[$post->post_type]['template'];
+    $field    = $map[$post->post_type]['field'];
+
+    // Same discovery shape the create endpoints use: locate a page
+    // with the right template, then walk the Polylang translation
+    // group to find the same-language sibling.
+    $candidate_pages = get_pages([
+        'meta_key'   => '_wp_page_template',
+        'meta_value' => $template,
+        'number'     => 1,
+    ]);
+    if (empty($candidate_pages)) {
+        return;
+    }
+    $page_translations = pll_get_post_translations($candidate_pages[0]->ID);
+    $parent_id = $page_translations[$post_lang] ?? null;
+    if (!$parent_id) {
+        return;
+    }
+
+    $current = get_field($field, $parent_id, false);
+    if (!is_array($current)) {
+        $current = [];
+    }
+    $current = array_map('intval', $current);
+    if (in_array($post->ID, $current, true)) {
+        return;
+    }
+    $current[] = $post->ID;
+    update_field($field, $current, $parent_id);
+}
