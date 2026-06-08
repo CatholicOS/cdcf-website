@@ -2782,6 +2782,7 @@ function cdcf_api_docs_page() {
 // includes/admin/submission-lifecycle.php so they can be
 // unit-tested in isolation.
 require_once __DIR__ . '/includes/admin/submission-lifecycle.php';
+require_once __DIR__ . '/includes/admin/term-propagation.php';
 
 // ─── Referral Submitter Meta Box ─────────────────────────────────────
 
@@ -2944,6 +2945,20 @@ add_action('transition_post_status', 'cdcf_repend_submission_on_untrash', 10, 3)
 // (required above). Priority 20 here so it runs after all priority-10
 // hooks (sitemap revalidation and the untrash/re-pend hook).
 add_action('transition_post_status', 'cdcf_enqueue_translations_on_publish', 20, 3);
+
+// ─── Propagate Project Tags to Translated Sibling on Publish ─────────
+//
+// When a translated `project` or `community_project` sibling is
+// promoted to publish by the auto-translation worker, mirror the EN
+// source's project_tag terms onto it — OpenAI-translating tag names
+// and reusing Polylang sibling terms when they exist. Without this,
+// the translation worker delivers translated title+content but no
+// tags, so translated posts render with an empty tag row on the
+// frontend even though the EN source is properly tagged.
+//
+// Priority 30 so it runs after the priority-20 enqueue-translations
+// hook. Callback lives in includes/admin/term-propagation.php.
+add_action('transition_post_status', 'cdcf_propagate_project_tags_on_publish', 30, 3);
 
 // ─── Project Submission: Meta Box ────────────────────────────────────
 
