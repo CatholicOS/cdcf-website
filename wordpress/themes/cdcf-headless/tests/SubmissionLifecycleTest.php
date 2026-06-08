@@ -475,4 +475,291 @@ final class SubmissionLifecycleTest extends TestCase
 
         $this->assertSame([100, 'project'], $enqueueCall);
     }
+
+    // ─── cdcf_link_referral_on_publish ────────────────────────────────
+
+    /**
+     * Stage the happy-path mocks for cdcf_link_referral_on_publish.
+     * Returns a stdClass with `->update` initialized to null; the
+     * update_field stub fills it with [field, value, parent_id] when
+     * called. An object is returned (not an array) so the closure's
+     * mutation is visible to the caller — array returns would be
+     * copy-on-write and the test would only see null.
+     *
+     * @param array<string, int> $page_translations  e.g. ['en' => 500, 'it' => 501, ...]
+     * @param array<int>         $current_relationship  current IDs on the parent's field
+     */
+    private function stageLinkReferralHappyPath(
+        string $post_lang,
+        array $page_translations,
+        array $current_relationship,
+    ): stdClass {
+        $captured = new stdClass();
+        $captured->update = null;
+        Functions\when('pll_get_post')->justReturn(0); // self-source for is_public_submission
+        Functions\when('get_post_meta')->alias(
+            static fn(int $id, string $key) => $key === '_referral_submitter_email'
+                ? 'referrer@example.com'
+                : ''
+        );
+        Functions\when('pll_get_post_language')->justReturn($post_lang);
+        Functions\when('pll_get_post_translations')->justReturn($page_translations);
+        $candidatePage = new stdClass();
+        $candidatePage->ID = 500;
+        Functions\when('get_pages')->justReturn([$candidatePage]);
+        Functions\when('get_field')->justReturn($current_relationship);
+        Functions\when('update_field')->alias(
+            function (string $field, array $value, int $parent_id) use ($captured): bool {
+                $captured->update = [$field, $value, $parent_id];
+                return true;
+            }
+        );
+        $this->allowAllFunctionsToExist();
+        return $captured;
+    }
+
+    public function test_link_referral_bails_on_same_status_transition(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\expect('get_pages')->never();
+        Functions\expect('update_field')->never();
+        $this->allowAllFunctionsToExist();
+
+        cdcf_link_referral_on_publish(
+            'publish',
+            'publish',
+            $this->fakePost(['post_type' => 'community_project'])
+        );
+
+        $this->assertTrue(true);
+    }
+
+    public function test_link_referral_bails_on_non_publish_transition(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\expect('get_pages')->never();
+        Functions\expect('update_field')->never();
+        $this->allowAllFunctionsToExist();
+
+        cdcf_link_referral_on_publish(
+            'draft',
+            'pending',
+            $this->fakePost(['post_type' => 'community_project'])
+        );
+
+        $this->assertTrue(true);
+    }
+
+    public function test_link_referral_bails_on_unsupported_post_types(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\expect('get_pages')->never();
+        Functions\expect('update_field')->never();
+        $this->allowAllFunctionsToExist();
+
+        // 'project' and 'community_channel' aren't in the map.
+        cdcf_link_referral_on_publish(
+            'publish',
+            'draft',
+            $this->fakePost(['post_type' => 'project'])
+        );
+        cdcf_link_referral_on_publish(
+            'publish',
+            'draft',
+            $this->fakePost(['post_type' => 'community_channel'])
+        );
+
+        $this->assertTrue(true);
+    }
+
+    public function test_link_referral_bails_on_admin_create_flow_without_submitter_meta(): void
+    {
+        // Admin-create flow: post has no submitter meta. The /local-group
+        // create endpoint already linked the post inline; this hook must
+        // not double-link.
+        $this->stubCommonFunctions();
+        Functions\when('pll_get_post')->justReturn(0);
+        Functions\when('get_post_meta')->justReturn('');
+        Functions\expect('get_pages')->never();
+        Functions\expect('update_field')->never();
+        $this->allowAllFunctionsToExist();
+
+        cdcf_link_referral_on_publish(
+            'publish',
+            'draft',
+            $this->fakePost(['post_type' => 'local_group'])
+        );
+
+        $this->assertTrue(true);
+    }
+
+    public function test_link_referral_bails_when_polylang_inactive(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\when('pll_get_post')->justReturn(0);
+        Functions\when('get_post_meta')->alias(
+            static fn(int $id, string $key) => $key === '_referral_submitter_email'
+                ? 'referrer@example.com'
+                : ''
+        );
+        // pll_get_post_language and pll_get_post_translations both undeclared.
+        Functions\when('function_exists')->alias(
+            static fn(string $name): bool =>
+                $name !== 'pll_get_post_language' && $name !== 'pll_get_post_translations'
+        );
+        Functions\expect('get_pages')->never();
+        Functions\expect('update_field')->never();
+
+        cdcf_link_referral_on_publish(
+            'publish',
+            'draft',
+            $this->fakePost(['post_type' => 'community_project'])
+        );
+
+        $this->assertTrue(true);
+    }
+
+    public function test_link_referral_bails_when_post_has_no_language(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\when('pll_get_post')->justReturn(0);
+        Functions\when('get_post_meta')->alias(
+            static fn(int $id, string $key) => $key === '_referral_submitter_email'
+                ? 'referrer@example.com'
+                : ''
+        );
+        Functions\when('pll_get_post_language')->justReturn(false);
+        Functions\expect('get_pages')->never();
+        Functions\expect('update_field')->never();
+        $this->allowAllFunctionsToExist();
+
+        cdcf_link_referral_on_publish(
+            'publish',
+            'draft',
+            $this->fakePost(['post_type' => 'community_project'])
+        );
+
+        $this->assertTrue(true);
+    }
+
+    public function test_link_referral_bails_when_no_candidate_pages_found(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\when('pll_get_post')->justReturn(0);
+        Functions\when('get_post_meta')->alias(
+            static fn(int $id, string $key) => $key === '_referral_submitter_email'
+                ? 'referrer@example.com'
+                : ''
+        );
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('get_pages')->justReturn([]);
+        Functions\expect('update_field')->never();
+        $this->allowAllFunctionsToExist();
+
+        cdcf_link_referral_on_publish(
+            'publish',
+            'draft',
+            $this->fakePost(['post_type' => 'community_project'])
+        );
+
+        $this->assertTrue(true);
+    }
+
+    public function test_link_referral_bails_when_no_parent_page_in_post_language(): void
+    {
+        // post_lang='de' but the parent's translation map has no 'de' entry.
+        $this->stubCommonFunctions();
+        $captured = $this->stageLinkReferralHappyPath(
+            post_lang: 'de',
+            page_translations: ['en' => 500, 'it' => 501],
+            current_relationship: [],
+        );
+
+        cdcf_link_referral_on_publish(
+            'publish',
+            'draft',
+            $this->fakePost(['post_type' => 'community_project'])
+        );
+
+        $this->assertNull($captured->update);
+    }
+
+    public function test_link_referral_is_idempotent_when_post_already_linked(): void
+    {
+        $this->stubCommonFunctions();
+        // Post ID 100 is already in the EN parent's relationship — second
+        // fire of the hook (e.g. on re-publish) must not append again.
+        $captured = $this->stageLinkReferralHappyPath(
+            post_lang: 'en',
+            page_translations: ['en' => 500],
+            current_relationship: [99, 100, 101],
+        );
+
+        cdcf_link_referral_on_publish(
+            'publish',
+            'draft',
+            $this->fakePost(['post_type' => 'community_project'])
+        );
+
+        $this->assertNull($captured->update);
+    }
+
+    public function test_link_referral_appends_community_project_to_projects_page(): void
+    {
+        $this->stubCommonFunctions();
+        $captured = $this->stageLinkReferralHappyPath(
+            post_lang: 'en',
+            page_translations: ['en' => 500, 'it' => 501],
+            current_relationship: [42],
+        );
+
+        cdcf_link_referral_on_publish(
+            'publish',
+            'draft',
+            $this->fakePost(['post_type' => 'community_project'])
+        );
+
+        $this->assertSame(['community_projects', [42, 100], 500], $captured->update);
+    }
+
+    public function test_link_referral_appends_local_group_to_community_page(): void
+    {
+        $this->stubCommonFunctions();
+        // Post lang is 'it' → must link into the IT parent page (501),
+        // not the EN one (500). Verifies the per-language routing.
+        $captured = $this->stageLinkReferralHappyPath(
+            post_lang: 'it',
+            page_translations: ['en' => 500, 'it' => 501],
+            current_relationship: [],
+        );
+
+        cdcf_link_referral_on_publish(
+            'publish',
+            'draft',
+            $this->fakePost(['post_type' => 'local_group'])
+        );
+
+        $this->assertSame(['local_groups', [100], 501], $captured->update);
+    }
+
+    public function test_link_referral_treats_non_array_current_field_as_empty(): void
+    {
+        // get_field can return false/null when the field has never been
+        // saved. The handler must treat that as an empty list, not crash.
+        $this->stubCommonFunctions();
+        $captured = $this->stageLinkReferralHappyPath(
+            post_lang: 'en',
+            page_translations: ['en' => 500],
+            current_relationship: [],
+        );
+        Functions\when('get_field')->justReturn(false);
+
+        cdcf_link_referral_on_publish(
+            'publish',
+            'draft',
+            $this->fakePost(['post_type' => 'community_project'])
+        );
+
+        $this->assertSame(['community_projects', [100], 500], $captured->update);
+    }
 }
