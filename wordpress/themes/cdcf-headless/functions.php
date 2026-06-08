@@ -2944,9 +2944,10 @@ add_action('admin_menu', function () {
         $count
     );
 
-    // Bubble the parent "Community" item (shown when sidebar is collapsed)
+    // Bubble the parent "Projects" item (community_project lives under
+    // cdcf-projects per its show_in_menu, NOT cdcf-community).
     foreach ($menu as &$item) {
-        if ($item[2] === 'cdcf-community') {
+        if ($item[2] === 'cdcf-projects') {
             $item[0] .= $bubble;
             break;
         }
@@ -2954,8 +2955,8 @@ add_action('admin_menu', function () {
     unset($item);
 
     // Bubble the Community Projects submenu entry
-    if (!empty($submenu['cdcf-community'])) {
-        foreach ($submenu['cdcf-community'] as &$sub) {
+    if (!empty($submenu['cdcf-projects'])) {
+        foreach ($submenu['cdcf-projects'] as &$sub) {
             if ($sub[2] === 'edit.php?post_type=community_project') {
                 $sub[0] .= $bubble;
                 break;
