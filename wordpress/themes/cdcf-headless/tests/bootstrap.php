@@ -25,9 +25,13 @@ if (!class_exists('WP_Error')) {
     class WP_Error {
         public string $code;
         public string $message;
-        public array $data;
+        // mixed (not array) — matches real WP, which lets callers like
+        // wp_insert_term pass scalars (e.g. the existing term_id on a
+        // term_exists collision) as well as arrays (e.g. ['status' => 429]
+        // from cdcf_openai_translate's retry plumbing).
+        public mixed $data;
 
-        public function __construct(string $code = '', string $message = '', array $data = []) {
+        public function __construct(string $code = '', string $message = '', mixed $data = null) {
             $this->code = $code;
             $this->message = $message;
             $this->data = $data;
@@ -41,7 +45,7 @@ if (!class_exists('WP_Error')) {
             return $this->message;
         }
 
-        public function get_error_data(): array {
+        public function get_error_data(): mixed {
             return $this->data;
         }
     }
@@ -212,6 +216,7 @@ require_once __DIR__ . '/../includes/admin/team-member-council.php';
 require_once __DIR__ . '/../includes/admin/polylang-default-seed.php';
 require_once __DIR__ . '/../includes/admin/ai-translate.php';
 require_once __DIR__ . '/../includes/admin/submission-lifecycle.php';
+require_once __DIR__ . '/../includes/admin/term-propagation.php';
 
 /**
  * Typed exceptions used by AjaxAiTranslateTest. wp_send_json_success /
