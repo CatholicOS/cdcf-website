@@ -2926,6 +2926,107 @@ function cdcf_render_pending_local_groups_widget(): void {
     }
 }
 
+// ─── Pending Community Projects: Menu Bubble + Dashboard Widget ─────
+
+/**
+ * Add a pending-count bubble to the Community Projects menu item.
+ */
+add_action('admin_menu', function () {
+    global $menu, $submenu;
+
+    $count = wp_count_posts('community_project')->pending ?? 0;
+    if ($count < 1) {
+        return;
+    }
+
+    $bubble = sprintf(
+        ' <span class="awaiting-mod update-plugins count-%1$d"><span class="pending-count">%1$d</span></span>',
+        $count
+    );
+
+    // Bubble the parent "Community" item (shown when sidebar is collapsed)
+    foreach ($menu as &$item) {
+        if ($item[2] === 'cdcf-community') {
+            $item[0] .= $bubble;
+            break;
+        }
+    }
+    unset($item);
+
+    // Bubble the Community Projects submenu entry
+    if (!empty($submenu['cdcf-community'])) {
+        foreach ($submenu['cdcf-community'] as &$sub) {
+            if ($sub[2] === 'edit.php?post_type=community_project') {
+                $sub[0] .= $bubble;
+                break;
+            }
+        }
+    }
+}, 50);
+
+/**
+ * Dashboard widget showing pending community project referrals.
+ */
+add_action('wp_dashboard_setup', function () {
+    $count = wp_count_posts('community_project')->pending ?? 0;
+    if ($count < 1) {
+        return;
+    }
+
+    wp_add_dashboard_widget(
+        'cdcf_pending_community_projects',
+        sprintf('Pending Community Project Referrals (%d)', $count),
+        'cdcf_render_pending_community_projects_widget'
+    );
+});
+
+function cdcf_render_pending_community_projects_widget(): void {
+    $posts = get_posts([
+        'post_type'   => 'community_project',
+        'post_status' => 'pending',
+        'numberposts' => 10,
+        'orderby'     => 'date',
+        'order'       => 'DESC',
+    ]);
+
+    if (empty($posts)) {
+        echo '<p>No pending referrals.</p>';
+        return;
+    }
+
+    echo '<table class="widefat striped"><thead><tr>'
+       . '<th>Project</th><th>Submitted by</th><th>Date</th><th></th>'
+       . '</tr></thead><tbody>';
+
+    foreach ($posts as $post) {
+        $name  = esc_html(get_post_meta($post->ID, '_referral_submitter_name', true));
+        $email = esc_html(get_post_meta($post->ID, '_referral_submitter_email', true));
+        $date  = get_the_date('M j, Y', $post);
+        $edit  = get_edit_post_link($post->ID);
+        $title = esc_html($post->post_title);
+
+        $submitter = $name;
+        if ($email) {
+            $submitter .= $name ? " ({$email})" : $email;
+        }
+
+        echo "<tr>"
+           . "<td><strong>{$title}</strong></td>"
+           . "<td>{$submitter}</td>"
+           . "<td>{$date}</td>"
+           . "<td><a href=\"{$edit}\" class=\"button button-small\">Review</a></td>"
+           . "</tr>";
+    }
+
+    echo '</tbody></table>';
+
+    $total = wp_count_posts('community_project')->pending ?? 0;
+    if ($total > 10) {
+        $url = admin_url('edit.php?post_type=community_project&post_status=pending');
+        printf('<p><a href="%s">View all %d pending referrals &rarr;</a></p>', $url, $total);
+    }
+}
+
 // ─── Restore Public Submissions to Pending on Untrash ────────────────
 
 // cdcf_repend_submission_on_untrash() lives in includes/admin/submission-lifecycle.php
