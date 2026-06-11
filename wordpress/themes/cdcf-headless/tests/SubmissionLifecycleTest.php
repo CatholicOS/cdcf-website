@@ -423,6 +423,36 @@ final class SubmissionLifecycleTest extends TestCase
         );
     }
 
+    // ─── cdcf_format_lang_map ─────────────────────────────────────────
+
+    public function test_format_lang_map_empty_array_returns_curly_braces(): void
+    {
+        $this->assertSame('{}', cdcf_format_lang_map([]));
+    }
+
+    public function test_format_lang_map_single_entry(): void
+    {
+        $this->assertSame('{en:42}', cdcf_format_lang_map(['en' => 42]));
+    }
+
+    public function test_format_lang_map_six_languages_preserves_input_order(): void
+    {
+        // The diagnostic log lines rely on stable key order (en first when
+        // pre-seeding, target langs in target_langs order otherwise) — assert
+        // PHP's insertion-order array iteration carries through.
+        $this->assertSame(
+            '{en:1508, it:1521, es:1522, fr:1523, pt:1524, de:1525}',
+            cdcf_format_lang_map(['en' => 1508, 'it' => 1521, 'es' => 1522, 'fr' => 1523, 'pt' => 1524, 'de' => 1525])
+        );
+    }
+
+    public function test_format_lang_map_coerces_string_ids_to_int(): void
+    {
+        // ACF and some Polylang return paths hand back string-numeric IDs;
+        // the helper coerces them so the log line is uniform.
+        $this->assertSame('{en:10, it:11}', cdcf_format_lang_map(['en' => '10', 'it' => '11']));
+    }
+
     // ─── cdcf_repend_submission_on_untrash ────────────────────────────
 
     public function test_repend_ignores_status_transitions_that_arent_trash_to_draft(): void
