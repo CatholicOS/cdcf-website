@@ -415,7 +415,14 @@ class CdcfClient:
             posts need this explicit invocation).
           - Recover from a publish-flow hook that didn't fire or whose
             Polylang group got disconnected mid-flight.
+
+        Raises ValueError if source_id is not a positive integer — the
+        backend's absint() sanitization would otherwise silently coerce
+        a negative ID into a different positive ID and enqueue
+        translations for the wrong source post.
         """
+        if source_id <= 0:
+            raise ValueError(f"source_id must be a positive integer, got {source_id!r}")
         return self._wp_post("cdcf/v1/translate-all", {"source_id": source_id})
 
     def deploy_translation(self, source_id: int, target_lang: str, content: str,
