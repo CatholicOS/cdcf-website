@@ -424,12 +424,48 @@ add_action('rest_api_init', function () {
             return current_user_can('edit_posts');
         },
         'args' => [
-            'translations' => ['required' => true, 'type' => 'object'],
+            'translations' => [
+                'required'          => true,
+                'type'              => 'object',
+                'sanitize_callback' => 'cdcf_sanitize_translations_map',
+            ],
         ],
     ]);
 });
 
 require_once __DIR__ . '/includes/handlers/link-translations.php';
+
+// ─── REST endpoint for atomically linking term translations ──────────
+//
+// Term equivalent of /link-translations. Polylang's term-side
+// language + group helpers are PHP-only; this is the thin wrapper.
+//
+// POST /wp-json/cdcf/v1/link-term-translations (Application Password auth)
+// Body: { "taxonomy": "project_tag", "translations": { "en": 169, "it": 231, ... } }
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/link-term-translations', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_link_term_translations',
+        'permission_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        'args' => [
+            'taxonomy'     => [
+                'required'          => true,
+                'type'              => 'string',
+                'sanitize_callback' => 'sanitize_key',
+            ],
+            'translations' => [
+                'required'          => true,
+                'type'              => 'object',
+                'sanitize_callback' => 'cdcf_sanitize_translations_map',
+            ],
+        ],
+    ]);
+});
+
+require_once __DIR__ . '/includes/handlers/link-term-translations.php';
 
 // ─── REST endpoint for updating project status across translations ───
 //
@@ -673,6 +709,7 @@ require_once __DIR__ . '/includes/handlers/update-disposable-domains.php';
 // cdcf_is_spam_content) used by every public-submission endpoint below.
 // Required here — after CDCF_DISPOSABLE_DOMAINS_FILE is defined — so
 // the disposable-domain lookup can read the blocklist file path.
+require_once __DIR__ . '/includes/sanitizers.php';
 require_once __DIR__ . '/includes/security.php';
 
 // Footnote/fragment-anchor protection helper, applied at every wp_kses_post
