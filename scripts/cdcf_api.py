@@ -400,6 +400,31 @@ class CdcfClient:
             data["post_id"] = post_id
         return self._wp_post("cdcf/v1/translate", data)
 
+    def translate_all(self, source_id: int) -> dict:
+        """POST /cdcf/v1/translate-all
+
+        Atomic 5-language fan-out. Creates-or-reuses drafts in every
+        non-source Polylang language of `source_id`, links them all into
+        one Polylang group via a single pll_save_post_translations() call,
+        and enqueues each translation. Same shape as clicking "Translate
+        All" in the wp-admin Languages meta-box but scriptable.
+
+        Use cases:
+          - Re-fan-out translations on an admin-authored CPT (the publish
+            hook only fires for public-referral posts, so admin-created
+            posts need this explicit invocation).
+          - Recover from a publish-flow hook that didn't fire or whose
+            Polylang group got disconnected mid-flight.
+
+        Raises ValueError if source_id is not a positive integer — the
+        backend's absint() sanitization would otherwise silently coerce
+        a negative ID into a different positive ID and enqueue
+        translations for the wrong source post.
+        """
+        if source_id <= 0:
+            raise ValueError(f"source_id must be a positive integer, got {source_id!r}")
+        return self._wp_post("cdcf/v1/translate-all", {"source_id": source_id})
+
     def deploy_translation(self, source_id: int, target_lang: str, content: str,
                            title: str | None = None) -> dict:
         """POST /cdcf/v1/deploy-translation"""
@@ -582,6 +607,13 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--target-lang", required=True)
     p.add_argument("--post-id", type=int, default=0)
 
+    # translate-all
+    p = sub.add_parser(
+        "translate-all",
+        help="Atomic 5-language fan-out: create-or-reuse drafts for every non-source Polylang language and queue all translations",
+    )
+    p.add_argument("--source-id", type=int, required=True)
+
     # deploy-translation
     p = sub.add_parser("deploy-translation", help="Deploy translated content to a post")
     p.add_argument("--source-id", type=int, required=True)
@@ -763,6 +795,9 @@ def _run_cli(args: argparse.Namespace, client: CdcfClient) -> dict:
 
     if cmd == "translate-post":
         return client.translate_post(args.source_id, args.target_lang, args.post_id)
+
+    if cmd == "translate-all":
+        return client.translate_all(args.source_id)
 
     if cmd == "deploy-translation":
         kwargs = {}
