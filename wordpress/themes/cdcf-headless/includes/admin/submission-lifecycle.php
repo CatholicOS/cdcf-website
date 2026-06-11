@@ -95,12 +95,21 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
     $translations = pll_get_post_translations($en_post_id);
     $translations['en'] = $en_post_id;
 
+    error_log(sprintf(
+        'cdcf_enqueue_translations_for_submission: ENTER post_id=%d post_type=%s pre_seed_group=%s',
+        $en_post_id,
+        $post_type,
+        cdcf_format_lang_map($translations)
+    ));
+
     // Phase 1: create draft siblings + per-post language assignment.
     // Group save is intentionally NOT called here — see file-level
     // docblock for the lost-update race rationale.
-    $newly_created = [];
+    $newly_created  = [];
+    $already_linked = [];
     foreach ($target_langs as $lang) {
         if (!empty($translations[$lang])) {
+            $already_linked[$lang] = (int) $translations[$lang];
             continue;
         }
 
@@ -120,8 +129,19 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
         $newly_created[$lang] = $trans_id;
     }
 
+    error_log(sprintf(
+        'cdcf_enqueue_translations_for_submission: PHASE_1_DONE post_id=%d newly_created=%s already_linked=%s',
+        $en_post_id,
+        cdcf_format_lang_map($newly_created),
+        cdcf_format_lang_map($already_linked)
+    ));
+
     if (empty($newly_created)) {
         // Nothing new to link or enqueue.
+        error_log(sprintf(
+            'cdcf_enqueue_translations_for_submission: NO_OP post_id=%d (all target langs already pre-seeded); exiting without group save.',
+            $en_post_id
+        ));
         return;
     }
 
@@ -129,9 +149,10 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
     $save_result = pll_save_post_translations($translations);
     if ($save_result === false) {
         error_log(sprintf(
-            'cdcf_enqueue_translations_for_submission: pll_save_post_translations returned false for post %d; rolling back %d draft(s).',
+            'cdcf_enqueue_translations_for_submission: PHASE_2_FAIL post_id=%d pll_save_post_translations returned false; rolling back %d draft(s): %s',
             $en_post_id,
-            count($newly_created)
+            count($newly_created),
+            cdcf_format_lang_map($newly_created)
         ));
         foreach ($newly_created as $trans_id) {
             wp_delete_post($trans_id, true);
@@ -139,8 +160,15 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
         return;
     }
 
+    error_log(sprintf(
+        'cdcf_enqueue_translations_for_submission: PHASE_2_OK post_id=%d atomic group save succeeded; final_group=%s',
+        $en_post_id,
+        cdcf_format_lang_map($translations)
+    ));
+
     // Phase 3: enqueue translation jobs for the newly-created siblings only.
     // (Existing siblings from the pre-seed already had their content done.)
+    $queue_name = function_exists('cdcf_enqueue_translation') ? 'redis' : 'wp-cron';
     foreach ($newly_created as $lang => $trans_id) {
         if (function_exists('cdcf_enqueue_translation')) {
             cdcf_enqueue_translation($trans_id, $en_post_id, $lang);
@@ -149,6 +177,30 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
             spawn_cron();
         }
     }
+
+    error_log(sprintf(
+        'cdcf_enqueue_translations_for_submission: PHASE_3_DONE post_id=%d queued %d job(s) via %s: %s',
+        $en_post_id,
+        count($newly_created),
+        $queue_name,
+        cdcf_format_lang_map($newly_created)
+    ));
+}
+
+/**
+ * Format a {lang => post_id} map for compact inclusion in error_log
+ * lines. Returns "{lang:id, lang:id, ...}" or "{}" if empty.
+ * Used by the diagnostic logs in cdcf_enqueue_translations_for_submission.
+ */
+function cdcf_format_lang_map(array $map): string {
+    if (empty($map)) {
+        return '{}';
+    }
+    $parts = [];
+    foreach ($map as $lang => $id) {
+        $parts[] = $lang . ':' . (int) $id;
+    }
+    return '{' . implode(', ', $parts) . '}';
 }
 
 /**
