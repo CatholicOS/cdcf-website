@@ -191,6 +191,7 @@ require_once __DIR__ . '/../includes/handlers/translate-all.php';
 require_once __DIR__ . '/../includes/handlers/deploy-translation.php';
 require_once __DIR__ . '/../includes/handlers/translation-status.php';
 require_once __DIR__ . '/../includes/handlers/link-translations.php';
+require_once __DIR__ . '/../includes/handlers/link-term-translations.php';
 require_once __DIR__ . '/../includes/handlers/project-status.php';
 require_once __DIR__ . '/../includes/handlers/flush-opcache.php';
 require_once __DIR__ . '/../includes/handlers/send-verification-code.php';

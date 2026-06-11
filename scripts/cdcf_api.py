@@ -415,6 +415,20 @@ class CdcfClient:
         """
         return self._wp_post("cdcf/v1/link-translations", {"translations": translations})
 
+    def link_term_translations(self, taxonomy: str, translations: dict[str, int]) -> dict:
+        """POST /cdcf/v1/link-term-translations
+
+        Term equivalent of link_translations. Atomically sets each term's
+        Polylang language and links the group together.
+
+        taxonomy: taxonomy slug, e.g. "project_tag"
+        translations: dict mapping language code to term ID, e.g. {"en": 169, "it": 231}
+        """
+        return self._wp_post(
+            "cdcf/v1/link-term-translations",
+            {"taxonomy": taxonomy, "translations": translations},
+        )
+
     # -- Project Status --
 
     def update_project_status(self, post_id: int, status: str) -> dict:
@@ -579,6 +593,15 @@ def _build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("link-translations", help="Link translation post IDs across languages")
     p.add_argument("--translations", required=True,
                    help='JSON object mapping lang to post ID, e.g. \'{"en":10,"it":12}\'')
+
+    # link-term-translations
+    p = sub.add_parser(
+        "link-term-translations",
+        help="Atomically link translation term IDs across languages within a taxonomy",
+    )
+    p.add_argument("--taxonomy", required=True, help='e.g. "project_tag"')
+    p.add_argument("--translations", required=True,
+                   help='JSON object mapping lang to term ID, e.g. \'{"en":169,"it":231}\'')
 
     # update-project-status
     p = sub.add_parser("update-project-status", help="Update project approval status")
@@ -751,6 +774,10 @@ def _run_cli(args: argparse.Namespace, client: CdcfClient) -> dict:
     if cmd == "link-translations":
         translations = json.loads(args.translations)
         return client.link_translations(translations)
+
+    if cmd == "link-term-translations":
+        translations = json.loads(args.translations)
+        return client.link_term_translations(args.taxonomy, translations)
 
     if cmd == "update-project-status":
         return client.update_project_status(args.post_id, args.status)
