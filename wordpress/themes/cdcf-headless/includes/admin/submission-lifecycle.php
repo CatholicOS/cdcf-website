@@ -49,13 +49,23 @@ function cdcf_is_public_submission(int $post_id): bool {
 }
 
 /**
- * For each target language (it/es/fr/pt/de):
- *   - Skip if a Polylang translation already exists.
- *   - Otherwise create a draft sibling post, link it via Polylang,
- *     and enqueue a background AI translation job.
+ * Create + Polylang-link the missing it/es/fr/pt/de sibling drafts of an
+ * EN source post, then enqueue an AI translation job per newly-created
+ * sibling. The existing worker (cdcf_process_translation) will auto-
+ * publish each translation once its source post is `publish`.
  *
- * The existing worker (cdcf_process_translation) will auto-publish
- * each translation once its source post is `publish`.
+ * Group save is **atomic** — exactly one pll_save_post_translations()
+ * call after every sibling has been created. The earlier shape (one
+ * save per iteration, accumulating the map) lost-updated the Polylang
+ * translation group on production: Interior Castle App publish on
+ * 2026-06-08 created all 6 siblings with correct per-post languages but
+ * the group came out as {en} only, orphaning IT/ES/FR/PT/DE — the same
+ * lost-update race the /translate-all endpoint was created to fix for
+ * the meta-box Translate-All fan-out. Mirroring its atomic shape here
+ * makes the publish-flow race-resistant by construction.
+ *
+ * If the atomic save fails, every just-created draft is force-deleted
+ * so a failed call leaves no orphans behind (same shape as /translate-all).
  *
  * @param int    $en_post_id  The English (source) post ID. MUST be the source,
  *                            not a translation — caller should resolve via
@@ -80,19 +90,20 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
 
     $target_langs = ['it', 'es', 'fr', 'pt', 'de'];
 
-    // Build the Polylang translation map once; accumulate as we create new siblings.
-    // Pre-seeding from the existing map handles partial re-runs where some langs
-    // are already linked.
+    // Pre-seed the map from any existing group (handles partial re-runs
+    // where some langs are already linked from a previous attempt).
     $translations = pll_get_post_translations($en_post_id);
     $translations['en'] = $en_post_id;
 
+    // Phase 1: create draft siblings + per-post language assignment.
+    // Group save is intentionally NOT called here — see file-level
+    // docblock for the lost-update race rationale.
+    $newly_created = [];
     foreach ($target_langs as $lang) {
-        // Skip if a translation is already linked for this language.
         if (!empty($translations[$lang])) {
             continue;
         }
 
-        // Create a draft sibling post; the worker will fill content and auto-publish.
         $trans_id = wp_insert_post([
             'post_type'   => $post_type,
             'post_status' => 'draft',
@@ -105,11 +116,32 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
         }
 
         pll_set_post_language($trans_id, $lang);
-
         $translations[$lang] = $trans_id;
-        pll_save_post_translations($translations);
+        $newly_created[$lang] = $trans_id;
+    }
 
-        // Enqueue background translation: Redis Queue if available, WP-Cron fallback.
+    if (empty($newly_created)) {
+        // Nothing new to link or enqueue.
+        return;
+    }
+
+    // Phase 2: one atomic group save with the full {lang => post_id} map.
+    $save_result = pll_save_post_translations($translations);
+    if ($save_result === false) {
+        error_log(sprintf(
+            'cdcf_enqueue_translations_for_submission: pll_save_post_translations returned false for post %d; rolling back %d draft(s).',
+            $en_post_id,
+            count($newly_created)
+        ));
+        foreach ($newly_created as $trans_id) {
+            wp_delete_post($trans_id, true);
+        }
+        return;
+    }
+
+    // Phase 3: enqueue translation jobs for the newly-created siblings only.
+    // (Existing siblings from the pre-seed already had their content done.)
+    foreach ($newly_created as $lang => $trans_id) {
         if (function_exists('cdcf_enqueue_translation')) {
             cdcf_enqueue_translation($trans_id, $en_post_id, $lang);
         } else {

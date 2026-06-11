@@ -321,6 +321,108 @@ final class SubmissionLifecycleTest extends TestCase
         $this->assertSame(['it', 'es', 'pt', 'de'], $enqueued);
     }
 
+    public function test_enqueue_translations_calls_pll_save_exactly_once_with_full_map(): void
+    {
+        // Regression guard for the lost-update race observed on
+        // production 2026-06-08 (Interior Castle App publish): the old
+        // shape called pll_save_post_translations 5x with progressively
+        // larger maps, racing against Polylang's post-update hooks that
+        // fire when the worker auto-publishes a sibling mid-loop. The
+        // atomic shape saves exactly once with the complete map.
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->fakePost([
+            'ID'         => 42,
+            'post_title' => 'New Project',
+        ]));
+
+        $counter = 199;
+        Functions\when('wp_insert_post')->alias(
+            function () use (&$counter): int {
+                $counter++;
+                return $counter;
+            }
+        );
+
+        $saves = [];
+        Functions\when('pll_save_post_translations')->alias(
+            function (array $map) use (&$saves): bool {
+                $saves[] = $map;
+                return true;
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        cdcf_enqueue_translations_for_submission(42, 'project');
+
+        $this->assertCount(1, $saves, 'pll_save_post_translations must be called exactly once');
+        $this->assertSame(
+            ['en' => 42, 'it' => 200, 'es' => 201, 'fr' => 202, 'pt' => 203, 'de' => 204],
+            $saves[0],
+            'the single save must carry the complete 6-language map'
+        );
+    }
+
+    public function test_enqueue_translations_skips_save_and_enqueue_when_all_langs_already_linked(): void
+    {
+        // Pre-seed already covers every target lang — no new drafts to
+        // create, so nothing new to atomically save and nothing to enqueue.
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->fakePost(['ID' => 42]));
+        Functions\when('pll_get_post_translations')->justReturn([
+            'it' => 50, 'es' => 51, 'fr' => 52, 'pt' => 53, 'de' => 54,
+        ]);
+        Functions\expect('wp_insert_post')->never();
+        Functions\expect('pll_save_post_translations')->never();
+        Functions\expect('cdcf_enqueue_translation')->never();
+        $this->allowAllFunctionsToExist();
+
+        cdcf_enqueue_translations_for_submission(42, 'project');
+
+        $this->assertTrue(true);
+    }
+
+    public function test_enqueue_translations_rolls_back_drafts_when_atomic_save_fails(): void
+    {
+        // pll_save_post_translations can return false (Polylang inactive
+        // post-creation, term-save error, etc.) — drafts that were just
+        // created must be force-deleted to avoid orphan rows in the DB,
+        // and no translation jobs should be enqueued for posts that no
+        // longer have a Polylang group.
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->fakePost([
+            'ID'         => 42,
+            'post_title' => 'New Project',
+        ]));
+
+        $counter = 199;
+        Functions\when('wp_insert_post')->alias(
+            function () use (&$counter): int {
+                $counter++;
+                return $counter;
+            }
+        );
+        Functions\when('pll_save_post_translations')->justReturn(false);
+
+        $deleted = [];
+        Functions\when('wp_delete_post')->alias(
+            function (int $id, bool $force) use (&$deleted): array {
+                $deleted[] = [$id, $force];
+                return [];
+            }
+        );
+        Functions\expect('cdcf_enqueue_translation')->never();
+        $this->allowAllFunctionsToExist();
+
+        cdcf_enqueue_translations_for_submission(42, 'project');
+
+        // All 5 just-created drafts (it, es, fr, pt, de = ids 200-204)
+        // force-deleted (second arg = true).
+        $this->assertSame(
+            [[200, true], [201, true], [202, true], [203, true], [204, true]],
+            $deleted
+        );
+    }
+
     // ─── cdcf_repend_submission_on_untrash ────────────────────────────
 
     public function test_repend_ignores_status_transitions_that_arent_trash_to_draft(): void
