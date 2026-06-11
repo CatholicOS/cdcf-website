@@ -103,12 +103,21 @@ function cdcf_propagate_project_tags_on_publish($new_status, $old_status, $post)
  * ID.
  *
  * @return int|null  The target-language term ID, or null on failure
- *                   (OpenAI error, wp_insert_term error other than
- *                   term_exists, Polylang missing).
+ *                   (OpenAI error, wp_insert_term error other than a
+ *                   term_exists already-my-sibling case, Polylang missing,
+ *                   or a slug collision against a term that belongs to a
+ *                   different EN sibling — see below).
  */
 function cdcf_get_or_create_translated_term($en_term, string $target_lang): ?int {
     $existing = pll_get_term((int) $en_term->term_id, $target_lang);
-    if ($existing) {
+    // pll_get_term can return the input term_id itself as a fallback in
+    // some Polylang versions when no target-language sibling exists.
+    // Without this guard the EN term gets assigned to a non-EN post
+    // and pll_set_term_language below silently flips its language,
+    // corrupting the source — observed on production 2026-06-08 with
+    // ConfessIt: EN term 171 ("examen") ended up language=fr after
+    // propagation runs against ES/FR posts.
+    if ($existing && (int) $existing !== (int) $en_term->term_id) {
         return (int) $existing;
     }
 
@@ -121,33 +130,58 @@ function cdcf_get_or_create_translated_term($en_term, string $target_lang): ?int
         'slug' => sanitize_title($translated_name . '-' . $target_lang),
     ]);
 
-    $new_term_id = null;
     if (is_wp_error($result)) {
-        // Slug collision: WP returns term_exists with the existing
-        // term's ID in error_data. Adopt and Polylang-link it anyway.
         if ($result->get_error_code() === 'term_exists') {
+            // A target-language term with this slug already exists.
+            // Typical cause: two distinct EN terms whose OpenAI
+            // translations land on the same target word (e.g. "examen"
+            // + "examination" both translate to "examen" in Romance
+            // languages). Resolution policy:
+            //   - If the colliding term IS already a Polylang sibling
+            //     of our EN term, return its id (idempotent — safe to
+            //     reuse on a re-run).
+            //   - Otherwise, DO NOT adopt + rewrite the colliding term's
+            //     Polylang group. That would reassign it from its
+            //     original EN sibling to ours, orphaning the original
+            //     link AND (because pll_set_term_language re-asserts
+            //     language) sometimes flipping a term's language to
+            //     match the adopter — the bug that corrupted ConfessIt.
+            //     Skip with a logged warning and let the caller render
+            //     fewer tags than the source had.
             $existing_id = (int) $result->get_error_data();
             if ($existing_id) {
-                $new_term_id = $existing_id;
+                $en_translations = pll_get_term_translations((int) $en_term->term_id);
+                $is_already_my_sibling = is_array($en_translations)
+                    && isset($en_translations[$target_lang])
+                    && (int) $en_translations[$target_lang] === $existing_id;
+                if ($is_already_my_sibling) {
+                    return $existing_id;
+                }
+                error_log(sprintf(
+                    'cdcf_get_or_create_translated_term: slug collision on "%s" (%s); existing term %d is linked to a different EN sibling — skipping to avoid corrupting Polylang group. EN term %d will not be propagated to %s.',
+                    $translated_name,
+                    $target_lang,
+                    $existing_id,
+                    (int) $en_term->term_id,
+                    $target_lang
+                ));
+                return null;
             }
         }
-        if (!$new_term_id) {
-            error_log(sprintf(
-                'cdcf_get_or_create_translated_term: wp_insert_term failed for "%s" (%s): %s',
-                $translated_name,
-                $target_lang,
-                $result->get_error_message()
-            ));
-            return null;
-        }
-    } else {
-        $new_term_id = (int) $result['term_id'];
+        error_log(sprintf(
+            'cdcf_get_or_create_translated_term: wp_insert_term failed for "%s" (%s): %s',
+            $translated_name,
+            $target_lang,
+            $result->get_error_message()
+        ));
+        return null;
     }
 
+    $new_term_id = (int) $result['term_id'];
     pll_set_term_language($new_term_id, $target_lang);
 
-    // Merge into the EN term's existing Polylang group so all 6
-    // language siblings know about each other.
+    // Merge into the EN term's existing Polylang group so all language
+    // siblings know about each other.
     $translations = pll_get_term_translations((int) $en_term->term_id);
     if (!is_array($translations)) {
         $translations = [];
