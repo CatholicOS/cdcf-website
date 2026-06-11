@@ -424,7 +424,11 @@ add_action('rest_api_init', function () {
             return current_user_can('edit_posts');
         },
         'args' => [
-            'translations' => ['required' => true, 'type' => 'object'],
+            'translations' => [
+                'required'          => true,
+                'type'              => 'object',
+                'sanitize_callback' => 'cdcf_sanitize_translations_map',
+            ],
         ],
     ]);
 });
@@ -452,7 +456,11 @@ add_action('rest_api_init', function () {
                 'type'              => 'string',
                 'sanitize_callback' => 'sanitize_key',
             ],
-            'translations' => ['required' => true, 'type' => 'object'],
+            'translations' => [
+                'required'          => true,
+                'type'              => 'object',
+                'sanitize_callback' => 'cdcf_sanitize_translations_map',
+            ],
         ],
     ]);
 });
@@ -701,6 +709,7 @@ require_once __DIR__ . '/includes/handlers/update-disposable-domains.php';
 // cdcf_is_spam_content) used by every public-submission endpoint below.
 // Required here — after CDCF_DISPOSABLE_DOMAINS_FILE is defined — so
 // the disposable-domain lookup can read the blocklist file path.
+require_once __DIR__ . '/includes/sanitizers.php';
 require_once __DIR__ . '/includes/security.php';
 
 // Footnote/fragment-anchor protection helper, applied at every wp_kses_post
