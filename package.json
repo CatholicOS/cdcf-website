@@ -21,7 +21,7 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@tiptap/extension-link": "^3.26.0",
-    "@tiptap/pm": "^3.26.0",
+    "@tiptap/pm": "^3.26.1",
     "@tiptap/react": "^3.26.0",
     "@tiptap/starter-kit": "^3.26.0",
     "clsx": "^2.1.1",
