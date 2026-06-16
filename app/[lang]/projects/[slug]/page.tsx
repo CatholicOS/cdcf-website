@@ -94,17 +94,19 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
   return (
     <article>
-      {/* Featured image hero */}
+      {/* Logo hero band — projects only have a logo (square/portrait), never a
+          landscape photo, so the image is contained at its natural aspect
+          ratio rather than cover-cropped. The soft brand-gradient backdrop
+          gives the band visual presence behind the centered logo. */}
       {image && (
-        <div className="relative h-64 w-full sm:h-80 lg:h-96">
+        <div className="relative h-64 w-full bg-gradient-to-br from-cdcf-navy/5 to-cdcf-gold/10 sm:h-80 lg:h-96">
           <Image
             src={image.sourceUrl}
             alt={image.altText || project.title}
             fill
-            className="object-cover"
+            className="object-contain p-8 sm:p-12"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
         </div>
       )}
 
