@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
         project_url: body.project_url || '',
         github_url: body.github_url || '',
         tags: Array.isArray(body.tags) ? body.tags : [],
+        language: typeof body.language === 'string' ? body.language : '',
         submitter_name: body.submitter_name,
         submitter_email: body.submitter_email,
         verification_code: body.verification_code || '',

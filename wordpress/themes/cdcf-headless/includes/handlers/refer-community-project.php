@@ -16,6 +16,13 @@ if (defined('ABSPATH') === false) {
 }
 
 function cdcf_rest_refer_community_project(WP_REST_Request $request) {
+    // Resolve + validate the submission content language up front so we
+    // refuse tampered values before any side effects.
+    $language = cdcf_validate_submission_language($request['language']);
+    if (is_wp_error($language)) {
+        return $language;
+    }
+
     // Rate limiting via transients: 3 submissions per hour per IP (defense-in-depth).
     $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
     $transient_key = 'cdcf_refer_cp_' . md5($ip);
@@ -86,9 +93,11 @@ function cdcf_rest_refer_community_project(WP_REST_Request $request) {
         return new WP_Error('insert_failed', 'Failed to create referral.', ['status' => 500]);
     }
 
-    // Assign English language so Polylang can link translations later.
+    // Tag the post with its submission content language so Polylang
+    // can link translations later. Defaults to 'en' for legacy callers
+    // that don't send the field; see cdcf_validate_submission_language.
     if (function_exists('pll_set_post_language')) {
-        pll_set_post_language($post_id, 'en');
+        pll_set_post_language($post_id, $language);
     }
 
     // Set ACF fields if ACF is active.

@@ -110,3 +110,35 @@ function cdcf_is_spam_content(string $text): bool {
 
     return $score >= 5;
 }
+
+/**
+ * Resolve + validate the submission content language for a public
+ * submission form. Public submission forms (project, community_project,
+ * local_group) now expose a language selector defaulting to the page's
+ * current locale; this helper normalizes the request param to a
+ * configured Polylang locale.
+ *
+ * Empty / unset / null → default 'en' (legacy contract, plus the
+ * back-compat path for any caller that doesn't yet send the field).
+ * Any other value MUST be a key of CDCF_LOCALE_NAMES — otherwise we
+ * return WP_Error so the handler can refuse a tampered request rather
+ * than land a post in an unconfigured language. CDCF_LOCALE_NAMES is
+ * defined in functions.php (en/it/es/fr/pt/de).
+ *
+ * @return string|WP_Error Validated locale slug on success.
+ */
+function cdcf_validate_submission_language($value) {
+    $lang = is_string($value) ? trim($value) : '';
+    if ($lang === '') {
+        return 'en';
+    }
+    $allowed = defined('CDCF_LOCALE_NAMES') ? array_keys(CDCF_LOCALE_NAMES) : ['en'];
+    if (!in_array($lang, $allowed, true)) {
+        return new WP_Error(
+            'invalid_language',
+            'Submission language must be one of the configured site locales.',
+            ['status' => 400]
+        );
+    }
+    return $lang;
+}

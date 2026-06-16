@@ -315,4 +315,72 @@ abstract class SubmissionHandlerTestBase extends TestCase
             $deleted
         );
     }
+
+    // ─── Submission language (CDCF_LOCALE_NAMES) ───────────────────
+
+    public function test_uses_submission_language_from_request_when_provided(): void
+    {
+        // The public submission form now exposes a content-language
+        // selector defaulting to the page's current locale, so that a
+        // Spanish submission lands as a Spanish post and the
+        // translation pipeline auto-creates EN/IT/FR/PT/DE siblings
+        // (rather than starting as English and getting manually
+        // re-tagged after the fact — the 2026-06-16 Enciclopedia
+        // Católica regression that exposed three independent
+        // hardcoded-EN bugs in the publish pipeline).
+        $this->stubCommonFunctions();
+        $langCalls = [];
+        Functions\when('pll_set_post_language')->alias(
+            function (int $post_id, string $lang) use (&$langCalls): bool {
+                $langCalls[] = [$post_id, $lang];
+                return true;
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        $this->invokeHandler($this->makeRequest(['language' => 'es']));
+
+        $this->assertSame(
+            [[800, 'es']],
+            $langCalls,
+            'A Spanish submission must call pll_set_post_language with "es" for the newly inserted post — not the legacy hardcoded "en".'
+        );
+    }
+
+    public function test_defaults_to_english_when_no_submission_language_provided(): void
+    {
+        // Back-compat: callers that don't supply a language (the
+        // legacy contract) keep landing as English. The empty default
+        // from the args block resolves to 'en' here.
+        $this->stubCommonFunctions();
+        $langCalls = [];
+        Functions\when('pll_set_post_language')->alias(
+            function (int $post_id, string $lang) use (&$langCalls): bool {
+                $langCalls[] = [$post_id, $lang];
+                return true;
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        $this->invokeHandler($this->makeRequest(['language' => '']));
+
+        $this->assertSame([[800, 'en']], $langCalls);
+    }
+
+    public function test_rejects_unsupported_submission_language_with_400(): void
+    {
+        // Defense in depth: the args block sanitizes the field, but
+        // validation against the CDCF_LOCALE_NAMES allowlist lives in
+        // the handler so a tampered request can't land posts in an
+        // unconfigured Polylang language.
+        $this->stubCommonFunctions();
+        Functions\expect('wp_insert_post')->never();
+        $this->allowAllFunctionsToExist();
+
+        $response = $this->invokeHandler($this->makeRequest(['language' => 'zh']));
+
+        $this->assertInstanceOf(WP_Error::class, $response);
+        $this->assertSame('invalid_language', $response->get_error_code());
+        $this->assertSame(400, $response->get_error_data()['status']);
+    }
 }
