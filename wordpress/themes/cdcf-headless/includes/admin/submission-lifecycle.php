@@ -36,16 +36,46 @@ function cdcf_get_source_post_id(int $post_id): int {
 }
 
 /**
- * True if the source (EN) post has submitter meta from the public
- * submission/referral form. Works whether called with the EN post ID
- * or a translation's ID — resolves to source via cdcf_get_source_post_id().
+ * True if any post in this post's Polylang translation group carries
+ * submitter meta from the public submission/referral form.
+ *
+ * The submitter meta is written ONCE on the originally-submitted post
+ * — which is whatever language the human submitted in. A Spanish
+ * submission carries `_referral_submitter_email` on the ES post; the
+ * auto-translated EN/IT/FR/PT/DE siblings have no meta. So the helper
+ * walks the whole Polylang group and returns true if ANY sibling has
+ * the meta — not just the EN one — so the publish hook can recognize
+ * the submission regardless of which language sibling fired it.
+ *
+ * Production occurrence 2026-06-16: community_project 1534 was submitted
+ * in Spanish; the worker-promoted EN sibling 1556 failed the old
+ * EN-walk check and was never appended to /projects's
+ * community_projects field.
+ *
+ * Falls back to a single-post check when Polylang isn't active or the
+ * post is in no group.
  */
 function cdcf_is_public_submission(int $post_id): bool {
-    $source_id = cdcf_get_source_post_id($post_id);
-    return (bool) (
-        get_post_meta($source_id, '_submission_submitter_email', true)
-        || get_post_meta($source_id, '_referral_submitter_email', true)
-    );
+    $candidate_ids = [$post_id];
+    if (function_exists('pll_get_post_translations')) {
+        $group = pll_get_post_translations($post_id);
+        if (is_array($group) && !empty($group)) {
+            $candidate_ids = array_map('intval', array_values($group));
+        }
+    }
+
+    foreach ($candidate_ids as $id) {
+        if ($id <= 0) {
+            continue;
+        }
+        if (
+            get_post_meta($id, '_submission_submitter_email', true)
+            || get_post_meta($id, '_referral_submitter_email', true)
+        ) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
