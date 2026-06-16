@@ -102,6 +102,18 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
         cdcf_format_lang_map($translations)
     ));
 
+    // Phase 0: ensure attachment translations exist for the source's
+    // featured_image. Without this, post-translation workers would
+    // either render the EN image (with EN alt-text / SEO regression) or
+    // get a null featuredImage from WPGraphQL on non-EN posts. Running
+    // before Phase 1 means by the time the worker handles each post
+    // translation, pll_get_post(thumbnail, lang) already returns the
+    // matching-language attachment sibling.
+    $source_thumbnail_id = (int) get_post_thumbnail_id($en_post_id);
+    if ($source_thumbnail_id > 0) {
+        cdcf_ensure_attachment_translations($source_thumbnail_id, $target_langs);
+    }
+
     // Phase 1: create draft siblings + per-post language assignment.
     // Group save is intentionally NOT called here — see file-level
     // docblock for the lost-update race rationale.
@@ -201,6 +213,207 @@ function cdcf_format_lang_map(array $map): string {
         $parts[] = $lang . ':' . (int) $id;
     }
     return '{' . implode(', ', $parts) . '}';
+}
+
+/**
+ * Synchronously ensure attachment-translation siblings exist for each
+ * target language of a source attachment. Mirrors the atomic shape of
+ * cdcf_enqueue_translations_for_submission (Phase 1 create + per-post
+ * language, Phase 2 ONE atomic pll_save_post_translations) but for
+ * attachments and inline (no Redis queue): each missing sibling is
+ * created with OpenAI-translated title/caption/description/alt-text
+ * before this function returns.
+ *
+ * Called from cdcf_enqueue_translations_for_submission's Phase 0 so
+ * the post-translation worker can later resolve the correct-language
+ * featured-image via pll_get_post() without falling back to the source
+ * attachment (which would render with source-language alt-text — an
+ * SEO + a11y regression — and may be filtered out by WPGraphQL on
+ * non-source-language posts entirely).
+ *
+ * No new file is uploaded: each new sibling is a fresh `wp_posts` row
+ * pointing at the source's underlying `_wp_attached_file` (and its
+ * `_wp_attachment_metadata`). Only the WP-side language-dependent
+ * fields (title, post_excerpt as caption, post_content as description,
+ * `_wp_attachment_image_alt` meta) are translated.
+ *
+ * @param int   $source_attachment_id  Source attachment post ID.
+ * @param array $target_langs          Locale slugs (e.g. ['it','es','fr','pt','de']).
+ * @return array  {lang => attachment_id} including the source. Empty
+ *                array if Polylang missing or source isn't an attachment.
+ */
+function cdcf_ensure_attachment_translations(int $source_attachment_id, array $target_langs): array {
+    if (
+        !function_exists('pll_set_post_language')
+        || !function_exists('pll_save_post_translations')
+        || !function_exists('pll_get_post_translations')
+        || !function_exists('pll_get_post_language')
+    ) {
+        error_log("cdcf_ensure_attachment_translations: Polylang not active; skipping attachment {$source_attachment_id}.");
+        return [];
+    }
+
+    $source = get_post($source_attachment_id);
+    if (!$source || $source->post_type !== 'attachment') {
+        error_log("cdcf_ensure_attachment_translations: post {$source_attachment_id} is not an attachment; skipping.");
+        return [];
+    }
+
+    $source_lang = pll_get_post_language($source_attachment_id, 'slug') ?: 'en';
+
+    $translations = pll_get_post_translations($source_attachment_id);
+    $translations[$source_lang] = $source_attachment_id;
+
+    error_log(sprintf(
+        'cdcf_ensure_attachment_translations: ENTER source_id=%d source_lang=%s pre_seed_group=%s',
+        $source_attachment_id,
+        $source_lang,
+        cdcf_format_lang_map($translations)
+    ));
+
+    // Phase 1: per-lang create + per-post language. Group save deferred to Phase 2.
+    $newly_created = [];
+    $already_linked = [];
+    foreach ($target_langs as $lang) {
+        if ($lang === $source_lang) {
+            continue;
+        }
+        if (!empty($translations[$lang])) {
+            $already_linked[$lang] = (int) $translations[$lang];
+            continue;
+        }
+
+        $new_id = cdcf_create_attachment_translation($source, $source_lang, $lang);
+        if (!$new_id) {
+            // Helper already logged the specific failure.
+            continue;
+        }
+        pll_set_post_language($new_id, $lang);
+        $translations[$lang] = $new_id;
+        $newly_created[$lang] = $new_id;
+    }
+
+    error_log(sprintf(
+        'cdcf_ensure_attachment_translations: PHASE_1_DONE source_id=%d newly_created=%s already_linked=%s',
+        $source_attachment_id,
+        cdcf_format_lang_map($newly_created),
+        cdcf_format_lang_map($already_linked)
+    ));
+
+    if (empty($newly_created)) {
+        return $translations;
+    }
+
+    // Phase 2: one atomic group save. Mirrors PR #203's shape for posts.
+    $save_result = pll_save_post_translations($translations);
+    if ($save_result === false) {
+        error_log(sprintf(
+            'cdcf_ensure_attachment_translations: PHASE_2_FAIL source_id=%d pll_save_post_translations returned false; rolling back %d attachment(s): %s',
+            $source_attachment_id,
+            count($newly_created),
+            cdcf_format_lang_map($newly_created)
+        ));
+        foreach ($newly_created as $id) {
+            wp_delete_post($id, true);
+        }
+        return [];
+    }
+
+    error_log(sprintf(
+        'cdcf_ensure_attachment_translations: PHASE_2_OK source_id=%d atomic group save succeeded; final_group=%s',
+        $source_attachment_id,
+        cdcf_format_lang_map($translations)
+    ));
+
+    return $translations;
+}
+
+/**
+ * Create a single attachment-translation sibling.
+ *
+ * The new sibling shares the source's underlying file (_wp_attached_file
+ * + _wp_attachment_metadata). Its title/caption/description/alt-text are
+ * OpenAI-translated when CDCF's OpenAI helper is available; otherwise
+ * the source values are copied verbatim (so callers always get a usable
+ * attachment back rather than a half-formed one).
+ *
+ * @return int|null  New attachment post ID, or null on wp_insert_post failure.
+ */
+function cdcf_create_attachment_translation(object $source, string $source_lang, string $target_lang): ?int {
+    // Collect translatable strings.
+    $strings = array_filter([
+        'title'       => $source->post_title,
+        'caption'     => $source->post_excerpt,
+        'description' => $source->post_content,
+        'alt_text'    => (string) get_post_meta($source->ID, '_wp_attachment_image_alt', true),
+    ], static fn($v) => $v !== '');
+
+    // OpenAI-translate the strings if possible. On any failure we fall
+    // back to the source values rather than skipping the attachment —
+    // a sibling with source-language metadata is still better than no
+    // sibling at all (the latter triggers Phase 2 to skip linking,
+    // which puts us back in the original "EN fallback on non-EN post"
+    // regression we're trying to fix).
+    $translated = $strings;
+    if (!empty($strings) && function_exists('cdcf_openai_translate')) {
+        $api_key = get_option('cdcf_openai_api_key');
+        if ($api_key) {
+            $source_name = defined('CDCF_LOCALE_NAMES')
+                ? (CDCF_LOCALE_NAMES[$source_lang] ?? $source_lang)
+                : $source_lang;
+            $target_name = defined('CDCF_LOCALE_NAMES')
+                ? (CDCF_LOCALE_NAMES[$target_lang] ?? $target_lang)
+                : $target_lang;
+            $result = cdcf_openai_translate($strings, $source_name, $target_name, $api_key);
+            if (!is_wp_error($result) && is_array($result)) {
+                $translated = array_merge($strings, $result);
+            } else {
+                $msg = is_wp_error($result) ? $result->get_error_message() : 'non-array response';
+                error_log(sprintf(
+                    'cdcf_create_attachment_translation: OpenAI error for attachment %d -> %s (%s); using source values.',
+                    $source->ID,
+                    $target_lang,
+                    $msg
+                ));
+            }
+        }
+    }
+
+    $new_id = wp_insert_post([
+        'post_type'      => 'attachment',
+        'post_status'    => 'inherit',
+        'post_mime_type' => $source->post_mime_type,
+        'post_title'     => $translated['title']       ?? $source->post_title,
+        'post_excerpt'   => $translated['caption']     ?? $source->post_excerpt,
+        'post_content'   => $translated['description'] ?? $source->post_content,
+        'guid'           => $source->guid,
+    ]);
+
+    if (is_wp_error($new_id) || !$new_id) {
+        $msg = is_wp_error($new_id) ? $new_id->get_error_message() : 'returned 0';
+        error_log("cdcf_create_attachment_translation: wp_insert_post failed for attachment {$source->ID} -> {$target_lang}: {$msg}");
+        return null;
+    }
+
+    // Point the sibling at the source's underlying file + metadata. No
+    // new bytes uploaded — Polylang attachment translations are a
+    // metadata-only concern; the file remains shared via _wp_attached_file.
+    $attached_file = get_post_meta($source->ID, '_wp_attached_file', true);
+    if ($attached_file) {
+        update_post_meta($new_id, '_wp_attached_file', $attached_file);
+    }
+    $metadata = wp_get_attachment_metadata($source->ID);
+    if (is_array($metadata)) {
+        wp_update_attachment_metadata($new_id, $metadata);
+    }
+
+    // Language-specific alt text (lives in _wp_attachment_image_alt, not
+    // a post-table column).
+    if (!empty($translated['alt_text'])) {
+        update_post_meta($new_id, '_wp_attachment_image_alt', $translated['alt_text']);
+    }
+
+    return (int) $new_id;
 }
 
 /**

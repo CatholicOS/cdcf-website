@@ -51,6 +51,10 @@ final class SubmissionLifecycleTest extends TestCase
         Functions\when('pll_get_post_translations')->justReturn([]);
         Functions\when('get_post_meta')->justReturn('');
         Functions\when('cdcf_enqueue_translation')->justReturn('redis');
+        // Phase 0 (PR #208) calls get_post_thumbnail_id on the source;
+        // tests that don't care about featured-image translation get a
+        // default of 0 (no thumbnail = Phase 0 is a no-op).
+        Functions\when('get_post_thumbnail_id')->justReturn(0);
     }
 
     private function allowAllFunctionsToExist(): void
@@ -284,6 +288,9 @@ final class SubmissionLifecycleTest extends TestCase
         Functions\when('pll_get_post_translations')->justReturn([]);
         Functions\when('get_post')->justReturn($this->fakePost(['ID' => 42]));
         Functions\when('wp_insert_post')->justReturn(200);
+        // Phase 0 (PR #208): no thumbnail on the source → skip attachment
+        // translation. Not exercising that path in this wp-cron-fallback test.
+        Functions\when('get_post_thumbnail_id')->justReturn(0);
         Functions\expect('wp_schedule_single_event')->times(5)->andReturn(true);
         Functions\expect('spawn_cron')->times(5)->andReturnNull();
         // Deliberately do NOT stub cdcf_enqueue_translation — it must
@@ -451,6 +458,300 @@ final class SubmissionLifecycleTest extends TestCase
         // ACF and some Polylang return paths hand back string-numeric IDs;
         // the helper coerces them so the log line is uniform.
         $this->assertSame('{en:10, it:11}', cdcf_format_lang_map(['en' => '10', 'it' => '11']));
+    }
+
+    // ─── cdcf_ensure_attachment_translations + cdcf_create_attachment_translation ───
+
+    /**
+     * Build a fake attachment WP_Post-ish object with the fields the
+     * production code reads (post_type, post_title, post_excerpt,
+     * post_content, post_mime_type, guid). Mirrors the bootstrap.php
+     * WP_Post stub by using stdClass.
+     */
+    private function fakeAttachment(array $overrides = []): stdClass
+    {
+        $a = new stdClass();
+        $a->ID             = 1510;
+        $a->post_type      = 'attachment';
+        $a->post_title     = 'icon';
+        $a->post_excerpt   = 'icon caption';
+        $a->post_content   = 'icon description';
+        $a->post_mime_type = 'image/webp';
+        $a->guid           = 'https://cms.example.test/wp-content/uploads/2026/06/icon.webp';
+        foreach ($overrides as $k => $v) {
+            $a->$k = $v;
+        }
+        return $a;
+    }
+
+    public function test_ensure_attachment_translations_bails_when_polylang_inactive(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\when('function_exists')->alias(
+            // pll_set_post_language gated out — bail at the entry guard.
+            static fn(string $name): bool => $name !== 'pll_set_post_language'
+        );
+        Functions\expect('wp_insert_post')->never();
+
+        $result = cdcf_ensure_attachment_translations(1510, ['it', 'es', 'fr', 'pt', 'de']);
+
+        $this->assertSame([], $result);
+    }
+
+    public function test_ensure_attachment_translations_bails_when_source_isnt_attachment(): void
+    {
+        $this->stubCommonFunctions();
+        // get_post returns a regular post, not an attachment.
+        Functions\when('get_post')->justReturn($this->fakePost(['ID' => 42, 'post_type' => 'page']));
+        Functions\expect('wp_insert_post')->never();
+        $this->allowAllFunctionsToExist();
+
+        $result = cdcf_ensure_attachment_translations(42, ['it', 'es', 'fr', 'pt', 'de']);
+
+        $this->assertSame([], $result);
+    }
+
+    public function test_ensure_attachment_translations_skips_langs_already_linked(): void
+    {
+        // Source 1510 already has an IT and ES sibling — only fr/pt/de
+        // should get newly created.
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->fakeAttachment());
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('pll_get_post_translations')->justReturn([
+            'en' => 1510, 'it' => 1516, 'es' => 1517,
+        ]);
+
+        $counter = 1599;
+        $inserts = 0;
+        Functions\when('wp_insert_post')->alias(function () use (&$counter, &$inserts): int {
+            $counter++;
+            $inserts++;
+            return $counter;
+        });
+        Functions\when('cdcf_openai_translate')->justReturn(['title' => 'icona']);
+        Functions\when('get_option')->justReturn('sk-test-key');
+        Functions\when('wp_get_attachment_metadata')->justReturn([]);
+        Functions\when('wp_update_attachment_metadata')->justReturn(true);
+        Functions\when('update_post_meta')->justReturn(true);
+        $this->allowAllFunctionsToExist();
+
+        $result = cdcf_ensure_attachment_translations(1510, ['it', 'es', 'fr', 'pt', 'de']);
+
+        // 3 newly-created (fr/pt/de = 1600/1601/1602), 2 pre-seeded.
+        $this->assertSame(3, $inserts);
+        $this->assertSame([
+            'en' => 1510, 'it' => 1516, 'es' => 1517,
+            'fr' => 1600, 'pt' => 1601, 'de' => 1602,
+        ], $result);
+    }
+
+    public function test_ensure_attachment_translations_skips_source_lang_in_target_list(): void
+    {
+        // If the source is EN and 'en' appears in target_langs (caller bug),
+        // it must be silently skipped, not duplicated.
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->fakeAttachment());
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('pll_get_post_translations')->justReturn(['en' => 1510]);
+
+        $inserts = 0;
+        Functions\when('wp_insert_post')->alias(function () use (&$inserts): int {
+            $inserts++;
+            return 1600 + $inserts;
+        });
+        Functions\when('cdcf_openai_translate')->justReturn(['title' => 'translated']);
+        Functions\when('get_option')->justReturn('sk-test-key');
+        Functions\when('wp_get_attachment_metadata')->justReturn([]);
+        Functions\when('wp_update_attachment_metadata')->justReturn(true);
+        Functions\when('update_post_meta')->justReturn(true);
+        $this->allowAllFunctionsToExist();
+
+        cdcf_ensure_attachment_translations(1510, ['en', 'it', 'es', 'fr', 'pt', 'de']);
+
+        // 5 inserts (it/es/fr/pt/de) — en skipped via source-lang check.
+        $this->assertSame(5, $inserts);
+    }
+
+    public function test_ensure_attachment_translations_atomic_save_then_returns_full_group(): void
+    {
+        // Happy path: 5 missing langs, OpenAI translates each, wp_insert_post
+        // succeeds 5 times, ONE atomic pll_save_post_translations call,
+        // returned group has 6 entries.
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->fakeAttachment());
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('pll_get_post_translations')->justReturn(['en' => 1510]);
+
+        $counter = 1599;
+        Functions\when('wp_insert_post')->alias(function () use (&$counter): int {
+            $counter++;
+            return $counter;
+        });
+        Functions\when('cdcf_openai_translate')->justReturn(['title' => 'icona']);
+        Functions\when('get_option')->justReturn('sk-test-key');
+        Functions\when('wp_get_attachment_metadata')->justReturn(['width' => 96]);
+        Functions\when('wp_update_attachment_metadata')->justReturn(true);
+        Functions\when('update_post_meta')->justReturn(true);
+
+        $saves = [];
+        Functions\when('pll_save_post_translations')->alias(
+            function (array $map) use (&$saves): bool {
+                $saves[] = $map;
+                return true;
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        $result = cdcf_ensure_attachment_translations(1510, ['it', 'es', 'fr', 'pt', 'de']);
+
+        // Exactly ONE atomic save — regression guard for the lost-update race.
+        $this->assertCount(1, $saves);
+        $this->assertSame(
+            ['en' => 1510, 'it' => 1600, 'es' => 1601, 'fr' => 1602, 'pt' => 1603, 'de' => 1604],
+            $result
+        );
+    }
+
+    public function test_ensure_attachment_translations_rolls_back_on_atomic_save_failure(): void
+    {
+        // pll_save_post_translations returns false → force-delete all
+        // just-created siblings + return empty. Mirrors PR #203's
+        // rollback shape so a failed call leaves no orphan attachments.
+        $this->stubCommonFunctions();
+        Functions\when('get_post')->justReturn($this->fakeAttachment());
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('pll_get_post_translations')->justReturn(['en' => 1510]);
+
+        $counter = 1599;
+        Functions\when('wp_insert_post')->alias(function () use (&$counter): int {
+            $counter++;
+            return $counter;
+        });
+        Functions\when('cdcf_openai_translate')->justReturn(['title' => 'x']);
+        Functions\when('get_option')->justReturn('sk-test-key');
+        Functions\when('wp_get_attachment_metadata')->justReturn([]);
+        Functions\when('wp_update_attachment_metadata')->justReturn(true);
+        Functions\when('update_post_meta')->justReturn(true);
+        Functions\when('pll_save_post_translations')->justReturn(false);
+
+        $deleted = [];
+        Functions\when('wp_delete_post')->alias(
+            function (int $id, bool $force) use (&$deleted): array {
+                $deleted[] = [$id, $force];
+                return [];
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        $result = cdcf_ensure_attachment_translations(1510, ['it', 'es', 'fr', 'pt', 'de']);
+
+        $this->assertSame([], $result);
+        $this->assertSame(
+            [[1600, true], [1601, true], [1602, true], [1603, true], [1604, true]],
+            $deleted,
+            'all 5 just-created attachments must be force-deleted on rollback'
+        );
+    }
+
+    public function test_create_attachment_translation_uses_openai_translated_strings(): void
+    {
+        $this->stubCommonFunctions();
+        $captured_insert = null;
+        Functions\when('wp_insert_post')->alias(
+            function (array $args) use (&$captured_insert): int {
+                $captured_insert = $args;
+                return 1600;
+            }
+        );
+        // Verify OpenAI got source strings (sans empty) and returns target translations.
+        Functions\when('cdcf_openai_translate')->alias(
+            static fn(array $strings, string $src, string $tgt) => array_combine(
+                array_keys($strings),
+                array_map(static fn($v) => $tgt . ':' . $v, $strings)
+            )
+        );
+        Functions\when('get_option')->justReturn('sk-test-key');
+        Functions\when('get_post_meta')->alias(
+            static fn(int $id, string $key) => $key === '_wp_attachment_image_alt' ? 'icon alt' : ''
+        );
+        Functions\when('wp_get_attachment_metadata')->justReturn([]);
+        Functions\when('wp_update_attachment_metadata')->justReturn(true);
+
+        $alt_writes = [];
+        Functions\when('update_post_meta')->alias(
+            function (int $id, string $key, $value) use (&$alt_writes): bool {
+                if ($key === '_wp_attachment_image_alt') {
+                    $alt_writes[] = [$id, $value];
+                }
+                return true;
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        $result = cdcf_create_attachment_translation($this->fakeAttachment(), 'en', 'it');
+
+        $this->assertSame(1600, $result);
+        // OpenAI helper receives the LOCALE NAME (CDCF_LOCALE_NAMES['it']
+        // = "Italian"), not the slug, so prefixed strings reflect that.
+        $this->assertSame('Italian:icon',             $captured_insert['post_title']);
+        $this->assertSame('Italian:icon caption',     $captured_insert['post_excerpt']);
+        $this->assertSame('Italian:icon description', $captured_insert['post_content']);
+        $this->assertSame('attachment',               $captured_insert['post_type']);
+        $this->assertSame('image/webp',               $captured_insert['post_mime_type']);
+        // Alt-text lives in meta, not the posts table.
+        $this->assertSame([[1600, 'Italian:icon alt']], $alt_writes);
+    }
+
+    public function test_create_attachment_translation_falls_back_to_source_on_openai_error(): void
+    {
+        // OpenAI error → use source strings verbatim. A sibling with
+        // source-language metadata is still better than no sibling at
+        // all (the latter regresses to the EN-image fallback we're
+        // fixing in the first place).
+        $this->stubCommonFunctions();
+        $captured_insert = null;
+        Functions\when('wp_insert_post')->alias(
+            function (array $args) use (&$captured_insert): int {
+                $captured_insert = $args;
+                return 1600;
+            }
+        );
+        Functions\when('cdcf_openai_translate')->justReturn(
+            new WP_Error('openai_error', 'rate limit', ['status' => 429])
+        );
+        Functions\when('get_option')->justReturn('sk-test-key');
+        Functions\when('get_post_meta')->justReturn('');
+        Functions\when('wp_get_attachment_metadata')->justReturn([]);
+        Functions\when('wp_update_attachment_metadata')->justReturn(true);
+        Functions\when('update_post_meta')->justReturn(true);
+        $this->allowAllFunctionsToExist();
+
+        $result = cdcf_create_attachment_translation($this->fakeAttachment(), 'en', 'it');
+
+        $this->assertSame(1600, $result);
+        // Source strings verbatim — not "it:..."-prefixed.
+        $this->assertSame('icon',             $captured_insert['post_title']);
+        $this->assertSame('icon caption',     $captured_insert['post_excerpt']);
+        $this->assertSame('icon description', $captured_insert['post_content']);
+    }
+
+    public function test_create_attachment_translation_returns_null_on_wp_insert_post_failure(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\when('wp_insert_post')->justReturn(
+            new WP_Error('insert_failed', 'database error')
+        );
+        Functions\when('cdcf_openai_translate')->justReturn(['title' => 'icona']);
+        Functions\when('get_option')->justReturn('sk-test-key');
+        Functions\when('get_post_meta')->justReturn('');
+        Functions\expect('wp_update_attachment_metadata')->never();
+        Functions\expect('update_post_meta')->never();
+        $this->allowAllFunctionsToExist();
+
+        $result = cdcf_create_attachment_translation($this->fakeAttachment(), 'en', 'it');
+
+        $this->assertNull($result);
     }
 
     // ─── cdcf_repend_submission_on_untrash ────────────────────────────
