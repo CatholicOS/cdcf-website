@@ -50,9 +50,21 @@ function cdcf_is_public_submission(int $post_id): bool {
 
 /**
  * Create + Polylang-link the missing it/es/fr/pt/de sibling drafts of an
- * EN source post, then enqueue an AI translation job per newly-created
+ * source post, then enqueue an AI translation job per newly-created
  * sibling. The existing worker (cdcf_process_translation) will auto-
  * publish each translation once its source post is `publish`.
+ *
+ * Source language is derived from the post itself via
+ * pll_get_post_language() rather than assumed to be English. A Spanish
+ * (or Italian, French, etc.) public submission produces translations
+ * for the OTHER 5 languages — including English. Observed on production
+ * 2026-06-16: community_project 1534 ("Enciclopedia Católica") was
+ * submitted in Spanish; the old hardcoded target list ['it','es','fr',
+ * 'pt','de'] created siblings for IT/FR/PT/DE only (silently dropping
+ * EN since it wasn't in the list, and silently skipping ES since the
+ * post already carried that language) and the atomic save was handed
+ * {en: 1534, ...} — the source post mis-keyed as the EN translation,
+ * which Polylang rejected → empty group on all six posts.
  *
  * Group save is **atomic** — exactly one pll_save_post_translations()
  * call after every sibling has been created. The earlier shape (one
@@ -67,49 +79,80 @@ function cdcf_is_public_submission(int $post_id): bool {
  * If the atomic save fails, every just-created draft is force-deleted
  * so a failed call leaves no orphans behind (same shape as /translate-all).
  *
- * @param int    $en_post_id  The English (source) post ID. MUST be the source,
- *                            not a translation — caller should resolve via
- *                            cdcf_get_source_post_id() first.
- * @param string $post_type   The CPT slug (project | community_project | local_group).
+ * @param int    $source_post_id  The source post ID, in any of the 6 configured
+ *                                Polylang languages. MUST be the source, not a
+ *                                translation — caller should resolve via
+ *                                cdcf_get_source_post_id() first.
+ * @param string $post_type       The CPT slug (project | community_project | local_group).
  */
-function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_type): void {
+function cdcf_enqueue_translations_for_submission(int $source_post_id, string $post_type): void {
     if (
         !function_exists('pll_set_post_language')
         || !function_exists('pll_save_post_translations')
         || !function_exists('pll_get_post_translations')
+        || !function_exists('pll_get_post_language')
+        || !function_exists('pll_languages_list')
     ) {
-        error_log("cdcf_enqueue_translations_for_submission: Polylang not active; skipping post {$en_post_id}.");
+        error_log("cdcf_enqueue_translations_for_submission: Polylang not active; skipping post {$source_post_id}.");
         return;
     }
 
-    $en_post = get_post($en_post_id);
-    if (!$en_post) {
-        error_log("cdcf_enqueue_translations_for_submission: Source post {$en_post_id} not found.");
+    $source_post = get_post($source_post_id);
+    if (!$source_post) {
+        error_log("cdcf_enqueue_translations_for_submission: Source post {$source_post_id} not found.");
         return;
     }
 
-    $target_langs = ['it', 'es', 'fr', 'pt', 'de'];
+    // Source language is whatever Polylang has assigned to this post —
+    // ES for a Spanish submission, IT for an Italian submission, etc.
+    // Fall back to the Polylang site default if the post has no
+    // language (e.g. submission flow forgot to call pll_set_post_language).
+    $source_lang = pll_get_post_language($source_post_id, 'slug') ?: '';
+    if (!$source_lang && function_exists('pll_default_language')) {
+        $source_lang = pll_default_language('slug') ?: '';
+    }
+    if (!$source_lang) {
+        error_log("cdcf_enqueue_translations_for_submission: Source post {$source_post_id} has no Polylang language and no default; aborting.");
+        return;
+    }
+
+    // Target = every configured language EXCEPT the source's own.
+    $all_langs = pll_languages_list(['fields' => 'slug']);
+    if (!is_array($all_langs) || empty($all_langs)) {
+        error_log("cdcf_enqueue_translations_for_submission: pll_languages_list returned no languages; aborting.");
+        return;
+    }
+    $target_langs = array_values(array_filter(
+        $all_langs,
+        static fn($l) => $l !== $source_lang
+    ));
+    if (empty($target_langs)) {
+        error_log("cdcf_enqueue_translations_for_submission: Only the source language is configured; nothing to translate.");
+        return;
+    }
 
     // Pre-seed the map from any existing group (handles partial re-runs
     // where some langs are already linked from a previous attempt).
-    $translations = pll_get_post_translations($en_post_id);
-    $translations['en'] = $en_post_id;
+    $translations = pll_get_post_translations($source_post_id);
+    $translations[$source_lang] = $source_post_id;
 
     error_log(sprintf(
-        'cdcf_enqueue_translations_for_submission: ENTER post_id=%d post_type=%s pre_seed_group=%s',
-        $en_post_id,
+        'cdcf_enqueue_translations_for_submission: ENTER post_id=%d post_type=%s source_lang=%s targets=[%s] pre_seed_group=%s',
+        $source_post_id,
         $post_type,
+        $source_lang,
+        implode(',', $target_langs),
         cdcf_format_lang_map($translations)
     ));
 
     // Phase 0: ensure attachment translations exist for the source's
     // featured_image. Without this, post-translation workers would
-    // either render the EN image (with EN alt-text / SEO regression) or
-    // get a null featuredImage from WPGraphQL on non-EN posts. Running
-    // before Phase 1 means by the time the worker handles each post
-    // translation, pll_get_post(thumbnail, lang) already returns the
-    // matching-language attachment sibling.
-    $source_thumbnail_id = (int) get_post_thumbnail_id($en_post_id);
+    // either render the source-lang image (with source-lang alt-text /
+    // SEO regression) or get a null featuredImage from WPGraphQL on
+    // other-language posts. Running before Phase 1 means by the time
+    // the worker handles each post translation, pll_get_post(thumbnail,
+    // lang) already returns the matching-language attachment sibling.
+    $source_thumbnail_id = (int) get_post_thumbnail_id($source_post_id);
     if ($source_thumbnail_id > 0) {
         cdcf_ensure_attachment_translations($source_thumbnail_id, $target_langs);
     }
@@ -128,11 +171,11 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
         $trans_id = wp_insert_post([
             'post_type'   => $post_type,
             'post_status' => 'draft',
-            'post_title'  => $en_post->post_title,
+            'post_title'  => $source_post->post_title,
         ]);
 
         if (is_wp_error($trans_id) || !$trans_id) {
-            error_log("cdcf_enqueue_translations_for_submission: Failed to create {$lang} sibling for post {$en_post_id}.");
+            error_log("cdcf_enqueue_translations_for_submission: Failed to create {$lang} sibling for post {$source_post_id}.");
             continue;
         }
 
@@ -143,7 +186,7 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
 
     error_log(sprintf(
         'cdcf_enqueue_translations_for_submission: PHASE_1_DONE post_id=%d newly_created=%s already_linked=%s',
-        $en_post_id,
+        $source_post_id,
         cdcf_format_lang_map($newly_created),
         cdcf_format_lang_map($already_linked)
     ));
@@ -152,7 +195,7 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
         // Nothing new to link or enqueue.
         error_log(sprintf(
             'cdcf_enqueue_translations_for_submission: NO_OP post_id=%d (all target langs already pre-seeded); exiting without group save.',
-            $en_post_id
+            $source_post_id
         ));
         return;
     }
@@ -162,7 +205,7 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
     if ($save_result === false) {
         error_log(sprintf(
             'cdcf_enqueue_translations_for_submission: PHASE_2_FAIL post_id=%d pll_save_post_translations returned false; rolling back %d draft(s): %s',
-            $en_post_id,
+            $source_post_id,
             count($newly_created),
             cdcf_format_lang_map($newly_created)
         ));
@@ -174,7 +217,7 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
 
     error_log(sprintf(
         'cdcf_enqueue_translations_for_submission: PHASE_2_OK post_id=%d atomic group save succeeded; final_group=%s',
-        $en_post_id,
+        $source_post_id,
         cdcf_format_lang_map($translations)
     ));
 
@@ -183,16 +226,16 @@ function cdcf_enqueue_translations_for_submission(int $en_post_id, string $post_
     $queue_name = function_exists('cdcf_enqueue_translation') ? 'redis' : 'wp-cron';
     foreach ($newly_created as $lang => $trans_id) {
         if (function_exists('cdcf_enqueue_translation')) {
-            cdcf_enqueue_translation($trans_id, $en_post_id, $lang);
+            cdcf_enqueue_translation($trans_id, $source_post_id, $lang);
         } else {
-            wp_schedule_single_event(time(), 'cdcf_async_translate', [$trans_id, $en_post_id, $lang]);
+            wp_schedule_single_event(time(), 'cdcf_async_translate', [$trans_id, $source_post_id, $lang]);
             spawn_cron();
         }
     }
 
     error_log(sprintf(
         'cdcf_enqueue_translations_for_submission: PHASE_3_DONE post_id=%d queued %d job(s) via %s: %s',
-        $en_post_id,
+        $source_post_id,
         count($newly_created),
         $queue_name,
         cdcf_format_lang_map($newly_created)
