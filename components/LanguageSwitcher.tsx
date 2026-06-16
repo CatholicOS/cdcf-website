@@ -3,18 +3,10 @@
 import { useLocale } from 'next-intl'
 import { useRouter, usePathname } from '@/src/i18n/navigation'
 import { locales, type Locale } from '@/src/i18n/routing'
+import { localeLabels } from '@/src/i18n/locale-labels'
 import { GlobeAltIcon } from '@heroicons/react/24/outline'
 import { useState, useRef, useEffect, useTransition } from 'react'
 import clsx from 'clsx'
-
-const localeLabels: Record<Locale, string> = {
-  en: 'English',
-  it: 'Italiano',
-  es: 'Espanol',
-  fr: 'Francais',
-  pt: 'Portugues',
-  de: 'Deutsch',
-}
 
 export default function LanguageSwitcher() {
   const locale = useLocale()

@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
+import { locales, type Locale } from '@/src/i18n/routing'
+import { localeLabels } from '@/src/i18n/locale-labels'
 
 interface SubmitProjectModalProps {
   buttonLabel: string
@@ -11,6 +13,8 @@ type Status = 'idle' | 'sending_code' | 'awaiting_code' | 'submitting' | 'succes
 
 export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalProps) {
   const t = useTranslations('projects')
+  const tc = useTranslations('common')
+  const currentLocale = useLocale() as Locale
   const dialogRef = useRef<HTMLDialogElement>(null)
   const openedAtRef = useRef<number>(0)
   const [formData, setFormData] = useState<{ fields: Record<string, string>; repoUrls: string[]; tags: string[] }>({
@@ -67,6 +71,7 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
       category: data.get('category') as string,
       description: data.get('description') as string,
       url: data.get('url') as string,
+      language: data.get('language') as string,
       submitter_name: data.get('submitter_name') as string,
       submitter_email: data.get('submitter_email') as string,
       website: data.get('website') as string,
@@ -306,6 +311,25 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
                     tabIndex={-1}
                     autoComplete="off"
                   />
+                </div>
+
+                <div>
+                  <label htmlFor="sp_language" className="block text-sm font-medium text-gray-700">
+                    {tc('submissionLanguage')} <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="sp_language"
+                    name="language"
+                    defaultValue={formData.fields.language || currentLocale}
+                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
+                  >
+                    {locales.map((loc) => (
+                      <option key={loc} value={loc}>
+                        {localeLabels[loc]}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">{tc('submissionLanguageHint')}</p>
                 </div>
 
                 <div>

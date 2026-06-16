@@ -74,7 +74,9 @@
     "error": "Algo deu errado",
     "notFound": "Página não encontrada",
     "search": "Pesquisar",
-    "language": "Idioma"
+    "language": "Idioma",
+    "submissionLanguage": "Idioma do conte\u00fado",
+    "submissionLanguageHint": "Escreva sua submiss\u00e3o em qualquer um dos 6 idiomas suportados. Traduziremos automaticamente para os outros 5."
   },
   "hero": {
     "defaultTagline": "Catholic Digital Commons Foundation",

@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
         location: body.location || '',
         url: body.url,
         description: body.description,
+        language: typeof body.language === 'string' ? body.language : '',
         submitter_name: body.submitter_name,
         submitter_email: body.submitter_email,
         verification_code: body.verification_code || '',

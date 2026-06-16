@@ -74,7 +74,9 @@
     "error": "Qualcosa è andato storto",
     "notFound": "Pagina non trovata",
     "search": "Cerca",
-    "language": "Lingua"
+    "language": "Lingua",
+    "submissionLanguage": "Lingua del contenuto",
+    "submissionLanguageHint": "Scrivi la tua candidatura in una qualsiasi delle 6 lingue supportate. La tradurremo automaticamente nelle altre 5."
   },
   "hero": {
     "defaultTagline": "Catholic Digital Commons Foundation",
