@@ -4,6 +4,17 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Group co-coupled packages so per-package PRs don't fail npm install
+    # on peer-dependency conflicts. Concrete failure that motivated this:
+    # @tiptap/pm@3.26.1 and @tiptap/starter-kit@3.26.1 individually
+    # conflict with @tiptap/react@3.26.0's peer-dep requirement on
+    # @tiptap/core@3.26.0 (npm ERESOLVE) — but bumped together they
+    # install cleanly. PRs #211 and #213 sat open with failing CI for
+    # this reason.
+    groups:
+      tiptap:
+        patterns:
+          - "@tiptap/*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
