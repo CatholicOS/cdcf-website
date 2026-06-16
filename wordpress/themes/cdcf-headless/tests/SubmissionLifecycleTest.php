@@ -55,6 +55,13 @@ final class SubmissionLifecycleTest extends TestCase
         // tests that don't care about featured-image translation get a
         // default of 0 (no thumbnail = Phase 0 is a no-op).
         Functions\when('get_post_thumbnail_id')->justReturn(0);
+        // Source-language detection (PR following #227): the function
+        // resolves source_lang via pll_get_post_language and the target
+        // set via pll_languages_list rather than hardcoding 'en'. Default
+        // both to the EN-source shape so existing EN-source tests stay
+        // green; tests for non-EN sources override these.
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('pll_languages_list')->justReturn(['en', 'it', 'es', 'fr', 'pt', 'de']);
     }
 
     private function allowAllFunctionsToExist(): void
@@ -286,6 +293,8 @@ final class SubmissionLifecycleTest extends TestCase
         Functions\when('pll_set_post_language')->justReturn(true);
         Functions\when('pll_save_post_translations')->justReturn(true);
         Functions\when('pll_get_post_translations')->justReturn([]);
+        Functions\when('pll_get_post_language')->justReturn('en');
+        Functions\when('pll_languages_list')->justReturn(['en', 'it', 'es', 'fr', 'pt', 'de']);
         Functions\when('get_post')->justReturn($this->fakePost(['ID' => 42]));
         Functions\when('wp_insert_post')->justReturn(200);
         // Phase 0 (PR #208): no thumbnail on the source → skip attachment
@@ -366,6 +375,67 @@ final class SubmissionLifecycleTest extends TestCase
             ['en' => 42, 'it' => 200, 'es' => 201, 'fr' => 202, 'pt' => 203, 'de' => 204],
             $saves[0],
             'the single save must carry the complete 6-language map'
+        );
+    }
+
+    public function test_enqueue_translations_uses_dynamic_source_language_for_non_english_source(): void
+    {
+        // Regression guard for the hardcoded-EN bug observed on production
+        // 2026-06-16: community_project 1534 was submitted in Spanish; the
+        // publish hook created siblings for IT/FR/PT/DE only (NOT EN — the
+        // user's expected target) and the Polylang group came out empty
+        // because pll_save_post_translations was handed {en: 1534, ...} —
+        // the source post was mis-keyed as the EN translation, so Polylang
+        // rejected the malformed map.
+        //
+        // The function must derive source_lang from pll_get_post_language
+        // and target_langs from pll_languages_list, treating any of the 6
+        // languages as a possible submission source.
+        $this->stubCommonFunctions();
+        Functions\when('pll_get_post_language')->justReturn('es');
+        Functions\when('get_post')->justReturn($this->fakePost([
+            'ID'         => 42,
+            'post_title' => 'Enciclopedia Católica',
+            'post_type'  => 'community_project',
+        ]));
+
+        $counter = 199;
+        Functions\when('wp_insert_post')->alias(
+            function () use (&$counter): int {
+                $counter++;
+                return $counter;
+            }
+        );
+
+        $saves = [];
+        Functions\when('pll_save_post_translations')->alias(
+            function (array $map) use (&$saves): bool {
+                $saves[] = $map;
+                return true;
+            }
+        );
+
+        $enqueued = [];
+        Functions\when('cdcf_enqueue_translation')->alias(
+            function (int $post_id, int $source_id, string $lang) use (&$enqueued): string {
+                $enqueued[$lang] = $post_id;
+                return 'redis';
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        cdcf_enqueue_translations_for_submission(42, 'community_project');
+
+        $this->assertCount(1, $saves, 'pll_save_post_translations must be called exactly once');
+        $this->assertSame(
+            ['es' => 42, 'en' => 200, 'it' => 201, 'fr' => 202, 'pt' => 203, 'de' => 204],
+            $saves[0],
+            'the source post must be keyed under its actual language (es), and the 5 freshly-created siblings must cover the other 5 languages — INCLUDING en, which the old hardcoded ["it","es","fr","pt","de"] target list silently dropped.'
+        );
+        $this->assertSame(
+            ['en' => 200, 'it' => 201, 'fr' => 202, 'pt' => 203, 'de' => 204],
+            $enqueued,
+            'every non-source language must be enqueued for translation, and the source language (es) must NOT be re-enqueued against itself.'
         );
     }
 
