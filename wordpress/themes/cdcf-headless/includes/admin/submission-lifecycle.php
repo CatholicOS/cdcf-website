@@ -456,6 +456,18 @@ function cdcf_repend_submission_on_untrash($new_status, $old_status, $post): voi
  * Only acts on the English source post — when the worker promotes
  * a translation sibling to publish, this hook fires again, but
  * there's nothing more to enqueue at that point.
+ *
+ * The actual enqueue work is deferred to `shutdown` rather than run
+ * synchronously here. Running it inline puts our nested wp_insert_post
+ * + pll_save_post_translations calls inside Polylang's own save_post
+ * chain for the source post (and each freshly-inserted draft), where
+ * the multi-post group save silently fails to persist. Observed on
+ * production 2026-06-16: FamilyGraph submission 1381 was published
+ * with EN/IT/ES/FR/PT/DE siblings created and worker-translated, but
+ * the Polylang translation group came out empty on all six posts and
+ * Phase 0's attachment translation siblings were never created. The
+ * identical pll_save_post_translations call from outside the save
+ * chain (via /cdcf/v1/link-translations) persisted on the first try.
  */
 function cdcf_enqueue_translations_on_publish($new_status, $old_status, $post): void {
     if ($new_status === $old_status) {
@@ -480,7 +492,10 @@ function cdcf_enqueue_translations_on_publish($new_status, $old_status, $post): 
         return;
     }
 
-    cdcf_enqueue_translations_for_submission($source_id, $post->post_type);
+    $post_type = $post->post_type;
+    add_action('shutdown', static function () use ($source_id, $post_type): void {
+        cdcf_enqueue_translations_for_submission($source_id, $post_type);
+    });
 }
 
 /**

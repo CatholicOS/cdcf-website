@@ -886,14 +886,35 @@ final class SubmissionLifecycleTest extends TestCase
         $this->assertTrue(true);
     }
 
-    public function test_publish_hook_enqueues_translations_for_public_submission(): void
+    public function test_publish_hook_defers_enqueue_to_shutdown_for_public_submission(): void
     {
+        // The publish hook MUST defer cdcf_enqueue_translations_for_submission to
+        // the `shutdown` action — running it synchronously inside
+        // transition_post_status puts our pll_save_post_translations call inside
+        // Polylang's own nested save_post chain for the source post + each
+        // freshly-inserted draft, which silently drops the multi-post group save.
+        //
+        // Observed in production 2026-06-16: FamilyGraph submission 1381 was
+        // published with EN/IT/ES/FR/PT/DE siblings created and worker-translated,
+        // but the Polylang group came out empty on all six posts AND Phase 0's
+        // attachment translation siblings were never created. Re-running the
+        // identical pll_save_post_translations call from outside the save chain
+        // (via /cdcf/v1/link-translations) persisted on the first attempt.
         $this->stubCommonFunctions();
         Functions\when('pll_get_post')->justReturn(0); // self-source
         Functions\when('get_post_meta')->alias(
             static fn(int $id, string $key) => $key === '_submission_submitter_email'
                 ? 'user@example.com'
                 : ''
+        );
+
+        $shutdownCallback = null;
+        Functions\when('add_action')->alias(
+            function (string $hook, callable $cb) use (&$shutdownCallback): void {
+                if ($hook === 'shutdown') {
+                    $shutdownCallback = $cb;
+                }
+            }
         );
 
         $enqueueCall = null;
@@ -906,6 +927,20 @@ final class SubmissionLifecycleTest extends TestCase
 
         cdcf_enqueue_translations_on_publish('publish', 'draft', $this->fakePost());
 
+        // Synchronously: NOT called.
+        $this->assertNull(
+            $enqueueCall,
+            'cdcf_enqueue_translations_for_submission must NOT be invoked synchronously inside transition_post_status — it must be deferred to the `shutdown` action so Polylang\'s save_post chain settles first.'
+        );
+
+        // A shutdown callback was registered.
+        $this->assertNotNull(
+            $shutdownCallback,
+            'cdcf_enqueue_translations_on_publish must call add_action(\'shutdown\', $callback) to defer the enqueue out of the post-save chain.'
+        );
+
+        // Driving the deferred callback fires the enqueue with the source post's args.
+        $shutdownCallback();
         $this->assertSame([100, 'project'], $enqueueCall);
     }
 
