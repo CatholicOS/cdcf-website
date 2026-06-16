@@ -316,6 +316,19 @@ require_once __DIR__ . '/includes/admin/polylang-default-seed.php';
 
 add_action('admin_init', 'cdcf_seed_polylang_default_language');
 
+// ─── Polylang: make the "Change language" dialog mobile-responsive ──
+//
+// Polylang's confirmation dialog (a jQuery UI dialog) overflows small
+// viewports and pushes its OK/Cancel buttons off-screen with no way to
+// scroll to them. Enqueue a small inline admin stylesheet that pins the
+// dialog into the viewport and lets its body scroll. Hook body lives in
+// includes/admin/polylang-dialog-responsive.php so it can be unit-tested
+// in isolation (Brain Monkey + Mockery).
+
+require_once __DIR__ . '/includes/admin/polylang-dialog-responsive.php';
+
+add_action('admin_enqueue_scripts', 'cdcf_enqueue_polylang_dialog_responsive_css');
+
 // ─── Register ACF fields as REST-writable post meta ─────────────────
 //
 // ACF Free exposes fields for reading via show_in_rest but doesn't

@@ -216,6 +216,7 @@ if (!defined('CDCF_ZITADEL_EXPECTED_AUD')) {
 require_once __DIR__ . '/../includes/auth/zitadel-bearer.php';
 require_once __DIR__ . '/../includes/admin/team-member-council.php';
 require_once __DIR__ . '/../includes/admin/polylang-default-seed.php';
+require_once __DIR__ . '/../includes/admin/polylang-dialog-responsive.php';
 require_once __DIR__ . '/../includes/admin/ai-translate.php';
 require_once __DIR__ . '/../includes/admin/submission-lifecycle.php';
 require_once __DIR__ . '/../includes/admin/term-propagation.php';
