@@ -117,6 +117,7 @@ final class SubmissionLifecycleTest extends TestCase
     public function test_is_public_submission_true_when_submission_email_present(): void
     {
         Functions\when('pll_get_post')->justReturn(0);
+        Functions\when('pll_get_post_translations')->justReturn([]);
         Functions\when('get_post_meta')->alias(
             static fn(int $id, string $key) => $key === '_submission_submitter_email'
                 ? 'user@example.com'
@@ -130,6 +131,7 @@ final class SubmissionLifecycleTest extends TestCase
     public function test_is_public_submission_true_when_referral_email_present(): void
     {
         Functions\when('pll_get_post')->justReturn(0);
+        Functions\when('pll_get_post_translations')->justReturn([]);
         Functions\when('get_post_meta')->alias(
             static fn(int $id, string $key) => $key === '_referral_submitter_email'
                 ? 'referrer@example.com'
@@ -143,35 +145,55 @@ final class SubmissionLifecycleTest extends TestCase
     public function test_is_public_submission_false_when_no_submitter_meta(): void
     {
         Functions\when('pll_get_post')->justReturn(0);
+        Functions\when('pll_get_post_translations')->justReturn([]);
         Functions\when('get_post_meta')->justReturn('');
         $this->allowAllFunctionsToExist();
 
         $this->assertFalse(cdcf_is_public_submission(42));
     }
 
-    public function test_is_public_submission_resolves_translation_to_source_via_polylang(): void
+    public function test_is_public_submission_true_when_any_sibling_in_the_polylang_group_carries_submitter_meta(): void
     {
-        // Called with translation ID 99; source is 42; meta on 42 says
-        // public submission. The function should return true.
+        // Walk the full Polylang group rather than the (EN-hardcoded) source
+        // returned by cdcf_get_source_post_id(). A Spanish public submission
+        // carries the submitter meta on the ES post itself; the auto-translated
+        // EN sibling has no meta. The submission still has to be treated as
+        // public when the hook fires for ANY sibling (including the EN one).
+        //
+        // Production occurrence 2026-06-16: community_project 1534 was submitted
+        // in Spanish with referral meta on 1534. After publish, the worker
+        // promoted EN sibling 1556 to publish, transition_post_status fired
+        // for 1556, the helper walked to 1556 (already the EN sibling) and
+        // saw no submitter meta — so cdcf_link_referral_on_publish bailed and
+        // 1556 was never appended to the EN /projects page's community_projects
+        // field.
+        $group = ['en' => 200, 'it' => 201, 'es' => 100, 'fr' => 202, 'pt' => 203, 'de' => 204];
         Functions\when('pll_get_post')->alias(
-            static fn(int $id, string $lang) => $id === 99 && $lang === 'en' ? 42 : 0
+            static fn(int $id, string $lang) => $group[$lang] ?? 0
         );
-        $metaCalls = [];
+        Functions\when('pll_get_post_translations')->alias(
+            static fn(int $id) => in_array($id, $group, true) ? $group : []
+        );
         Functions\when('get_post_meta')->alias(
-            function (int $id, string $key) use (&$metaCalls): string {
-                $metaCalls[] = $id;
-                return $id === 42 && $key === '_submission_submitter_email'
-                    ? 'user@example.com'
-                    : '';
-            }
+            static fn(int $id, string $key) =>
+                $id === 100 && $key === '_referral_submitter_email'
+                    ? 'submitter@example.com'
+                    : ''
         );
         $this->allowAllFunctionsToExist();
 
-        $this->assertTrue(cdcf_is_public_submission(99));
-        // Meta reads should target the resolved source (42), not the
-        // translation (99).
-        $this->assertContains(42, $metaCalls);
-        $this->assertNotContains(99, $metaCalls);
+        $this->assertTrue(
+            cdcf_is_public_submission(200),
+            'Calling with the EN sibling (200) must still recognize the submission as public — the submitter meta lives on the ES original (100) in the same Polylang group.'
+        );
+        $this->assertTrue(
+            cdcf_is_public_submission(204),
+            'Calling with any other sibling (e.g. DE 204) must also recognize the submission as public.'
+        );
+        $this->assertTrue(
+            cdcf_is_public_submission(100),
+            'Calling with the source post itself (100) must recognize the submission as public — this is the simple legacy path.'
+        );
     }
 
     // ─── cdcf_enqueue_translations_for_submission ─────────────────────
