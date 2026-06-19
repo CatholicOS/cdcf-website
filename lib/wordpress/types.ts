@@ -187,6 +187,8 @@ export interface WPPage {
   databaseId: number
   title: string
   slug: string
+  /** Real Polylang uri (locale-prefixed, e.g. "/it/about-2/"); the page's one canonical path. */
+  uri: string
   content: string | null
   template: {
     templateName: string

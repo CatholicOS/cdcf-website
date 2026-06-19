@@ -617,7 +617,7 @@ describe('getChildPages error path', () => {
 })
 
 describe('getChildPages mapping', () => {
-  it('uses node slug as enSlug when locale is EN', async () => {
+  it('returns the node slug for the default locale', async () => {
     wpQueryMock.mockResolvedValueOnce({
       pages: {
         nodes: [
@@ -625,18 +625,20 @@ describe('getChildPages mapping', () => {
             title: 'Standards',
             slug: 'standards',
             modified: '2026-04-01',
-            translations: [{ language: { code: 'IT' }, slug: 'standard' }],
           },
         ],
       },
     })
 
     const [page] = await getChildPages(123, 'en')
-    expect(page.enSlug).toBe('standards')
+    expect(page.slug).toBe('standards')
     expect(page.title).toBe('Standards')
   })
 
-  it('uses the EN translation slug when locale is not EN', async () => {
+  it('returns the localized slug for a non-default locale', async () => {
+    // The query filters children by language, so node.slug is already the
+    // requested locale's slug — no EN reconversion (that bred cross-language
+    // TOC links like /it/governance-2/research).
     wpQueryMock.mockResolvedValueOnce({
       pages: {
         nodes: [
@@ -644,31 +646,12 @@ describe('getChildPages mapping', () => {
             title: 'Standard',
             slug: 'standard',
             modified: '2026-04-01',
-            translations: [{ language: { code: 'EN' }, slug: 'standards' }],
           },
         ],
       },
     })
 
     const [page] = await getChildPages(123, 'it')
-    expect(page.enSlug).toBe('standards')
-  })
-
-  it('falls back to node slug when no EN translation exists', async () => {
-    wpQueryMock.mockResolvedValueOnce({
-      pages: {
-        nodes: [
-          {
-            title: 'Standard',
-            slug: 'standard',
-            modified: '2026-04-01',
-            translations: [],
-          },
-        ],
-      },
-    })
-
-    const [page] = await getChildPages(123, 'it')
-    expect(page.enSlug).toBe('standard')
+    expect(page.slug).toBe('standard')
   })
 })

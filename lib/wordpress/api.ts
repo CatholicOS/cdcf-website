@@ -515,7 +515,8 @@ export async function getAcademicCollaborationsForSitemap(
 
 export interface WPChildPage {
   title: string
-  enSlug: string
+  /** Localized child slug (already in the requested locale via the language filter). */
+  slug: string
   modified: string
 }
 
@@ -523,7 +524,6 @@ interface RawChildPage {
   title: string
   slug: string
   modified: string
-  translations?: { language: { code: string }; slug: string }[]
 }
 
 export async function getChildPages(
@@ -536,13 +536,15 @@ export async function getChildPages(
       pages: { nodes: RawChildPage[] }
     }>(GET_CHILD_PAGES, { parentId: parentDatabaseId, language: langCode(locale) }, options)
 
-    return data.pages.nodes.map((node) => {
-      const enSlug =
-        locale === 'en'
-          ? node.slug
-          : node.translations?.find((t) => t.language.code === 'EN')?.slug ?? node.slug
-      return { title: node.title, enSlug, modified: node.modified }
-    })
+    // The query filters children by the requested language, so node.slug is
+    // already the localized slug. Using it (with the localized parent path)
+    // keeps TOC links same-language — emitting the EN slug here produced
+    // cross-language URLs like /it/governance-2/research (GSC duplicates).
+    return data.pages.nodes.map((node) => ({
+      title: node.title,
+      slug: node.slug,
+      modified: node.modified,
+    }))
   } catch (error) {
     console.error('Failed to fetch child pages:', error)
     return []
