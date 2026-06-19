@@ -76,7 +76,9 @@
     "search": "Suchen",
     "language": "Sprache",
     "submissionLanguage": "Inhaltssprache",
-    "submissionLanguageHint": "Verfassen Sie Ihre Einreichung in einer der 6 unterst\u00fctzten Sprachen. Wir \u00fcbersetzen sie automatisch in die anderen 5."
+    "submissionLanguageHint": "Verfassen Sie Ihre Einreichung in einer der 6 unterst\u00fctzten Sprachen. Wir \u00fcbersetzen sie automatisch in die anderen 5.",
+    "descriptionWordCount": "{words} W\u00f6rter \u00b7 {chars} Zeichen",
+    "descriptionTruncatedHint": "Ab {limit} W\u00f6rtern werden Beschreibungen in Vorschau-Karten gek\u00fcrzt"
   },
   "hero": {
     "defaultTagline": "Catholic Digital Commons Foundation",

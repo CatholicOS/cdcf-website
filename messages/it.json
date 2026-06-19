@@ -76,7 +76,9 @@
     "search": "Cerca",
     "language": "Lingua",
     "submissionLanguage": "Lingua del contenuto",
-    "submissionLanguageHint": "Scrivi la tua candidatura in una qualsiasi delle 6 lingue supportate. La tradurremo automaticamente nelle altre 5."
+    "submissionLanguageHint": "Scrivi la tua candidatura in una qualsiasi delle 6 lingue supportate. La tradurremo automaticamente nelle altre 5.",
+    "descriptionWordCount": "{words} parole \u00b7 {chars} caratteri",
+    "descriptionTruncatedHint": "Oltre {limit} parole le descrizioni vengono troncate nelle anteprime"
   },
   "hero": {
     "defaultTagline": "Catholic Digital Commons Foundation",

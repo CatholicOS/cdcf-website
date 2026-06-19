@@ -76,7 +76,9 @@
     "search": "Rechercher",
     "language": "Langue",
     "submissionLanguage": "Langue du contenu",
-    "submissionLanguageHint": "R\u00e9digez votre soumission dans l'une des 6 langues prises en charge. Nous la traduirons automatiquement vers les 5 autres."
+    "submissionLanguageHint": "R\u00e9digez votre soumission dans l'une des 6 langues prises en charge. Nous la traduirons automatiquement vers les 5 autres.",
+    "descriptionWordCount": "{words} mots \u00b7 {chars} caract\u00e8res",
+    "descriptionTruncatedHint": "Au-del\u00e0 de {limit} mots les descriptions sont tronqu\u00e9es dans les cartes d'aper\u00e7u"
   },
   "hero": {
     "defaultTagline": "Catholic Digital Commons Foundation",

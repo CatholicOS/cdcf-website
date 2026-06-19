@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { locales, type Locale } from '@/src/i18n/routing'
 import { localeLabels } from '@/src/i18n/locale-labels'
+import DescriptionField from '@/components/sections/DescriptionField'
 
 interface ReferLocalGroupModalProps {
   buttonLabel: string
@@ -358,7 +359,8 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                   <label htmlFor="description" className="block text-sm font-medium text-gray-700">
                     {t('fieldDescription')} <span className="text-red-500">*</span>
                   </label>
-                  <textarea
+                  <DescriptionField
+                    key={formKey}
                     id="description"
                     name="description"
                     required
