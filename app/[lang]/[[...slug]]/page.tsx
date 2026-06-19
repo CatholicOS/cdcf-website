@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import { setRequestLocale } from 'next-intl/server'
 import { getPage, getPagePreview, getPostBySlug, getPosts, getProjects, getSponsors, getChildPages } from '@/lib/wordpress/api'
+import { canonicalAbsoluteUrl, canonicalRedirectPath } from '@/lib/canonical'
 import { getPreviewTarget, previewMatchesSlug } from '@/lib/wordpress/preview'
 import PageRenderer from '@/components/sections/PageRenderer'
 
@@ -10,11 +11,6 @@ interface PageProps {
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://catholicdigitalcommons.org'
-
-/** Locale-aware absolute URL (default locale has no prefix). */
-function absoluteUrl(lang: string, path: string): string {
-  return `${SITE_URL}/${lang === 'en' ? '' : `${lang}/`}${path}`
-}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { lang, slug } = await params
@@ -28,9 +24,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: page.title,
     alternates: {
-      // Self-referencing canonical so locale variants aren't treated as
-      // duplicates without a user-selected canonical (GSC indexing fix).
-      canonical: absoluteUrl(lang, slug?.join('/') ?? ''),
+      // Canonical = the page's real Polylang uri, NOT the requested URL.
+      // WPGraphQL resolves a page by leaf slug regardless of language, so a
+      // request like /it/about (or /it/governance-2/research) renders the IT
+      // page whose true URL is /it/about-2 (or /it/governance-2/ricerca).
+      // Pointing canonical at page.uri tells Google the one true URL; the
+      // catch-all also 308-redirects non-canonical requests there.
+      canonical: canonicalAbsoluteUrl(SITE_URL, page.uri),
     },
   }
 }
@@ -53,6 +53,19 @@ export default async function CatchAllPage({ params }: PageProps) {
 
   if (!page) {
     notFound()
+  }
+
+  // WPGraphQL resolves a page by leaf slug regardless of language, so a
+  // cross-language URL (e.g. /it/about, /it/governance-2/research, or the
+  // English-fallback /it/<en-only-slug>) renders content whose true URL is
+  // page.uri. Those duplicates are what GSC flags as "duplicate, no
+  // user-selected canonical". 308-redirect to the one canonical URL.
+  // Skipped in preview (drafts have no public uri and are looked up by id).
+  if (!usePreview) {
+    const redirectTo = canonicalRedirectPath(lang, slug, page.uri)
+    if (redirectTo) {
+      permanentRedirect(redirectTo)
+    }
   }
 
   const template = page.template?.templateName || 'Default'

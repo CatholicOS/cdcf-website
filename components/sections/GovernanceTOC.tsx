@@ -37,8 +37,8 @@ export default function GovernanceTOC({
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {pages.map((page) => (
             <Link
-              key={page.enSlug}
-              href={`${base}/${page.enSlug}`}
+              key={page.slug}
+              href={`${base}/${page.slug}`}
               className="group rounded-lg border border-gray-200 p-6 transition-all hover:border-cdcf-gold hover:shadow-md"
             >
               <h3 className="font-serif text-lg font-bold text-cdcf-navy transition-colors group-hover:text-cdcf-gold">

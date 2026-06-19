@@ -198,6 +198,7 @@ const PAGE_FIELDS = `
   databaseId
   title
   slug
+  uri
   content
   template {
     templateName
@@ -523,10 +524,6 @@ export const GET_CHILD_PAGES = `
         title
         slug
         modified
-        translations {
-          language { code }
-          slug
-        }
       }
     }
   }
