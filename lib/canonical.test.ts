@@ -68,4 +68,10 @@ describe('canonicalAbsoluteUrl', () => {
       canonicalAbsoluteUrl('https://catholicdigitalcommons.org', '/')
     ).toBe('https://catholicdigitalcommons.org/')
   })
+
+  it('does not double the slash when siteUrl has a trailing slash', () => {
+    expect(
+      canonicalAbsoluteUrl('https://catholicdigitalcommons.org/', '/it/about-2/')
+    ).toBe('https://catholicdigitalcommons.org/it/about-2')
+  })
 })

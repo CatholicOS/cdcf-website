@@ -34,5 +34,7 @@ export function canonicalRedirectPath(
 
 /** Build an absolute canonical URL from a site origin and a page `uri`. */
 export function canonicalAbsoluteUrl(siteUrl: string, pageUri: string): string {
-  return `${siteUrl}/${trimSlashes(pageUri)}`
+  // Trim both sides so a trailing slash on siteUrl (e.g. a NEXT_PUBLIC_SITE_URL
+  // set as "https://…org/") doesn't produce a double slash in the canonical.
+  return `${trimSlashes(siteUrl)}/${trimSlashes(pageUri)}`
 }
