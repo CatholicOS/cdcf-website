@@ -76,7 +76,9 @@
     "search": "Search",
     "language": "Language",
     "submissionLanguage": "Content language",
-    "submissionLanguageHint": "Write your submission in any of the 6 supported languages. We'll auto-translate to the other 5."
+    "submissionLanguageHint": "Write your submission in any of the 6 supported languages. We'll auto-translate to the other 5.",
+    "descriptionWordCount": "{words} words \u00b7 {chars} chars",
+    "descriptionTruncatedHint": "Beyond {limit} words descriptions get truncated in preview cards"
   },
   "hero": {
     "defaultTagline": "Catholic Digital Commons Foundation",

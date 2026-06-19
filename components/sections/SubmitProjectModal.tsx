@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { locales, type Locale } from '@/src/i18n/routing'
 import { localeLabels } from '@/src/i18n/locale-labels'
+import DescriptionWordCount from '@/components/sections/DescriptionWordCount'
 
 interface SubmitProjectModalProps {
   buttonLabel: string
@@ -29,6 +30,15 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
   const [repoUrls, setRepoUrls] = useState<string[]>([''])
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
+  // Live description value mirrored from the textarea so the word
+  // counter can color-code as the submitter types.
+  const [description, setDescription] = useState('')
+  // Re-sync the counter when the form remounts (formKey bump on open
+  // or back-from-verify) so the counter matches the textarea's
+  // defaultValue rather than carrying stale state.
+  useEffect(() => {
+    setDescription(formData.fields.description ?? '')
+  }, [formKey, formData.fields.description])
 
   const openDialog = useCallback(() => {
     setStatus('idle')
@@ -421,9 +431,11 @@ export default function SubmitProjectModal({ buttonLabel }: SubmitProjectModalPr
                     required
                     rows={3}
                     defaultValue={formData.fields.description}
+                    onChange={(e) => setDescription(e.target.value)}
                     placeholder={t('fieldDescriptionPlaceholder')}
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
+                  <DescriptionWordCount value={description} />
                 </div>
 
                 <div>
