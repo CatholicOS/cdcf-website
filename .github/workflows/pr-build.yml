@@ -48,7 +48,7 @@ jobs:
       # Scope the glob to our actual source trees so the key is stable across
       # dep updates (npm install retains the lock-hash component of the key).
       - name: Cache Next.js build
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         with:
           path: .next/cache
           key: nextjs-pr-${{ hashFiles('package-lock.json') }}-${{ hashFiles('app/**/*.{ts,tsx,css}', 'lib/**/*.{ts,tsx,css}', 'src/**/*.{ts,tsx,css}', 'components/**/*.{ts,tsx,css}', 'css/**/*.{ts,tsx,css}', 'messages/**/*.json', '*.ts', '*.mjs', 'tsconfig.json') }}
