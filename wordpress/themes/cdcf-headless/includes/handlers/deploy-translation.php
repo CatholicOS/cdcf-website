@@ -16,6 +16,10 @@ if (defined('ABSPATH') === false) {
 }
 
 function cdcf_rest_deploy_translation(WP_REST_Request $request) {
+    // Best-effort side-effect failures after the post exists (orphaned-child
+    // re-parenting); the primary success signal (post_id) is unchanged.
+    $errors = [];
+
     $source_id   = intval($request['source_id'] ?? 0);
     $target_lang = sanitize_text_field($request['target_lang'] ?? '');
     $title       = sanitize_text_field($request['title'] ?? '');
@@ -81,11 +85,14 @@ function cdcf_rest_deploy_translation(WP_REST_Request $request) {
 
         // Children translated before this parent existed were created
         // parentless — adopt them now that the parent translation exists.
-        cdcf_reparent_orphaned_child_translations($source, (int) $post_id, $target_lang);
+        // Failures are best-effort errors, surfaced in the response.
+        $reparent = cdcf_reparent_orphaned_child_translations($source, (int) $post_id, $target_lang);
+        $errors   = array_merge($errors, $reparent['errors']);
     }
 
     return rest_ensure_response([
         'post_id' => $post_id,
         'message' => 'Translation deployed.',
+        'errors'  => $errors,
     ]);
 }

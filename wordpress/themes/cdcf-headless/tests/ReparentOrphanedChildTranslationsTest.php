@@ -65,7 +65,8 @@ final class ReparentOrphanedChildTranslationsTest extends TestCase
 
         $result = cdcf_reparent_orphaned_child_translations($this->makeSource(), 1151, 'it');
 
-        $this->assertSame([1132, 1137], $result);
+        $this->assertSame([1132, 1137], $result['reparented']);
+        $this->assertSame([], $result['errors']);
         $this->assertSame([
             ['ID' => 1132, 'post_parent' => 1151],
             ['ID' => 1137, 'post_parent' => 1151],
@@ -86,7 +87,7 @@ final class ReparentOrphanedChildTranslationsTest extends TestCase
 
         $result = cdcf_reparent_orphaned_child_translations($this->makeSource(), 1151, 'it');
 
-        $this->assertSame([], $result);
+        $this->assertSame(['reparented' => [], 'errors' => []], $result);
     }
 
     public function test_skips_children_without_a_target_language_translation(): void
@@ -101,7 +102,7 @@ final class ReparentOrphanedChildTranslationsTest extends TestCase
 
         $result = cdcf_reparent_orphaned_child_translations($this->makeSource(), 1151, 'it');
 
-        $this->assertSame([], $result);
+        $this->assertSame(['reparented' => [], 'errors' => []], $result);
     }
 
     public function test_noop_for_non_hierarchical_post_types(): void
@@ -120,7 +121,7 @@ final class ReparentOrphanedChildTranslationsTest extends TestCase
             'it'
         );
 
-        $this->assertSame([], $result);
+        $this->assertSame(['reparented' => [], 'errors' => []], $result);
     }
 
     public function test_noop_when_polylang_missing(): void
@@ -133,7 +134,7 @@ final class ReparentOrphanedChildTranslationsTest extends TestCase
 
         $result = cdcf_reparent_orphaned_child_translations($this->makeSource(), 1151, 'it');
 
-        $this->assertSame([], $result);
+        $this->assertSame(['reparented' => [], 'errors' => []], $result);
     }
 
     public function test_failed_update_is_not_reported_as_reparented(): void
@@ -150,6 +151,10 @@ final class ReparentOrphanedChildTranslationsTest extends TestCase
 
         $result = cdcf_reparent_orphaned_child_translations($this->makeSource(), 1151, 'it');
 
-        $this->assertSame([], $result);
+        $this->assertSame([], $result['reparented']);
+        $this->assertSame(
+            ['Failed to re-parent orphaned child translation 1132 under 1151.'],
+            $result['errors']
+        );
     }
 }

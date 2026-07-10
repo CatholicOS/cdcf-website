@@ -74,11 +74,14 @@ function cdcf_translate_link_under_lock(int $source_id, string $target_lang, int
  * @param object $source      The already-loaded source post (WP_Post-shaped).
  * @param int    $new_post_id The just-created translation of $source.
  * @param string $target_lang Polylang language slug of the new translation.
- * @return int[] IDs of the child translations that were re-parented.
+ * @return array{reparented:array<int,int>,errors:array<int,string>} IDs of the
+ *         child translations that were re-parented, plus a message per child
+ *         whose re-parenting failed (surfaced by callers alongside the other
+ *         best-effort errors, same as the attachment-plumbing failures).
  */
 function cdcf_reparent_orphaned_child_translations($source, int $new_post_id, string $target_lang): array {
     if (!function_exists('pll_get_post') || !is_post_type_hierarchical($source->post_type)) {
-        return [];
+        return ['reparented' => [], 'errors' => []];
     }
 
     $child_ids = get_posts([
@@ -90,6 +93,7 @@ function cdcf_reparent_orphaned_child_translations($source, int $new_post_id, st
     ]);
 
     $reparented = [];
+    $errors     = [];
     foreach ($child_ids as $child_id) {
         $child_translation = (int) pll_get_post((int) $child_id, $target_lang);
         if (!$child_translation || $child_translation === $new_post_id) {
@@ -101,9 +105,11 @@ function cdcf_reparent_orphaned_child_translations($source, int $new_post_id, st
         $updated = wp_update_post(['ID' => $child_translation, 'post_parent' => $new_post_id]);
         if (!is_wp_error($updated) && $updated) {
             $reparented[] = $child_translation;
+        } else {
+            $errors[] = "Failed to re-parent orphaned child translation {$child_translation} under {$new_post_id}.";
         }
     }
-    return $reparented;
+    return ['reparented' => $reparented, 'errors' => $errors];
 }
 
 /**
@@ -189,7 +195,9 @@ function cdcf_enqueue_post_translation(int $source_id, string $target_lang, int 
 
             // Children translated before this parent existed were created
             // parentless — adopt them now that the parent translation exists.
-            cdcf_reparent_orphaned_child_translations($source, (int) $post_id, $target_lang);
+            // Failures are best-effort errors, same as attachment plumbing.
+            $reparent = cdcf_reparent_orphaned_child_translations($source, (int) $post_id, $target_lang);
+            $errors   = array_merge($errors, $reparent['errors']);
         }
     } else {
         // Explicit target post supplied: validate it exists and is genuinely
