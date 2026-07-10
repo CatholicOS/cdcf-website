@@ -78,6 +78,10 @@ function cdcf_rest_deploy_translation(WP_REST_Request $request) {
         $translations[$source_lang] = $source_id;
         $translations[$target_lang] = $post_id;
         pll_save_post_translations($translations);
+
+        // Children translated before this parent existed were created
+        // parentless — adopt them now that the parent translation exists.
+        cdcf_reparent_orphaned_child_translations($source, (int) $post_id, $target_lang);
     }
 
     return rest_ensure_response([

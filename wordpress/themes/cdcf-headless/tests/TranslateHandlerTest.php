@@ -56,6 +56,9 @@ final class TranslateHandlerTest extends TestCase
         Functions\when('pll_get_post_language')->justReturn('en');
         Functions\when('pll_get_post_translations')->justReturn([]);
         Functions\when('cdcf_enqueue_translation')->justReturn('redis');
+        // The reparent backfill sweep only runs for hierarchical types; these
+        // tests exercise flat posts, so it must no-op.
+        Functions\when('is_post_type_hierarchical')->justReturn(false);
     }
 
     private function allowAllFunctionsToExist(): void
@@ -567,6 +570,26 @@ final class TranslateHandlerTest extends TestCase
     }
 
     /**
+     * The creation path must sweep for orphaned child translations once the
+     * new parent translation exists (cdcf_reparent_orphaned_child_translations
+     * is unit-tested on its own — this pins the WIRING for hierarchical types).
+     */
+    public function test_creation_path_sweeps_for_orphaned_child_translations(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\when('is_post_type_hierarchical')->justReturn(true);
+        Functions\when('get_post')->justReturn($this->makeSourcePost(['post_type' => 'page']));
+        Functions\when('pll_get_post')->justReturn(0);
+        Functions\when('wp_insert_post')->justReturn(800);
+        Functions\expect('get_posts')->once()->andReturn([]); // the sweep ran
+        $this->allowAllFunctionsToExist();
+
+        $response = cdcf_rest_translate($this->makeRequest());
+
+        $this->assertSame(202, $response->get_status());
+    }
+
+    /**
      * Runs in a separate process so cdcf_enqueue_translation has NOT
      * been eval-declared by an earlier test's stubCommonFunctions().
      * See TeamMemberHandlerTest for the same pattern + rationale.
@@ -584,6 +607,7 @@ final class TranslateHandlerTest extends TestCase
         Functions\when('get_post')->justReturn($this->makeSourcePost());
         Functions\when('pll_get_post')->justReturn(0);
         Functions\when('wp_insert_post')->justReturn(800);
+        Functions\when('is_post_type_hierarchical')->justReturn(false);
         Functions\expect('wp_schedule_single_event')->once()->andReturn(true);
         Functions\expect('spawn_cron')->once()->andReturnNull();
         // Deliberately do NOT stub cdcf_enqueue_translation — it must

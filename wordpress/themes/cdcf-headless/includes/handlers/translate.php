@@ -55,6 +55,58 @@ function cdcf_translate_link_under_lock(int $source_id, string $target_lang, int
 }
 
 /**
+ * Backfill post_parent on the source's child translations that were created
+ * before this parent translation existed.
+ *
+ * The draft-creation paths copy post_parent onto a new translation only when
+ * the parent's translation ALREADY exists (`pll_get_post` at creation time) —
+ * so a child translated before its parent comes out parentless and was never
+ * healed afterwards (the /governance/research papers shipped root-level in 5
+ * languages this way). Called right after a translation post is created:
+ * every existing $target_lang translation of the source's children that is
+ * still orphaned (post_parent = 0) is re-parented under the new post.
+ * Children whose translation already has a parent are left untouched.
+ *
+ * Only hierarchical post types are swept — non-hierarchical types have no
+ * child pages, and their `post_parent` children are attachments, which must
+ * not be re-parented.
+ *
+ * @param object $source      The already-loaded source post (WP_Post-shaped).
+ * @param int    $new_post_id The just-created translation of $source.
+ * @param string $target_lang Polylang language slug of the new translation.
+ * @return int[] IDs of the child translations that were re-parented.
+ */
+function cdcf_reparent_orphaned_child_translations($source, int $new_post_id, string $target_lang): array {
+    if (!function_exists('pll_get_post') || !is_post_type_hierarchical($source->post_type)) {
+        return [];
+    }
+
+    $child_ids = get_posts([
+        'post_parent' => (int) $source->ID,
+        'post_type'   => $source->post_type,
+        'post_status' => 'any',
+        'numberposts' => -1,
+        'fields'      => 'ids',
+    ]);
+
+    $reparented = [];
+    foreach ($child_ids as $child_id) {
+        $child_translation = (int) pll_get_post((int) $child_id, $target_lang);
+        if (!$child_translation || $child_translation === $new_post_id) {
+            continue;
+        }
+        if ((int) get_post_field('post_parent', $child_translation) !== 0) {
+            continue; // already parented — possibly deliberately; leave it alone
+        }
+        $updated = wp_update_post(['ID' => $child_translation, 'post_parent' => $new_post_id]);
+        if (!is_wp_error($updated) && $updated) {
+            $reparented[] = $child_translation;
+        }
+    }
+    return $reparented;
+}
+
+/**
  * Resolve-or-create the $target_lang translation of $source_id, link it into
  * the Polylang group (under the lock), and enqueue the translation for the
  * background worker. Shared by the REST endpoint and the admin-ajax meta-box
@@ -134,6 +186,10 @@ function cdcf_enqueue_post_translation(int $source_id, string $target_lang, int 
                 wp_delete_post((int) $post_id, true);
                 return new WP_Error('link_failed', 'Failed to link translation group.', ['status' => 500]);
             }
+
+            // Children translated before this parent existed were created
+            // parentless — adopt them now that the parent translation exists.
+            cdcf_reparent_orphaned_child_translations($source, (int) $post_id, $target_lang);
         }
     } else {
         // Explicit target post supplied: validate it exists and is genuinely

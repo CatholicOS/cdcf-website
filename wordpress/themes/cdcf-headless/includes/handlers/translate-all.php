@@ -87,6 +87,10 @@ function cdcf_create_or_reuse_translation_draft($source, string $target_lang) {
     // Tag the new post with its language now (independent of the group save).
     pll_set_post_language((int) $post_id, $target_lang);
 
+    // Children translated before this parent existed were created parentless —
+    // adopt them now that the parent translation exists.
+    cdcf_reparent_orphaned_child_translations($source, (int) $post_id, $target_lang);
+
     return ['post_id' => (int) $post_id, 'reused' => false, 'errors' => $errors];
 }
 

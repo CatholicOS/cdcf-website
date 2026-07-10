@@ -59,6 +59,9 @@ final class TranslateAllHandlerTest extends TestCase
             }
         );
         Functions\when('delete_post_meta')->justReturn(true);
+        // The reparent backfill sweep only runs for hierarchical types; these
+        // tests exercise flat posts, so it must no-op.
+        Functions\when('is_post_type_hierarchical')->justReturn(false);
     }
 
     protected function tearDown(): void

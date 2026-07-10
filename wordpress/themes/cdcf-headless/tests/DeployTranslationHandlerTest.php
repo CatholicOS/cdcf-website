@@ -41,6 +41,9 @@ final class DeployTranslationHandlerTest extends TestCase
         Functions\when('pll_get_post_language')->justReturn('en');
         Functions\when('pll_get_post_translations')->justReturn([]);
         Functions\when('wp_update_post')->justReturn(1);
+        // The reparent backfill sweep only runs for hierarchical types; these
+        // tests exercise flat posts, so it must no-op.
+        Functions\when('is_post_type_hierarchical')->justReturn(false);
     }
 
     private function allowAllFunctionsToExist(): void
