@@ -39,22 +39,43 @@ compose_service_json() {
     [ "$output" = "postgres:16-alpine" ]
 }
 
-@test "zitadel: default published port is 8090, not 8080" {
-    run bash -c "compose_service_json zitadel | python3 -c \"
+@test "zitadel-proxy: default published port is 8090, not 8080" {
+    run bash -c "compose_service_json zitadel-proxy | python3 -c \"
 import sys,json
 p=json.load(sys.stdin)['ports'][0]
 print(f\\\"{p['published']}:{p['target']}\\\")\""
     [ "$status" -eq 0 ]
-    [ "$output" = "8090:8080" ]
+    [ "$output" = "8090:80" ]
 }
 
-@test "zitadel: EXTERNALPORT tracks the published port under an override" {
+@test "zitadel: publishes no host port — the proxy is the only entry point" {
+    run bash -c "compose_service_json zitadel | python3 -c \"
+import sys,json
+print(len(json.load(sys.stdin).get('ports') or []))\""
+    [ "$status" -eq 0 ]
+    [ "$output" = "0" ]
+}
+
+@test "zitadel: EXTERNALPORT tracks the proxy's published port under an override" {
+    run bash -c "ZITADEL_PORT=9099 compose_service_json zitadel-proxy | python3 -c \"
+import sys,json
+print(json.load(sys.stdin)['ports'][0]['published'])\""
+    [ "$status" -eq 0 ]
+    [ "$output" = "9099" ]
     run bash -c "ZITADEL_PORT=9099 compose_service_json zitadel | python3 -c \"
 import sys,json
-s=json.load(sys.stdin)
-print(f\\\"{s['ports'][0]['published']}:{s['environment']['ZITADEL_EXTERNALPORT']}\\\")\""
+print(json.load(sys.stdin)['environment']['ZITADEL_EXTERNALPORT'])\""
     [ "$status" -eq 0 ]
-    [ "$output" = "9099:9099" ]
+    [ "$output" = "9099" ]
+}
+
+@test "zitadel: the v2 login URLs follow ZITADEL_PORT too" {
+    run bash -c "ZITADEL_PORT=9099 compose_service_json zitadel | python3 -c \"
+import sys,json
+e=json.load(sys.stdin)['environment']
+print(e['ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_BASEURI'])\""
+    [ "$status" -eq 0 ]
+    [ "$output" = "http://localhost:9099/ui/v2/login" ]
 }
 
 @test "zitadel: both postgres SSL modes are disabled" {
@@ -81,12 +102,43 @@ print(e['ZITADEL_FIRSTINSTANCE_PATPATH'])\""
     [ "${lines[1]}" = "/zitadel-data/automation-user.pat" ]
 }
 
-@test "zitadel: Login V2 is disabled, since no zitadel-login service exists" {
+@test "zitadel: Login V2 is required, matching production" {
     run bash -c "compose_service_json zitadel | python3 -c \"
 import sys,json
 print(json.load(sys.stdin)['environment']['ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED'])\""
     [ "$status" -eq 0 ]
-    [ "$output" = "false" ]
+    [ "$output" = "true" ]
+}
+
+@test "zitadel: the login-client block that produces the v2 UI token is complete" {
+    run bash -c "compose_service_json zitadel | python3 -c \"
+import sys,json
+e=json.load(sys.stdin)['environment']
+keys=['ZITADEL_FIRSTINSTANCE_LOGINCLIENTPATPATH',
+      'ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_USERNAME',
+      'ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_NAME',
+      'ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_PAT_EXPIRATIONDATE']
+print('ok' if all(e.get(k) for k in keys) else 'missing')
+print(e['ZITADEL_FIRSTINSTANCE_LOGINCLIENTPATPATH'])\""
+    [ "$status" -eq 0 ]
+    [ "${lines[0]}" = "ok" ]
+    [ "${lines[1]}" = "/zitadel-data/login-client.pat" ]
+}
+
+@test "zitadel-login: consumes the login-client PAT and is version-pinned to the backend" {
+    run bash -c "compose_service_json zitadel-login | python3 -c \"
+import sys,json
+s=json.load(sys.stdin)
+print(s['image'])
+print(s['environment']['ZITADEL_SERVICE_USER_TOKEN_FILE'])\""
+    [ "$status" -eq 0 ]
+    [ "${lines[0]}" = "ghcr.io/zitadel/zitadel-login:v4.15.0" ]
+    [ "${lines[1]}" = "/zitadel-data/login-client.pat" ]
+
+    # Mixing v2 UI and backend versions is unsupported upstream.
+    run bash -c "compose_service_json zitadel | python3 -c \"
+import sys,json;print(json.load(sys.stdin)['image'])\""
+    [ "$output" = "ghcr.io/zitadel/zitadel:v4.15.0" ]
 }
 
 @test "zitadel: master key is exactly 32 characters" {
@@ -107,7 +159,7 @@ print(len(m.group(1)) if m else 'nomatch')\""
 }
 
 @test "env example: AUTH_ZITADEL_ISSUER matches the compose default port" {
-    port=$(compose_service_json zitadel | python3 -c "
+    port=$(compose_service_json zitadel-proxy | python3 -c "
 import sys,json
 print(json.load(sys.stdin)['ports'][0]['published'])")
     run grep -E "^AUTH_ZITADEL_ISSUER=http://localhost:${port}$" .env.local.example
@@ -126,7 +178,7 @@ print(json.load(sys.stdin)['ports'][0]['published'])")
 }
 
 @test "env example: comment-block ZITADEL_ISSUER/INTERNAL_URL restatements match the compose default port" {
-    port=$(compose_service_json zitadel | python3 -c "
+    port=$(compose_service_json zitadel-proxy | python3 -c "
 import sys,json
 print(json.load(sys.stdin)['ports'][0]['published'])")
     run grep -E "^#   #   ZITADEL_ISSUER=http://localhost:${port}$" .env.local.example
@@ -136,7 +188,7 @@ print(json.load(sys.stdin)['ports'][0]['published'])")
 }
 
 @test "README: cdcf-infra env var examples match the compose default port" {
-    port=$(compose_service_json zitadel | python3 -c "
+    port=$(compose_service_json zitadel-proxy | python3 -c "
 import sys,json
 print(json.load(sys.stdin)['ports'][0]['published'])")
     run grep -E "^ZITADEL_ISSUER=http://localhost:${port}$" README.md

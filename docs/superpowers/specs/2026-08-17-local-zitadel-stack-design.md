@@ -38,7 +38,8 @@ Making it the _default_ rather than an opt-in is the point. If `.env.local.examp
 The load-bearing configuration:
 
 ```yaml
-ports: ["127.0.0.1:${ZITADEL_PORT:-8090}:8080"]
+# No published port — zitadel-proxy (§3.3) owns ${ZITADEL_PORT:-8090}.
+expose: ["8080"]
 command: 'start-from-init --masterkey "${ZITADEL_MASTERKEY:-MasterkeyNeedsToHave32Characters}"'
 user: "0"
 environment:
@@ -58,7 +59,13 @@ environment:
   ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel}
   ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
 
-  ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: false
+  # Login V2, as production. These are the URLs Zitadel sends the BROWSER
+  # to, so they carry the public origin, never the internal service name.
+  ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "true"
+  ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_BASEURI: http://localhost:${ZITADEL_PORT:-8090}/ui/v2/login
+  ZITADEL_OIDC_DEFAULTLOGINURLV2: http://localhost:${ZITADEL_PORT:-8090}/ui/v2/login/login?authRequest=
+  ZITADEL_OIDC_DEFAULTLOGOUTURLV2: http://localhost:${ZITADEL_PORT:-8090}/ui/v2/login/logout?post_logout_redirect=
+  ZITADEL_SAML_DEFAULTLOGINURLV2: http://localhost:${ZITADEL_PORT:-8090}/ui/v2/login/login?samlRequest=
 
   # These four are one unit: the first three create the machine user, the
   # PATPATH writes its token where §4's host-run script reads it.
@@ -66,6 +73,12 @@ environment:
   ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: automation-user
   ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: Automation User
   ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: "2030-01-01T00:00:00Z"
+
+  # A SECOND machine user, for the v2 login UI (§3.3) — not the same token.
+  ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_USERNAME: login-client
+  ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_NAME: Login V2 Client
+  ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_PAT_EXPIRATIONDATE: "2030-01-01T00:00:00Z"
+  ZITADEL_FIRSTINSTANCE_LOGINCLIENTPATPATH: /zitadel-data/login-client.pat
 volumes: ["./.zitadel-data:/zitadel-data:delegated"]
 ```
 
@@ -78,11 +91,25 @@ The usual failure points, in the order they tend to bite:
 - **The master key needs a value, and the same value forever.** It must be exactly 32 characters. Zitadel encrypts instance data with it and cannot decrypt after it changes, so a rotated or lost key means deleting the volume and re-provisioning — losing the client IDs `.env.local` was filled from. The default above keeps a fresh clone working; `ZITADEL_MASTERKEY` overrides it.
 - **`ZITADEL_DB_PASSWORD` is also write-once.** `POSTGRES_PASSWORD` initialises the Postgres role only on an empty volume, so changing it after `zitadel_db_data` exists leaves the role on its old password and Zitadel failing to authenticate while the variable looks right. Recovery is the masterkey recovery: stop the two services, remove the volume, restart with the intended password, re-provision.
 - **Both Postgres SSL modes must be `disable`.** `zitadel-db` is `postgres:16-alpine` with no TLS. Omitting `ADMIN_SSL_MODE`/`USER_SSL_MODE` leaves Zitadel attempting TLS and failing during migration, before it ever serves a request.
-- **Login V2 is switched off deliberately.** Zitadel v4 can require the separate `zitadel-login` container; with no such service, the authorize flow lands on a route nothing serves. This stack sets `LOGINV2_REQUIRED: false` and uses Login V1 rather than adding the container, because the umbrella convention is that each property builds its own sign-in UI against the Zitadel APIs. Auth.js drives the flow here, so V1's hosted pages are sufficient.
+- **Login V2 is required, because production requires it.** `cdcf-infra`'s `auth/docker-compose.prod.yml` runs `ghcr.io/zitadel/zitadel-login:v4.15.0` with `LOGINV2_REQUIRED: 'true'`, so a local stack on V1 would exercise a sign-in UI that no deployed environment serves — every V2-specific bug would first appear after deploy. Enabling the flag alone is not enough: without the `zitadel-login` service the authorize flow redirects to `/ui/v2/login`, which nothing answers. The container is an **interim** dependency. `cdcf-infra` deliberately does not own a login UI on each property's behalf; the intended end state is that each property implements sign-in natively against the Zitadel APIs, at which point this service can be dropped. Until cdcf-website does that, it runs the same V2 UI production does.
+- **The v2 UI needs its own machine user.** `ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_*` plus `LOGINCLIENTPATPATH` mint a **second** PAT (`login-client.pat`) that `zitadel-login` authenticates with — distinct from `automation-user.pat`, which is for host-run provisioning. Both are first-instance settings, so switching an already-initialised stack to Login V2 requires removing `zitadel_db_data`; flipping the flag on an existing database yields a login UI that starts but fails every request unauthenticated.
 - **The machine-user block is what produces the PAT.** `PATPATH` alone names a file that is never written. Without the three `FIRSTINSTANCE_ORG_MACHINE_*` settings no machine user exists, `./.zitadel-data/automation-user.pat` never appears, and §4's provisioning run has nothing to authenticate with.
 - **`user: "0"` is required for the PAT to be readable.** The Zitadel image is scratch-based; without it the token lands in the bind mount with ownership the host script cannot read.
 
 `./.zitadel-data/` is already gitignored (`.gitignore:58`). The stray `zitadel/` directory at the repo root is deleted: it is untracked on `main` and contains only an empty, root-owned `nginx.conf/` **directory** — a bind-mount artifact from a compose file that once referenced a file at that path. Two implementation notes follow from that. It is root-owned, so removal needs elevated privileges. And it is not quite historyless: `zitadel/nginx.conf` existed as a real file on the unmerged `feature/zitadel-integration` branch (still present on `origin`), which this deletion does not touch.
+
+### 3.3 `zitadel-login` and `zitadel-proxy`
+
+Login V2 is two services, not one. `zitadel-login` (`ghcr.io/zitadel/zitadel-login:v4.15.0`, version-pinned to the backend — mixing versions is unsupported upstream) serves `/ui/v2/login/*`, calls the API internally at `http://zitadel:8080`, and reads `login-client.pat` read-only. It also sets `EMAIL_VERIFICATION: "true"`, matching production: without it the UI omits `email.verification.send_code` on `AddHumanUser`, so signups land `ACTIVE` with an unverified email and no verification mail is ever queued.
+
+`zitadel-proxy` (`nginx:alpine`, config at `nginx/zitadel.conf`) is what makes the two look like one instance. It owns `127.0.0.1:${ZITADEL_PORT:-8090}` and routes `/ui/v2/login*` to the login UI and everything else to the backend, so the login pages and the OIDC/API endpoints share a single origin exactly as they do on `auth.catholicdigitalcommons.org`. The `zitadel` service consequently publishes **no** host port.
+
+Two things about the proxy are local-only and both were found by the stack failing:
+
+- **`Host` and `X-Forwarded-Host` must be `$http_host`, not `$host`.** Zitadel mints its issuer and every endpoint URL from the forwarded host, and nginx's `$host` strips the port. Either header left as `$host` produces `issuer: http://localhost` and Auth.js rejects sign-in with `"issuer" property does not match the expected value` against `AUTH_ZITADEL_ISSUER=http://localhost:8090`. `X-Forwarded-Host` takes precedence, so fixing only `Host` still fails. Production's config uses `$host` safely because it serves on 443, where the port is absent from the URL regardless.
+- **`X-Forwarded-Proto` is `http`**, matching `ZITADEL_EXTERNALSECURE: "false"`. Copying production's `https` makes Zitadel mint `https://` URLs the browser cannot reach locally.
+
+The proxy's healthcheck targets `127.0.0.1`, not `localhost`: nginx listens on IPv4 only, and `localhost` resolves to `::1` first inside the container, so a healthy proxy reports unhealthy and `--wait` fails.
 
 ## 4. Provisioning contract
 

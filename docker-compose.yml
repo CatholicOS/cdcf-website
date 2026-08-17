@@ -52,11 +52,12 @@ services:
     # The image is scratch-based; without uid 0 the PAT lands in the bind
     # mount with ownership the host-run provisioning script cannot read.
     user: "0"
-    ports:
-      # 8090, not 8080: martyrology-api and LiturgicalCalendarFrontend both
-      # default their local Zitadel to 8080, and a collision presents as an
-      # opaque bind failure.
-      - "127.0.0.1:${ZITADEL_PORT:-8090}:8080"
+    # No published port. zitadel-proxy owns ${ZITADEL_PORT:-8090} and fronts
+    # both this backend and the v2 login UI on a single origin — the same
+    # shape production runs, so local reproduces its cookie/CSRF/Host
+    # behaviour instead of a dev-only two-origin variant.
+    expose:
+      - "8080"
     environment:
       # EXTERNALPORT must equal the published port above — issuer and
       # discovery URLs are minted from these two.
@@ -79,10 +80,17 @@ services:
       ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel}
       ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
 
-      # Login V1. Zitadel v4 can require the separate zitadel-login
-      # container; with no such service the authorize flow lands on a route
-      # nothing serves. Auth.js drives sign-in here, so V1 suffices.
-      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "false"
+      # Login V2, matching production (cdcf-infra auth/docker-compose.prod.yml).
+      # Local dev must exercise the same login UI production serves; running V1
+      # here would mean sign-in bugs only ever surface after deploy. The v2 UI
+      # is the zitadel-login service below, reached through zitadel-proxy at
+      # /ui/v2/login. These URLs are where Zitadel sends the browser, so they
+      # must be the PUBLIC origin, not the internal service name.
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "true"
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_BASEURI: http://localhost:${ZITADEL_PORT:-8090}/ui/v2/login
+      ZITADEL_OIDC_DEFAULTLOGINURLV2: http://localhost:${ZITADEL_PORT:-8090}/ui/v2/login/login?authRequest=
+      ZITADEL_OIDC_DEFAULTLOGOUTURLV2: http://localhost:${ZITADEL_PORT:-8090}/ui/v2/login/logout?post_logout_redirect=
+      ZITADEL_SAML_DEFAULTLOGINURLV2: http://localhost:${ZITADEL_PORT:-8090}/ui/v2/login/login?samlRequest=
 
       # These four are one unit. PATPATH alone names a file that is never
       # written — without the machine user there is no token, and the
@@ -91,6 +99,16 @@ services:
       ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: automation-user
       ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: Automation User
       ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: "2030-01-01T00:00:00Z"
+
+      # A SECOND machine user, distinct from the one above: the v2 login UI
+      # authenticates to the Zitadel API as this identity. Like the block
+      # above it only takes effect on an empty database, so switching a
+      # already-initialised stack to Login V2 requires removing
+      # zitadel_db_data — the flag alone will not mint this token.
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_USERNAME: login-client
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_MACHINE_NAME: Login V2 Client
+      ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_PAT_EXPIRATIONDATE: "2030-01-01T00:00:00Z"
+      ZITADEL_FIRSTINSTANCE_LOGINCLIENTPATPATH: /zitadel-data/login-client.pat
     volumes:
       # Bind mount, not a named volume: the host-run cdcf-infra script must
       # be able to read the PAT.
@@ -105,6 +123,66 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+
+  # Zitadel Login V2 UI (Next.js). Serves /ui/v2/login/* — the sign-in
+  # screens end users and the admin console both land on. Version-pinned to
+  # the backend: mixing zitadel and zitadel-login versions is unsupported.
+  zitadel-login:
+    image: ghcr.io/zitadel/zitadel-login:v4.15.0
+    restart: unless-stopped
+    depends_on:
+      zitadel:
+        condition: service_healthy
+    environment:
+      # Internal API call over the compose network, not the public origin.
+      ZITADEL_API_URL: http://zitadel:8080
+      NEXT_PUBLIC_BASE_PATH: /ui/v2/login
+      # Written by the LOGINCLIENT first-instance block on the zitadel
+      # service. If this file is missing the UI starts but every request
+      # fails unauthenticated — the usual symptom of enabling Login V2 on a
+      # database that was initialised before the setting existed.
+      ZITADEL_SERVICE_USER_TOKEN_FILE: /zitadel-data/login-client.pat
+      # Zitadel selects the instance by Host header, so API calls from this
+      # container must present the public host rather than `zitadel:8080`.
+      CUSTOM_REQUEST_HEADERS: "Host:localhost:${ZITADEL_PORT:-8090}"
+      # Without this the UI omits email.verification.send_code on
+      # AddHumanUser, so signups land ACTIVE with an unverified email and no
+      # verification mail is ever queued. Matches production.
+      EMAIL_VERIFICATION: "true"
+    volumes:
+      # Read-only: this service only consumes login-client.pat.
+      - ./.zitadel-data:/zitadel-data:ro
+    expose:
+      - "3000"
+
+  # Single public entry point for the Zitadel stack, mirroring the internal
+  # proxy production runs. Routes /ui/v2/login* to the v2 UI and everything
+  # else to the backend, so the login UI and the OIDC/API endpoints share one
+  # origin exactly as they do on auth.catholicdigitalcommons.org.
+  zitadel-proxy:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      zitadel:
+        condition: service_healthy
+      zitadel-login:
+        condition: service_started
+    volumes:
+      - ./nginx/zitadel.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      # 8090, not 8080: martyrology-api and LiturgicalCalendarFrontend both
+      # default their local Zitadel to 8080, and a collision presents as an
+      # opaque bind failure. This must equal ZITADEL_EXTERNALPORT above.
+      - "127.0.0.1:${ZITADEL_PORT:-8090}:80"
+    healthcheck:
+      # 127.0.0.1, not localhost: nginx listens on IPv4 only, while localhost
+      # inside the container resolves to ::1 first and the probe would fail
+      # with "connection refused" against a perfectly healthy proxy.
+      test:
+        ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/debug/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   wordpress:
     image: wordpress:beta-7.0-php8.4-apache

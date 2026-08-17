@@ -4,7 +4,9 @@
 
 **Goal:** Add a local Zitadel to this repo's Docker Compose stack and make it the default identity provider for local development, so `cdcf-infra` #20 can remove the `http://localhost:3000` client from the production Zitadel.
 
-**Architecture:** Two new Compose services — `zitadel-db` (its own PostgreSQL, because the stack's `db` is MariaDB) and `zitadel` — with Zitadel writing a first-instance machine-user PAT into a bind-mounted `./.zitadel-data/`. A host-run `cdcf-infra/auth/setup-zitadel.sh --target local` reads that PAT and provisions the CDCF app. No provisioning script is added to this repo.
+**Architecture:** Four new Compose services — `zitadel-db` (its own PostgreSQL, because the stack's `db` is MariaDB), `zitadel`, `zitadel-login` (the v2 sign-in UI production also runs) and `zitadel-proxy` (nginx, giving all of it one origin on `${ZITADEL_PORT:-8090}`) — with Zitadel writing two first-instance PATs into a bind-mounted `./.zitadel-data/`: `automation-user.pat` for provisioning and `login-client.pat` for the login UI. A host-run `cdcf-infra/auth/setup-zitadel.sh --target local` reads the former and provisions the CDCF app. No provisioning script is added to this repo.
+
+> **Amendment (post-implementation):** this plan was written for a two-service, Login V1 stack. Login V2 was added afterwards to match production, which turned it into four services and moved the published port from `zitadel` to `zitadel-proxy`. The Global Constraints below are current; the literal compose and bats snippets inside Task 1 and Task 2 are **not** — they predate the change. Read `docs/superpowers/specs/2026-08-17-local-zitadel-stack-design.md` §3.2–§3.3 and the committed `docker-compose.yml` / `scripts/tests/zitadel_compose.bats` for the shipped shape.
 
 **Tech Stack:** Docker Compose, `ghcr.io/zitadel/zitadel:v4.15.0`, `postgres:16-alpine`, bats-core (`scripts/tests/*.bats`), Auth.js v5 (already present).
 
@@ -20,7 +22,8 @@ Copied verbatim from the spec. Every task's requirements implicitly include thes
 - `ZITADEL_EXTERNALPORT` must equal the published host port, derived from the same `${ZITADEL_PORT:-8090}` expression.
 - **One port, four places** (spec §4): `ZITADEL_PORT` is the only knob, but its value is restated in `ZITADEL_EXTERNALPORT`, `cdcf-infra`'s `ZITADEL_ISSUER` / `ZITADEL_INTERNAL_URL`, and `.env.local.example`'s `AUTH_ZITADEL_ISSUER`. Task 1 and Task 2 each add a test pinning an agreement that nothing else validates.
 - Both Postgres SSL modes are `disable`: `ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE` and `..._USER_SSL_MODE`.
-- `ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: false` — Login V1, no `zitadel-login` container.
+- `ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "true"` — Login V2, matching production. Requires the `zitadel-login` container AND the four `ZITADEL_FIRSTINSTANCE_ORG_LOGINCLIENT_*`/`LOGINCLIENTPATPATH` settings that mint its `login-client.pat`; the flag alone yields a redirect to `/ui/v2/login` that nothing serves. The container is interim — it goes away once cdcf-website implements sign-in natively against the Zitadel APIs.
+- `zitadel-proxy` owns the published port; `zitadel` publishes none. In `nginx/zitadel.conf` both `Host` and `X-Forwarded-Host` must be `$http_host` — `$host` drops the port and Auth.js then fails discovery on an issuer mismatch.
 - `ZITADEL_FIRSTINSTANCE_PATPATH: /zitadel-data/automation-user.pat`, plus all three `ZITADEL_FIRSTINSTANCE_ORG_MACHINE_*` settings. `PATPATH` alone writes nothing.
 - `user: "0"` on the `zitadel` service, or the PAT is unreadable from the host.
 - Master key must be **exactly 32 characters** and stable forever; changing it makes existing instance data undecryptable.
