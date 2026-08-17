@@ -24,6 +24,7 @@ Copied verbatim from the spec. Every task's requirements implicitly include thes
 - `ZITADEL_FIRSTINSTANCE_PATPATH: /zitadel-data/automation-user.pat`, plus all three `ZITADEL_FIRSTINSTANCE_ORG_MACHINE_*` settings. `PATPATH` alone writes nothing.
 - `user: "0"` on the `zitadel` service, or the PAT is unreadable from the host.
 - Master key must be **exactly 32 characters** and stable forever; changing it makes existing instance data undecryptable.
+- `ZITADEL_DB_PASSWORD` is equally write-once: `POSTGRES_PASSWORD` initialises the role only on an empty volume, so changing it after `zitadel_db_data` exists breaks Zitadel's database auth. Same recovery — remove the volume and re-provision.
 - Compose reads `.env`, **not** `.env.local`. `ZITADEL_PORT`, `ZITADEL_MASTERKEY`, `ZITADEL_DB_PASSWORD` all come from `.env` or their defaults.
 - `./.zitadel-data/` is already gitignored (`.gitignore:58`). Do not re-add it.
 

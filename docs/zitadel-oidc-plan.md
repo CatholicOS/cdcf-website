@@ -4,10 +4,12 @@
 > **done** — see `lib/auth.ts` and `app/api/auth/`. Local Zitadel setup is now
 > `docs/superpowers/specs/2026-08-17-local-zitadel-stack-design.md`, and OIDC
 > app provisioning is automated by `cdcf-infra`'s
-> `setup-zitadel.sh --provision-cdcf-website`. The WordPress OIDC/passkey work
-> (§1.2) and WordPress bearer validation (§2.4) remain **deferred and
-> accurate**. **Do not follow "Production Deployment" below** — see §Production
-> Deployment for why.
+> `setup-zitadel.sh --provision-cdcf-website`. §2.4 (WordPress bearer
+> validation) is **done** — `includes/auth/zitadel-bearer.php` ships and is
+> loaded from `functions.php`; AGENTS.md is authoritative for its current
+> behaviour, which has moved on from what §2.4 describes. Only the WordPress
+> OIDC/passkey work (§1.2) remains **deferred and accurate**. **Do not follow
+> "Production Deployment" below** — see §Production Deployment for why.
 
 ## Context
 
@@ -210,6 +212,15 @@ npm install next-auth@beta
 **`messages/en.json`** (and other locales) — Add `Auth.signIn` and `Auth.signOut` keys
 
 ### 2.4 WordPress Bearer Token Validation
+
+> **Done, and the description below is stale.** This shipped as
+> `wordpress/themes/cdcf-headless/includes/auth/zitadel-bearer.php`, loaded
+> from `functions.php`, with coverage in `tests/ZitadelBearerTest.php`. What
+> shipped goes well beyond the sketch here — audience allow-listing before any
+> network call, resolution by immutable `sub` claim with email only as a
+> migration fallback, and Subscriber auto-provisioning. Treat AGENTS.md's
+> "Zitadel bearer authentication" section as authoritative; the steps below
+> are kept only as the original intent.
 
 **File:** `wordpress/themes/cdcf-headless/functions.php`
 

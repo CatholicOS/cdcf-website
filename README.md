@@ -60,8 +60,12 @@ Local sign-in runs against a Zitadel in this repo's compose stack — **not**
 the production instance at `auth.catholicdigitalcommons.org`.
 
 ```bash
-docker compose up -d zitadel-db zitadel
+docker compose up -d --wait zitadel-db zitadel
 ```
+
+`--wait` blocks until both services pass their healthchecks. Without it the
+command returns while Zitadel is still migrating, and the provisioning run
+below fails on a PAT file that does not exist yet.
 
 First boot runs migrations and writes a machine-user token to
 `.zitadel-data/automation-user.pat`. Provisioning the OIDC app is done from
@@ -85,6 +89,20 @@ then:
 Copy the printed `AUTH_ZITADEL_ID`, `AUTH_ZITADEL_SECRET` and Org ID into
 `.env.local`.
 
+Then confirm you are actually on the local instance — every other step can
+pass while sign-in still silently uses production:
+
+1. Check the issuer the running app resolved, not the one in the file:
+   `curl -s localhost:3000/api/auth/providers` should report an `issuer` of
+   `http://localhost:8090`.
+2. Sign in, then sign out through `/api/auth/zitadel-signout`, with the
+   browser devtools Network tab filtered on `catholicdigitalcommons`. Both
+   `lib/auth.ts`'s authorize/token calls and the sign-out redirect must
+   produce **no** requests to `auth.catholicdigitalcommons.org`.
+
+A stale `AUTH_ZITADEL_ISSUER` in a running dev server is the usual cause of a
+green-looking setup that never left production.
+
 These Compose variables come from `.env` (Compose does not read `.env.local`):
 
 | Variable              | Default                            | Notes                                                |
@@ -103,12 +121,24 @@ wiping your local WordPress install):
 
 ```bash
 docker compose rm -sf zitadel zitadel-db
-docker volume rm cdcf-website_zitadel_db_data
+docker volume ls | grep zitadel   # read the real name from this output
+docker volume rm <name-from-the-listing>
 ```
 
-Confirm the actual volume name first with `docker volume ls | grep zitadel`
-— the `cdcf-website_` prefix comes from the Compose project name and may
-differ if you've overridden it. Changing `ZITADEL_PORT` means updating
+Take the volume name from that listing rather than pasting a literal: the
+`cdcf-website_` prefix comes from the Compose project name and differs if
+you've overridden it, so a hard-coded `cdcf-website_zitadel_db_data` can
+silently miss the volume you meant to remove — or match one you did not.
+
+`ZITADEL_DB_PASSWORD` has the same one-way property as the masterkey, for a
+different reason: `POSTGRES_PASSWORD` initialises the Postgres role **only on
+an empty volume**. Change it once `zitadel_db_data` exists and the role keeps
+its old password, so Zitadel fails to authenticate against its own database
+while the variable reads as correct. Recovery is the same sequence above —
+stop the two services, remove the volume, bring the stack back up with the
+intended password, and re-provision.
+
+Changing `ZITADEL_PORT` means updating
 `AUTH_ZITADEL_ISSUER` in `.env.local` and the two `cdcf-infra` URLs above to
 match.
 
