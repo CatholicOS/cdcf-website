@@ -1,6 +1,10 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for AI coding agents working in this repository. Nothing here is
+specific to one vendor — `CLAUDE.md` and `GEMINI.md` are symlinks to this
+file, so whichever agent reads its own conventional filename gets these same
+instructions. Add a new symlink rather than a second copy if another tool
+needs a different name.
 
 ## Build & Development Commands
 
