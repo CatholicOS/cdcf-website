@@ -19,7 +19,7 @@ It cannot be removed first. Auth.js v5 is live here (`next-auth 5.0.0-beta.31`, 
 
 **Add a local Zitadel to this repo's compose stack, provisioned by `cdcf-infra`'s `setup-zitadel.sh --target local`, and make it the default target for local development.**
 
-Making it the *default* rather than an opt-in is the point. If `.env.local.example` keeps pointing at production, developers stay on the production client and its origin can never be removed — the problem is deferred, not solved.
+Making it the _default_ rather than an opt-in is the point. If `.env.local.example` keeps pointing at production, developers stay on the production client and its origin can never be removed — the problem is deferred, not solved.
 
 `martyrology-api`'s stack is the template: same image, same first-instance PAT convention, same host-run provisioning. One forced divergence, in §3.1.
 
@@ -89,14 +89,14 @@ Note this depends on #20's target-aware work for the `local` origin set (`http:/
 
 `docs/zitadel-oidc-plan.md` is corrected where it misleads, not rewritten.
 
-| Section | Status | Action |
-| --- | --- | --- |
-| Production Deployment (`:212-226`) | **Wrong and dangerous** — instructs standing up Zitadel at `auth.catholicdigitalcommons.org`. That instance exists and is managed by `cdcf-infra`; following this creates a second production IdP. | Replace with a pointer to `cdcf-infra`. |
-| §1.1 Add Zitadel to Docker Compose | Superseded | Point at this design (separate `zitadel-db`, pinned image, port 8090). |
-| §1.3 Zitadel Configuration (Manual, Post-Boot) | Superseded | Provisioning is automated by `--provision-cdcf-website`; replace the console walkthrough. |
-| §1.2 WordPress OIDC plugin / passkey | Genuinely undone | Keep, marked deferred. |
-| Phase 2.1–2.3 Auth.js v5 | **Done** | Mark done. |
-| §2.4 WordPress bearer validation | Genuinely undone | Keep, marked deferred. |
+| Section                                        | Status                                                                                                                                                                                             | Action                                                                                    |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Production Deployment (`:212-226`)             | **Wrong and dangerous** — instructs standing up Zitadel at `auth.catholicdigitalcommons.org`. That instance exists and is managed by `cdcf-infra`; following this creates a second production IdP. | Replace with a pointer to `cdcf-infra`.                                                   |
+| §1.1 Add Zitadel to Docker Compose             | Superseded                                                                                                                                                                                         | Point at this design (separate `zitadel-db`, pinned image, port 8090).                    |
+| §1.3 Zitadel Configuration (Manual, Post-Boot) | Superseded                                                                                                                                                                                         | Provisioning is automated by `--provision-cdcf-website`; replace the console walkthrough. |
+| §1.2 WordPress OIDC plugin / passkey           | Genuinely undone                                                                                                                                                                                   | Keep, marked deferred.                                                                    |
+| Phase 2.1–2.3 Auth.js v5                       | **Done**                                                                                                                                                                                           | Mark done.                                                                                |
+| §2.4 WordPress bearer validation               | Genuinely undone                                                                                                                                                                                   | Keep, marked deferred.                                                                    |
 
 The doc's original motivation — passkey login to the WordPress admin — is untouched by this design and stays deferred.
 
