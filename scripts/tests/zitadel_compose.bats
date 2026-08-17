@@ -115,11 +115,32 @@ print(json.load(sys.stdin)['ports'][0]['published'])")
 }
 
 @test "env example: local dev does not point at the production Zitadel" {
+    [ -f .env.local.example ]
     run grep -E "^AUTH_ZITADEL_ISSUER=.*auth\.catholicdigitalcommons\.org" .env.local.example
     [ "$status" -ne 0 ]
 }
 
 @test "env example: AUTH_ZITADEL_ORG_ID is present for lib/auth.ts to read" {
     run grep -E "^AUTH_ZITADEL_ORG_ID=" .env.local.example
+    [ "$status" -eq 0 ]
+}
+
+@test "env example: comment-block ZITADEL_ISSUER/INTERNAL_URL restatements match the compose default port" {
+    port=$(compose_service_json zitadel | python3 -c "
+import sys,json
+print(json.load(sys.stdin)['ports'][0]['published'])")
+    run grep -E "^#   #   ZITADEL_ISSUER=http://localhost:${port}$" .env.local.example
+    [ "$status" -eq 0 ]
+    run grep -E "^#   #   ZITADEL_INTERNAL_URL=http://127\.0\.0\.1:${port}$" .env.local.example
+    [ "$status" -eq 0 ]
+}
+
+@test "README: cdcf-infra env var examples match the compose default port" {
+    port=$(compose_service_json zitadel | python3 -c "
+import sys,json
+print(json.load(sys.stdin)['ports'][0]['published'])")
+    run grep -E "^ZITADEL_ISSUER=http://localhost:${port}$" README.md
+    [ "$status" -eq 0 ]
+    run grep -E "^ZITADEL_INTERNAL_URL=http://127\.0\.0\.1:${port}$" README.md
     [ "$status" -eq 0 ]
 }

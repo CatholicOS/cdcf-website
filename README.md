@@ -94,10 +94,23 @@ These Compose variables come from `.env` (Compose does not read `.env.local`):
 | `ZITADEL_DB_PASSWORD` | `postgres` / `zitadel`             | Local only                                           |
 
 Changing `ZITADEL_MASTERKEY` after first boot makes existing instance data
-undecryptable; recovery means `docker compose down -v` and re-provisioning,
-which invalidates the client IDs in `.env.local`. Changing `ZITADEL_PORT`
-means updating `AUTH_ZITADEL_ISSUER` in `.env.local` and the two
-`cdcf-infra` URLs above to match.
+undecryptable; recovery means removing the Zitadel services and their
+database volume, then re-provisioning, which invalidates the client IDs in
+`.env.local`. **Never change the masterkey on data you want to keep** —
+scope the recovery to Zitadel only, not the whole stack (`docker compose
+down -v` would also delete `db_data`, `redis_data` and `wordpress_data`,
+wiping your local WordPress install):
+
+```bash
+docker compose rm -sf zitadel zitadel-db
+docker volume rm cdcf-website_zitadel_db_data
+```
+
+Confirm the actual volume name first with `docker volume ls | grep zitadel`
+— the `cdcf-website_` prefix comes from the Compose project name and may
+differ if you've overridden it. Changing `ZITADEL_PORT` means updating
+`AUTH_ZITADEL_ISSUER` in `.env.local` and the two `cdcf-infra` URLs above to
+match.
 
 ### Development
 

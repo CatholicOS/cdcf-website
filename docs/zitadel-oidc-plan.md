@@ -132,19 +132,13 @@ define('OIDC_REDIRECT_USER_BACK', true);
 > Provider (Zitadel)" section. Creating the app by hand in the console produces
 > a client `cdcf-infra` does not know about and will not converge.
 
-After `docker compose up`, access `http://localhost:8085/ui/console` and:
-
-1. **Create project** "CDCF"
-2. **Create WordPress app** (Web, client_secret_post)
-   - Redirect URI: `http://localhost/wp-admin/admin-ajax.php?action=openid-connect-authorize`
-   - Post-logout URI: `http://localhost/wp-login.php`
-3. **Create Next.js app** (Web, client_secret_post) — for Phase 2
-   - Redirect URI: `http://localhost:3000/api/auth/callback/zitadel`
-   - Post-logout URI: `http://localhost:3000`
-   - Enable Dev Mode (allows HTTP redirects)
-4. **Enable passkeys:** Settings > Login Behavior > Passwordless Type = "Allowed"
-5. **Define roles** in the CDCF project: `admin`, `editor`, `member`
-6. **Create user accounts** matching existing WordPress admin emails
+Provisioning the CDCF project, apps, and roles is handled by running
+[`cdcf-infra`](https://github.com/CatholicOS/cdcf-infra)'s
+`./setup-zitadel.sh --target local --create-orgs --provision-cdcf-website`
+against this stack's Zitadel. See the README's "Local Identity Provider
+(Zitadel)" section for the full setup, including the required `.env.local`
+variables and the printed `AUTH_ZITADEL_ID` / `AUTH_ZITADEL_SECRET` / Org ID
+handoff. Do not create the app by hand in the console.
 
 ### 1.4 Environment Variables
 
@@ -252,7 +246,7 @@ the README.
 
 ### Phase 1
 
-1. `docker compose up` — verify Zitadel boots (`curl http://localhost:8085/debug/ready`)
+1. `docker compose up` — verify Zitadel boots (`curl http://localhost:8090/debug/ready`)
 2. Access Zitadel console, create project + apps, note client IDs/secrets
 3. Set env vars, restart WordPress
 4. Visit `http://localhost/wp-login.php` — verify "Login with OpenID Connect" button appears
