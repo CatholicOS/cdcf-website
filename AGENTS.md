@@ -353,3 +353,27 @@ gh run view <run-id> --json jobs \
 ```
 
 The scp upload step occasionally fails transiently with `kex_exchange_identification: read: Connection reset by peer` (VPS SSH rate-limit after back-to-back deploys) — just re-run.
+
+<!--
+  Everything below is written and re-added by `next dev` (see
+  node_modules/next/dist/server/lib/generate-agent-files.js). It opens with its
+  own H1, which trips MD025/single-title in a file that already has one, so
+  `npm run lint:md` fails on every tree where the dev server has run — and on
+  CLAUDE.md / GEMINI.md too, since both are symlinks to this file.
+
+  The rule is disabled from here to EOF rather than repo-wide, so MD025 still
+  protects every other document. The directive sits ABOVE the BEGIN marker on
+  purpose: the generator rewrites only the span between its markers, preserving
+  content before and after, so this comment survives regeneration.
+-->
+<!-- markdownlint-disable MD025 -->
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
