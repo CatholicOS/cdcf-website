@@ -1,5 +1,14 @@
 # Zitadel OIDC Integration Plan
 
+> **Status (2026-08-17):** partially superseded. Phase 2.1–2.3 (Auth.js v5) is
+> **done** — see `lib/auth.ts` and `app/api/auth/`. Local Zitadel setup is now
+> `docs/superpowers/specs/2026-08-17-local-zitadel-stack-design.md`, and OIDC
+> app provisioning is automated by `cdcf-infra`'s
+> `setup-zitadel.sh --provision-cdcf-website`. The WordPress OIDC/passkey work
+> (§1.2) and WordPress bearer validation (§2.4) remain **deferred and
+> accurate**. **Do not follow "Production Deployment" below** — see §Production
+> Deployment for why.
+
 ## Context
 
 The CDCF website currently has no user authentication on the Next.js frontend, and WordPress uses its native username/password login. The goal is to add Zitadel as a centralized OIDC identity provider to:
@@ -14,6 +23,11 @@ This plan covers both phases but **defers implementation** — it documents exac
 ## Phase 1: Zitadel + WordPress OIDC
 
 ### 1.1 Add Zitadel to Docker Compose
+
+> **Superseded** by `docs/superpowers/specs/2026-08-17-local-zitadel-stack-design.md`.
+> The shipped stack differs in three ways that matter: a dedicated
+> `zitadel-db` (this stack's `db` is MariaDB, which Zitadel cannot use), a
+> pinned `v4.15.0` image rather than `:latest`, and port 8090 rather than 8080.
 
 **File:** `docker-compose.yml`
 
@@ -114,6 +128,10 @@ define('OIDC_REDIRECT_USER_BACK', true);
 
 ### 1.3 Zitadel Configuration (Manual, Post-Boot)
 
+> **Superseded.** App creation is automated — see the README's "Local Identity
+> Provider (Zitadel)" section. Creating the app by hand in the console produces
+> a client `cdcf-infra` does not know about and will not converge.
+
 After `docker compose up`, access `http://localhost:8085/ui/console` and:
 
 1. **Create project** "CDCF"
@@ -156,6 +174,11 @@ AUTH_SECRET=                          # openssl rand -base64 32
 ---
 
 ## Phase 2: Next.js Frontend Auth
+
+> **2.1–2.3 are done.** `next-auth@5.0.0-beta.31` is installed, `lib/auth.ts`
+> and `app/api/auth/[...nextauth]` exist, and `app/api/auth/zitadel-signout`
+> handles RP-initiated logout. §2.4 (WordPress bearer validation) is still
+> outstanding.
 
 ### 2.1 Install Auth.js v5
 
@@ -211,22 +234,17 @@ Existing auth methods (cookies, Application Passwords) are checked first and rem
 
 ## Production Deployment
 
-| Component | Domain                               | Notes                                                       |
-| --------- | ------------------------------------ | ----------------------------------------------------------- |
-| Zitadel   | `auth.catholicdigitalcommons.org`    | Docker or binary install on Plesk, TLS via Let's Encrypt    |
-| WordPress | `cms.catholicdigitalcommons.org`     | Install OIDC plugin, configure endpoints to `auth.*` domain |
-| Next.js   | `staging.catholicdigitalcommons.org` | Set `AUTH_*` env vars, register callback URI in Zitadel     |
+**Superseded — do not follow the previous contents of this section.**
 
-Production env overrides:
+The shared Zitadel at `auth.catholicdigitalcommons.org` already exists and is
+owned by [`cdcf-infra`](https://github.com/CatholicOS/cdcf-infra), which
+provisions the CDCF Website OIDC apps via
+`./setup-zitadel.sh --target production --provision-cdcf-website`. This
+section previously described standing up a _second_ instance; following it
+would have created a competing production identity provider.
 
-```text
-ZITADEL_EXTERNAL_DOMAIN=auth.catholicdigitalcommons.org
-ZITADEL_EXTERNAL_PORT=443
-ZITADEL_EXTERNAL_SECURE=true
-ZITADEL_ISSUER_URL=https://auth.catholicdigitalcommons.org
-```
-
-**Migration:** Create Zitadel users with matching emails for existing WP admins. The OIDC plugin's `OIDC_LINK_EXISTING_USERS` links them on first login. Application Passwords are unaffected.
+For local development see the "Local Identity Provider (Zitadel)" section of
+the README.
 
 ---
 
