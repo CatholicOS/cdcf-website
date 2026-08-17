@@ -18,12 +18,14 @@ on:
     paths:
       - 'scripts/cdcf_queue_worker*'
       - 'scripts/tests/**'
+      - 'docker-compose.yml'
       - '.github/workflows/test-worker.yml'
   push:
     branches: [main]
     paths:
       - 'scripts/cdcf_queue_worker*'
       - 'scripts/tests/**'
+      - 'docker-compose.yml'
       - '.github/workflows/test-worker.yml'
 
 concurrency:

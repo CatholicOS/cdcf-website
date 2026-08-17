@@ -16,6 +16,96 @@ services:
     volumes:
       - redis_data:/data
 
+  # ── Local identity provider ────────────────────────────────────────────
+  # Local development authenticates against THIS Zitadel, not the production
+  # one at auth.catholicdigitalcommons.org. See
+  # docs/superpowers/specs/2026-08-17-local-zitadel-stack-design.md.
+  #
+  # Its own Postgres: Zitadel requires PostgreSQL and this stack's `db` is
+  # MariaDB, so it cannot be shared the way martyrology-api shares its.
+  zitadel-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${ZITADEL_DB_PASSWORD:-postgres}
+      POSTGRES_DB: zitadel
+    volumes:
+      - zitadel_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d zitadel"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  zitadel:
+    # PINNED. cdcf-infra/auth/setup-zitadel.sh calls the management API by
+    # versioned path (/zitadel.application.v2.ApplicationService/…), so a
+    # silent major bump breaks provisioning with no change in this repo.
+    image: ghcr.io/zitadel/zitadel:v4.15.0
+    restart: unless-stopped
+    # The master key must be EXACTLY 32 chars and must never change: Zitadel
+    # encrypts instance data with it and cannot decrypt after a rotation.
+    # Losing it means deleting zitadel_db_data and re-provisioning, which
+    # invalidates the client IDs in .env.local.
+    command: start-from-init --masterkey "${ZITADEL_MASTERKEY:-MasterkeyNeedsToHave32Characters}"
+    # The image is scratch-based; without uid 0 the PAT lands in the bind
+    # mount with ownership the host-run provisioning script cannot read.
+    user: "0"
+    ports:
+      # 8090, not 8080: martyrology-api and LiturgicalCalendarFrontend both
+      # default their local Zitadel to 8080, and a collision presents as an
+      # opaque bind failure.
+      - "127.0.0.1:${ZITADEL_PORT:-8090}:8080"
+    environment:
+      # EXTERNALPORT must equal the published port above — issuer and
+      # discovery URLs are minted from these two.
+      ZITADEL_EXTERNALDOMAIN: localhost
+      ZITADEL_EXTERNALPORT: ${ZITADEL_PORT:-8090}
+      ZITADEL_EXTERNALSECURE: "false"
+      ZITADEL_TLS_ENABLED: "false"
+
+      # Points at zitadel-db above, NOT the stack's mariadb `db`.
+      ZITADEL_DATABASE_POSTGRES_HOST: zitadel-db
+      ZITADEL_DATABASE_POSTGRES_PORT: 5432
+      ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
+      ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: postgres
+      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${ZITADEL_DB_PASSWORD:-postgres}
+      # Both SSL modes must be `disable`: zitadel-db serves no TLS, and
+      # omitting these leaves Zitadel retrying TLS and failing during
+      # migration, before it ever answers a request.
+      ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
+      ZITADEL_DATABASE_POSTGRES_USER_USERNAME: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel}
+      ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
+
+      # Login V1. Zitadel v4 can require the separate zitadel-login
+      # container; with no such service the authorize flow lands on a route
+      # nothing serves. Auth.js drives sign-in here, so V1 suffices.
+      ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: "false"
+
+      # These four are one unit. PATPATH alone names a file that is never
+      # written — without the machine user there is no token, and the
+      # host-run provisioning script has nothing to authenticate with.
+      ZITADEL_FIRSTINSTANCE_PATPATH: /zitadel-data/automation-user.pat
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: automation-user
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: Automation User
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: "2030-01-01T00:00:00Z"
+    volumes:
+      # Bind mount, not a named volume: the host-run cdcf-infra script must
+      # be able to read the PAT.
+      - ./.zitadel-data:/zitadel-data:delegated
+    depends_on:
+      zitadel-db:
+        condition: service_healthy
+    healthcheck:
+      # Zitadel's own readiness check, so dependents wait for migrations
+      # rather than merely for the port to open.
+      test: ["CMD", "/app/zitadel", "ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
   wordpress:
     image: wordpress:beta-7.0-php8.4-apache
     restart: unless-stopped
@@ -147,3 +237,4 @@ volumes:
   db_data:
   redis_data:
   wordpress_data:
+  zitadel_db_data:
