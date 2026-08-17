@@ -1,0 +1,74 @@
+name: ESLint
+
+# Runs `npm run lint` (eslint .) over the Next.js source.
+#
+# This gap was found the hard way: the typescript@7 dependabot PR (#284)
+# showed every check green while `npm run lint` could not start at all —
+# typescript-eslint refuses TS 7.0 outright ("typescript-eslint does not
+# support TS 7.0", tracked upstream in typescript-eslint#10940). Nothing in
+# CI ran eslint, so a dependency bump that breaks linting for every developer
+# was indistinguishable from one that doesn't.
+#
+# Blocking, matching lint-markdown.yml: eslint passes clean on main today, so
+# a failure here means a real regression rather than pre-existing debt.
+#
+# Note the `lint` job name in the checks list belongs to lint-markdown.yml;
+# this job is `eslint` so the two are distinguishable at a glance.
+#
+# All interpolations are repo-controlled identifiers used as concurrency-
+# group keys, not shelled out. No untrusted github.event.* inputs.
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.js'
+      - '**/*.jsx'
+      - '**/*.mjs'
+      - '**/*.cjs'
+      - 'eslint.config.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/lint-eslint.yml'
+  push:
+    branches: [main]
+    paths:
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.js'
+      - '**/*.jsx'
+      - '**/*.mjs'
+      - '**/*.cjs'
+      - 'eslint.config.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/lint-eslint.yml'
+
+concurrency:
+  group: lint-eslint-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eslint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
