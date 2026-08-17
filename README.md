@@ -54,6 +54,51 @@ Edit `.env.local`:
 | `WP_DB_USER`          | WordPress database user (default: `wordpress`)                                                       |
 | `WP_DB_PASSWORD`      | WordPress database password                                                                          |
 
+### Local Identity Provider (Zitadel)
+
+Local sign-in runs against a Zitadel in this repo's compose stack — **not**
+the production instance at `auth.catholicdigitalcommons.org`.
+
+```bash
+docker compose up -d zitadel-db zitadel
+```
+
+First boot runs migrations and writes a machine-user token to
+`.zitadel-data/automation-user.pat`. Provisioning the OIDC app is done from
+[`cdcf-infra`](https://github.com/CatholicOS/cdcf-infra), which owns
+Zitadel configuration for every property — this repo adds no provisioning
+script. From `cdcf-infra/auth`, with `.env.local` carrying:
+
+```bash
+ZITADEL_ISSUER=http://localhost:8090
+ZITADEL_INTERNAL_URL=http://127.0.0.1:8090
+ZITADEL_PAT_FILE=<path-to>/cdcf-website/.zitadel-data/automation-user.pat
+```
+
+then:
+
+```bash
+./setup-zitadel.sh --target local --create-orgs --provision-cdcf-website
+```
+
+`--create-orgs` must come first — provisioning exits 13 without the CDCF Org.
+Copy the printed `AUTH_ZITADEL_ID`, `AUTH_ZITADEL_SECRET` and Org ID into
+`.env.local`.
+
+These Compose variables come from `.env` (Compose does not read `.env.local`):
+
+| Variable              | Default                            | Notes                                                |
+| --------------------- | ---------------------------------- | ---------------------------------------------------- |
+| `ZITADEL_PORT`        | `8090`                             | 8080 collides with the LitCal and Martyrology stacks |
+| `ZITADEL_MASTERKEY`   | `MasterkeyNeedsToHave32Characters` | Exactly 32 chars, and never change it — see below    |
+| `ZITADEL_DB_PASSWORD` | `postgres` / `zitadel`             | Local only                                           |
+
+Changing `ZITADEL_MASTERKEY` after first boot makes existing instance data
+undecryptable; recovery means `docker compose down -v` and re-provisioning,
+which invalidates the client IDs in `.env.local`. Changing `ZITADEL_PORT`
+means updating `AUTH_ZITADEL_ISSUER` in `.env.local` and the two
+`cdcf-infra` URLs above to match.
+
 ### Development
 
 #### Full Stack (Docker)

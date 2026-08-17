@@ -105,3 +105,21 @@ print(len(m.group(1)) if m else 'nomatch')\""
     [ "$status" -eq 0 ]
     [ "$output" = "0" ]
 }
+
+@test "env example: AUTH_ZITADEL_ISSUER matches the compose default port" {
+    port=$(compose_service_json zitadel | python3 -c "
+import sys,json
+print(json.load(sys.stdin)['ports'][0]['published'])")
+    run grep -E "^AUTH_ZITADEL_ISSUER=http://localhost:${port}$" .env.local.example
+    [ "$status" -eq 0 ]
+}
+
+@test "env example: local dev does not point at the production Zitadel" {
+    run grep -E "^AUTH_ZITADEL_ISSUER=.*auth\.catholicdigitalcommons\.org" .env.local.example
+    [ "$status" -ne 0 ]
+}
+
+@test "env example: AUTH_ZITADEL_ORG_ID is present for lib/auth.ts to read" {
+    run grep -E "^AUTH_ZITADEL_ORG_ID=" .env.local.example
+    [ "$status" -eq 0 ]
+}
