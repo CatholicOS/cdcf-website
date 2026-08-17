@@ -115,7 +115,7 @@ The proxy's healthcheck targets `127.0.0.1`, not `localhost`: nginx listens on I
 
 The bind-mounted PAT is the entire integration. Zitadel writes `automation-user.pat` into `./.zitadel-data/` on first boot; the **host-run** `cdcf-infra` script reads it. No script is added to this repo, and `cdcf-infra` needs no change — the same shape Martyrology already uses.
 
-From `cdcf-infra/auth`, with `.env.local` carrying:
+From `cdcf-infra/auth`, in a per-property env file — `.env.local.cdcf-website`, **not** the shared `.env.local` — carrying:
 
 ```bash
 ZITADEL_ISSUER=http://localhost:8090
@@ -126,8 +126,11 @@ ZITADEL_PAT_FILE=<path-to>/cdcf-website/.zitadel-data/automation-user.pat
 then:
 
 ```bash
-./setup-zitadel.sh --target local --create-orgs --provision-cdcf-website
+ENV_FILE=.env.local.cdcf-website \
+  ./setup-zitadel.sh --target local --create-orgs --provision-cdcf-website
 ```
+
+**Why a per-property file.** All three values above describe _this_ repo's local Zitadel, and every umbrella property runs its own — `martyrology-api` on 8080, `martyrology-frontend` with its own `.zitadel-data/`, this one on 8090. `setup-zitadel.sh` resolves `ENV_FILE="${ENV_FILE:-.env.local}"` per target, so a single shared `.env.local` is last-writer-wins across properties. The resulting failure is silent, not loud: running `--provision-martyrology` while the file still points here creates Martyrology's project inside cdcf-website's Zitadel, since this PAT is a valid IAM_OWNER for this instance and the call succeeds normally. The script does echo its target (`Target: local (issuer: http://localhost:8090, ...)`), but that is a log line, not a guard. One file per property removes the ambiguity without any change to `cdcf-infra`.
 
 `--create-orgs` is required first: `do_provision_cdcf_website` exits 13 if the CDCF Org is absent. The run prints `AUTH_ZITADEL_ID` and `AUTH_ZITADEL_SECRET` for this repo's `.env.local`.
 

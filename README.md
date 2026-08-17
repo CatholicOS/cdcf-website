@@ -91,7 +91,8 @@ starts but fails every request unauthenticated.
 Provisioning the OIDC app is done from
 [`cdcf-infra`](https://github.com/CatholicOS/cdcf-infra), which owns
 Zitadel configuration for every property — this repo adds no provisioning
-script. From `cdcf-infra/auth`, with `.env.local` carrying:
+script. From `cdcf-infra/auth`, in a **per-property** env file —
+`.env.local.cdcf-website`, not the shared `.env.local` — carrying:
 
 ```bash
 ZITADEL_ISSUER=http://localhost:8090
@@ -102,7 +103,22 @@ ZITADEL_PAT_FILE=<path-to>/cdcf-website/.zitadel-data/automation-user.pat
 then:
 
 ```bash
-./setup-zitadel.sh --target local --create-orgs --provision-cdcf-website
+ENV_FILE=.env.local.cdcf-website \
+  ./setup-zitadel.sh --target local --create-orgs --provision-cdcf-website
+```
+
+All three of those values are specific to **this** repo's local Zitadel, and
+every umbrella property runs its own on its own port — `martyrology-api` on
+8080, this one on 8090. Sharing one `.env.local` across them means whichever
+property you configured last wins, and the failure is silent rather than
+loud: run `--provision-martyrology` while the file still points here and
+Martyrology's project is created inside cdcf-website's Zitadel, because this
+PAT is a valid IAM_OWNER for this instance. Keeping one file per property
+makes that impossible. `ENV_FILE` overrides the default, and each run echoes
+the instance it is about to touch:
+
+```text
+[setup-zitadel] Target: local (issuer: http://localhost:8090, ...)
 ```
 
 `--create-orgs` must come first — provisioning exits 13 without the CDCF Org.
