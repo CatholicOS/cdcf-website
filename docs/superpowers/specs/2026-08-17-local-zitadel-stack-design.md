@@ -53,7 +53,7 @@ Two of these are the usual failure points:
 - **`ZITADEL_EXTERNALPORT` must track the published host port.** Zitadel mints issuer and discovery URLs from `EXTERNALDOMAIN`/`EXTERNALPORT`; if they disagree with what the browser reaches, sign-in fails at discovery with a URL that looks superficially correct.
 - **Port default is 8090, not 8080.** Both `martyrology-api` and `LiturgicalCalendarFrontend` default their local Zitadel to `127.0.0.1:8080`. A third stack on 8080 means only one can run at a time, and the collision presents as an opaque bind failure. `ZITADEL_PORT` keeps it overridable.
 
-`./.zitadel-data/` is gitignored. The stray empty `zitadel/` directory at the repo root is deleted — it is untracked, has no history, and would only be confused with the service.
+`./.zitadel-data/` is already gitignored (`.gitignore:58`). The stray `zitadel/` directory at the repo root is deleted: it is untracked on `main` and contains only an empty, root-owned `nginx.conf/` **directory** — a bind-mount artifact from a compose file that once referenced a file at that path. Two implementation notes follow from that. It is root-owned, so removal needs elevated privileges. And it is not quite historyless: `zitadel/nginx.conf` existed as a real file on the unmerged `feature/zitadel-integration` branch (still present on `origin`), which this deletion does not touch.
 
 ## 4. Provisioning contract
 
