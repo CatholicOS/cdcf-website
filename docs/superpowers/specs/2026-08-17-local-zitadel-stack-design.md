@@ -33,25 +33,53 @@ Making it the _default_ rather than an opt-in is the point. If `.env.local.examp
 
 `ghcr.io/zitadel/zitadel:v4.15.0` — **pinned**, matching `martyrology-api`. The existing plan doc says `:latest`; that is wrong for a stack whose management API `cdcf-infra/auth/setup-zitadel.sh` calls by versioned path (`/zitadel.application.v2.ApplicationService/…`, `/v2/users/…`). A silent major bump would break provisioning with no change in this repo.
 
-Started with `start-from-init --masterkey`, `depends_on: zitadel-db` healthy.
+`depends_on: zitadel-db` healthy, with Zitadel's own `["CMD", "/app/zitadel", "ready"]` healthcheck so dependents wait for migrations rather than for the port to open.
 
 The load-bearing configuration:
 
 ```yaml
 ports: ["127.0.0.1:${ZITADEL_PORT:-8090}:8080"]
+command: 'start-from-init --masterkey "${ZITADEL_MASTERKEY:-MasterkeyNeedsToHave32Characters}"'
+user: "0"
 environment:
   ZITADEL_EXTERNALDOMAIN: localhost
   ZITADEL_EXTERNALPORT: ${ZITADEL_PORT:-8090}
   ZITADEL_EXTERNALSECURE: "false"
   ZITADEL_TLS_ENABLED: "false"
+
+  # Points at §3.1's dedicated service, NOT the stack's mariadb `db`.
+  ZITADEL_DATABASE_POSTGRES_HOST: zitadel-db
+  ZITADEL_DATABASE_POSTGRES_PORT: 5432
+  ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
+  ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: postgres
+  ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${ZITADEL_DB_PASSWORD:-postgres}
+  ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
+  ZITADEL_DATABASE_POSTGRES_USER_USERNAME: zitadel
+  ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel}
+  ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
+
+  ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_REQUIRED: false
+
+  # These four are one unit: the first three create the machine user, the
+  # PATPATH writes its token where §4's host-run script reads it.
   ZITADEL_FIRSTINSTANCE_PATPATH: /zitadel-data/automation-user.pat
+  ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: automation-user
+  ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: Automation User
+  ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: "2030-01-01T00:00:00Z"
 volumes: ["./.zitadel-data:/zitadel-data:delegated"]
 ```
 
-Two of these are the usual failure points:
+`ZITADEL_MASTERKEY` and `ZITADEL_DB_PASSWORD` are read by Compose from `.env`, not `.env.local` — Compose does not read the latter.
+
+The usual failure points, in the order they tend to bite:
 
 - **`ZITADEL_EXTERNALPORT` must track the published host port.** Zitadel mints issuer and discovery URLs from `EXTERNALDOMAIN`/`EXTERNALPORT`; if they disagree with what the browser reaches, sign-in fails at discovery with a URL that looks superficially correct.
 - **Port default is 8090, not 8080.** Both `martyrology-api` and `LiturgicalCalendarFrontend` default their local Zitadel to `127.0.0.1:8080`. A third stack on 8080 means only one can run at a time, and the collision presents as an opaque bind failure. `ZITADEL_PORT` keeps it overridable.
+- **The master key needs a value, and the same value forever.** It must be exactly 32 characters. Zitadel encrypts instance data with it and cannot decrypt after it changes, so a rotated or lost key means deleting the volume and re-provisioning — losing the client IDs `.env.local` was filled from. The default above keeps a fresh clone working; `ZITADEL_MASTERKEY` overrides it.
+- **Both Postgres SSL modes must be `disable`.** `zitadel-db` is `postgres:16-alpine` with no TLS. Omitting `ADMIN_SSL_MODE`/`USER_SSL_MODE` leaves Zitadel attempting TLS and failing during migration, before it ever serves a request.
+- **Login V2 is switched off deliberately.** Zitadel v4 can require the separate `zitadel-login` container; with no such service, the authorize flow lands on a route nothing serves. This stack sets `LOGINV2_REQUIRED: false` and uses Login V1 rather than adding the container, because the umbrella convention is that each property builds its own sign-in UI against the Zitadel APIs. Auth.js drives the flow here, so V1's hosted pages are sufficient.
+- **The machine-user block is what produces the PAT.** `PATPATH` alone names a file that is never written. Without the three `FIRSTINSTANCE_ORG_MACHINE_*` settings no machine user exists, `./.zitadel-data/automation-user.pat` never appears, and §4's provisioning run has nothing to authenticate with.
+- **`user: "0"` is required for the PAT to be readable.** The Zitadel image is scratch-based; without it the token lands in the bind mount with ownership the host script cannot read.
 
 `./.zitadel-data/` is already gitignored (`.gitignore:58`). The stray `zitadel/` directory at the repo root is deleted: it is untracked on `main` and contains only an empty, root-owned `nginx.conf/` **directory** — a bind-mount artifact from a compose file that once referenced a file at that path. Two implementation notes follow from that. It is root-owned, so removal needs elevated privileges. And it is not quite historyless: `zitadel/nginx.conf` existed as a real file on the unmerged `feature/zitadel-integration` branch (still present on `origin`), which this deletion does not touch.
 
@@ -75,13 +103,17 @@ then:
 
 `--create-orgs` is required first: `do_provision_cdcf_website` exits 13 if the CDCF Org is absent. The run prints `AUTH_ZITADEL_ID` and `AUTH_ZITADEL_SECRET` for this repo's `.env.local`.
 
+Note `ZITADEL_INTERNAL_URL` must be set explicitly: `setup-zitadel.sh` defaults it to `http://127.0.0.1:8080` for every target, which is the port this stack deliberately avoids (§3.2).
+
+**One port, four places.** `ZITADEL_PORT` above is the only knob, but its value is restated in `ZITADEL_ISSUER`, `ZITADEL_INTERNAL_URL`, and §5's `AUTH_ZITADEL_ISSUER`, and nothing validates that the four agree. Overriding `ZITADEL_PORT` without updating the other three points provisioning and Next.js at a port with no Zitadel behind it. Implementations should derive them from a single documented value; the `8090` written out below is that value's default, not an independent constant.
+
 Note this depends on #20's target-aware work for the `local` origin set (`http://localhost:3000`, devMode=true). Until #20 lands, a local run registers the production origins — harmless in a local instance, but not yet correct. The two land in order: this stack, then #20.
 
 ## 5. Next.js environment
 
 `.env.local.example`:
 
-- `AUTH_ZITADEL_ISSUER` → `http://localhost:8090` (from the production URL), with a comment pointing at §4's command.
+- `AUTH_ZITADEL_ISSUER` → `http://localhost:8090` (from the production URL), with a comment pointing at §4's command. This is the fourth restatement of `ZITADEL_PORT` — see §4's note; it must move whenever that does.
 - `AUTH_ZITADEL_ORG_ID` needs the **local** CDCF Org ID, not the production one. It is consumed at `lib/auth.ts:69` and is easy to miss because sign-in fails in a way that looks like a credentials problem; the same provisioning run prints it.
 - `AUTH_ZITADEL_ID` / `AUTH_ZITADEL_SECRET` stay blank in the example, filled from the run.
 
