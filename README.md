@@ -54,6 +54,144 @@ Edit `.env.local`:
 | `WP_DB_USER`          | WordPress database user (default: `wordpress`)                                                       |
 | `WP_DB_PASSWORD`      | WordPress database password                                                                          |
 
+### Local Identity Provider (Zitadel)
+
+Local sign-in runs against a Zitadel in this repo's compose stack — **not**
+the production instance at `auth.catholicdigitalcommons.org`.
+
+```bash
+docker compose up -d --wait zitadel-db zitadel zitadel-login zitadel-proxy
+```
+
+`--wait` blocks until every service passes its healthcheck. Without it the
+command returns while Zitadel is still migrating, and the provisioning run
+below fails on a PAT file that does not exist yet.
+
+Four services, mirroring how production is assembled:
+
+| Service         | Role                                                                        |
+| --------------- | --------------------------------------------------------------------------- |
+| `zitadel-db`    | Zitadel's own PostgreSQL — the stack's `db` is MariaDB                      |
+| `zitadel`       | the backend; publishes no host port                                         |
+| `zitadel-login` | the v2 sign-in UI, served under `/ui/v2/login`                              |
+| `zitadel-proxy` | nginx owning `8090`, routing `/ui/v2/login*` to the UI, rest to the backend |
+
+`zitadel-login` runs because production requires Login V2; a local stack on V1
+would exercise a sign-in UI no deployed environment serves. It is an interim
+dependency — the intended end state is this project implementing sign-in
+natively against the Zitadel APIs, at which point the container goes away.
+
+First boot runs migrations and writes **two** tokens: a machine-user token to
+`.zitadel-data/automation-user.pat` (used by provisioning below) and
+`.zitadel-data/login-client.pat` (used by `zitadel-login`). Both are
+first-instance settings, so enabling Login V2 on a stack that was already
+initialised requires removing `zitadel_db_data` first — otherwise the login UI
+starts but fails every request unauthenticated.
+
+Provisioning the OIDC app is done from
+[`cdcf-infra`](https://github.com/CatholicOS/cdcf-infra), which owns
+Zitadel configuration for every property — this repo adds no provisioning
+script. From `cdcf-infra/auth`, in a **per-property** env file —
+`.env.local.cdcf-website`, not the shared `.env.local` — carrying:
+
+```bash
+ZITADEL_ISSUER=http://localhost:8090
+ZITADEL_INTERNAL_URL=http://127.0.0.1:8090
+ZITADEL_PAT_FILE=<path-to>/cdcf-website/.zitadel-data/automation-user.pat
+```
+
+then:
+
+```bash
+ENV_FILE=.env.local.cdcf-website \
+  ./setup-zitadel.sh --target local --create-orgs --provision-cdcf-website
+```
+
+All three of those values are specific to **this** repo's local Zitadel, and
+every umbrella property runs its own on its own port — `martyrology-api` on
+8080, this one on 8090. Sharing one `.env.local` across them means whichever
+property you configured last wins, and the failure is silent rather than
+loud: run `--provision-martyrology` while the file still points here and
+Martyrology's project is created inside cdcf-website's Zitadel, because this
+PAT is a valid IAM_OWNER for this instance. Keeping one file per property
+makes that impossible. `ENV_FILE` overrides the default, and each run echoes
+the instance it is about to touch:
+
+```text
+[setup-zitadel] Target: local (issuer: http://localhost:8090, ...)
+```
+
+`--create-orgs` must come first — provisioning exits 13 without the CDCF Org.
+Copy the printed `AUTH_ZITADEL_ID`, `AUTH_ZITADEL_SECRET` and Org ID into
+`.env.local`.
+
+Then confirm you are actually on the local instance — every other step can
+pass while sign-in still silently uses production:
+
+1. Check where sign-in actually sends you, not what the file says. Auth.js
+   does not expose the issuer via `/api/auth/providers`, so read it off the
+   authorize redirect:
+
+   ```bash
+   CSRF=$(curl -s -c /tmp/ck http://localhost:3000/api/auth/csrf \
+     | python3 -c "import json,sys;print(json.load(sys.stdin)['csrfToken'])")
+   curl -s -b /tmp/ck -o /dev/null -D - -X POST \
+     -d "csrfToken=$CSRF&callbackUrl=http://localhost:3000/" \
+     http://localhost:3000/api/auth/signin/zitadel | grep -i '^location:'
+   ```
+
+   The `Location` must start `http://localhost:8090/oauth/v2/authorize`. If it
+   starts `https://auth.catholicdigitalcommons.org`, `AUTH_ZITADEL_ISSUER` did
+   not reach the running server — restart `npm run dev` after editing
+   `.env.local`.
+
+2. Sign in, then sign out through `/api/auth/zitadel-signout`, with the
+   browser devtools Network tab filtered on `catholicdigitalcommons`. Both
+   `lib/auth.ts`'s authorize/token calls and the sign-out redirect must
+   produce **no** requests to `auth.catholicdigitalcommons.org`.
+
+A stale `AUTH_ZITADEL_ISSUER` in a running dev server is the usual cause of a
+green-looking setup that never left production.
+
+These Compose variables come from `.env` (Compose does not read `.env.local`):
+
+| Variable              | Default                            | Notes                                                |
+| --------------------- | ---------------------------------- | ---------------------------------------------------- |
+| `ZITADEL_PORT`        | `8090`                             | 8080 collides with the LitCal and Martyrology stacks |
+| `ZITADEL_MASTERKEY`   | `MasterkeyNeedsToHave32Characters` | Exactly 32 chars, and never change it — see below    |
+| `ZITADEL_DB_PASSWORD` | `postgres` / `zitadel`             | Local only                                           |
+
+Changing `ZITADEL_MASTERKEY` after first boot makes existing instance data
+undecryptable; recovery means removing the Zitadel services and their
+database volume, then re-provisioning, which invalidates the client IDs in
+`.env.local`. **Never change the masterkey on data you want to keep** —
+scope the recovery to Zitadel only, not the whole stack (`docker compose
+down -v` would also delete `db_data`, `redis_data` and `wordpress_data`,
+wiping your local WordPress install):
+
+```bash
+docker compose rm -sf zitadel zitadel-db
+docker volume ls | grep zitadel   # read the real name from this output
+docker volume rm <name-from-the-listing>
+```
+
+Take the volume name from that listing rather than pasting a literal: the
+`cdcf-website_` prefix comes from the Compose project name and differs if
+you've overridden it, so a hard-coded `cdcf-website_zitadel_db_data` can
+silently miss the volume you meant to remove — or match one you did not.
+
+`ZITADEL_DB_PASSWORD` has the same one-way property as the masterkey, for a
+different reason: `POSTGRES_PASSWORD` initialises the Postgres role **only on
+an empty volume**. Change it once `zitadel_db_data` exists and the role keeps
+its old password, so Zitadel fails to authenticate against its own database
+while the variable reads as correct. Recovery is the same sequence above —
+stop the two services, remove the volume, bring the stack back up with the
+intended password, and re-provision.
+
+Changing `ZITADEL_PORT` means updating
+`AUTH_ZITADEL_ISSUER` in `.env.local` and the two `cdcf-infra` URLs above to
+match.
+
 ### Development
 
 #### Full Stack (Docker)

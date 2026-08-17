@@ -1,6 +1,10 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for AI coding agents working in this repository. Nothing here is
+specific to one vendor — `CLAUDE.md` and `GEMINI.md` are symlinks to this
+file, so whichever agent reads its own conventional filename gets these same
+instructions. Add a new symlink rather than a second copy if another tool
+needs a different name.
 
 ## Build & Development Commands
 
@@ -326,7 +330,7 @@ Required in `.env.local` (Next.js) or `.env` (Docker Compose):
 - `WP_APP_USERNAME`, `WP_APP_PASSWORD` — WordPress Application Password (used by the Python client)
 - `WP_PREVIEW_SECRET` — Shared secret for preview + revalidation
 - `WP_DB_ROOT_PASSWORD`, `WP_DB_NAME`, `WP_DB_USER`, `WP_DB_PASSWORD` — Database config
-- `AUTH_ZITADEL_ID`, `AUTH_ZITADEL_SECRET`, `AUTH_ZITADEL_ISSUER`, `AUTH_SECRET` — Auth.js v5 OIDC client config (see `lib/auth.ts`). The client_id/secret come from cdcf-infra's `setup-zitadel.sh --provision-cdcf-website` handoff; the issuer is `https://auth.catholicdigitalcommons.org`; `AUTH_SECRET` is generated per-env via `openssl rand -base64 32`. Each frontend (prod vs non-prod) pins **its own** `AUTH_ZITADEL_ID` (the one its sign-in flow uses). On the **shared** WordPress backend, `wp-config.php` must define `CDCF_ZITADEL_EXPECTED_AUD` as a **comma-separated allow-list of BOTH client IDs** — see [Zitadel bearer authentication](#zitadel-bearer-authentication) above for the full shape. Setting only one client ID there would 403 tokens minted by the other frontend.
+- `AUTH_ZITADEL_ID`, `AUTH_ZITADEL_SECRET`, `AUTH_ZITADEL_ISSUER`, `AUTH_ZITADEL_ORG_ID`, `AUTH_SECRET` — Auth.js v5 OIDC client config (see `lib/auth.ts`). The client_id/secret come from cdcf-infra's `setup-zitadel.sh --provision-cdcf-website` handoff. The issuer is environment-dependent: deployed environments (staging/production) use `https://auth.catholicdigitalcommons.org`; LOCAL development uses `http://localhost:8090`, the Zitadel in this repo's own compose stack — see the README's "Local Identity Provider (Zitadel)" section. `AUTH_ZITADEL_ORG_ID` is the CDCF Org ID (read by `lib/auth.ts:69`). It is **optional**: unset, `buildOrgScope()` contributes no scope and Zitadel authorizes any instance-wide user, so CDCF Org members still sign in. Set it to scope authentication to the CDCF Org — that routes registrations into it and rejects sign-ins from sibling-property Orgs and from the umbrella IAM admin. A value from the wrong instance (the production Org ID against a local Zitadel, say) does fail sign-in, in a way that looks like a credentials problem. `AUTH_SECRET` is generated per-env via `openssl rand -base64 32`. Each frontend (prod vs non-prod) pins **its own** `AUTH_ZITADEL_ID` (the one its sign-in flow uses). On the **shared** WordPress backend, `wp-config.php` must define `CDCF_ZITADEL_EXPECTED_AUD` as a **comma-separated allow-list of BOTH client IDs** — see [Zitadel bearer authentication](#zitadel-bearer-authentication) above for the full shape. Setting only one client ID there would 403 tokens minted by the other frontend.
 - Docker Compose reads `.env` not `.env.local` for variable substitution
 
 ## Deployment
@@ -353,3 +357,27 @@ gh run view <run-id> --json jobs \
 ```
 
 The scp upload step occasionally fails transiently with `kex_exchange_identification: read: Connection reset by peer` (VPS SSH rate-limit after back-to-back deploys) — just re-run.
+
+<!--
+  Everything below is written and re-added by `next dev` (see
+  node_modules/next/dist/server/lib/generate-agent-files.js). It opens with its
+  own H1, which trips MD025/single-title in a file that already has one, so
+  `npm run lint:md` fails on every tree where the dev server has run — and on
+  CLAUDE.md / GEMINI.md too, since both are symlinks to this file.
+
+  The rule is disabled from here to EOF rather than repo-wide, so MD025 still
+  protects every other document. The directive sits ABOVE the BEGIN marker on
+  purpose: the generator rewrites only the span between its markers, preserving
+  content before and after, so this comment survives regeneration.
+-->
+<!-- markdownlint-disable MD025 -->
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
