@@ -1,10 +1,23 @@
 name: bats (queue worker)
 
-# Runs the bats-core suite over scripts/cdcf_queue_worker.lib.sh helpers,
-# instruments them with kcov, and uploads cobertura coverage to Codecov
-# under the `worker` flag (refs #91 Phase 2). Non-blocking for now
-# (continue-on-error) per #63: land tests, watch them stabilize, then
-# flip the gate in a follow-up.
+# Runs the bats-core suite over scripts/cdcf_queue_worker.lib.sh helpers
+# and the compose-config tests, instruments them with kcov, and uploads
+# cobertura coverage to Codecov under the `worker` flag (refs #91 Phase 2).
+#
+# This job now GATES. #63 landed it non-blocking (continue-on-error) with
+# the note "watch them stabilize, then flip the gate in a follow-up" — this
+# is that follow-up. Two things were wrong while it was non-blocking, and
+# both are fixed here:
+#
+#   1. It could not fail. continue-on-error made the job report success
+#      whatever the tests did.
+#   2. It reported nothing. Running bats *under* kcov meant kcov captured
+#      bats' stdout, so no TAP (1..N / ok N / not ok N) ever reached the
+#      log — for ANY test file. A green check was not evidence a single
+#      test had run, let alone passed.
+#
+# So bats now runs twice: once directly (the gate and the visible record),
+# once under kcov (measurement only, never the gate).
 #
 # All interpolations are repo-controlled identifiers used as concurrency-
 # group keys, not shelled out. No untrusted github.event.* inputs.
@@ -39,7 +52,6 @@ jobs:
     # and build kcov from source (~1-2 min overhead) or pick up a future
     # runner image that ships kcov preinstalled.
     runs-on: ubuntu-22.04
-    continue-on-error: true
 
     steps:
       - name: Checkout code (with bats-core submodule)
@@ -61,24 +73,33 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends kcov
 
-      - name: Run bats under kcov
-        # kcov struggles with bats' run-in-subshell test helper unless each
-        # .bats file is invoked separately, so we loop and merge. The
-        # include pattern restricts measurement to the worker scripts —
-        # bats internals, shims, and python helpers are excluded.
+      - name: Run bats
+        # THE GATE. Runs bats directly so its TAP output reaches the log and
+        # a non-zero exit fails the job. Do not fold this back into the kcov
+        # step: kcov captures bats' stdout, which is what made this suite
+        # silent and unverifiable for every test it contained.
+        run: ./scripts/tests/bats/bin/bats scripts/tests/*.bats
+
+      - name: Measure coverage under kcov
+        # MEASUREMENT ONLY — never the gate; the step above already ran the
+        # tests and decided. kcov struggles with bats' run-in-subshell test
+        # helper unless each .bats file is invoked separately, so we loop and
+        # merge. The include pattern restricts measurement to the worker
+        # scripts — bats internals, shims, and python helpers are excluded.
+        # continue-on-error is at STEP level and scoped to coverage: a kcov
+        # failure must not fail a build whose tests passed.
+        continue-on-error: true
         run: |
           mkdir -p coverage
-          fail=0
           for f in scripts/tests/*.bats; do
             name=$(basename "$f" .bats)
             kcov \
               --include-pattern=cdcf_queue_worker \
               --bash-dont-parse-binary-dir \
               "coverage/${name}" \
-              scripts/tests/bats/bin/bats "$f" || fail=$?
+              scripts/tests/bats/bin/bats "$f" || true
           done
           kcov --merge coverage/merged coverage/*/
-          exit "${fail}"
 
       - name: Upload coverage to Codecov (worker flag)
         # if: always() so coverage uploads even when a bats test fails.
