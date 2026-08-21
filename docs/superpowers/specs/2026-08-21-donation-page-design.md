@@ -109,6 +109,11 @@ translation of legal boilerplate adds risk for no benefit.
   `POST /cdcf/v1/donation-acknowledgment`, Application-Password authed,
   called server-to-server by the webhook handler. Sends via `wp_mail`, which
   the theme already routes through authenticated SMTP (`functions.php:55`).
+- `includes/handlers/donation-portal-link.php` →
+  `POST /cdcf/v1/donation-portal-link`, same auth, mailing the Billing
+  Portal link. Both outbound emails go through WordPress rather than a Node
+  mailer, matching how every existing transactional email in this repository
+  is sent.
 
 Per the sanitization convention, every field declares its `sanitize_callback`
 in the `args` block at registration; the handler does not re-sanitize.
@@ -124,7 +129,11 @@ New PHP files use the single-line `defined('ABSPATH') || exit;` guard.
 - `app/api/donate/create-session/route.ts` — validates, then creates the
   Checkout Session.
 - `app/api/donate/webhook/route.ts` — signature-verified Stripe receiver.
-- `app/api/donate/portal/route.ts` — emails a Customer Portal link.
+- `app/api/donate/portal/route.ts` — accepts an email address, looks up the
+  matching Stripe customer, creates a Billing Portal session, and hands the
+  link to WordPress to mail. It always responds identically whether or not
+  the address matched a donor, so the endpoint cannot be used to probe who
+  has given.
 - `components/sections/DonationSection.tsx` (server, reads ACF) wrapping
   `DonationForm.tsx` (client).
 - `renderDonate()` in `components/sections/PageRenderer.tsx`.
@@ -299,8 +308,9 @@ localhost:3000/api/donate/webhook` plus `stripe trigger` for the
 ## Deployment
 
 - New environment variables: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
-  and a site-URL base for the success and cancel redirects — with distinct
-  test-mode values on staging.
+  with distinct test-mode values on staging. The success and cancel
+  redirects reuse the existing `NEXT_PUBLIC_SITE_URL`; no new URL variable
+  is needed.
 - Apple Pay and Google Pay come free with Checkout but require a
   domain-verification step in the Stripe Dashboard.
 - Theme changes mean the deploy must run
