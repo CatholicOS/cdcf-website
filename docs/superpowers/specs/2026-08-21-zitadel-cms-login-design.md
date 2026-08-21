@@ -48,7 +48,7 @@ are the things to push back on first if the design looks wrong.
 
 ### File layout
 
-```
+```text
 wordpress/themes/cdcf-headless/includes/auth/
   zitadel-config.php     NEW      issuer + endpoint derivation, client config
   zitadel-identity.php   NEW      JWT decode, sub/email resolution, auto-provision
@@ -95,12 +95,12 @@ behaviour changes.
 following the `defined() || define()` plus `wp-config.php` convention the
 theme already uses for `CDCF_FRONTEND_URL` and `CDCF_PREVIEW_SECRET`.
 
-| Constant | Default | Purpose |
-| --- | --- | --- |
-| `CDCF_ZITADEL_ISSUER` | `https://auth.catholicdigitalcommons.org` | Base for all endpoint URLs |
-| `CDCF_ZITADEL_WP_CLIENT_ID` | `''` | The CMS's own Zitadel client |
-| `CDCF_ZITADEL_WP_CLIENT_SECRET` | `''` | Confidential client secret |
-| `CDCF_ZITADEL_ORG_ID` | `''` | Optional; adds the Org-restriction scope, same semantics as `AUTH_ZITADEL_ORG_ID` in `lib/auth.ts` |
+| Constant                        | Default                                   | Purpose                                                                                            |
+| ------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `CDCF_ZITADEL_ISSUER`           | `https://auth.catholicdigitalcommons.org` | Base for all endpoint URLs                                                                         |
+| `CDCF_ZITADEL_WP_CLIENT_ID`     | `''`                                      | The CMS's own Zitadel client                                                                       |
+| `CDCF_ZITADEL_WP_CLIENT_SECRET` | `''`                                      | Confidential client secret                                                                         |
+| `CDCF_ZITADEL_ORG_ID`           | `''`                                      | Optional; adds the Org-restriction scope, same semantics as `AUTH_ZITADEL_ORG_ID` in `lib/auth.ts` |
 
 Authorize, token, userinfo and end-session URLs are derived from the issuer.
 An empty client id or secret disables the login button entirely and makes the
@@ -151,11 +151,11 @@ Otherwise it generates `state`, `nonce` and a PKCE `code_verifier` (all
 computes the S256 challenge, and then:
 
 - **Transient** `cdcf_zauth_{sha256(state)}` holds `{nonce, verifier,
-  redirect_to}` with a 10-minute TTL.
+redirect_to}` with a 10-minute TTL.
 - **Cookie** `cdcf_zitadel_state` holds the raw `state` — HttpOnly, `Secure`
   when `is_ssl()`, `SameSite=Lax`. Lax is correct: the callback is a top-level
   GET navigation, so the cookie is sent. This is the login-CSRF defence. The
-  transient alone proves *a* flow started; the cookie proves *this browser*
+  transient alone proves _a_ flow started; the cookie proves _this browser_
   started it.
 
 It then calls `wp_redirect()` — not `wp_safe_redirect()`, since the host is
@@ -165,16 +165,16 @@ with `scope=openid profile email`, plus the Org-restriction scope when
 
 ### Callback — `login_form_cdcf-zitadel-callback`
 
-| # | Step | Failure code |
-| --- | --- | --- |
-| 1 | Provider returned `error=` | `cdcf_provider_error` |
-| 2 | `state` param and cookie both present and `hash_equals` | `cdcf_bad_state` |
-| 3 | Transient loads; deleted immediately (single use), cookie cleared | `cdcf_expired` |
-| 4 | Token exchange: `code` + `code_verifier`, `client_secret_basic`, 5s timeout | `cdcf_exchange_failed` |
-| 5 | `id_token` claims: `iss` matches, `aud` contains our client id, `exp` fresh (60s leeway), `nonce` matches the transient, `sub` present | `cdcf_bad_token` |
-| 6 | Userinfo: HTTP 200, `email_verified === true` (strict), non-empty `email`, `sub` equal to the id_token's | `cdcf_bad_token` |
-| 7 | `cdcf_zitadel_resolve_existing_user($sub, $email)` returns > 0 | `cdcf_no_account` |
-| 8 | `wp_set_auth_cookie()`, `do_action('wp_login', …)`, redirect to `wp_validate_redirect($redirect_to, admin_url())` | — |
+| #   | Step                                                                                                                                   | Failure code           |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| 1   | Provider returned `error=`                                                                                                             | `cdcf_provider_error`  |
+| 2   | `state` param and cookie both present and `hash_equals`                                                                                | `cdcf_bad_state`       |
+| 3   | Transient loads; deleted immediately (single use), cookie cleared                                                                      | `cdcf_expired`         |
+| 4   | Token exchange: `code` + `code_verifier`, `client_secret_basic`, 5s timeout                                                            | `cdcf_exchange_failed` |
+| 5   | `id_token` claims: `iss` matches, `aud` contains our client id, `exp` fresh (60s leeway), `nonce` matches the transient, `sub` present | `cdcf_bad_token`       |
+| 6   | Userinfo: HTTP 200, `email_verified === true` (strict), non-empty `email`, `sub` equal to the id_token's                               | `cdcf_bad_token`       |
+| 7   | `cdcf_zitadel_resolve_existing_user($sub, $email)` returns > 0                                                                         | `cdcf_no_account`      |
+| 8   | `wp_set_auth_cookie()`, `do_action('wp_login', …)`, redirect to `wp_validate_redirect($redirect_to, admin_url())`                      | —                      |
 
 **The `id_token` signature is not verified locally, deliberately.** It arrives
 over a TLS back-channel exchange authenticated with the client secret — OIDC
@@ -199,7 +199,7 @@ Two things are recorded at sign-in:
   `cdcf_zitadel_logout` cookie.
 
 It is not kept in the session record because `wp_logout()` destroys the
-session *before* firing `do_action('wp_logout')`, so it would already be gone
+session _before_ firing `do_action('wp_logout')`, so it would already be gone
 when we could read it. It is not kept in the cookie directly because that
 hands the browser a replayable JWT for no gain.
 
@@ -234,7 +234,7 @@ That is the message a staff member will actually encounter, and it discloses
 nothing: they have already authenticated as themselves.
 
 The flow fails closed throughout. Unconfigured constants mean no button
-renders *and* the callback refuses, so a half-configured deploy degrades to
+renders _and_ the callback refuses, so a half-configured deploy degrades to
 today's behaviour rather than to a broken login page. Token and userinfo calls
 each carry the existing 5-second timeout.
 
