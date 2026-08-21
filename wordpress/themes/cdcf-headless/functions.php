@@ -540,6 +540,22 @@ add_action('rest_api_init', function () {
 require_once __DIR__ . '/includes/handlers/create-user.php';
 require_once __DIR__ . '/includes/admin/limited-user-provisioning.php';
 
+// Capability guard for the `author_team_member` ACF user field. The
+// `group_author_profile` field group below is located with
+// `user_form == all`, which ACF renders on profile.php — a user's OWN
+// profile — and ACF saves user field groups from $_POST['acf'] with no
+// capability check. Since that link is the sole ownership signal for
+// /cdcf/v1/my-team-member, an unguarded field lets any subscriber claim
+// anyone's bio. prepare_field hides the control; pre_update_value is what
+// actually refuses the write, including a hand-crafted POST that carries
+// the field key without it ever having been rendered.
+require_once __DIR__ . '/includes/admin/author-profile-guard.php';
+add_filter('acf/prepare_field/key=field_author_team_member', 'cdcf_guard_author_team_member_field');
+// Bare filter, not the /key= variation: ACF registers key variations for
+// acf/update_value but not for acf/pre_update_value, so a suffixed filter
+// would silently never fire. The guard discriminates on the field key.
+add_filter('acf/pre_update_value', 'cdcf_guard_author_team_member_update', 10, 4);
+
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/create-user', [
         'methods'             => 'POST',

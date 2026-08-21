@@ -204,6 +204,7 @@ require_once __DIR__ . '/../includes/handlers/create-user.php';
 require_once __DIR__ . '/../includes/handlers/author-team-member.php';
 require_once __DIR__ . '/../includes/handlers/my-team-member.php';
 require_once __DIR__ . '/../includes/admin/limited-user-provisioning.php';
+require_once __DIR__ . '/../includes/admin/author-profile-guard.php';
 // Pin the expected-audience allow-list BEFORE loading zitadel-bearer.php
 // so its `defined() || define(..., '')` default no-ops. Tests reference
 // the prod value via ZitadelBearerTest::TEST_EXPECTED_AUD when minting
