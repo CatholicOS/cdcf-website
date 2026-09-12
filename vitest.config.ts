@@ -8,9 +8,9 @@ export default defineConfig({
       // against bundling server modules into the client. In Vitest
       // (Node, no client bundle) that guard is a false positive, so
       // alias the module to an empty stub.
-      'server-only': path.resolve(__dirname, 'tests/stubs/server-only.ts'),
+      'server-only': path.resolve(import.meta.dirname, 'tests/stubs/server-only.ts'),
       // Resolve the `@/` alias used by source for absolute imports.
-      '@': path.resolve(__dirname),
+      '@': path.resolve(import.meta.dirname),
     },
   },
   test: {
