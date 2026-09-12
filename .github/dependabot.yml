@@ -15,6 +15,12 @@ updates:
       tiptap:
         patterns:
           - "@tiptap/*"
+      # Same failure mode: @vitest/coverage-v8@X peers on exactly vitest@X,
+      # so a solo coverage-v8 bump can't install (PR #315).
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
