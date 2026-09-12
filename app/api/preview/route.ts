@@ -23,7 +23,10 @@ export async function GET(request: NextRequest) {
   const slug = searchParams.get('slug') || ''
   const langParam = searchParams.get('lang') || 'en'
 
-  if (secret !== process.env.WP_PREVIEW_SECRET) {
+  // Fail closed when the secret is unset/empty: a bare `?secret=` must never
+  // match a misconfigured deployment and switch on draft mode.
+  const expectedSecret = process.env.WP_PREVIEW_SECRET
+  if (!expectedSecret || secret !== expectedSecret) {
     return new Response('Invalid token', { status: 401 })
   }
 
