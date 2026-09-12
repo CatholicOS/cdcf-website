@@ -1994,11 +1994,11 @@ add_filter('post_type_link', 'cdcf_frontend_permalink', 10, 2); // project, acad
 // ─── Preview URL → Next.js draft mode ────────────────────────────────
 
 add_filter('preview_post_link', function ($preview_link, $post) {
-    // Only post and page have by-id preview support on the Next.js frontend
-    // (the blog route and the catch-all page route). Other public CPTs
-    // (project, team_member, academic_collaboration, …) have no by-id preview
-    // path, so leave their preview link untouched rather than redirect to a
-    // 404 on the headless frontend.
+    // Only the types in CDCF_FRONTEND_PREVIEWABLE_TYPES (post, page, project,
+    // acad_collab) have a by-id preview route on the Next.js frontend. Other
+    // CPTs (team_member, sponsor, …) have no by-id preview path, so leave
+    // their preview link untouched rather than redirect to a 404 on the
+    // headless frontend.
     if (!in_array($post->post_type, CDCF_FRONTEND_PREVIEWABLE_TYPES, true)) {
         return $preview_link;
     }

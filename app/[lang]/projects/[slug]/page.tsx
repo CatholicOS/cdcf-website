@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { setRequestLocale, getTranslations } from 'next-intl/server'
-import { getProject } from '@/lib/wordpress/api'
+import { getProject, getProjectPreview } from '@/lib/wordpress/api'
+import { getPreviewTarget, previewMatchesSlug } from '@/lib/wordpress/preview'
 import { Link } from '@/src/i18n/navigation'
 import RepoLanguages from '@/components/projects/RepoLanguages'
 import ShareButtons from '@/components/blog/ShareButtons'
@@ -71,8 +72,14 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const { lang, slug } = await params
   setRequestLocale(lang)
 
+  // In a preview session, render the draft by id (it may have no usable
+  // slug yet); otherwise fall through to the normal published lookup.
+  const preview = await getPreviewTarget()
+  const usePreview =
+    preview?.type === 'project' && previewMatchesSlug(preview, slug)
+
   const [project, t] = await Promise.all([
-    getProject(slug, lang),
+    usePreview ? getProjectPreview(preview.id) : getProject(slug, lang),
     getTranslations('projects'),
   ])
 

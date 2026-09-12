@@ -37,9 +37,11 @@ if (defined('ABSPATH') === false) {
 const CDCF_FRONTEND_ROUTABLE_TYPES = ['post', 'page', 'project', 'acad_collab'];
 
 // Post types the Next.js frontend supports BY-ID preview for (the /api/preview
-// route validates `type` against this same allowlist). Other CPTs have no
-// by-id preview path, so their draft permalinks stay untouched.
-const CDCF_FRONTEND_PREVIEWABLE_TYPES = ['post', 'page'];
+// route validates `type` against this same allowlist and maps each to its
+// route: /blog/{id}, /{id}, /projects/{id}, /academic-collaborations/{id}).
+// Other CPTs (team_member, sponsor, …) have no by-id preview path, so their
+// draft permalinks stay untouched.
+const CDCF_FRONTEND_PREVIEWABLE_TYPES = ['post', 'page', 'project', 'acad_collab'];
 
 /**
  * Build the public frontend path (locale-prefixed, host-less) for a published

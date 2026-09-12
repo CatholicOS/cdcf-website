@@ -407,10 +407,10 @@ This project uses a **dual i18n system**:
 WordPress is configured to redirect preview links to the Next.js draft mode endpoint:
 
 ```text
-GET /api/preview?secret=YOUR_SECRET&slug=about&type=page
+GET /api/preview?secret=YOUR_SECRET&id=42&type=page&slug=about&lang=en
 ```
 
-This enables Next.js draft mode, which fetches the latest revision from WordPress (bypassing ISR cache).
+This enables Next.js draft mode, which fetches the post by database id with authenticated GraphQL (bypassing ISR cache), then redirects to the matching frontend route. Supported `type` values and their preview routes: `post` → `/blog/{id}`, `page` → `/{id}`, `project` → `/projects/{id}`, `acad_collab` → `/academic-collaborations/{id}`. Other CPTs have no detail route and keep their default WordPress preview link.
 
 ### On-Demand Revalidation
 

@@ -399,6 +399,22 @@ export const GET_POST_BY_ID = `
   }
 `
 
+export const GET_PROJECT_BY_ID = `
+  query GetProjectById($id: ID!) {
+    project(id: $id, idType: DATABASE_ID) {
+      ${PROJECT_FIELDS}
+    }
+  }
+`
+
+export const GET_ACADEMIC_COLLABORATION_BY_ID = `
+  query GetAcademicCollaborationById($id: ID!) {
+    academicCollaboration(id: $id, idType: DATABASE_ID) {
+      ${ACADEMIC_COLLABORATION_FIELDS}
+    }
+  }
+`
+
 // ─── Posts query ─────────────────────────────────────────────────────
 
 export const GET_POSTS = `

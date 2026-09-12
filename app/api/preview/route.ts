@@ -4,9 +4,16 @@ import { NextRequest } from 'next/server'
 import { PREVIEW_COOKIE, serializePreviewCookie } from '@/lib/wordpress/preview'
 import { locales } from '@/src/i18n/routing'
 
-// Only post/page have by-id preview support (mirrors the theme's
-// preview_post_link filter, which only rewrites these types).
-const PREVIEWABLE_TYPES = new Set(['post', 'page'])
+// Post types with a by-id preview route on the frontend, mapped to the
+// route base the numeric id segment is appended to (empty for the page
+// catch-all). Mirrors the theme's CDCF_FRONTEND_PREVIEWABLE_TYPES allowlist,
+// which only rewrites preview/View links for these types.
+const PREVIEW_ROUTE_BASE: Record<string, string> = {
+  post: '/blog',
+  page: '',
+  project: '/projects',
+  acad_collab: '/academic-collaborations',
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
@@ -25,7 +32,7 @@ export async function GET(request: NextRequest) {
     return new Response('Invalid or missing post id', { status: 400 })
   }
 
-  if (!PREVIEWABLE_TYPES.has(type)) {
+  if (!Object.hasOwn(PREVIEW_ROUTE_BASE, type)) {
     return new Response('Unsupported post type', { status: 400 })
   }
 
@@ -64,8 +71,7 @@ export async function GET(request: NextRequest) {
   // preview immune to slug drift.
   const segment = String(postId)
   const prefix = lang && lang !== 'en' ? `/${lang}` : ''
-  const path =
-    type === 'post' ? `${prefix}/blog/${segment}` : `${prefix}/${segment}`
+  const path = `${prefix}${PREVIEW_ROUTE_BASE[type]}/${segment}`
 
   redirect(path)
 }

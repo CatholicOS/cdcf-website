@@ -41,11 +41,13 @@ export default async function CatchAllPage({ params }: PageProps) {
 
   const pageSlug = slug?.join('/') || '/'
 
-  // In a preview session for a page/CPT (anything but a blog post), render the
-  // draft by id; otherwise fall through to the normal published lookup.
+  // In a preview session for a page, render the draft by id; otherwise fall
+  // through to the normal published lookup. Match on type strictly — post,
+  // project and acad_collab previews have their own routes, and a numeric
+  // slug like /1593 would otherwise match a CPT preview by id here.
   const preview = await getPreviewTarget()
   const usePreview =
-    !!preview && preview.type !== 'post' && previewMatchesSlug(preview, pageSlug)
+    preview?.type === 'page' && previewMatchesSlug(preview, pageSlug)
 
   const page = usePreview
     ? await getPagePreview(preview.id)

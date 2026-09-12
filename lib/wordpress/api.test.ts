@@ -7,6 +7,7 @@ vi.mock('./client', () => ({
 import { wpQuery } from './client'
 import {
   getAcademicCollaboration,
+  getAcademicCollaborationPreview,
   getAllPages,
   getChildPages,
   getPage,
@@ -15,6 +16,7 @@ import {
   getAcademicCollaborationsForSitemap,
   getPostsForSitemap,
   getProject,
+  getProjectPreview,
   getProjects,
   getProjectsForSitemap,
   getSponsors,
@@ -575,6 +577,32 @@ describe('getProject', () => {
   })
 })
 
+describe('getProjectPreview', () => {
+  it('fetches by database id with draft auth and no translation hop', async () => {
+    const project = { databaseId: 42, title: 'Draft project' }
+    wpQueryMock.mockResolvedValueOnce({ project })
+
+    await expect(getProjectPreview(42)).resolves.toEqual(project)
+
+    const [, variables, options] = wpQueryMock.mock.calls[0]
+    expect(variables).toEqual({ id: '42' })
+    expect(options).toEqual({ draft: true })
+  })
+
+  it('returns null when the project does not exist', async () => {
+    wpQueryMock.mockResolvedValueOnce({ project: null })
+
+    await expect(getProjectPreview(999)).resolves.toBeNull()
+  })
+
+  it('returns null when wpQuery rejects', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    wpQueryMock.mockRejectedValueOnce(new Error('boom'))
+
+    await expect(getProjectPreview(42)).resolves.toBeNull()
+  })
+})
+
 describe('getAcademicCollaboration', () => {
   it('returns the translated collaboration when present', async () => {
     const collab = { databaseId: 100, title: 'Catholic U' }
@@ -588,6 +616,32 @@ describe('getAcademicCollaboration', () => {
     wpQueryMock.mockRejectedValueOnce(new Error('boom'))
 
     await expect(getAcademicCollaboration('slug', 'en')).resolves.toBeNull()
+  })
+})
+
+describe('getAcademicCollaborationPreview', () => {
+  it('fetches by database id with draft auth and no translation hop', async () => {
+    const collab = { databaseId: 1593, title: 'Draft collab' }
+    wpQueryMock.mockResolvedValueOnce({ academicCollaboration: collab })
+
+    await expect(getAcademicCollaborationPreview(1593)).resolves.toEqual(collab)
+
+    const [, variables, options] = wpQueryMock.mock.calls[0]
+    expect(variables).toEqual({ id: '1593' })
+    expect(options).toEqual({ draft: true })
+  })
+
+  it('returns null when the collaboration does not exist', async () => {
+    wpQueryMock.mockResolvedValueOnce({ academicCollaboration: null })
+
+    await expect(getAcademicCollaborationPreview(999)).resolves.toBeNull()
+  })
+
+  it('returns null when wpQuery rejects', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    wpQueryMock.mockRejectedValueOnce(new Error('boom'))
+
+    await expect(getAcademicCollaborationPreview(1593)).resolves.toBeNull()
   })
 })
 
