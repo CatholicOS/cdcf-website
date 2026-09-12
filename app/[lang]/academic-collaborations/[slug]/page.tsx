@@ -2,7 +2,11 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { setRequestLocale, getTranslations } from 'next-intl/server'
-import { getAcademicCollaboration } from '@/lib/wordpress/api'
+import {
+  getAcademicCollaboration,
+  getAcademicCollaborationPreview,
+} from '@/lib/wordpress/api'
+import { getPreviewTarget, previewMatchesSlug } from '@/lib/wordpress/preview'
 import { stripHtml } from '@/lib/strip-html'
 import { Link } from '@/src/i18n/navigation'
 import GovernanceSection from '@/components/sections/GovernanceSection'
@@ -67,8 +71,16 @@ export default async function AcademicCollaborationPage({
   const { lang, slug } = await params
   setRequestLocale(lang)
 
+  // In a preview session, render the draft by id (it may have no usable
+  // slug yet); otherwise fall through to the normal published lookup.
+  const preview = await getPreviewTarget()
+  const usePreview =
+    preview?.type === 'acad_collab' && previewMatchesSlug(preview, slug)
+
   const [collab, t] = await Promise.all([
-    getAcademicCollaboration(slug, lang),
+    usePreview
+      ? getAcademicCollaborationPreview(preview.id)
+      : getAcademicCollaboration(slug, lang),
     getTranslations('academicCollaborations'),
   ])
 

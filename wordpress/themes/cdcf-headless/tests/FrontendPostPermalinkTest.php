@@ -280,7 +280,7 @@ final class FrontendPostPermalinkTest extends TestCase
 
     // ─── cdcf_should_redirect_to_preview ──────────────────────────
 
-    public function test_should_redirect_for_draft_post_and_page(): void
+    public function test_should_redirect_for_draft_post_page_project_and_acad_collab(): void
     {
         $this->assertTrue(cdcf_should_redirect_to_preview(
             $this->makePost(['post_status' => 'draft'])
@@ -290,6 +290,14 @@ final class FrontendPostPermalinkTest extends TestCase
         ));
         $this->assertTrue(cdcf_should_redirect_to_preview(
             $this->makePost(['post_type' => 'page', 'post_status' => 'pending'])
+        ));
+        // CPTs with a by-id preview route on the frontend
+        // (/projects/{id}, /academic-collaborations/{id}).
+        $this->assertTrue(cdcf_should_redirect_to_preview(
+            $this->makePost(['post_type' => 'project', 'post_status' => 'draft'])
+        ));
+        $this->assertTrue(cdcf_should_redirect_to_preview(
+            $this->makePost(['post_type' => 'acad_collab', 'post_status' => 'draft'])
         ));
     }
 
@@ -303,13 +311,13 @@ final class FrontendPostPermalinkTest extends TestCase
         $this->assertFalse(cdcf_should_redirect_to_preview(
             $this->makePost(['post_status' => 'trash'])
         ));
-        // CPTs: frontend /api/preview only allows post/page; redirecting a
-        // project/acad_collab draft would 400 there.
+        // CPTs without a by-id preview route on the frontend (team_member,
+        // sponsor, …): redirecting their drafts would 400 at /api/preview.
         $this->assertFalse(cdcf_should_redirect_to_preview(
-            $this->makePost(['post_type' => 'project', 'post_status' => 'draft'])
+            $this->makePost(['post_type' => 'team_member', 'post_status' => 'draft'])
         ));
         $this->assertFalse(cdcf_should_redirect_to_preview(
-            $this->makePost(['post_type' => 'acad_collab', 'post_status' => 'draft'])
+            $this->makePost(['post_type' => 'sponsor', 'post_status' => 'draft'])
         ));
         // Untyped/typeless input from a misbehaving caller.
         $this->assertFalse(cdcf_should_redirect_to_preview('not an object'));
@@ -347,18 +355,41 @@ final class FrontendPostPermalinkTest extends TestCase
         );
     }
 
+    public function test_filter_routes_draft_project_and_acad_collab_through_admin_post_redirect(): void
+    {
+        Functions\when('is_graphql_request')->justReturn(false);
+        Functions\when('admin_url')->alias(function ($path) {
+            return 'https://cms.example.org/wp-admin/' . ltrim($path, '/');
+        });
+
+        $this->assertSame(
+            'https://cms.example.org/wp-admin/admin-post.php?action=cdcf_preview_redirect&id=42',
+            cdcf_frontend_permalink(
+                'https://cms.example.org/?post_type=project&p=42',
+                $this->makePost(['ID' => 42, 'post_type' => 'project', 'post_status' => 'draft', 'post_name' => 'foo'])
+            )
+        );
+        $this->assertSame(
+            'https://cms.example.org/wp-admin/admin-post.php?action=cdcf_preview_redirect&id=1593',
+            cdcf_frontend_permalink(
+                'https://cms.example.org/?post_type=acad_collab&p=1593',
+                $this->makePost(['ID' => 1593, 'post_type' => 'acad_collab', 'post_status' => 'draft', 'post_name' => ''])
+            )
+        );
+    }
+
     public function test_filter_does_not_redirect_drafts_of_unsupported_cpts(): void
     {
-        // Draft project/acad_collab fall through to the default permalink —
-        // no by-id preview route on the frontend for those types.
+        // Draft team_member falls through to the default permalink — no
+        // by-id preview route on the frontend for that type.
         Functions\when('is_graphql_request')->justReturn(false);
 
-        $original = 'https://cms.example.org/?project=foo';
+        $original = 'https://cms.example.org/?team_member=foo';
         $this->assertSame(
             $original,
             cdcf_frontend_permalink(
                 $original,
-                $this->makePost(['post_type' => 'project', 'post_status' => 'draft', 'post_name' => 'foo'])
+                $this->makePost(['post_type' => 'team_member', 'post_status' => 'draft', 'post_name' => 'foo'])
             )
         );
     }

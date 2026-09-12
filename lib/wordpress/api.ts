@@ -1,5 +1,6 @@
 import { wpQuery } from './client'
 import {
+  GET_ACADEMIC_COLLABORATION_BY_ID,
   GET_ACADEMIC_COLLABORATION_BY_SLUG,
   GET_ALL_PAGES,
   GET_AUTHORS,
@@ -16,6 +17,7 @@ import {
   GET_PROJECTS,
   GET_PROJECTS_FOR_SITEMAP,
   GET_ACADEMIC_COLLABORATIONS_FOR_SITEMAP,
+  GET_PROJECT_BY_ID,
   GET_PROJECT_BY_SLUG,
   GET_SPONSORS,
 } from './queries'
@@ -313,6 +315,44 @@ export async function getAcademicCollaboration(
     return data.academicCollaboration?.translation ?? null
   } catch (error) {
     console.error('Failed to fetch academic collaboration:', error)
+    return null
+  }
+}
+
+/**
+ * Fetch a project by database id with draft auth, for preview rendering.
+ * Returns the exact post being edited (no translation fallback) including
+ * unpublished drafts. See lib/wordpress/preview.ts.
+ */
+export async function getProjectPreview(id: number): Promise<WPProject | null> {
+  try {
+    const data = await wpQuery<{ project: WPProject | null }>(
+      GET_PROJECT_BY_ID,
+      { id: String(id) },
+      { draft: true }
+    )
+    return data.project ?? null
+  } catch (error) {
+    console.error('Failed to fetch project preview:', error)
+    return null
+  }
+}
+
+/**
+ * Fetch an academic collaboration by database id with draft auth, for
+ * preview rendering. Returns the exact post being edited (no translation
+ * fallback) including unpublished drafts. See lib/wordpress/preview.ts.
+ */
+export async function getAcademicCollaborationPreview(
+  id: number
+): Promise<WPAcademicCollaboration | null> {
+  try {
+    const data = await wpQuery<{
+      academicCollaboration: WPAcademicCollaboration | null
+    }>(GET_ACADEMIC_COLLABORATION_BY_ID, { id: String(id) }, { draft: true })
+    return data.academicCollaboration ?? null
+  } catch (error) {
+    console.error('Failed to fetch academic collaboration preview:', error)
     return null
   }
 }
