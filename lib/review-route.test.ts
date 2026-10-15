@@ -9,6 +9,7 @@ import {
   badRequest,
   parseId,
   readJsonObject,
+  readUploadFile,
   reviewErrorResponse,
   unauthorized,
 } from './review-route'
@@ -93,5 +94,67 @@ describe('review-route helpers', () => {
     expect(out.headers.get('set-cookie')).toBeNull()
     // undici may decompress the upstream body; a forwarded length would lie.
     expect(out.headers.get('content-length')).toBeNull()
+  })
+})
+
+describe('readUploadFile', () => {
+  const multipart = (form: FormData) =>
+    new Request('http://x/api', { method: 'POST', body: form })
+
+  it('returns the uploaded file', async () => {
+    const form = new FormData()
+    form.append('file', new File(['# hi'], 'notes.md'))
+
+    const out = await readUploadFile(multipart(form))
+
+    expect(out).toBeInstanceOf(File)
+    expect((out as File).name).toBe('notes.md')
+  })
+
+  it('answers a malformed multipart body with 400 invalid_body', async () => {
+    const request = new Request('http://x/api', {
+      method: 'POST',
+      headers: { 'content-type': 'multipart/form-data; boundary=zzz' },
+      body: '--zzz\r\ntruncated',
+    })
+
+    const out = (await readUploadFile(request)) as Response
+
+    expect(out.status).toBe(400)
+    expect(await out.json()).toEqual({ error: 'invalid_body' })
+  })
+
+  it('rejects a missing or empty file', async () => {
+    const empty = new FormData()
+    empty.append('file', new File([], 'notes.md'))
+
+    for (const form of [new FormData(), empty]) {
+      const out = (await readUploadFile(multipart(form))) as Response
+      expect(await out.json()).toEqual({ error: 'empty_file' })
+    }
+  })
+
+  it('applies the Markdown limit to .md files and the image limit to images', async () => {
+    const big = (name: string, bytes: number) => {
+      const form = new FormData()
+      form.append('file', new File([new Uint8Array(bytes)], name))
+      return multipart(form)
+    }
+
+    const md = (await readUploadFile(big('notes.md', 600 * 1024))) as Response
+    expect(md.status).toBe(413)
+    expect(await readUploadFile(big('diagram.png', 600 * 1024))).toBeInstanceOf(
+      File
+    )
+  })
+
+  it('rejects unsupported extensions', async () => {
+    const form = new FormData()
+    form.append('file', new File(['x'], 'run.exe'))
+
+    const out = (await readUploadFile(multipart(form))) as Response
+
+    expect(out.status).toBe(400)
+    expect(await out.json()).toEqual({ error: 'unsupported_type' })
   })
 })

@@ -16,6 +16,7 @@ import {
 import { Link } from '@/src/i18n/navigation'
 import { ProjectCard } from '@/components/review/ProjectCard'
 import { ReviewNotice } from '@/components/review/ReviewNotice'
+import { SignInAgain } from '@/components/review/SignInAgain'
 
 export default async function ReviewListPage({
   searchParams,
@@ -38,7 +39,17 @@ export default async function ReviewListPage({
 
   const loaded = await loadList(session, stage, page)
   if (loaded.kind === 'notice') {
-    return <ReviewNotice title={t('title')} message={t(loaded.message)} />
+    return (
+      <ReviewNotice
+        title={t('title')}
+        message={t(loaded.message)}
+        action={
+          loaded.message === 'errors.sessionExpired' ? (
+            <SignInAgain />
+          ) : undefined
+        }
+      />
+    )
   }
   const { list, canVote } = loaded
 

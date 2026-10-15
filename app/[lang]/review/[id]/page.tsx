@@ -17,6 +17,7 @@ import { MyReviewComposer } from '@/components/review/MyReviewComposer'
 import { QuestionsList } from '@/components/review/QuestionsList'
 import { ReviewCard } from '@/components/review/ReviewCard'
 import { ReviewNotice } from '@/components/review/ReviewNotice'
+import { SignInAgain } from '@/components/review/SignInAgain'
 import { SubmissionCard } from '@/components/review/SubmissionCard'
 import { TallyBar } from '@/components/review/TallyBar'
 
@@ -36,7 +37,17 @@ export default async function ReviewProjectPage({
   const loaded = await loadWorkspace(session, Number(rawId))
   if (loaded.kind === 'notFound') notFound()
   if (loaded.kind === 'notice') {
-    return <ReviewNotice title={t('title')} message={t(loaded.message)} />
+    return (
+      <ReviewNotice
+        title={t('title')}
+        message={t(loaded.message)}
+        action={
+          loaded.message === 'errors.sessionExpired' ? (
+            <SignInAgain />
+          ) : undefined
+        }
+      />
+    )
   }
   const { me, project } = loaded
 

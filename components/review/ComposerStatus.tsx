@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { pendingName, type ReviewErrorKey } from '@/lib/review-ui'
+import { SignInAgain } from './SignInAgain'
 import type { UploadFailure } from './useEntrySubmit'
 
 export function ComposerStatus({
@@ -28,6 +29,7 @@ export function ComposerStatus({
               {t('errors.reload')}
             </button>
           )}
+          {errorKey === 'sessionExpired' && <SignInAgain />}
         </p>
       )}
       {failed.map((f) => (

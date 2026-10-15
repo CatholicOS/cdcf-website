@@ -4,6 +4,7 @@
  */
 import { NextResponse } from 'next/server'
 import { ReviewApiError } from '@/lib/review-api'
+import { checkAttachmentFile } from '@/lib/review-ui'
 
 export function parseId(raw: string): number | null {
   return /^[1-9]\d{0,15}$/.test(raw) ? Number(raw) : null
@@ -26,6 +27,29 @@ export function badRequest(error: string, field?: string): NextResponse {
   return NextResponse.json(field ? { error, field } : { error }, {
     status: 400,
   })
+}
+
+/**
+ * The multipart `file` field, or the error response to send instead. A
+ * truncated or malformed body is the client's fault (400), not a 500.
+ */
+export async function readUploadFile(
+  request: Request
+): Promise<File | NextResponse> {
+  let form: FormData
+  try {
+    form = await request.formData()
+  } catch {
+    return badRequest('invalid_body')
+  }
+  const file = form.get('file')
+  if (!(file instanceof File) || file.size === 0)
+    return badRequest('empty_file')
+  const problem = checkAttachmentFile(file.name, file.size)
+  if (problem === 'tooLarge')
+    return NextResponse.json({ error: 'file_too_large' }, { status: 413 })
+  if (problem !== null) return badRequest('unsupported_type')
+  return file
 }
 
 export function unauthorized(): NextResponse {

@@ -6,6 +6,7 @@ import {
   badRequest,
   parseId,
   readJsonObject,
+  readUploadFile,
   reviewErrorResponse,
   unauthorized,
 } from '@/lib/review-route'
@@ -28,11 +29,8 @@ export async function POST(
         'multipart/form-data'
       )
     ) {
-      const incoming = await request.formData()
-      const file = incoming.get('file')
-      if (!(file instanceof File) || file.size === 0)
-        return badRequest('empty_file')
-      if (file.size > ATTACHMENT_LIMITS.imageBytes) return tooLarge()
+      const file = await readUploadFile(request)
+      if (!(file instanceof File)) return file
       const form = new FormData()
       form.append('file', file, file.name)
       return NextResponse.json(

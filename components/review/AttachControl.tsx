@@ -81,8 +81,10 @@ export function AttachControl({
         />
       </div>
       <p className="text-xs text-gray-500">{t('attach.hint')}</p>
-      {rejected.map((r) => (
-        <p key={r.name} className="text-xs text-red-700">
+      {/* Two picked files can share a name; the list is replaced whole, so
+          the index is a stable key. */}
+      {rejected.map((r, i) => (
+        <p key={i} className="text-xs text-red-700">
           {t('attach.failed', {
             name: r.name,
             error: t(`errors.${r.errorKey}`),
