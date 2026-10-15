@@ -20,6 +20,7 @@ export async function POST(
   const body = await readJsonObject(request)
   if (!body) return badRequest('invalid_body')
   if (typeof body.body !== 'string') return badRequest('invalid_field', 'body')
+  if (body.body.length > 50000) return badRequest('body_too_long')
   try {
     return NextResponse.json(
       await askSubmitter(session, id, { body: body.body }),

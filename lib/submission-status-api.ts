@@ -36,6 +36,13 @@ async function statusRequest<T>(
       body?.code
     )
   }
+  if (body === null) {
+    throw new ReviewApiError(
+      'WordPress returned an unreadable response',
+      502,
+      'bad_response'
+    )
+  }
   return body as T
 }
 

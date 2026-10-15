@@ -30,6 +30,7 @@ export async function POST(
     return badRequest('invalid_field', 'question_id')
   }
   if (typeof text !== 'string') return badRequest('invalid_field', 'body')
+  if (text.length > 10000) return badRequest('body_too_long')
   try {
     return NextResponse.json(
       await postSubmissionAnswer(id, token, { question_id, body: text }),

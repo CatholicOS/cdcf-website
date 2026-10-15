@@ -33,6 +33,20 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('submission status client', () => {
+  it('rejects a 200 response with a non-JSON body as bad_response', async () => {
+    fetchMock.mockImplementation(
+      async () => new Response('<html>oops</html>', { status: 200 })
+    )
+
+    await expect(fetchSubmissionStatus(40, TOKEN)).rejects.toMatchObject({
+      status: 502,
+      code: 'bad_response',
+    })
+    await expect(fetchSubmissionStatus(40, TOKEN)).rejects.toBeInstanceOf(
+      ReviewApiError
+    )
+  })
+
   it('sends the token in a header, never in the URL', async () => {
     fetchMock.mockResolvedValue(json(200, { id: 40 }))
 
