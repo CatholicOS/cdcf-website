@@ -25,6 +25,7 @@ export function AttachmentChips({
           <li key={a.id}>
             <button
               type="button"
+              data-attachment-chip={a.id}
               onClick={() =>
                 router.push(
                   `${pathname}${withAttachmentParam(searchParams.toString(), a.id)}`,
