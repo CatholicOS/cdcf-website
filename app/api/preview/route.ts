@@ -1,6 +1,7 @@
 import { cookies, draftMode } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { NextRequest } from 'next/server'
+import { secretMatches } from '@/lib/secret'
 import { PREVIEW_COOKIE, serializePreviewCookie } from '@/lib/wordpress/preview'
 import { locales } from '@/src/i18n/routing'
 
@@ -25,8 +26,7 @@ export async function GET(request: NextRequest) {
 
   // Fail closed when the secret is unset/empty: a bare `?secret=` must never
   // match a misconfigured deployment and switch on draft mode.
-  const expectedSecret = process.env.WP_PREVIEW_SECRET
-  if (!expectedSecret || secret !== expectedSecret) {
+  if (!secretMatches(secret, process.env.WP_PREVIEW_SECRET)) {
     return new Response('Invalid token', { status: 401 })
   }
 

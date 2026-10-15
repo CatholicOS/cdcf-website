@@ -1,11 +1,12 @@
 import { revalidatePath, revalidateTag } from 'next/cache'
-import { NextRequest } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { secretMatches } from '@/lib/secret'
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
   const secret = body.secret || request.headers.get('x-revalidate-secret')
 
-  if (secret !== process.env.WP_PREVIEW_SECRET) {
+  if (!secretMatches(secret, process.env.WP_PREVIEW_SECRET)) {
     return Response.json({ message: 'Invalid token' }, { status: 401 })
   }
 
