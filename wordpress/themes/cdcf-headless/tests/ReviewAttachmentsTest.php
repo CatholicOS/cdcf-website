@@ -132,6 +132,21 @@ final class ReviewAttachmentsTest extends TestCase
         $this->assertSame('type_mismatch', cdcf_review_validate_upload($this->tmp(base64_decode(self::PNG_1PX)), 'notes.md')->get_error_code());
     }
 
+    public function test_markdown_that_sniffs_as_json_or_svg_is_accepted(): void
+    {
+        foreach (["{\"votes\": [1, 2]}\n", "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>\n"] as $text) {
+            $meta = cdcf_review_validate_upload($this->tmp($text), 'notes.md');
+
+            $this->assertIsArray($meta, $text);
+            $this->assertSame('text/markdown', $meta['mime']);
+        }
+    }
+
+    public function test_markdown_with_nul_bytes_is_a_type_mismatch(): void
+    {
+        $this->assertSame('type_mismatch', cdcf_review_validate_upload($this->tmp("# Notes\0\0\0binary"), 'notes.md')->get_error_code());
+    }
+
     public function test_oversized_markdown_is_413(): void
     {
         $result = cdcf_review_validate_upload($this->tmp(str_repeat('a', 512 * 1024 + 1)), 'big.md');

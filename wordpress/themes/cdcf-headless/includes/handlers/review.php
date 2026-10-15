@@ -163,7 +163,8 @@ function cdcf_rest_review_list_projects(WP_REST_Request $request) {
     $tallies = cdcf_review_tallies($ids);
     $mine    = cdcf_review_votes_by_user($uid, $ids);
     $unread  = cdcf_review_unread_counts($uid, $ids);
-    $voters  = count(cdcf_review_member_user_ids('vote'));
+    $voters  = cdcf_review_member_user_ids('vote');
+    $voted   = cdcf_review_voter_ids($ids);
 
     $items = [];
     foreach ($posts as $post) {
@@ -177,7 +178,7 @@ function cdcf_rest_review_list_projects(WP_REST_Request $request) {
             'submitted_at'   => (string) $post->post_date_gmt,
             'stage'          => (string) get_post_meta($pid, CDCF_REVIEW_STAGE_META, true),
             'tally'          => $tally,
-            'voters_pending' => max(0, $voters - array_sum($tally)),
+            'voters_pending' => cdcf_review_pending_count($voters, $voted[$pid] ?? []),
             'my_vote'        => $mine[$pid] ?? null,
             'unread'         => $unread[$pid] ?? 0,
         ];
@@ -248,7 +249,7 @@ function cdcf_rest_review_get_project(WP_REST_Request $request) {
         ],
         'tally'          => $tally,
         'plurality'      => cdcf_review_plurality($tally),
-        'voters_pending' => max(0, count(cdcf_review_member_user_ids('vote')) - array_sum($tally)),
+        'voters_pending' => cdcf_review_pending_count(cdcf_review_member_user_ids('vote'), cdcf_review_voter_ids([$pid])[$pid] ?? []),
         'reviews'        => array_values($reviews),
         'discussion'     => $discussion,
         'questions'      => array_values($questions),
@@ -272,9 +273,21 @@ function cdcf_review_sanitize_markdown($value): string {
     return trim(str_replace("\0", '', wp_check_invalid_utf8($value)));
 }
 
+/**
+ * Current voting members who have not voted. Votes from former members
+ * still count in the tally but do not stand in for anyone still seated.
+ *
+ * @param list<int> $voters
+ * @param list<int> $voted
+ */
+function cdcf_review_pending_count(array $voters, array $voted): int {
+    return count(array_diff($voters, $voted));
+}
+
 /** @return true|WP_Error */
 function cdcf_review_validate_body(string $body) {
-    if ($body === '') {
+    // trim() misses NBSP, ideographic spaces and zero-width characters.
+    if (preg_replace('/[\s\p{Z}\x{200B}-\x{200D}\x{2060}\x{FEFF}]+/u', '', $body) === '') {
         return new WP_Error('empty_body', 'Write something before posting.', ['status' => 400]);
     }
     if (mb_strlen($body) > CDCF_REVIEW_BODY_MAX) {
@@ -575,7 +588,12 @@ function cdcf_rest_review_post_attachment(WP_REST_Request $request) {
             return new WP_Error('empty_file', 'Paste some Markdown or choose a file.', ['status' => 400]);
         }
         $source = tempnam(get_temp_dir(), 'cdcfmd');
-        file_put_contents($source, $markdown);
+        if ($source === false || file_put_contents($source, $markdown) !== strlen($markdown)) {
+            if ($source !== false) {
+                @unlink($source);
+            }
+            return new WP_Error('store_failed', 'The attachment could not be saved.', ['status' => 500]);
+        }
         $name = cdcf_review_markdown_filename((string) $request['title']);
     }
 

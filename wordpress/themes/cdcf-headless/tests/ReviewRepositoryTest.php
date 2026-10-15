@@ -75,6 +75,31 @@ final class ReviewRepositoryTest extends TestCase
         ]));
     }
 
+    public function test_insert_suppresses_db_error_output(): void
+    {
+        $this->wpdb->failInsert = true;
+
+        cdcf_review_insert_entry(['project_id' => 40, 'kind' => 'review', 'author_user_id' => 7, 'body_md' => 'x', 'vote' => 'cdcf']);
+
+        // A duplicate-key insert is an expected 409, not a printed DB error.
+        $this->assertTrue($this->wpdb->insertSuppressed);
+        $this->assertFalse($this->wpdb->suppress_errors(false), 'previous suppression state is restored');
+    }
+
+    public function test_voter_ids_group_review_authors_by_project(): void
+    {
+        $this->wpdb->results[] = [
+            ['project_id' => '40', 'author_user_id' => '7'],
+            ['project_id' => '40', 'author_user_id' => '99'],
+            ['project_id' => '42', 'author_user_id' => '10'],
+        ];
+
+        $this->assertSame([40 => [7, 99], 42 => [10]], cdcf_review_voter_ids([40, 42]));
+        $this->assertStringContainsString("kind = 'review'", $this->wpdb->queries[0]);
+        $this->assertStringContainsString('project_id IN (40,42)', $this->wpdb->queries[0]);
+        $this->assertSame([], cdcf_review_voter_ids([]));
+    }
+
     public function test_get_entry_normalizes_ints(): void
     {
         $this->wpdb->results[] = $this->row();

@@ -86,11 +86,17 @@ function cdcf_review_can(int $user_id, string $permission): bool {
 /**
  * Every WP user holding $permission. Only users with an
  * `author_team_member` link can be members, so that meta key bounds the
- * scan to a handful of accounts.
+ * scan to a handful of accounts. Cached under the same generation
+ * counter as per-user membership, so roster changes apply immediately.
  *
  * @return list<int>
  */
 function cdcf_review_member_user_ids(string $permission = 'view'): array {
+    $key    = 'cdcf_review_members_' . (int) get_option('cdcf_review_membership_gen', 0) . '_' . $permission;
+    $cached = get_transient($key);
+    if (is_array($cached)) {
+        return $cached;
+    }
     $out = [];
     foreach (get_users(['meta_key' => 'author_team_member', 'fields' => 'ID']) as $uid) {
         $uid = (int) $uid;
@@ -98,6 +104,7 @@ function cdcf_review_member_user_ids(string $permission = 'view'): array {
             $out[] = $uid;
         }
     }
+    set_transient($key, $out, HOUR_IN_SECONDS);
     return $out;
 }
 

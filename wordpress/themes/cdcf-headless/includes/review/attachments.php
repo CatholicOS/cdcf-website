@@ -68,15 +68,17 @@ function cdcf_review_validate_upload(string $path, string $original_name) {
     if ($size > $type['max']) {
         return new WP_Error('file_too_large', 'The file is too large.', ['status' => 413]);
     }
-    $sniffed = (string) (new finfo(FILEINFO_MIME_TYPE))->file($path);
     if ($type['kind'] === 'markdown') {
-        if (!str_starts_with($sniffed, 'text/')) {
+        // Markdown is checked as text, not sniffed: finfo labels notes that
+        // look like JSON or SVG as non-text. NUL bytes mean a binary file.
+        $text = (string) file_get_contents($path);
+        if (str_contains($text, "\0")) {
             return new WP_Error('type_mismatch', 'The file content does not match its extension.', ['status' => 400]);
         }
-        if (!mb_check_encoding((string) file_get_contents($path), 'UTF-8')) {
+        if (!mb_check_encoding($text, 'UTF-8')) {
             return new WP_Error('invalid_utf8', 'Markdown files must be UTF-8 text.', ['status' => 400]);
         }
-    } elseif ($sniffed !== $type['mime']) {
+    } elseif ((string) (new finfo(FILEINFO_MIME_TYPE))->file($path) !== $type['mime']) {
         return new WP_Error('type_mismatch', 'The file content does not match its extension.', ['status' => 400]);
     }
     return ['kind' => $type['kind'], 'mime' => $type['mime'], 'size' => $size];

@@ -114,6 +114,17 @@ final class ReviewAttachmentHandlerTest extends TestCase
         $this->assertSame('license.md', $res->get_data()['name']);
     }
 
+    public function test_pasted_markdown_temp_write_failure_is_500(): void
+    {
+        Functions\when('file_put_contents')->justReturn(false);
+        Functions\expect('cdcf_review_validate_upload')->never();
+
+        $res = cdcf_rest_review_post_attachment($this->request(['id' => 9, 'title' => 'license', 'markdown' => '# License']));
+
+        $this->assertSame('store_failed', $res->get_error_code());
+        $this->assertSame(500, $res->get_error_data()['status']);
+    }
+
     public function test_neither_file_nor_markdown_is_400(): void
     {
         $res = cdcf_rest_review_post_attachment($this->request(['id' => 9, 'title' => '', 'markdown' => '']));

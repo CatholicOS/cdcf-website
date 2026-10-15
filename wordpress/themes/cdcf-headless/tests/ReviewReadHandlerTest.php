@@ -51,6 +51,7 @@ final class ReviewReadHandlerTest extends TestCase
         Functions\when('pll_get_post_language')->justReturn('it');
         Functions\when('get_post')->alias(fn(int $id) => $this->post($id));
         Functions\when('cdcf_review_member_user_ids')->justReturn([7, 10, 11]);
+        Functions\when('cdcf_review_voter_ids')->justReturn([]);
         Functions\when('cdcf_review_attachments_for_entries')->justReturn([]);
     }
 
@@ -166,6 +167,8 @@ final class ReviewReadHandlerTest extends TestCase
         Functions\when('cdcf_review_tallies')->justReturn([40 => ['cdcf' => 1, 'community' => 1, 'reject' => 0]]);
         Functions\when('cdcf_review_votes_by_user')->justReturn([40 => 'cdcf']);
         Functions\when('cdcf_review_unread_counts')->justReturn([42 => 2]);
+        // User 99 voted and has since left the council: only 10 and 11 are pending.
+        Functions\when('cdcf_review_voter_ids')->justReturn([40 => [7, 99]]);
 
         $out = cdcf_rest_review_list_projects($this->request(['stage' => 'in_review']));
 
@@ -176,7 +179,7 @@ final class ReviewReadHandlerTest extends TestCase
                 'id' => 40, 'title' => 'Project 40', 'category' => 'liturgy', 'language' => 'it',
                 'submitted_at' => '2026-10-01 09:00:00', 'stage' => 'in_review',
                 'tally' => ['cdcf' => 1, 'community' => 1, 'reject' => 0],
-                'voters_pending' => 1, 'my_vote' => 'cdcf', 'unread' => 0,
+                'voters_pending' => 2, 'my_vote' => 'cdcf', 'unread' => 0,
             ],
             $out['projects'][0]
         );
@@ -208,6 +211,20 @@ final class ReviewReadHandlerTest extends TestCase
 
     // ─── detail ──────────────────────────────────────────────────────
 
+    public function test_detail_votes_from_former_members_do_not_reduce_pending(): void
+    {
+        $this->signIn(7);
+        Functions\when('cdcf_review_project_entries')->justReturn([]);
+        Functions\when('cdcf_review_tallies')->justReturn([40 => ['cdcf' => 0, 'community' => 0, 'reject' => 1]]);
+        Functions\when('cdcf_review_find_review')->justReturn(null);
+        Functions\when('cdcf_review_voter_ids')->justReturn([40 => [99]]);
+
+        $out = cdcf_rest_review_get_project($this->request(['id' => 40]));
+
+        $this->assertSame(3, $out['voters_pending']);
+        $this->assertSame(1, $out['tally']['reject']);
+    }
+
     public function test_detail_nests_replies_and_answers_and_hides_email_from_non_board(): void
     {
         $this->signIn(7);
@@ -220,6 +237,7 @@ final class ReviewReadHandlerTest extends TestCase
         ]);
         Functions\when('cdcf_review_tallies')->justReturn([40 => ['cdcf' => 1, 'community' => 0, 'reject' => 0]]);
         Functions\when('cdcf_review_find_review')->justReturn($this->entry(['id' => 1]));
+        Functions\when('cdcf_review_voter_ids')->justReturn([40 => [7]]);
 
         $out = cdcf_rest_review_get_project($this->request(['id' => 40]));
 

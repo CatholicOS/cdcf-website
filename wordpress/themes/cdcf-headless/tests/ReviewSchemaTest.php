@@ -88,6 +88,9 @@ final class ReviewSchemaTest extends TestCase
             return true;
         });
         Functions\expect('update_option')->once()->with('cdcf_review_db_version', CDCF_REVIEW_DB_VERSION);
+        foreach (['entries', 'attachments', 'events', 'notifications'] as $t) {
+            $this->wpdb->results[] = "wp_cdcf_review_{$t}";
+        }
 
         cdcf_review_maybe_upgrade();
 
@@ -96,6 +99,20 @@ final class ReviewSchemaTest extends TestCase
             [[11, '_cdcf_review_stage', 'in_review'], [12, '_cdcf_review_stage', 'in_review']],
             $meta
         );
+    }
+
+    public function test_maybe_upgrade_keeps_old_version_when_a_table_is_missing(): void
+    {
+        Functions\when('get_option')->justReturn(false);
+        Functions\when('dbDelta')->justReturn([]);
+        Functions\expect('get_posts')->never();
+        Functions\expect('update_option')->never();
+        // dbDelta failed silently on the events table.
+        $this->wpdb->results = ['wp_cdcf_review_entries', 'wp_cdcf_review_attachments', null, 'wp_cdcf_review_notifications'];
+
+        cdcf_review_maybe_upgrade();
+
+        $this->assertStringContainsString('SHOW TABLES LIKE', end($this->wpdb->queries));
     }
 
     public function test_backfill_targets_pending_public_submissions_without_a_stage(): void

@@ -109,6 +109,14 @@ function cdcf_review_maybe_upgrade(): void {
     foreach (cdcf_review_schema_sql($wpdb->get_charset_collate()) as $sql) {
         dbDelta($sql);
     }
+    // dbDelta reports no failure; leave the version unset so the next
+    // request retries instead of every review write failing with a 500.
+    foreach (['entries', 'attachments', 'events', 'notifications'] as $name) {
+        $table = cdcf_review_table($name);
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table))) !== $table) {
+            return;
+        }
+    }
     cdcf_review_backfill_stage();
     update_option('cdcf_review_db_version', CDCF_REVIEW_DB_VERSION);
 }
