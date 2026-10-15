@@ -806,9 +806,17 @@ require_once __DIR__ . '/includes/review/membership.php';
 require_once __DIR__ . '/includes/review/repository.php';
 require_once __DIR__ . '/includes/review/events.php';
 require_once __DIR__ . '/includes/review/submitter-token.php';
+require_once __DIR__ . '/includes/review/email-strings.php';
+require_once __DIR__ . '/includes/review/mailer.php';
 require_once __DIR__ . '/includes/review/attachments.php';
 require_once __DIR__ . '/includes/handlers/review.php';
 require_once __DIR__ . '/includes/admin/review-access.php';
+// The queued email job needs the redis-queue plugin's base class, which
+// is loaded (plugins load before the theme) only when that plugin is
+// active; without it, review emails are sent inline.
+if (class_exists('Soderlind\\RedisQueue\\Jobs\\Abstract_Base_Job')) {
+    require_once __DIR__ . '/includes/review/email-job.php';
+}
 
 add_action('admin_init', 'cdcf_review_maybe_upgrade');
 add_action('rest_api_init', 'cdcf_review_maybe_upgrade', 5);
