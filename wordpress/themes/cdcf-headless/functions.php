@@ -840,6 +840,7 @@ add_action('rest_api_init', function () {
         '/review/projects/(?P<id>\d+)'           => ['GET', 'cdcf_rest_review_get_project', 'cdcf_rest_review_permission_view'],
         '/review/projects/(?P<id>\d+)/my-review' => ['PUT', 'cdcf_rest_review_put_my_review', 'cdcf_rest_review_permission_vote'],
         '/review/projects/(?P<id>\d+)/entries'   => ['POST', 'cdcf_rest_review_post_entry', 'cdcf_rest_review_permission_discuss'],
+        '/review/projects/(?P<id>\d+)/question'  => ['POST', 'cdcf_rest_review_post_question', 'cdcf_rest_review_permission_discuss'],
         '/review/entries/(?P<id>\d+)'            => ['PATCH', 'cdcf_rest_review_patch_entry', 'cdcf_rest_review_permission_discuss'],
         '/review/entries/(?P<id>\d+)/attachments' => ['POST', 'cdcf_rest_review_post_attachment', 'cdcf_rest_review_permission_discuss'],
         '/review/attachments/(?P<id>\d+)'         => ['GET', 'cdcf_rest_review_get_attachment', 'cdcf_rest_review_permission_view'],
