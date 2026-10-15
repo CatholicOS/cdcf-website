@@ -81,8 +81,6 @@ export function EditorToolbar({
   const popoverRef = useRef<HTMLDivElement | null>(null)
   const linkButtonRef = useRef<HTMLButtonElement | null>(null)
   const urlInputRef = useRef<HTMLInputElement | null>(null)
-  const urlInputId = useId()
-  const targetSelectId = useId()
 
   // Focus the URL field when the popover opens. Done programmatically
   // (not via the declarative `autoFocus` attribute) because Codacy /
@@ -285,8 +283,8 @@ export function EditorToolbar({
           ref={linkButtonRef}
           label={t('link')}
           isActive={editor.isActive('link') || linkOpen}
-          aria-haspopup="dialog"
-          aria-expanded={linkOpen}
+          hasPopup="dialog"
+          expanded={linkOpen}
           onClick={() => {
             if (linkOpen) {
               closeLinkPopover()
@@ -300,92 +298,23 @@ export function EditorToolbar({
       </div>
 
       {linkOpen && (
-        <div
+        <LinkPopover
           ref={popoverRef}
-          role="dialog"
-          aria-label={t('linkPopoverLabel')}
-          className="absolute left-2 right-2 top-full z-10 mt-1 rounded-md border border-gray-300 bg-white p-3 shadow-lg sm:right-auto sm:w-96"
-        >
-          <div className="space-y-3">
-            <div>
-              <label
-                htmlFor={urlInputId}
-                className="block text-xs font-medium uppercase tracking-wide text-gray-500"
-              >
-                {t('linkUrlLabel')}
-              </label>
-              <input
-                ref={urlInputRef}
-                id={urlInputId}
-                type="url"
-                value={linkHref}
-                onChange={(e) => {
-                  setLinkHref(e.target.value)
-                  setLinkInvalid(false)
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    applyLink()
-                  }
-                }}
-                placeholder="https://"
-                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-cdcf-navy focus:outline-none focus:ring-1 focus:ring-cdcf-navy"
-              />
-            </div>
-
-            {linkInvalid && (
-              <p role="alert" className="text-sm text-red-700">
-                {t('linkInvalid')}
-              </p>
-            )}
-
-            {!review && (
-              <div>
-                <label
-                  htmlFor={targetSelectId}
-                  className="block text-xs font-medium uppercase tracking-wide text-gray-500"
-                >
-                  {t('linkTargetLabel')}
-                </label>
-                <select
-                  id={targetSelectId}
-                  value={linkTarget}
-                  onChange={(e) =>
-                    setLinkTarget(e.target.value as '_self' | '_blank')
-                  }
-                  className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-cdcf-navy focus:outline-none focus:ring-1 focus:ring-cdcf-navy"
-                >
-                  <option value="_self">{t('linkTargetSelf')}</option>
-                  <option value="_blank">{t('linkTargetBlank')}</option>
-                </select>
-              </div>
-            )}
-
-            <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
-              <PopoverButton
-                onClick={navigateToLink}
-                disabled={linkHref.trim() === ''}
-                variant="secondary"
-              >
-                <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                <span>{t('linkNavigate')}</span>
-              </PopoverButton>
-              {editor.isActive('link') && (
-                <PopoverButton onClick={removeLink} variant="danger">
-                  <LinkSlashIcon className="h-4 w-4" />
-                  <span>{t('unlink')}</span>
-                </PopoverButton>
-              )}
-              <PopoverButton onClick={closeLinkPopover} variant="secondary">
-                {t('cancel')}
-              </PopoverButton>
-              <PopoverButton onClick={applyLink} variant="primary">
-                {t('apply')}
-              </PopoverButton>
-            </div>
-          </div>
-        </div>
+          urlInputRef={urlInputRef}
+          href={linkHref}
+          onHrefChange={(href) => {
+            setLinkHref(href)
+            setLinkInvalid(false)
+          }}
+          invalid={linkInvalid}
+          target={review ? null : linkTarget}
+          onTargetChange={setLinkTarget}
+          canUnlink={editor.isActive('link')}
+          onApply={applyLink}
+          onRemove={removeLink}
+          onCancel={closeLinkPopover}
+          onNavigate={navigateToLink}
+        />
       )}
     </div>
   )
@@ -397,17 +326,18 @@ function ToolbarButton({
   isActive,
   onClick,
   children,
-  ...rest
+  hasPopup,
+  expanded,
 }: {
   ref?: React.Ref<HTMLButtonElement>
   label: string
   isActive?: boolean
   onClick: () => void
   children: ReactNode
-} & Omit<
-  React.ButtonHTMLAttributes<HTMLButtonElement>,
-  'type' | 'onClick' | 'title' | 'aria-label' | 'aria-pressed' | 'className'
->) {
+  /** For a button that opens a dialog (the link popover). */
+  hasPopup?: 'dialog'
+  expanded?: boolean
+}) {
   return (
     <button
       ref={ref}
@@ -425,10 +355,129 @@ function ToolbarButton({
           ? 'bg-cdcf-navy text-white'
           : 'text-gray-700 hover:bg-gray-200 hover:text-cdcf-navy'
       )}
-      {...rest}
+      aria-haspopup={hasPopup}
+      aria-expanded={expanded}
     >
       {children}
     </button>
+  )
+}
+
+function LinkPopover({
+  ref,
+  urlInputRef,
+  href,
+  onHrefChange,
+  invalid,
+  target,
+  onTargetChange,
+  canUnlink,
+  onApply,
+  onRemove,
+  onCancel,
+  onNavigate,
+}: {
+  ref: React.Ref<HTMLDivElement>
+  urlInputRef: React.Ref<HTMLInputElement>
+  href: string
+  onHrefChange: (href: string) => void
+  invalid: boolean
+  /** null hides the target choice (review variant). */
+  target: '_self' | '_blank' | null
+  onTargetChange: (target: '_self' | '_blank') => void
+  canUnlink: boolean
+  onApply: () => void
+  onRemove: () => void
+  onCancel: () => void
+  onNavigate: () => void
+}) {
+  const t = useTranslations('EditorToolbar')
+  const urlInputId = useId()
+  const targetSelectId = useId()
+  return (
+    <div
+      ref={ref}
+      role="dialog"
+      aria-label={t('linkPopoverLabel')}
+      className="absolute left-2 right-2 top-full z-10 mt-1 rounded-md border border-gray-300 bg-white p-3 shadow-lg sm:right-auto sm:w-96"
+    >
+      <div className="space-y-3">
+        <div>
+          <label
+            htmlFor={urlInputId}
+            className="block text-xs font-medium uppercase tracking-wide text-gray-500"
+          >
+            {t('linkUrlLabel')}
+          </label>
+          <input
+            ref={urlInputRef}
+            id={urlInputId}
+            type="url"
+            value={href}
+            onChange={(e) => onHrefChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                onApply()
+              }
+            }}
+            placeholder="https://"
+            className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-cdcf-navy focus:outline-none focus:ring-1 focus:ring-cdcf-navy"
+          />
+        </div>
+
+        {invalid && (
+          <p role="alert" className="text-sm text-red-700">
+            {t('linkInvalid')}
+          </p>
+        )}
+
+        {target !== null && (
+          <div>
+            <label
+              htmlFor={targetSelectId}
+              className="block text-xs font-medium uppercase tracking-wide text-gray-500"
+            >
+              {t('linkTargetLabel')}
+            </label>
+            <select
+              id={targetSelectId}
+              value={target}
+              onChange={(e) =>
+                onTargetChange(e.target.value as '_self' | '_blank')
+              }
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-cdcf-navy focus:outline-none focus:ring-1 focus:ring-cdcf-navy"
+            >
+              <option value="_self">{t('linkTargetSelf')}</option>
+              <option value="_blank">{t('linkTargetBlank')}</option>
+            </select>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+          <PopoverButton
+            onClick={onNavigate}
+            disabled={href.trim() === ''}
+            variant="secondary"
+          >
+            <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+            <span>{t('linkNavigate')}</span>
+          </PopoverButton>
+          {canUnlink && (
+            <PopoverButton onClick={onRemove} variant="danger">
+              <LinkSlashIcon className="h-4 w-4" />
+              <span>{t('unlink')}</span>
+            </PopoverButton>
+          )}
+          <PopoverButton onClick={onCancel} variant="secondary">
+            {t('cancel')}
+          </PopoverButton>
+          <PopoverButton onClick={onApply} variant="primary">
+            {t('apply')}
+          </PopoverButton>
+        </div>
+      </div>
+    </div>
   )
 }
 

@@ -1,3 +1,4 @@
+import { expect } from 'vitest'
 import { act, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { NextIntlClientProvider } from 'next-intl'
@@ -32,14 +33,14 @@ export function renderDom(node: ReactNode) {
 }
 
 export function click(el: Element | null | undefined) {
-  if (!el) throw new Error('element not found')
+  expect(el).toBeTruthy()
   act(() => {
     ;(el as HTMLElement).click()
   })
 }
 
 export function typeInto(el: Element | null | undefined, value: string) {
-  if (!el) throw new Error('element not found')
+  expect(el).toBeTruthy()
   const input = el as HTMLInputElement | HTMLTextAreaElement
   const proto = Object.getPrototypeOf(input)
   act(() => {

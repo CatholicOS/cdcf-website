@@ -15,9 +15,11 @@ import {
 let unmounts: (() => void)[] = []
 beforeEach(() => window.localStorage.clear())
 afterEach(() => {
-  unmounts.forEach((fn) => fn())
+  for (const fn of unmounts) fn()
   unmounts = []
 })
+
+const LABEL = 'Your review'
 
 function Harness({
   initial,
@@ -37,7 +39,7 @@ function Harness({
           setValue(v)
           onChange?.(v)
         }}
-        label="Your review"
+        label={LABEL}
         disabled={disabled}
       />
       <button type="button" onClick={() => setValue('')}>
@@ -58,8 +60,8 @@ const TABLE = '| a | b |\n| - | - |\n| 1 | 2 |'
 function editorOf(root: ParentNode): Editor {
   const dom = root.querySelector('.ProseMirror') as
     (HTMLElement & { editor?: Editor }) | null
-  if (!dom?.editor) throw new Error('visual editor not mounted')
-  return dom.editor
+  expect(dom?.editor).toBeDefined()
+  return dom?.editor as Editor
 }
 
 describe('ReviewEditor', () => {

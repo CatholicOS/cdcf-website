@@ -14,7 +14,7 @@ import {
 
 let cleanup: (() => void)[] = []
 afterEach(() => {
-  cleanup.forEach((fn) => fn())
+  for (const fn of cleanup) fn()
   cleanup = []
 })
 
