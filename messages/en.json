@@ -292,7 +292,8 @@
     "signIn": "Sign in",
     "signOut": "Sign out",
     "loading": "Loading\u2026",
-    "editMyBio": "Edit my bio"
+    "editMyBio": "Edit my bio",
+    "projectReview": "Project review"
   },
   "MyBio": {
     "title": "Edit my bio",
@@ -333,6 +334,122 @@
       "linkNavigate": "Navigate to URL",
       "apply": "Apply",
       "cancel": "Cancel"
+    }
+  },
+  "Review": {
+    "title": "Project review",
+    "intro": "Submitted projects awaiting the advisory councils' review.",
+    "notMember": "Project review is open to members of the Technical Council, the Ecclesial Council and the Board of Directors. If you are one, ask an administrator to link your account to your bio card.",
+    "backToList": "All submissions",
+    "empty": "No submissions here.",
+    "newer": "Newer",
+    "older": "Older",
+    "stage": {
+      "in_review": "In review",
+      "awaiting_submitter": "Awaiting submitter",
+      "decided": "Decided"
+    },
+    "vote": {
+      "cdcf": "Accept as CDCF project",
+      "community": "Accept as community project",
+      "reject": "Reject"
+    },
+    "council": {
+      "technical": "Technical Council",
+      "ecclesial": "Ecclesial Council",
+      "board": "Board"
+    },
+    "tally": {
+      "heading": "Votes",
+      "pending": "{count} not yet voted"
+    },
+    "plurality": "Most votes: {vote}",
+    "yourVote": "Your vote: {vote}",
+    "awaitingYourVote": "Awaiting your vote",
+    "unread": "{count} new",
+    "submittedOn": "Submitted {date}",
+    "locked": "This review has been decided. Reviews and discussion are now read-only.",
+    "edited": "edited",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…",
+    "edit": "Edit",
+    "submission": {
+      "heading": "Submission",
+      "website": "Website",
+      "repositories": "Repositories",
+      "tags": "Tags",
+      "submitter": "Submitted by",
+      "language": "Language",
+      "category": "Category"
+    },
+    "myReview": {
+      "heading": "Your review",
+      "voteLabel": "Your vote",
+      "rationale": "Your review",
+      "submit": "Post review",
+      "update": "Update review",
+      "edit": "Edit your review",
+      "voteRequired": "Choose a vote first."
+    },
+    "editor": {
+      "write": "Write",
+      "preview": "Preview",
+      "placeholder": "Markdown is supported.",
+      "emptyPreview": "Nothing to preview."
+    },
+    "reviews": {
+      "heading": "Reviews",
+      "none": "No reviews yet.",
+      "reply": "Reply",
+      "postReply": "Post reply",
+      "replyLabel": "Your reply"
+    },
+    "discussion": {
+      "heading": "General discussion",
+      "none": "No discussion yet.",
+      "post": "Post",
+      "label": "Add to the discussion"
+    },
+    "questions": {
+      "heading": "Questions to the submitter",
+      "none": "No questions have been sent to the submitter.",
+      "submitter": "Submitter",
+      "awaiting": "Awaiting the submitter's answer."
+    },
+    "attach": {
+      "button": "Attach file",
+      "paste": "Paste Markdown",
+      "titleLabel": "Title",
+      "markdownLabel": "Markdown",
+      "add": "Add",
+      "hint": "Markdown (.md, up to 512 KB) or images (PNG, JPEG, WebP, GIF, up to 5 MB).",
+      "remove": "Remove {name}",
+      "failed": "{name}: {error}"
+    },
+    "panel": {
+      "close": "Close",
+      "raw": "Show source",
+      "rendered": "Show rendered",
+      "download": "Download",
+      "previous": "Previous",
+      "next": "Next",
+      "loading": "Loading…",
+      "loadFailed": "Could not load the attachment."
+    },
+    "errors": {
+      "sessionExpired": "Your session has expired. Please sign in again.",
+      "forbidden": "You don't have permission to do that.",
+      "locked": "This review has been decided and can no longer be changed.",
+      "stale": "This was changed since you opened it. Reload to see the latest version.",
+      "reviewExists": "You have already posted a review. Reload to edit it.",
+      "tooLarge": "The file is too large.",
+      "unsupportedType": "That file type isn't supported.",
+      "tooMany": "This post already has the maximum number of attachments.",
+      "invalidInput": "Please check what you entered.",
+      "notFound": "Not found.",
+      "generic": "Something went wrong. Please try again.",
+      "reload": "Reload"
     }
   }
 }

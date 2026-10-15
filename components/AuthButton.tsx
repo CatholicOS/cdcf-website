@@ -20,6 +20,7 @@ export default function AuthButton() {
   const t = useTranslations('Auth')
   const [isOpen, setIsOpen] = useState(false)
   const [hasBioLink, setHasBioLink] = useState(false)
+  const [hasReviewAccess, setHasReviewAccess] = useState(false)
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const openDropdown = useCallback(() => {
@@ -78,6 +79,23 @@ export default function AuthButton() {
       })
       .catch(() => {
         /* aborted or network error — leave hasBioLink as-is */
+      })
+    return () => controller.abort()
+  }, [status])
+
+  // Same fire-and-forget pattern for council/Board review access.
+  useEffect(() => {
+    if (status !== 'authenticated') return
+    const controller = new AbortController()
+    fetch('/api/review/me', { signal: controller.signal, cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (body && typeof body === 'object' && 'member' in body) {
+          setHasReviewAccess(Boolean(body.member))
+        }
+      })
+      .catch(() => {
+        /* aborted or network error — leave hasReviewAccess as-is */
       })
     return () => controller.abort()
   }, [status])
@@ -156,6 +174,16 @@ export default function AuthButton() {
               className="block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
             >
               {t('editMyBio')}
+            </Link>
+          )}
+          {hasReviewAccess && (
+            <Link
+              href="/review"
+              role="menuitem"
+              onClick={() => setIsOpen(false)}
+              className="block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+            >
+              {t('projectReview')}
             </Link>
           )}
           {/*
