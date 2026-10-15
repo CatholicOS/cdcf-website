@@ -409,7 +409,7 @@
       "askWarning": "Il proponente riceve questo testo via email esattamente come è scritto, da parte del \"comitato di revisione della CDCF\" e senza il tuo nome.",
       "askSubmit": "Invia domanda",
       "askSending": "Invio in corso…",
-      "emailFailed": "La domanda è stata salvata, ma non è stato possibile inviare l'email al proponente, quindi il suo link di stato precedente non funziona più."
+      "emailFailed": "La domanda è stata salvata, ma non è stato possibile inviare l'email al proponente."
     },
     "attach": {
       "button": "Allega file",

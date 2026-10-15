@@ -23,7 +23,7 @@ const CDCF_SUBMISSION_ANSWER_MAX = 10000;
  */
 function cdcf_submission_status_key(string $bucket, int $project_id): string {
     $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    return 'cdcf_sst_' . $bucket . '_' . md5($ip . '|' . $project_id);
+    return 'cdcf_sst_' . $bucket . '_' . hash('sha256', $ip . '|' . $project_id);
 }
 
 function cdcf_submission_status_over_limit(string $bucket, int $project_id, int $limit): bool {

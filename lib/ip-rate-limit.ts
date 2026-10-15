@@ -16,10 +16,19 @@ export function createIpRateLimiter(limit: number, windowMs: number) {
   }
 }
 
+/**
+ * The client address as our reverse proxy saw it. X-Real-IP is set (and
+ * overwritten) by the proxy; failing that, the last X-Forwarded-For entry
+ * is the one the proxy appended. Earlier entries come from the client and
+ * could be anything, so they are never used.
+ */
 export function clientIp(request: Request): string {
-  return (
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    request.headers.get('x-real-ip') ||
-    'unknown'
-  )
+  const realIp = request.headers.get('x-real-ip')?.trim()
+  if (realIp) return realIp
+  const forwarded = request.headers
+    .get('x-forwarded-for')
+    ?.split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+  return forwarded?.at(-1) || 'unknown'
 }

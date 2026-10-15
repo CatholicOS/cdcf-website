@@ -409,7 +409,7 @@
       "askWarning": "Die einreichende Person erhält diesen Text unverändert per E-Mail, vom „Prüfungsausschuss der CDCF“ und ohne Ihren Namen.",
       "askSubmit": "Frage senden",
       "askSending": "Wird gesendet…",
-      "emailFailed": "Die Frage wurde gespeichert, aber die E-Mail an die einreichende Person konnte nicht gesendet werden; ihr bisheriger Statuslink funktioniert daher nicht mehr."
+      "emailFailed": "Die Frage wurde gespeichert, aber die E-Mail an die einreichende Person konnte nicht gesendet werden."
     },
     "attach": {
       "button": "Datei anhängen",

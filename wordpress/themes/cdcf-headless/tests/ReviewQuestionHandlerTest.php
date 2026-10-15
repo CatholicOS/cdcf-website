@@ -97,6 +97,14 @@ final class ReviewQuestionHandlerTest extends TestCase
         $this->assertSame([], $this->emails);
     }
 
+    public function test_an_entry_that_cannot_be_read_back_returns_the_error(): void
+    {
+        $missing = new WP_Error('entry_missing', 'The entry was saved but could not be read back.', ['status' => 500]);
+        Functions\when('cdcf_review_entry_response')->justReturn($missing);
+
+        $this->assertSame($missing, $this->ask('Which licence?'));
+    }
+
     public function test_empty_questions_are_refused(): void
     {
         $this->assertSame('empty_body', $this->ask("  \n ")->get_error_code());

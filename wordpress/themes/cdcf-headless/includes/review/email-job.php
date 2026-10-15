@@ -27,6 +27,8 @@ class CDCF_Review_Email_Job extends \Soderlind\RedisQueue\Jobs\Abstract_Base_Job
             // Throwing hands the job back to the queue for a retry.
             throw new \RuntimeException('wp_mail failed for a review email');
         }
+        // The status link in this email becomes valid only now that it is sent.
+        cdcf_review_commit_sent_token((array) $this->get_payload_value('token'));
         return $this->success();
     }
 }

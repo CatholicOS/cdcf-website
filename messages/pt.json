@@ -409,7 +409,7 @@
       "askWarning": "O proponente recebe este texto por email exatamente como está escrito, da parte do \"comité de revisão da CDCF\" e sem o seu nome.",
       "askSubmit": "Enviar pergunta",
       "askSending": "A enviar…",
-      "emailFailed": "A pergunta foi guardada, mas não foi possível enviar o email ao proponente, por isso o link de estado anterior deixou de funcionar."
+      "emailFailed": "A pergunta foi guardada, mas não foi possível enviar o email ao proponente."
     },
     "attach": {
       "button": "Anexar ficheiro",

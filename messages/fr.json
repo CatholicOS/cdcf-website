@@ -409,7 +409,7 @@
       "askWarning": "Le proposant reçoit ce texte par e-mail tel qu'il est écrit, de la part du « comité d'examen de la CDCF » et sans votre nom.",
       "askSubmit": "Envoyer la question",
       "askSending": "Envoi…",
-      "emailFailed": "La question a été enregistrée, mais l'e-mail au proposant n'a pas pu être envoyé ; son précédent lien de suivi ne fonctionne donc plus."
+      "emailFailed": "La question a été enregistrée, mais l'e-mail au proposant n'a pas pu être envoyé."
     },
     "attach": {
       "button": "Joindre un fichier",

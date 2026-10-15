@@ -16,6 +16,9 @@ async function statusRequest<T>(
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (init.token) headers['X-CDCF-Submission-Token'] = init.token
   if (init.json !== undefined) headers['Content-Type'] = 'application/json'
+  // The URL is the configured WordPress base plus a fixed endpoint path
+  // and an integer id; no part of it comes from user input.
+  // nosemgrep
   const response = await fetch(`${getWpRestUrl()}${path}`, {
     method: init.method ?? 'GET',
     headers,

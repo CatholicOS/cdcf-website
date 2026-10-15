@@ -124,7 +124,7 @@ All endpoints accept either **Application Password** (for the Python CLI and oth
 | `PATCH` | `/review/entries/{id}`             | Edit the caller's own reply or discussion entry (`body_md`, `version`).                                                                                                                                                                                                      |
 | `POST`  | `/review/entries/{id}/attachments` | Attach a file to the caller's own entry: multipart `file`, or JSON `{title, markdown}` for pasted Markdown. `.md` ≤ 512 KB, PNG/JPEG/WebP/GIF ≤ 5 MB; images MIME-sniffed, `.md` checked as UTF-8 text; max 10 per entry. Locked once decided.                               |
 | `GET`   | `/review/attachments/{id}`         | Stream an attachment to council/Board members (`?download=1` for `Content-Disposition: attachment`). Sent with `nosniff`, a sandboxing CSP and `no-store`.                                                                                                                   |
-| `POST`  | `/review/projects/{id}/question`   | Ask the submitter (`body`, plain text, emailed verbatim). Sets stage `awaiting_submitter`, rotates the status token and emails the fresh link. `warnings: ["email_failed"]` when the email could not be sent.                                                                |
+| `POST`  | `/review/projects/{id}/question`   | Ask the submitter (`body`, plain text, emailed verbatim). Sets stage `awaiting_submitter`, emails the submitter a fresh link, which replaces the old one once sent. `warnings: ["email_failed"]` when the email could not be sent.                                           |
 | `GET`   | `/submission-status/{id}`          | Public, token in `X-CDCF-Submission-Token`. Stage, unattributed questions with answers, decision and public URL when decided. Token failures return a generic `404`, or `429` once the per-IP failure budget for that project is spent; a valid token is never rate-limited. |
 | `POST`  | `/submission-status/{id}/answer`   | Public, token header. `question_id`, `body` (≤ 10,000 chars, plain text). One answer per question; `409` once decided.                                                                                                                                                       |
 | `POST`  | `/submission-status/resend-link`   | Public. `project_id`, `email`; always answers `202`; it emails a new link only when the address matches, at most 5 per hour per project.                                                                                                                                     |
@@ -283,8 +283,10 @@ Markdown editor.
 
 Submitters follow their review at `/[lang]/submission-status/[id]` with no
 account. Every submitter email (`includes/review/email-strings.php`, six
-languages) rotates a random token stored only as a SHA-256 hash and links
-to `/api/submission-status/{id}/open`, which moves the token into an
+languages) carries a new random token, stored only as a SHA-256 hash, which
+replaces the previous one only once the email has actually been sent (so a
+failed email leaves the working link in place). The link points to
+`/api/submission-status/{id}/open`, which moves the token into an
 `httpOnly` cookie (`cdcf_status_{id}`) and redirects to the clean page.
 The emailed `/api/submission-status/{id}/open?t=…` URL (token included) appears
 in the frontend's web-server access log and in browser history; this is

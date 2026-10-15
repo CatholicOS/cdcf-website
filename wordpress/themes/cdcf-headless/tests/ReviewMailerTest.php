@@ -103,27 +103,95 @@ final class ReviewMailerTest extends TestCase
         $job->execute();
     }
 
-    public function test_submitter_email_rotates_the_token_and_uses_the_submission_language(): void
+    /** Post meta for project 42: a submitter address and an existing, working link. */
+    private array $meta = [];
+
+    private function submission(): string
     {
-        $this->noQueue();
-        Functions\when('get_post_meta')->justReturn('sam@example.org');
+        $old = str_repeat('a', 64);
+        $this->meta = [
+            '_submission_submitter_email'      => 'sam@example.org',
+            CDCF_REVIEW_TOKEN_HASH_META        => hash('sha256', $old),
+            CDCF_REVIEW_TOKEN_ISSUED_META      => '1.000000',
+        ];
+        Functions\when('get_post_meta')->alias(fn(int $id, string $key, bool $single = false) => $this->meta[$key] ?? '');
+        Functions\when('update_post_meta')->alias(function (int $id, string $key, $value): bool {
+            $this->meta[$key] = $value;
+            return true;
+        });
         Functions\when('is_email')->alias(fn($e) => str_contains((string) $e, '@'));
         Functions\when('get_post_field')->justReturn('Liturgy Helper');
         Functions\when('cdcf_review_post_language')->justReturn('de');
-        Functions\expect('cdcf_review_issue_token')->once()->with(42)->andReturn('tok');
+        return $old;
+    }
+
+    private function linkToken(string $body): string
+    {
+        $this->assertSame(1, preg_match('/[?&]t=([0-9a-f]{64})/', $body, $m));
+        return $m[1];
+    }
+
+    public function test_submitter_email_uses_the_submission_language_and_a_fresh_link(): void
+    {
+        $this->noQueue();
+        $old = $this->submission();
 
         $this->assertSame('sent', cdcf_review_send_submitter_email(42, 'question', ['question' => 'Welche Lizenz?']));
         $this->assertSame('sam@example.org', $this->mails[0]['to']);
         $this->assertStringContainsString('Liturgy Helper', $this->mails[0]['subject']);
-        $this->assertStringContainsString('lang=de&t=tok', $this->mails[0]['body']);
+        $this->assertStringContainsString('lang=de&t=', $this->mails[0]['body']);
         $this->assertStringContainsString('Welche Lizenz?', $this->mails[0]['body']);
+
+        $new = $this->linkToken($this->mails[0]['body']);
+        $this->assertNotSame($old, $new);
+        $this->assertTrue(cdcf_review_token_matches(42, $new), 'the emailed link works once sent');
+        $this->assertFalse(cdcf_review_token_matches(42, $old));
+    }
+
+    public function test_a_failed_inline_email_keeps_the_submitters_working_link(): void
+    {
+        $this->noQueue();
+        $old = $this->submission();
+        Functions\when('wp_mail')->justReturn(false);
+
+        $this->assertSame('failed', cdcf_review_send_submitter_email(42, 'question', ['question' => 'Q?']));
+        $this->assertTrue(cdcf_review_token_matches(42, $old));
+    }
+
+    public function test_a_queued_email_commits_its_token_only_when_the_job_sends(): void
+    {
+        $old = $this->submission();
+        $manager = new class {
+            public array $jobs = [];
+            public function enqueue($job) { $this->jobs[] = $job; return 'job-1'; }
+        };
+        Functions\when('redis_queue')->justReturn((object) ['queue_manager' => $manager]);
+
+        $this->assertSame('queued', cdcf_review_send_submitter_email(42, 'link'));
+        $job = $manager->jobs[0];
+        $new = $this->linkToken((string) $job->get_payload_value('body'));
+        $this->assertTrue(cdcf_review_token_matches(42, $old), 'old link still works while the email waits in the queue');
+        $this->assertFalse(cdcf_review_token_matches(42, $new));
+
+        Functions\when('wp_mail')->justReturn(false);
+        try {
+            $job->execute();
+            $this->fail('a failed send must throw so the queue retries');
+        } catch (RuntimeException $e) {
+            $this->assertTrue(cdcf_review_token_matches(42, $old), 'a failed attempt changes nothing');
+        }
+
+        Functions\when('wp_mail')->justReturn(true);
+        $job->execute();
+        $this->assertTrue(cdcf_review_token_matches(42, $new));
+        $this->assertFalse(cdcf_review_token_matches(42, $old));
     }
 
     public function test_submitter_email_is_skipped_without_a_valid_address(): void
     {
         Functions\when('get_post_meta')->justReturn('');
         Functions\when('is_email')->justReturn(false);
-        Functions\expect('cdcf_review_issue_token')->never();
+        Functions\expect('cdcf_review_new_token')->never();
 
         $this->assertSame('no_email', cdcf_review_send_submitter_email(42, 'link'));
         $this->assertSame([], $this->mails);

@@ -13,13 +13,26 @@ describe('createIpRateLimiter', () => {
 })
 
 describe('clientIp', () => {
-  it('takes the first forwarded address, then x-real-ip', () => {
-    const req = (h: Record<string, string>) =>
-      new Request('http://x/', { headers: h })
-    expect(clientIp(req({ 'x-forwarded-for': '203.0.113.5, 10.0.0.1' }))).toBe(
+  const req = (h: Record<string, string>) =>
+    new Request('http://x/', { headers: h })
+
+  it('prefers x-real-ip, which the proxy overwrites', () => {
+    expect(
+      clientIp(
+        req({ 'x-real-ip': '203.0.113.6', 'x-forwarded-for': '1.2.3.4' })
+      )
+    ).toBe('203.0.113.6')
+  })
+
+  it('otherwise takes the address our proxy appended, not one the client sent', () => {
+    // A client can send any X-Forwarded-For; the proxy appends the real
+    // peer address at the end.
+    expect(clientIp(req({ 'x-forwarded-for': '1.2.3.4, 203.0.113.5' }))).toBe(
       '203.0.113.5'
     )
-    expect(clientIp(req({ 'x-real-ip': '203.0.113.6' }))).toBe('203.0.113.6')
+  })
+
+  it('falls back to "unknown"', () => {
     expect(clientIp(req({}))).toBe('unknown')
   })
 })

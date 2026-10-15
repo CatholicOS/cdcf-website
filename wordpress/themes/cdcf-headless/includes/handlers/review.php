@@ -474,6 +474,9 @@ function cdcf_rest_review_post_question(WP_REST_Request $request) {
 
     $email    = cdcf_review_send_submitter_email($pid, 'question', ['question' => $body]);
     $response = cdcf_review_entry_response($id, 201);
+    if (is_wp_error($response)) {
+        return $response;
+    }
     $response->set_data($response->get_data() + [
         'warnings' => in_array($email, ['failed', 'no_email'], true) ? ['email_failed'] : [],
     ]);

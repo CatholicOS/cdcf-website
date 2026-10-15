@@ -57,6 +57,33 @@ final class ReviewSubmitterTokenTest extends TestCase
         $this->assertFalse(cdcf_review_token_matches(41, $token), 'another project has no hash');
     }
 
+    public function test_a_new_token_is_not_valid_until_committed(): void
+    {
+        $old = cdcf_review_issue_token(40);
+        $new = cdcf_review_new_token();
+
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $new['token']);
+        $this->assertSame(hash('sha256', $new['token']), $new['hash']);
+        $this->assertTrue(cdcf_review_token_matches(40, $old), 'old link still works before the email is sent');
+        $this->assertFalse(cdcf_review_token_matches(40, $new['token']));
+
+        $this->assertTrue(cdcf_review_commit_token(40, $new['hash'], $new['issued_at']));
+        $this->assertTrue(cdcf_review_token_matches(40, $new['token']));
+        $this->assertFalse(cdcf_review_token_matches(40, $old));
+    }
+
+    public function test_an_older_token_never_replaces_a_newer_one(): void
+    {
+        $older = cdcf_review_new_token();
+        $newer = cdcf_review_new_token();
+        $newer['issued_at'] = sprintf('%.6F', (float) $older['issued_at'] + 1);
+
+        $this->assertTrue(cdcf_review_commit_token(40, $newer['hash'], $newer['issued_at']));
+        $this->assertFalse(cdcf_review_commit_token(40, $older['hash'], $older['issued_at']), 'a late email for an older token');
+        $this->assertTrue(cdcf_review_token_matches(40, $newer['token']));
+        $this->assertFalse(cdcf_review_token_matches(40, $older['token']));
+    }
+
     public function test_expiry_is_honoured_when_set(): void
     {
         $token = cdcf_review_issue_token(40);

@@ -409,7 +409,7 @@
       "askWarning": "El proponente recibe este texto por correo tal como está escrito, de parte del «comité de revisión de la CDCF» y sin tu nombre.",
       "askSubmit": "Enviar pregunta",
       "askSending": "Enviando…",
-      "emailFailed": "La pregunta se ha guardado, pero no se ha podido enviar el correo al proponente, así que su enlace de estado anterior ya no funciona."
+      "emailFailed": "La pregunta se ha guardado, pero no se ha podido enviar el correo al proponente."
     },
     "attach": {
       "button": "Adjuntar archivo",
