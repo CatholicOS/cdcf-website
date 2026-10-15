@@ -240,6 +240,7 @@ require_once __DIR__ . '/../includes/review/schema.php';
 require_once __DIR__ . '/../includes/review/membership.php';
 require_once __DIR__ . '/../includes/review/repository.php';
 require_once __DIR__ . '/../includes/review/events.php';
+require_once __DIR__ . '/../includes/review/submitter-token.php';
 require_once __DIR__ . '/../includes/review/attachments.php';
 require_once __DIR__ . '/../includes/handlers/review.php';
 require_once __DIR__ . '/../includes/admin/review-access.php';
