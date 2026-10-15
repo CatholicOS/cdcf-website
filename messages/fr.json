@@ -120,7 +120,7 @@
     "submit": "Submit Project",
     "submitting": "Submitting…",
     "successTitle": "Thank you!",
-    "successMessage": "Your project has been submitted for review. We'll take a look shortly.",
+    "successMessage": "Votre projet a été soumis à l'examen. Nous vous avons envoyé par e-mail un lien pour suivre l'examen.",
     "errorTitle": "Something went wrong",
     "errorMessage": "Please try again later or contact us directly.",
     "sendCode": "Send Verification Code",
@@ -462,5 +462,45 @@
     "blockquote": "Citation",
     "codeBlock": "Bloc de code",
     "linkInvalid": "Utilisez un lien commençant par https://, http:// ou mailto:"
+  },
+  "SubmissionStatus": {
+    "title": "Suivi de la proposition",
+    "submittedOn": "Proposé le {date}",
+    "progress": "Avancement",
+    "steps": {
+      "received": "Reçu",
+      "review": "En cours d'examen",
+      "question": "Question en attente de votre réponse",
+      "decision": "Décision"
+    },
+    "questionsHeading": "Questions du comité d'examen de la CDCF",
+    "noQuestions": "Le comité n'a pas de question pour vous pour le moment.",
+    "yourAnswer": "Votre réponse",
+    "answerLabel": "Votre réponse",
+    "answerSubmit": "Envoyer la réponse",
+    "answerSending": "Envoi…",
+    "decisionHeading": "Décision",
+    "outcome": {
+      "cdcf": "Accepté comme projet de la CDCF",
+      "community": "Accepté comme projet communautaire",
+      "reject": "Non retenu"
+    },
+    "viewPublic": "Voir la page du projet",
+    "linkInvalid": "Ce lien n'est plus valide. Seul le lien le plus récent que nous vous avons envoyé fonctionne.",
+    "resendIntro": "Saisissez l'adresse e-mail utilisée pour proposer le projet, et nous y enverrons un nouveau lien.",
+    "resendEmail": "Adresse e-mail",
+    "resendSubmit": "M'envoyer un nouveau lien",
+    "resendSending": "Envoi…",
+    "resendDone": "Si l'adresse correspond à la proposition, un nouveau lien est en route.",
+    "errors": {
+      "alreadyAnswered": "Cette question a déjà reçu une réponse.",
+      "closed": "L'examen est terminé : les réponses sont closes.",
+      "rejected": "Cette réponse n'a pas pu être acceptée. Reformulez-la et réessayez.",
+      "tooLong": "La réponse est trop longue (10 000 caractères au maximum).",
+      "empty": "Veuillez écrire une réponse.",
+      "expired": "Ce lien n'est plus valide. Rechargez la page pour en demander un nouveau.",
+      "rateLimited": "Trop de tentatives. Veuillez réessayer plus tard.",
+      "generic": "Une erreur s'est produite. Veuillez réessayer."
+    }
   }
 }

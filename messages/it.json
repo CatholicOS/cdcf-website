@@ -120,7 +120,7 @@
     "submit": "Submit Project",
     "submitting": "Submitting…",
     "successTitle": "Thank you!",
-    "successMessage": "Your project has been submitted for review. We'll take a look shortly.",
+    "successMessage": "Il tuo progetto è stato inviato per la revisione. Ti abbiamo inviato via email un link per seguirne la revisione.",
     "errorTitle": "Something went wrong",
     "errorMessage": "Please try again later or contact us directly.",
     "sendCode": "Send Verification Code",
@@ -462,5 +462,45 @@
     "blockquote": "Citazione",
     "codeBlock": "Blocco di codice",
     "linkInvalid": "Usa un link che inizi con https://, http:// o mailto:"
+  },
+  "SubmissionStatus": {
+    "title": "Stato della proposta",
+    "submittedOn": "Proposto il {date}",
+    "progress": "Avanzamento",
+    "steps": {
+      "received": "Ricevuto",
+      "review": "In revisione",
+      "question": "Domanda in attesa della tua risposta",
+      "decision": "Decisione"
+    },
+    "questionsHeading": "Domande del comitato di revisione della CDCF",
+    "noQuestions": "Al momento il comitato non ha domande per te.",
+    "yourAnswer": "La tua risposta",
+    "answerLabel": "La tua risposta",
+    "answerSubmit": "Invia risposta",
+    "answerSending": "Invio in corso…",
+    "decisionHeading": "Decisione",
+    "outcome": {
+      "cdcf": "Accettato come progetto CDCF",
+      "community": "Accettato come progetto della comunità",
+      "reject": "Non accettato"
+    },
+    "viewPublic": "Vai alla pagina del progetto",
+    "linkInvalid": "Questo link non è più valido. Funziona solo il link più recente che ti abbiamo inviato.",
+    "resendIntro": "Inserisci l'indirizzo email che hai usato per proporre il progetto e ti invieremo un nuovo link.",
+    "resendEmail": "Indirizzo email",
+    "resendSubmit": "Inviami un nuovo link",
+    "resendSending": "Invio in corso…",
+    "resendDone": "Se l'indirizzo corrisponde alla proposta, ti stiamo inviando un nuovo link.",
+    "errors": {
+      "alreadyAnswered": "Questa domanda ha già una risposta.",
+      "closed": "La revisione è stata decisa, quindi non si accettano più risposte.",
+      "rejected": "Questa risposta non può essere accettata. Riformulala e riprova.",
+      "tooLong": "La risposta è troppo lunga (al massimo 10.000 caratteri).",
+      "empty": "Scrivi una risposta.",
+      "expired": "Questo link non è più valido. Ricarica la pagina per richiederne uno nuovo.",
+      "rateLimited": "Troppi tentativi. Riprova più tardi.",
+      "generic": "Qualcosa è andato storto. Riprova."
+    }
   }
 }

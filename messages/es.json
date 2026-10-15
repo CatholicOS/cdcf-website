@@ -120,7 +120,7 @@
     "submit": "Submit Project",
     "submitting": "Submitting…",
     "successTitle": "Thank you!",
-    "successMessage": "Your project has been submitted for review. We'll take a look shortly.",
+    "successMessage": "Tu proyecto se ha enviado para su revisión. Te hemos enviado por correo un enlace para seguir la revisión.",
     "errorTitle": "Something went wrong",
     "errorMessage": "Please try again later or contact us directly.",
     "sendCode": "Send Verification Code",
@@ -462,5 +462,45 @@
     "blockquote": "Cita",
     "codeBlock": "Bloque de código",
     "linkInvalid": "Usa un enlace que empiece por https://, http:// o mailto:"
+  },
+  "SubmissionStatus": {
+    "title": "Estado de la propuesta",
+    "submittedOn": "Enviado el {date}",
+    "progress": "Progreso",
+    "steps": {
+      "received": "Recibido",
+      "review": "En revisión",
+      "question": "Pregunta pendiente de tu respuesta",
+      "decision": "Decisión"
+    },
+    "questionsHeading": "Preguntas del comité de revisión de la CDCF",
+    "noQuestions": "Por ahora el comité no tiene preguntas para ti.",
+    "yourAnswer": "Tu respuesta",
+    "answerLabel": "Tu respuesta",
+    "answerSubmit": "Enviar respuesta",
+    "answerSending": "Enviando…",
+    "decisionHeading": "Decisión",
+    "outcome": {
+      "cdcf": "Aceptado como proyecto de la CDCF",
+      "community": "Aceptado como proyecto comunitario",
+      "reject": "No aceptado"
+    },
+    "viewPublic": "Ver la página del proyecto",
+    "linkInvalid": "Este enlace ya no es válido. Solo funciona el enlace más reciente que te enviamos.",
+    "resendIntro": "Escribe la dirección de correo que usaste al enviar el proyecto y te enviaremos un enlace nuevo.",
+    "resendEmail": "Correo electrónico",
+    "resendSubmit": "Envíame un enlace nuevo",
+    "resendSending": "Enviando…",
+    "resendDone": "Si la dirección coincide con la propuesta, te estamos enviando un enlace nuevo.",
+    "errors": {
+      "alreadyAnswered": "Esta pregunta ya tiene respuesta.",
+      "closed": "La revisión ya tiene una decisión, así que no se aceptan más respuestas.",
+      "rejected": "No se ha podido aceptar esta respuesta. Reformúlala e inténtalo de nuevo.",
+      "tooLong": "La respuesta es demasiado larga (10.000 caracteres como máximo).",
+      "empty": "Escribe una respuesta.",
+      "expired": "Este enlace ya no es válido. Recarga la página para pedir uno nuevo.",
+      "rateLimited": "Demasiados intentos. Inténtalo más tarde.",
+      "generic": "Algo ha salido mal. Inténtalo de nuevo."
+    }
   }
 }
