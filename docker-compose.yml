@@ -206,6 +206,12 @@ services:
         define('SMTP_PASS', '${SMTP_PASS:-}');
         define('SMTP_FROM', '${SMTP_FROM:-webmaster@catholicdigitalcommons.org}');
         define('SMTP_FROM_NAME', '${SMTP_FROM_NAME:-Catholic Digital Commons Foundation}');
+        # Zitadel bearer auth against THIS stack's Zitadel: the theme defaults
+        # to production userinfo, which rejects local tokens. Zitadel picks
+        # its instance from the Host header, hence the override.
+        define('CDCF_ZITADEL_EXPECTED_AUD', '${CDCF_ZITADEL_EXPECTED_AUD:-}');
+        define('CDCF_ZITADEL_USERINFO_URL', 'http://zitadel-proxy/oidc/v1/userinfo');
+        define('CDCF_ZITADEL_USERINFO_HOST', 'localhost:${ZITADEL_PORT:-8090}');
     volumes:
       - wordpress_data:/var/www/html
       - ./wordpress/themes/cdcf-headless:/var/www/html/wp-content/themes/cdcf-headless

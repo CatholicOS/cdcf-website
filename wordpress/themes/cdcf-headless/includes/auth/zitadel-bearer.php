@@ -33,7 +33,13 @@
 
 defined('ABSPATH') || exit;
 
-const CDCF_ZITADEL_USERINFO_URL = 'https://auth.catholicdigitalcommons.org/oidc/v1/userinfo';
+// Userinfo endpoint, overridable in wp-config.php. The local Docker stack
+// points it at its own Zitadel (http://zitadel-proxy/...) and sets
+// CDCF_ZITADEL_USERINFO_HOST, because Zitadel picks its instance from the
+// Host header and the compose service name is not that host. Production
+// sets neither.
+defined('CDCF_ZITADEL_USERINFO_URL') || define('CDCF_ZITADEL_USERINFO_URL', 'https://auth.catholicdigitalcommons.org/oidc/v1/userinfo');
+defined('CDCF_ZITADEL_USERINFO_HOST') || define('CDCF_ZITADEL_USERINFO_HOST', '');
 const CDCF_ZITADEL_BEARER_CACHE_TTL = 60;
 const CDCF_ZITADEL_USERINFO_TIMEOUT = 5;
 
@@ -54,6 +60,22 @@ const CDCF_ZITADEL_USERINFO_TIMEOUT = 5;
 // Example wp-config.php line:
 //   define('CDCF_ZITADEL_EXPECTED_AUD', '<prod_client_id>,<nonprod_client_id>');
 defined('CDCF_ZITADEL_EXPECTED_AUD') || define('CDCF_ZITADEL_EXPECTED_AUD', '');
+
+/**
+ * Headers for the userinfo round-trip; `$host` (when set) overrides Host.
+ *
+ * @return array<string, string>
+ */
+function cdcf_zitadel_bearer_userinfo_headers(string $token, string $host): array {
+    $headers = [
+        'Authorization' => 'Bearer ' . $token,
+        'Accept'        => 'application/json',
+    ];
+    if ($host !== '') {
+        $headers['Host'] = $host;
+    }
+    return $headers;
+}
 
 /**
  * Pull a bearer token out of the incoming request's Authorization
@@ -232,10 +254,7 @@ function cdcf_zitadel_bearer_authenticate($user_id) {
 
     $response = wp_remote_post(CDCF_ZITADEL_USERINFO_URL, [
         'timeout' => CDCF_ZITADEL_USERINFO_TIMEOUT,
-        'headers' => [
-            'Authorization' => 'Bearer ' . $token,
-            'Accept'        => 'application/json',
-        ],
+        'headers' => cdcf_zitadel_bearer_userinfo_headers($token, CDCF_ZITADEL_USERINFO_HOST),
     ]);
     if (is_wp_error($response)) {
         error_log('[cdcf-zitadel-bearer] userinfo request failed: ' . $response->get_error_message());
