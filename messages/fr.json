@@ -409,7 +409,7 @@
       "askWarning": "Le proposant reçoit ce texte par e-mail tel qu'il est écrit, de la part du « comité d'examen de la CDCF » et sans votre nom.",
       "askSubmit": "Envoyer la question",
       "askSending": "Envoi…",
-      "emailFailed": "La question a été enregistrée, mais l'e-mail au proposant n'a pas pu être envoyé."
+      "emailFailed": "La question a été enregistrée, mais l'e-mail au proposant n'a pas pu être envoyé ; son précédent lien de suivi ne fonctionne donc plus."
     },
     "attach": {
       "button": "Joindre un fichier",
@@ -470,6 +470,7 @@
     "linkInvalid": "Utilisez un lien commençant par https://, http:// ou mailto:"
   },
   "SubmissionStatus": {
+    "answersClosed": "L'examen est terminé : il n'est plus possible de répondre à cette question.",
     "title": "Suivi de la proposition",
     "submittedOn": "Proposé le {date}",
     "progress": "Avancement",

@@ -409,7 +409,7 @@
       "askWarning": "The submitter receives this text by email exactly as written, from \"the CDCF review committee\" and without your name.",
       "askSubmit": "Send question",
       "askSending": "Sending…",
-      "emailFailed": "The question was saved, but the email to the submitter could not be sent."
+      "emailFailed": "The question was saved, but the email to the submitter could not be sent, so their earlier status link no longer works."
     },
     "attach": {
       "button": "Attach file",
@@ -470,6 +470,7 @@
     "linkInvalid": "Use a link starting with https://, http:// or mailto:"
   },
   "SubmissionStatus": {
+    "answersClosed": "The review has been decided, so this question can no longer be answered.",
     "title": "Submission status",
     "submittedOn": "Submitted on {date}",
     "progress": "Progress",

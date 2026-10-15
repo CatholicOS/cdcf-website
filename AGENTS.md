@@ -286,6 +286,10 @@ account. Every submitter email (`includes/review/email-strings.php`, six
 languages) rotates a random token stored only as a SHA-256 hash and links
 to `/api/submission-status/{id}/open`, which moves the token into an
 `httpOnly` cookie (`cdcf_status_{id}`) and redirects to the clean page.
+The emailed `/api/submission-status/{id}/open?t=…` URL (token included) appears
+in the frontend's web-server access log and in browser history; this is
+inherent to an emailed link and bounded by rotation (every submitter email
+issues a new token).
 Review emails go through the Redis queue (`cdcf_review_email` job) when
 the queue plugin is active, otherwise inline — never WP-Cron.
 

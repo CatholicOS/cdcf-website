@@ -2,12 +2,11 @@ import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { getFormatter, getTranslations } from 'next-intl/server'
-import { ReviewApiError } from '@/lib/review-api'
 import { parseWpGmt } from '@/lib/review-ui'
-import { fetchSubmissionStatus } from '@/lib/submission-status-api'
+import { loadSubmissionStatus } from '@/lib/submission-status-load'
 import type { SubmissionStatus } from '@/lib/submission-status-types'
 import { timelineSteps } from '@/lib/submission-status-ui'
-import { STATUS_TOKEN_PATTERN, statusCookieName } from '@/lib/submission-token'
+import { statusCookieName } from '@/lib/submission-token'
 import { AnswerForm } from '@/components/submission-status/AnswerForm'
 import { ResendLinkForm } from '@/components/submission-status/ResendLinkForm'
 import { StatusTimeline } from '@/components/submission-status/StatusTimeline'
@@ -28,7 +27,7 @@ export default async function SubmissionStatusPage({
   const id = Number(rawId)
   const t = await getTranslations('SubmissionStatus')
   const token = (await cookies()).get(statusCookieName(id))?.value ?? ''
-  const status = await loadStatus(id, token)
+  const status = await loadSubmissionStatus(id, token)
 
   return (
     <main className="cdcf-section">
@@ -45,20 +44,6 @@ export default async function SubmissionStatusPage({
       </div>
     </main>
   )
-}
-
-// Loading stays outside the component so no JSX is built inside try/catch.
-async function loadStatus(
-  id: number,
-  token: string
-): Promise<SubmissionStatus | null> {
-  if (!STATUS_TOKEN_PATTERN.test(token)) return null
-  try {
-    return await fetchSubmissionStatus(id, token)
-  } catch (err) {
-    if (err instanceof ReviewApiError && err.status === 404) return null
-    throw err
-  }
 }
 
 async function StatusBody({ status }: { status: SubmissionStatus }) {
@@ -99,8 +84,12 @@ async function StatusBody({ status }: { status: SubmissionStatus }) {
                       {q.answer.body}
                     </p>
                   </div>
+                ) : open ? (
+                  <AnswerForm projectId={status.id} questionId={q.id} />
                 ) : (
-                  open && <AnswerForm projectId={status.id} questionId={q.id} />
+                  <p className="text-sm italic text-gray-500">
+                    {t('answersClosed')}
+                  </p>
                 )}
               </li>
             ))}

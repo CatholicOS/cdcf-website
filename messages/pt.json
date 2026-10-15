@@ -409,7 +409,7 @@
       "askWarning": "O proponente recebe este texto por email exatamente como está escrito, da parte do \"comité de revisão da CDCF\" e sem o seu nome.",
       "askSubmit": "Enviar pergunta",
       "askSending": "A enviar…",
-      "emailFailed": "A pergunta foi guardada, mas não foi possível enviar o email ao proponente."
+      "emailFailed": "A pergunta foi guardada, mas não foi possível enviar o email ao proponente, por isso o link de estado anterior deixou de funcionar."
     },
     "attach": {
       "button": "Anexar ficheiro",
@@ -470,6 +470,7 @@
     "linkInvalid": "Use um link que comece com https://, http:// ou mailto:"
   },
   "SubmissionStatus": {
+    "answersClosed": "A revisão já foi decidida, por isso já não é possível responder a esta pergunta.",
     "title": "Estado da submissão",
     "submittedOn": "Submetido em {date}",
     "progress": "Progresso",

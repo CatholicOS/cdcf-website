@@ -409,7 +409,7 @@
       "askWarning": "Il proponente riceve questo testo via email esattamente come è scritto, da parte del \"comitato di revisione della CDCF\" e senza il tuo nome.",
       "askSubmit": "Invia domanda",
       "askSending": "Invio in corso…",
-      "emailFailed": "La domanda è stata salvata, ma non è stato possibile inviare l'email al proponente."
+      "emailFailed": "La domanda è stata salvata, ma non è stato possibile inviare l'email al proponente, quindi il suo link di stato precedente non funziona più."
     },
     "attach": {
       "button": "Allega file",
@@ -470,6 +470,7 @@
     "linkInvalid": "Usa un link che inizi con https://, http:// o mailto:"
   },
   "SubmissionStatus": {
+    "answersClosed": "La revisione è stata decisa, quindi non è più possibile rispondere a questa domanda.",
     "title": "Stato della proposta",
     "submittedOn": "Proposto il {date}",
     "progress": "Avanzamento",
