@@ -32,7 +32,7 @@ final class SubmissionStatusHandlerTest extends TestCase
 
         Functions\when('sanitize_text_field')->returnArg();
         Functions\when('rest_ensure_response')->alias(fn($data) => new WP_REST_Response($data));
-        Functions\when('get_post_meta')->alias(fn(int $id, string $k, bool $s = false) => $this->meta[$id][$k] ?? '');
+        Functions\when('get_post_meta')->alias(fn(int $id, string $k) => $this->meta[$id][$k] ?? '');
         Functions\when('update_post_meta')->alias(function (int $id, string $k, $v): bool {
             $this->meta[$id][$k] = $v;
             return true;
@@ -43,8 +43,8 @@ final class SubmissionStatusHandlerTest extends TestCase
             return true;
         });
         Functions\when('cdcf_review_get_reviewable_project')->alias(
-            fn(int $id) => $id === 40
-                ? (object) ['ID' => 40, 'post_title' => 'Liturgy Helper', 'post_status' => 'pending', 'post_type' => 'project', 'post_date' => '2026-10-01 11:00:00', 'post_date_gmt' => '2026-10-01 09:00:00']
+            fn(int $id) => in_array($id, [40, 41], true)
+                ? (object) ['ID' => $id, 'post_title' => 'Liturgy Helper', 'post_status' => 'pending', 'post_type' => 'project', 'post_date' => '2026-10-01 11:00:00', 'post_date_gmt' => '2026-10-01 09:00:00']
                 : new WP_Error('review_not_found', 'No project under review with that id.', ['status' => 404])
         );
         Functions\when('cdcf_review_project_entries')->alias(fn() => $this->entries);
@@ -143,15 +143,25 @@ final class SubmissionStatusHandlerTest extends TestCase
         $this->assertSame($base . '/it/projects/liturgy-helper', $out['public_url']);
     }
 
-    public function test_reads_are_rate_limited_per_ip_and_project(): void
+    public function test_a_valid_token_is_never_rate_limited(): void
     {
-        for ($i = 0; $i < 120; $i++) {
-            cdcf_rest_submission_status_get($this->request(['id' => 40]));
+        for ($i = 0; $i < 200; $i++) {
+            $this->assertSame(200, cdcf_rest_submission_status_get($this->request(['id' => 40]))->get_status());
         }
-        $result = cdcf_rest_submission_status_get($this->request(['id' => 40]));
+    }
 
+    public function test_repeated_failed_reads_are_limited_per_project_but_valid_tokens_still_work(): void
+    {
+        $bad = str_repeat('b', 64);
+        for ($i = 0; $i < 120; $i++) {
+            $this->assertNotFound(cdcf_rest_submission_status_get($this->request(['id' => 40], $bad)));
+        }
+        $result = cdcf_rest_submission_status_get($this->request(['id' => 40], $bad));
         $this->assertSame('rate_limited', $result->get_error_code());
         $this->assertSame(429, $result->get_error_data()['status']);
+
+        $this->assertSame(200, cdcf_rest_submission_status_get($this->request(['id' => 40]))->get_status());
+        $this->assertNotFound(cdcf_rest_submission_status_get($this->request(['id' => 41], $bad)));
     }
 
     // ─── POST answer ───────────────────────────────────────────────────
@@ -215,6 +225,20 @@ final class SubmissionStatusHandlerTest extends TestCase
         $this->assertSame([], $this->inserted);
     }
 
+    public function test_repeated_failed_answers_are_limited_but_a_valid_token_still_answers(): void
+    {
+        $bad = str_repeat('b', 64);
+        for ($i = 0; $i < 20; $i++) {
+            $this->assertNotFound(cdcf_rest_submission_status_answer($this->request(['id' => 40, 'question_id' => 1, 'body' => 'x'], $bad)));
+        }
+        $result = cdcf_rest_submission_status_answer($this->request(['id' => 40, 'question_id' => 1, 'body' => 'x'], $bad));
+        $this->assertSame('rate_limited', $result->get_error_code());
+        $this->assertSame(429, $result->get_error_data()['status']);
+
+        $ok = cdcf_rest_submission_status_answer($this->request(['id' => 40, 'question_id' => 1, 'body' => 'MIT']));
+        $this->assertSame(201, $ok->get_status());
+    }
+
     // ─── POST resend-link ──────────────────────────────────────────────
 
     public function test_matching_email_gets_a_new_link_case_insensitively(): void
@@ -226,7 +250,17 @@ final class SubmissionStatusHandlerTest extends TestCase
         $this->assertSame([[40, 'link']], $this->emails);
     }
 
-    public function test_wrong_email_unknown_project_and_rate_limit_all_look_the_same(): void
+    public function test_wrong_email_never_consumes_the_send_budget(): void
+    {
+        for ($i = 0; $i < 10; $i++) {
+            cdcf_rest_submission_status_resend_link($this->request(['project_id' => 40, 'email' => 'eve@example.org'], null));
+        }
+        $this->assertSame([], $this->emails);
+        cdcf_rest_submission_status_resend_link($this->request(['project_id' => 40, 'email' => 'sam@example.org'], null));
+        $this->assertSame([[40, 'link']], $this->emails);
+    }
+
+    public function test_wrong_email_unknown_project_and_send_cap_all_look_the_same(): void
     {
         $responses = [
             cdcf_rest_submission_status_resend_link($this->request(['project_id' => 40, 'email' => 'eve@example.org'], null)),
@@ -240,6 +274,6 @@ final class SubmissionStatusHandlerTest extends TestCase
             $this->assertSame(202, $response->get_status());
             $this->assertSame(['accepted' => true], $response->get_data());
         }
-        $this->assertCount(4, $this->emails, 'only the four allowed matching requests send');
+        $this->assertCount(5, $this->emails, 'non-matching requests are not counted, so five of the six matching ones send (the cap)');
     }
 }
