@@ -128,4 +128,20 @@ final class ReviewMailerTest extends TestCase
         $this->assertSame('no_email', cdcf_review_send_submitter_email(42, 'link'));
         $this->assertSame([], $this->mails);
     }
+
+    public function test_queue_factory_rebuilds_an_email_job_from_its_payload(): void
+    {
+        $payload = ['to' => 'a@b.c', 'subject' => 'S', 'body' => 'B'];
+        $job = cdcf_review_create_email_job(null, 'cdcf_review_email', $payload);
+
+        $this->assertInstanceOf(CDCF_Review_Email_Job::class, $job);
+        $this->assertSame($payload, $job->get_payload());
+    }
+
+    public function test_queue_factory_passes_other_job_types_through_unchanged(): void
+    {
+        $other = new stdClass();
+
+        $this->assertSame($other, cdcf_review_create_email_job($other, 'cdcf_translation', ['x' => 1]));
+    }
 }

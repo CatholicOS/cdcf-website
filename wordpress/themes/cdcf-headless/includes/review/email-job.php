@@ -31,6 +31,10 @@ class CDCF_Review_Email_Job extends \Soderlind\RedisQueue\Jobs\Abstract_Base_Job
     }
 }
 
-add_filter('redis_queue_create_job', function ($job, $type, $payload) {
+/**
+ * Registered on `redis_queue_create_job` from functions.php, so the queue
+ * can rebuild this job from its stored payload.
+ */
+function cdcf_review_create_email_job($job, $type, $payload) {
     return $type === CDCF_REVIEW_EMAIL_JOB ? new CDCF_Review_Email_Job((array) $payload) : $job;
-}, 10, 3);
+}

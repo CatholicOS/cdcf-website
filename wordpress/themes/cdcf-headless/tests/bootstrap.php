@@ -292,12 +292,6 @@ if (!class_exists('CdcfAjaxError')) {
 }
 
 require_once __DIR__ . '/stubs/AbstractBaseJobStub.php';
-// email-job.php registers a redis_queue_create_job filter at load time.
-// Brain Monkey only defines add_filter() on Monkey\setUp(), so provide a
-// no-op for the load; WordPress always defines the real one in production.
-if (!function_exists('add_filter')) {
-    function add_filter(...$args): bool { return true; }
-}
 require_once __DIR__ . '/../includes/review/email-job.php';
 
 // Shared base classes. PHPUnit doesn't autoload test files via PSR-4,

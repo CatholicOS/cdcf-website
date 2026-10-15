@@ -816,6 +816,7 @@ require_once __DIR__ . '/includes/admin/review-access.php';
 // active; without it, review emails are sent inline.
 if (class_exists('Soderlind\\RedisQueue\\Jobs\\Abstract_Base_Job')) {
     require_once __DIR__ . '/includes/review/email-job.php';
+    add_filter('redis_queue_create_job', 'cdcf_review_create_email_job', 10, 3);
 }
 
 add_action('admin_init', 'cdcf_review_maybe_upgrade');
