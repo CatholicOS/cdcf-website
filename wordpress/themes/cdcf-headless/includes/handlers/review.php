@@ -451,6 +451,38 @@ function cdcf_rest_review_patch_entry(WP_REST_Request $request) {
     return cdcf_review_entry_response($entry['id'], 200);
 }
 
+/** POST /review/projects/{id}/question — ask the submitter (emailed verbatim). */
+function cdcf_rest_review_post_question(WP_REST_Request $request) {
+    $pid  = (int) $request['id'];
+    $body = trim((string) $request['body']);
+    $ok   = cdcf_review_guard_write($pid, $body);
+    if (is_wp_error($ok)) {
+        return $ok;
+    }
+    if (!is_email((string) get_post_meta($pid, '_submission_submitter_email', true))) {
+        return new WP_Error('no_submitter_email', 'This submission has no submitter email to send the question to.', ['status' => 409]);
+    }
+    $uid = get_current_user_id();
+    $id  = cdcf_review_insert_entry([
+        'project_id' => $pid, 'kind' => 'question', 'author_user_id' => $uid, 'body_md' => $body,
+    ]);
+    if ($id <= 0) {
+        return new WP_Error('insert_failed', 'Could not save the question.', ['status' => 500]);
+    }
+    update_post_meta($pid, CDCF_REVIEW_STAGE_META, 'awaiting_submitter');
+    cdcf_review_record_event($pid, 'question_sent', $uid, $id);
+
+    $email    = cdcf_review_send_submitter_email($pid, 'question', ['question' => $body]);
+    $response = cdcf_review_entry_response($id, 201);
+    if (is_wp_error($response)) {
+        return $response;
+    }
+    $response->set_data($response->get_data() + [
+        'warnings' => in_array($email, ['failed', 'no_email'], true) ? ['email_failed'] : [],
+    ]);
+    return $response;
+}
+
 /**
  * REST args per review route, keyed by route path. Lives here (not in
  * functions.php) so tests can assert on it. Every arg that carries an
@@ -526,6 +558,10 @@ function cdcf_review_route_args(): array {
                 'default'           => 0,
             ],
             'body_md'   => $body,
+        ],
+        '/review/projects/(?P<id>\d+)/question' => [
+            'id'   => $id,
+            'body' => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
         ],
         '/review/entries/(?P<id>\d+)' => [
             'id'      => $id,

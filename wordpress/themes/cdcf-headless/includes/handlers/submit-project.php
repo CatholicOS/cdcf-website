@@ -137,6 +137,9 @@ function cdcf_rest_submit_project(WP_REST_Request $request) {
     update_post_meta($post_id, CDCF_REVIEW_STAGE_META, 'in_review');
     cdcf_review_record_event((int) $post_id, 'submission_received', null);
 
+    // The submitter's status link (their address was verified by code above).
+    cdcf_review_send_submitter_email((int) $post_id, 'confirmation');
+
     // Send admin notification email.
     $admin_email = get_option('admin_email');
     $edit_link   = admin_url("post.php?post={$post_id}&action=edit");

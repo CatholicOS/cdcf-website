@@ -120,7 +120,7 @@
     "submit": "Submit Project",
     "submitting": "Submitting…",
     "successTitle": "Thank you!",
-    "successMessage": "Your project has been submitted for review. We'll take a look shortly.",
+    "successMessage": "Your project has been submitted for review. We've emailed you a link where you can follow the review.",
     "errorTitle": "Something went wrong",
     "errorMessage": "Please try again later or contact us directly.",
     "sendCode": "Send Verification Code",
@@ -403,7 +403,13 @@
       "heading": "Questions to the submitter",
       "none": "No questions have been sent to the submitter.",
       "submitter": "Submitter",
-      "awaiting": "Awaiting the submitter's answer."
+      "awaiting": "Awaiting the submitter's answer.",
+      "askHeading": "Ask the submitter",
+      "askLabel": "Question",
+      "askWarning": "The submitter receives this text by email exactly as written, from \"the CDCF review committee\" and without your name.",
+      "askSubmit": "Send question",
+      "askSending": "Sending…",
+      "emailFailed": "The question was saved, but the email to the submitter could not be sent."
     },
     "attach": {
       "button": "Attach file",
@@ -462,5 +468,46 @@
     "blockquote": "Quote",
     "codeBlock": "Code block",
     "linkInvalid": "Use a link starting with https://, http:// or mailto:"
+  },
+  "SubmissionStatus": {
+    "answersClosed": "The review has been decided, so this question can no longer be answered.",
+    "title": "Submission status",
+    "submittedOn": "Submitted on {date}",
+    "progress": "Progress",
+    "steps": {
+      "received": "Received",
+      "review": "Under review",
+      "question": "Question awaiting your reply",
+      "decision": "Decision"
+    },
+    "questionsHeading": "Questions from the CDCF review committee",
+    "noQuestions": "The committee has no questions for you at the moment.",
+    "yourAnswer": "Your answer",
+    "answerLabel": "Your answer",
+    "answerSubmit": "Send answer",
+    "answerSending": "Sending…",
+    "decisionHeading": "Decision",
+    "outcome": {
+      "cdcf": "Accepted as a CDCF project",
+      "community": "Accepted as a community project",
+      "reject": "Not accepted"
+    },
+    "viewPublic": "View the project page",
+    "linkInvalid": "This link is not valid any more. Only the most recent link we emailed you works.",
+    "resendIntro": "Enter the email address you used when you submitted the project, and we will send a new link to it.",
+    "resendEmail": "Email address",
+    "resendSubmit": "Email me a new link",
+    "resendSending": "Sending…",
+    "resendDone": "If that address matches the submission, a new link is on its way.",
+    "errors": {
+      "alreadyAnswered": "This question has already been answered.",
+      "closed": "The review has been decided, so answers are closed.",
+      "rejected": "This answer could not be accepted. Please rephrase it and try again.",
+      "tooLong": "The answer is too long (10,000 characters at most).",
+      "empty": "Please write an answer.",
+      "expired": "This link is not valid any more. Reload the page to request a new one.",
+      "rateLimited": "Too many attempts. Please try again later.",
+      "generic": "Something went wrong. Please try again."
+    }
   }
 }

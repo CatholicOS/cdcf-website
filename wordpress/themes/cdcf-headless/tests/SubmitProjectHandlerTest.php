@@ -163,4 +163,21 @@ final class SubmitProjectHandlerTest extends SubmissionHandlerTestBase
         $this->assertSame('in_review', $meta['_cdcf_review_stage']);
         $this->assertSame([[800, 'submission_received', null]], $events);
     }
+
+    public function test_successful_submission_emails_the_submitter_their_status_link(): void
+    {
+        $this->stubCommonFunctions();
+        $sent = [];
+        Functions\when('cdcf_review_send_submitter_email')->alias(
+            function (int $id, string $template) use (&$sent): string {
+                $sent[] = [$id, $template];
+                return 'queued';
+            }
+        );
+        $this->allowAllFunctionsToExist();
+
+        $this->invokeHandler($this->makeRequest());
+
+        $this->assertSame([[800, 'confirmation']], $sent);
+    }
 }

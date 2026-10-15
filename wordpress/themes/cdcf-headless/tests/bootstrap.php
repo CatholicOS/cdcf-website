@@ -56,6 +56,15 @@ if (!class_exists('WP_REST_Request')) {
         private array $params = [];
         private array $files = [];
         private string $route = '';
+        private array $headers = [];
+
+        public function set_header(string $name, string $value): void {
+            $this->headers[strtolower(str_replace('-', '_', $name))] = $value;
+        }
+
+        public function get_header(string $name): ?string {
+            return $this->headers[strtolower(str_replace('-', '_', $name))] ?? null;
+        }
 
         public function set_route(string $route): void {
             $this->route = $route;
@@ -240,8 +249,12 @@ require_once __DIR__ . '/../includes/review/schema.php';
 require_once __DIR__ . '/../includes/review/membership.php';
 require_once __DIR__ . '/../includes/review/repository.php';
 require_once __DIR__ . '/../includes/review/events.php';
+require_once __DIR__ . '/../includes/review/submitter-token.php';
+require_once __DIR__ . '/../includes/review/email-strings.php';
+require_once __DIR__ . '/../includes/review/mailer.php';
 require_once __DIR__ . '/../includes/review/attachments.php';
 require_once __DIR__ . '/../includes/handlers/review.php';
+require_once __DIR__ . '/../includes/handlers/submission-status.php';
 require_once __DIR__ . '/../includes/admin/review-access.php';
 require_once __DIR__ . '/../includes/admin/limited-user-provisioning.php';
 require_once __DIR__ . '/../includes/admin/author-profile-guard.php';
@@ -287,6 +300,9 @@ if (!class_exists('CdcfAjaxError')) {
         }
     }
 }
+
+require_once __DIR__ . '/stubs/AbstractBaseJobStub.php';
+require_once __DIR__ . '/../includes/review/email-job.php';
 
 // Shared base classes. PHPUnit doesn't autoload test files via PSR-4,
 // so concrete subclasses can only find their parent if it's been

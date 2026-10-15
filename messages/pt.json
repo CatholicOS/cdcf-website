@@ -120,7 +120,7 @@
     "submit": "Submit Project",
     "submitting": "Submitting…",
     "successTitle": "Thank you!",
-    "successMessage": "Your project has been submitted for review. We'll take a look shortly.",
+    "successMessage": "O seu projeto foi submetido para revisão. Enviámos-lhe por email um link para acompanhar a revisão.",
     "errorTitle": "Something went wrong",
     "errorMessage": "Please try again later or contact us directly.",
     "sendCode": "Send Verification Code",
@@ -403,7 +403,13 @@
       "heading": "Perguntas ao proponente",
       "none": "Não foram enviadas perguntas ao proponente.",
       "submitter": "Proponente",
-      "awaiting": "A aguardar a resposta do proponente."
+      "awaiting": "A aguardar a resposta do proponente.",
+      "askHeading": "Perguntar ao proponente",
+      "askLabel": "Pergunta",
+      "askWarning": "O proponente recebe este texto por email exatamente como está escrito, da parte do \"comité de revisão da CDCF\" e sem o seu nome.",
+      "askSubmit": "Enviar pergunta",
+      "askSending": "A enviar…",
+      "emailFailed": "A pergunta foi guardada, mas não foi possível enviar o email ao proponente."
     },
     "attach": {
       "button": "Anexar ficheiro",
@@ -462,5 +468,46 @@
     "blockquote": "Citação",
     "codeBlock": "Bloco de código",
     "linkInvalid": "Use um link que comece com https://, http:// ou mailto:"
+  },
+  "SubmissionStatus": {
+    "answersClosed": "A revisão já foi decidida, por isso já não é possível responder a esta pergunta.",
+    "title": "Estado da submissão",
+    "submittedOn": "Submetido em {date}",
+    "progress": "Progresso",
+    "steps": {
+      "received": "Recebido",
+      "review": "Em revisão",
+      "question": "Pergunta à espera da sua resposta",
+      "decision": "Decisão"
+    },
+    "questionsHeading": "Perguntas do comité de revisão da CDCF",
+    "noQuestions": "De momento, o comité não tem perguntas para si.",
+    "yourAnswer": "A sua resposta",
+    "answerLabel": "A sua resposta",
+    "answerSubmit": "Enviar resposta",
+    "answerSending": "A enviar…",
+    "decisionHeading": "Decisão",
+    "outcome": {
+      "cdcf": "Aceite como projeto CDCF",
+      "community": "Aceite como projeto da comunidade",
+      "reject": "Não aceite"
+    },
+    "viewPublic": "Ver a página do projeto",
+    "linkInvalid": "Este link já não é válido. Só funciona o link mais recente que lhe enviámos.",
+    "resendIntro": "Indique o endereço de email que usou ao submeter o projeto e enviaremos um novo link para esse endereço.",
+    "resendEmail": "Endereço de email",
+    "resendSubmit": "Enviar-me um novo link",
+    "resendSending": "A enviar…",
+    "resendDone": "Se o endereço corresponder à submissão, está a caminho um novo link.",
+    "errors": {
+      "alreadyAnswered": "Esta pergunta já tem resposta.",
+      "closed": "A revisão já foi decidida, por isso não são aceites mais respostas.",
+      "rejected": "Não foi possível aceitar esta resposta. Reformule-a e tente de novo.",
+      "tooLong": "A resposta é demasiado longa (no máximo 10 000 caracteres).",
+      "empty": "Escreva uma resposta.",
+      "expired": "Este link já não é válido. Recarregue a página para pedir um novo.",
+      "rateLimited": "Demasiadas tentativas. Tente mais tarde.",
+      "generic": "Algo correu mal. Tente de novo."
+    }
   }
 }

@@ -805,9 +805,19 @@ require_once __DIR__ . '/includes/review/schema.php';
 require_once __DIR__ . '/includes/review/membership.php';
 require_once __DIR__ . '/includes/review/repository.php';
 require_once __DIR__ . '/includes/review/events.php';
+require_once __DIR__ . '/includes/review/submitter-token.php';
+require_once __DIR__ . '/includes/review/email-strings.php';
+require_once __DIR__ . '/includes/review/mailer.php';
 require_once __DIR__ . '/includes/review/attachments.php';
 require_once __DIR__ . '/includes/handlers/review.php';
 require_once __DIR__ . '/includes/admin/review-access.php';
+// The queued email job needs the redis-queue plugin's base class, which
+// is loaded (plugins load before the theme) only when that plugin is
+// active; without it, review emails are sent inline.
+if (class_exists('Soderlind\\RedisQueue\\Jobs\\Abstract_Base_Job')) {
+    require_once __DIR__ . '/includes/review/email-job.php';
+    add_filter('redis_queue_create_job', 'cdcf_review_create_email_job', 10, 3);
+}
 
 add_action('admin_init', 'cdcf_review_maybe_upgrade');
 add_action('rest_api_init', 'cdcf_review_maybe_upgrade', 5);
@@ -830,6 +840,7 @@ add_action('rest_api_init', function () {
         '/review/projects/(?P<id>\d+)'           => ['GET', 'cdcf_rest_review_get_project', 'cdcf_rest_review_permission_view'],
         '/review/projects/(?P<id>\d+)/my-review' => ['PUT', 'cdcf_rest_review_put_my_review', 'cdcf_rest_review_permission_vote'],
         '/review/projects/(?P<id>\d+)/entries'   => ['POST', 'cdcf_rest_review_post_entry', 'cdcf_rest_review_permission_discuss'],
+        '/review/projects/(?P<id>\d+)/question'  => ['POST', 'cdcf_rest_review_post_question', 'cdcf_rest_review_permission_discuss'],
         '/review/entries/(?P<id>\d+)'            => ['PATCH', 'cdcf_rest_review_patch_entry', 'cdcf_rest_review_permission_discuss'],
         '/review/entries/(?P<id>\d+)/attachments' => ['POST', 'cdcf_rest_review_post_attachment', 'cdcf_rest_review_permission_discuss'],
         '/review/attachments/(?P<id>\d+)'         => ['GET', 'cdcf_rest_review_get_attachment', 'cdcf_rest_review_permission_view'],
@@ -1016,6 +1027,35 @@ add_action('rest_api_init', function () {
 // cdcf_rest_submit_project_send_code() lives in includes/handlers/submit-project-send-code.php
 
 // cdcf_rest_submit_project() lives in includes/handlers/submit-project.php
+
+// ─── Public submitter status endpoints (token-authenticated) ─────────
+// Handler bodies live in includes/handlers/submission-status.php.
+require_once __DIR__ . '/includes/handlers/submission-status.php';
+
+add_action('rest_api_init', function () {
+    $id = ['required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint'];
+    register_rest_route('cdcf/v1', '/submission-status/(?P<id>\d+)', [
+        'methods' => 'GET', 'callback' => 'cdcf_rest_submission_status_get',
+        'permission_callback' => '__return_true', 'args' => ['id' => $id],
+    ]);
+    register_rest_route('cdcf/v1', '/submission-status/(?P<id>\d+)/answer', [
+        'methods' => 'POST', 'callback' => 'cdcf_rest_submission_status_answer',
+        'permission_callback' => '__return_true',
+        'args' => [
+            'id'          => $id,
+            'question_id' => $id,
+            'body'        => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
+        ],
+    ]);
+    register_rest_route('cdcf/v1', '/submission-status/resend-link', [
+        'methods' => 'POST', 'callback' => 'cdcf_rest_submission_status_resend_link',
+        'permission_callback' => '__return_true',
+        'args' => [
+            'project_id' => $id,
+            'email'      => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
+        ],
+    ]);
+});
 
 // ─── ACF Field Groups (registered programmatically) ──────────────────
 

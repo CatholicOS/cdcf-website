@@ -120,7 +120,7 @@
     "submit": "Submit Project",
     "submitting": "Submitting…",
     "successTitle": "Thank you!",
-    "successMessage": "Your project has been submitted for review. We'll take a look shortly.",
+    "successMessage": "Ihr Projekt wurde zur Prüfung eingereicht. Wir haben Ihnen per E-Mail einen Link geschickt, über den Sie die Prüfung verfolgen können.",
     "errorTitle": "Something went wrong",
     "errorMessage": "Please try again later or contact us directly.",
     "sendCode": "Send Verification Code",
@@ -403,7 +403,13 @@
       "heading": "Fragen an die Einreichenden",
       "none": "Es wurden keine Fragen an die Einreichenden gesendet.",
       "submitter": "Einreichende",
-      "awaiting": "Wartet auf die Antwort der Einreichenden."
+      "awaiting": "Wartet auf die Antwort der Einreichenden.",
+      "askHeading": "Den Einreichenden fragen",
+      "askLabel": "Frage",
+      "askWarning": "Die einreichende Person erhält diesen Text unverändert per E-Mail, vom „Prüfungsausschuss der CDCF“ und ohne Ihren Namen.",
+      "askSubmit": "Frage senden",
+      "askSending": "Wird gesendet…",
+      "emailFailed": "Die Frage wurde gespeichert, aber die E-Mail an die einreichende Person konnte nicht gesendet werden."
     },
     "attach": {
       "button": "Datei anhängen",
@@ -462,5 +468,46 @@
     "blockquote": "Zitat",
     "codeBlock": "Codeblock",
     "linkInvalid": "Verwenden Sie einen Link, der mit https://, http:// oder mailto: beginnt."
+  },
+  "SubmissionStatus": {
+    "answersClosed": "Über die Einreichung wurde entschieden; diese Frage kann nicht mehr beantwortet werden.",
+    "title": "Status der Einreichung",
+    "submittedOn": "Eingereicht am {date}",
+    "progress": "Fortschritt",
+    "steps": {
+      "received": "Eingegangen",
+      "review": "In Prüfung",
+      "question": "Frage wartet auf Ihre Antwort",
+      "decision": "Entscheidung"
+    },
+    "questionsHeading": "Fragen des Prüfungsausschusses der CDCF",
+    "noQuestions": "Der Ausschuss hat derzeit keine Fragen an Sie.",
+    "yourAnswer": "Ihre Antwort",
+    "answerLabel": "Ihre Antwort",
+    "answerSubmit": "Antwort senden",
+    "answerSending": "Wird gesendet…",
+    "decisionHeading": "Entscheidung",
+    "outcome": {
+      "cdcf": "Als CDCF-Projekt angenommen",
+      "community": "Als Community-Projekt angenommen",
+      "reject": "Nicht angenommen"
+    },
+    "viewPublic": "Zur Projektseite",
+    "linkInvalid": "Dieser Link ist nicht mehr gültig. Nur der neueste Link, den wir Ihnen geschickt haben, funktioniert.",
+    "resendIntro": "Geben Sie die E-Mail-Adresse ein, mit der Sie das Projekt eingereicht haben, und wir senden einen neuen Link an diese Adresse.",
+    "resendEmail": "E-Mail-Adresse",
+    "resendSubmit": "Neuen Link senden",
+    "resendSending": "Wird gesendet…",
+    "resendDone": "Wenn die Adresse zur Einreichung passt, ist ein neuer Link unterwegs.",
+    "errors": {
+      "alreadyAnswered": "Diese Frage wurde bereits beantwortet.",
+      "closed": "Über die Einreichung wurde entschieden; Antworten sind nicht mehr möglich.",
+      "rejected": "Diese Antwort konnte nicht angenommen werden. Bitte formulieren Sie sie um und versuchen Sie es erneut.",
+      "tooLong": "Die Antwort ist zu lang (höchstens 10.000 Zeichen).",
+      "empty": "Bitte schreiben Sie eine Antwort.",
+      "expired": "Dieser Link ist nicht mehr gültig. Laden Sie die Seite neu, um einen neuen anzufordern.",
+      "rateLimited": "Zu viele Versuche. Bitte versuchen Sie es später erneut.",
+      "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut."
+    }
   }
 }
