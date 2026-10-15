@@ -141,6 +141,7 @@ function cdcf_rest_review_list_projects(WP_REST_Request $request) {
         'orderby'        => 'date',
         'order'          => 'DESC',
         'meta_key'       => CDCF_REVIEW_STAGE_META,
+        'lang'           => '', // all languages; Polylang would filter to the current one
     ];
     $stage = (string) $request['stage'];
     if ($stage !== '') {

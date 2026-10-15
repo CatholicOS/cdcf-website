@@ -123,6 +123,7 @@ function cdcf_review_backfill_stage(): int {
         'post_status'    => 'pending',
         'posts_per_page' => -1,
         'fields'         => 'ids',
+        'lang'           => '', // all languages; Polylang would filter to the current one
         'meta_query'     => [
             ['key' => '_submission_submitter_email', 'compare' => 'EXISTS'],
             ['key' => CDCF_REVIEW_STAGE_META, 'compare' => 'NOT EXISTS'],

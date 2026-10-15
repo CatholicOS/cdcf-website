@@ -196,6 +196,9 @@ final class ReviewReadHandlerTest extends TestCase
         $this->assertSame(['projects' => []], cdcf_rest_review_list_projects($this->request(['stage' => ''])));
         $this->assertArrayNotHasKey('meta_value', $query);
         $this->assertSame('_cdcf_review_stage', $query['meta_key']);
+        // Polylang would otherwise narrow the query to the request's
+        // current language and hide non-English submissions.
+        $this->assertSame('', $query['lang']);
     }
 
     // ─── detail ──────────────────────────────────────────────────────

@@ -110,6 +110,7 @@ final class ReviewSchemaTest extends TestCase
         $this->assertSame('project', $args['post_type']);
         $this->assertSame('pending', $args['post_status']);
         $this->assertSame('ids', $args['fields']);
+        $this->assertSame('', $args['lang']);
         $this->assertSame(
             [
                 ['key' => '_submission_submitter_email', 'compare' => 'EXISTS'],
