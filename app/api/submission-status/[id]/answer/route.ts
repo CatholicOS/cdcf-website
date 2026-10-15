@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import {
   badRequest,
   parseId,
-  readJsonObject,
+  readLimitedJsonObject,
   reviewErrorResponse,
 } from '@/lib/review-route'
 import { postSubmissionAnswer } from '@/lib/submission-status-api'
@@ -19,8 +19,10 @@ export async function POST(
   if (!STATUS_TOKEN_PATTERN.test(token)) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
   }
-  const body = await readJsonObject(request)
-  if (!body) return badRequest('invalid_body')
+  // Room for the longest allowed text in JSON, even at 4 bytes a character.
+  const read = await readLimitedJsonObject(request, 64 * 1024)
+  if (!read.ok) return badRequest(read.error)
+  const body = read.value
   const { question_id, body: text } = body
   if (
     typeof question_id !== 'number' ||

@@ -4,7 +4,7 @@ import { askSubmitter } from '@/lib/review-api'
 import {
   badRequest,
   parseId,
-  readJsonObject,
+  readLimitedJsonObject,
   reviewErrorResponse,
   unauthorized,
 } from '@/lib/review-route'
@@ -17,8 +17,10 @@ export async function POST(
   if (id === null) return badRequest('invalid_id')
   const session = await auth()
   if (!session?.user) return unauthorized()
-  const body = await readJsonObject(request)
-  if (!body) return badRequest('invalid_body')
+  // Room for the longest allowed text in JSON, even at 4 bytes a character.
+  const read = await readLimitedJsonObject(request, 256 * 1024)
+  if (!read.ok) return badRequest(read.error)
+  const body = read.value
   if (typeof body.body !== 'string') return badRequest('invalid_field', 'body')
   if (body.body.length > 50000) return badRequest('body_too_long')
   try {

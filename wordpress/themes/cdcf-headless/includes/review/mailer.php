@@ -33,18 +33,25 @@ function cdcf_review_send_email(string $to, string $subject, string $body): stri
     return 'failed';
 }
 
-/** Hand a job payload to the redis queue; false when it is unavailable. */
+/**
+ * Hand a job payload to the redis queue. False when the queue is
+ * unavailable or refuses the job (its enqueue() returns false on every
+ * failure rather than throwing), so the caller sends inline instead.
+ */
 function cdcf_review_enqueue_email(array $payload): bool {
     if (!function_exists('redis_queue') || !class_exists('CDCF_Review_Email_Job')) {
         return false;
     }
     try {
-        redis_queue()->queue_manager->enqueue(new CDCF_Review_Email_Job($payload));
-        return true;
+        $queued = redis_queue()->queue_manager->enqueue(new CDCF_Review_Email_Job($payload)) !== false;
     } catch (\Throwable $e) {
-        error_log('[cdcf-review] email enqueue failed, sending inline: ' . $e->getMessage());
-        return false;
+        $queued = false;
     }
+    if (!$queued) {
+        // A fixed message: exception text could carry connection details.
+        error_log('[cdcf-review] email enqueue failed, sending inline');
+    }
+    return $queued;
 }
 
 /**

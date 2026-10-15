@@ -78,6 +78,36 @@ final class ReviewMailerTest extends TestCase
 
         $this->assertSame('sent', cdcf_review_send_email('sam@example.org', 'S', 'B'));
         $this->assertCount(1, $this->mails);
+        foreach ($this->logs as $line) {
+            $this->assertStringNotContainsString('redis down', $line, 'exception text is never logged');
+        }
+    }
+
+    public function test_falls_back_inline_when_enqueue_returns_false(): void
+    {
+        // The plugin's enqueue() never throws: every failure returns false.
+        $manager = new class {
+            public function enqueue($job) { return false; }
+        };
+        Functions\when('redis_queue')->justReturn((object) ['queue_manager' => $manager]);
+        $old = $this->submission();
+
+        $this->assertSame('sent', cdcf_review_send_submitter_email(42, 'link'));
+        $this->assertCount(1, $this->mails);
+        $this->assertFalse(cdcf_review_token_matches(42, $old), 'the inline email carried the new link');
+    }
+
+    public function test_a_job_queued_before_the_payload_change_still_activates_its_link(): void
+    {
+        $this->submission();
+        $token = cdcf_review_new_token();
+        $job = new CDCF_Review_Email_Job([
+            'to' => 'sam@example.org', 'subject' => 'S', 'body' => 'B',
+            'token' => ['project_id' => 42, 'hash' => $token['hash'], 'issued_at' => $token['issued_at']],
+        ]);
+
+        $this->assertTrue($job->execute()['success']);
+        $this->assertTrue(cdcf_review_token_matches(42, $token['token']));
     }
 
     public function test_reports_failure_without_logging_the_address(): void

@@ -33,6 +33,12 @@ class CDCF_Review_Email_Job extends \Soderlind\RedisQueue\Jobs\Abstract_Base_Job
                 (string) $this->get_payload_value('subject'),
                 (string) $this->get_payload_value('body')
             );
+            // Jobs queued before submitter emails were built at send time
+            // carry their link's token; activate it now that it is sent.
+            $token = $this->get_payload_value('token');
+            if ($sent && is_array($token) && isset($token['project_id'], $token['hash'], $token['issued_at'])) {
+                cdcf_review_commit_token((int) $token['project_id'], (string) $token['hash'], (string) $token['issued_at']);
+            }
         }
         if (!$sent) {
             // Throwing hands the job back to the queue for a retry.

@@ -9,6 +9,7 @@ import {
   badRequest,
   parseId,
   readJsonObject,
+  readLimitedJsonObject,
   readUploadFile,
   reviewErrorResponse,
   unauthorized,
@@ -156,5 +157,62 @@ describe('readUploadFile', () => {
 
     expect(out.status).toBe(400)
     expect(await out.json()).toEqual({ error: 'unsupported_type' })
+  })
+})
+
+describe('readLimitedJsonObject', () => {
+  const streamed = (chunks: string[], headers: Record<string, string> = {}) =>
+    new Request('http://x/', {
+      method: 'POST',
+      headers,
+      body: new ReadableStream({
+        start(controller) {
+          for (const c of chunks)
+            controller.enqueue(new TextEncoder().encode(c))
+          controller.close()
+        },
+      }),
+      // @ts-expect-error -- required by undici for a streamed body
+      duplex: 'half',
+    })
+
+  it('parses an object within the limit', async () => {
+    expect(await readLimitedJsonObject(streamed(['{"a":', '1}']), 100)).toEqual(
+      {
+        ok: true,
+        value: { a: 1 },
+      }
+    )
+  })
+
+  it('stops reading once the streamed bytes pass the limit', async () => {
+    const big = ['{"body":"', 'x'.repeat(60), 'x'.repeat(60), '"}']
+    expect(await readLimitedJsonObject(streamed(big), 100)).toEqual({
+      ok: false,
+      error: 'body_too_long',
+    })
+  })
+
+  it('refuses a declared Content-Length over the limit without reading', async () => {
+    const request = streamed(['{}'], { 'content-length': '5000' })
+    expect(await readLimitedJsonObject(request, 100)).toEqual({
+      ok: false,
+      error: 'body_too_long',
+    })
+  })
+
+  it('counts bytes, not characters', async () => {
+    // 30 three-byte characters = 90 bytes of content.
+    const wide = ['{"b":"', '€'.repeat(30), '"}']
+    expect((await readLimitedJsonObject(streamed(wide), 60)).ok).toBe(false)
+  })
+
+  it('rejects invalid JSON and non-objects as invalid_body', async () => {
+    for (const body of ['{oops', '[1]', 'null']) {
+      expect(await readLimitedJsonObject(streamed([body]), 100)).toEqual({
+        ok: false,
+        error: 'invalid_body',
+      })
+    }
   })
 })
