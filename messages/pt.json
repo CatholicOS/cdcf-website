@@ -406,7 +406,7 @@
       "awaiting": "A aguardar a resposta do proponente.",
       "askHeading": "Perguntar ao proponente",
       "askLabel": "Pergunta",
-      "askWarning": "O proponente recebe este texto por email exatamente como está escrito, da parte do \"comité de revisão da CDCF\" e sem o seu nome.",
+      "askWarning": "O proponente recebe este texto por email como texto simples, da parte do \"comité de revisão da CDCF\" e sem o seu nome.",
       "askSubmit": "Enviar pergunta",
       "askSending": "A enviar…",
       "emailFailed": "A pergunta foi guardada, mas não foi possível enviar o email ao proponente."

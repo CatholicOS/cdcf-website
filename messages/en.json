@@ -406,7 +406,7 @@
       "awaiting": "Awaiting the submitter's answer.",
       "askHeading": "Ask the submitter",
       "askLabel": "Question",
-      "askWarning": "The submitter receives this text by email exactly as written, from \"the CDCF review committee\" and without your name.",
+      "askWarning": "The submitter receives this text by email as plain text, from \"the CDCF review committee\" and without your name.",
       "askSubmit": "Send question",
       "askSending": "Sending…",
       "emailFailed": "The question was saved, but the email to the submitter could not be sent."

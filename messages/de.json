@@ -406,7 +406,7 @@
       "awaiting": "Wartet auf die Antwort der Einreichenden.",
       "askHeading": "Den Einreichenden fragen",
       "askLabel": "Frage",
-      "askWarning": "Die einreichende Person erhält diesen Text unverändert per E-Mail, vom „Prüfungsausschuss der CDCF“ und ohne Ihren Namen.",
+      "askWarning": "Die einreichende Person erhält diesen Text per E-Mail als reinen Text, vom „Prüfungsausschuss der CDCF“ und ohne Ihren Namen.",
       "askSubmit": "Frage senden",
       "askSending": "Wird gesendet…",
       "emailFailed": "Die Frage wurde gespeichert, aber die E-Mail an die einreichende Person konnte nicht gesendet werden."

@@ -18,6 +18,10 @@ describe('ResendLinkForm', () => {
     vi.stubGlobal('fetch', fetchMock)
     const r = renderDom(<ResendLinkForm projectId={40} />)
 
+    const status = r.container.querySelector('[role="status"]')
+    expect(status).toBeTruthy()
+    expect(status?.textContent).toBe('')
+
     typeInto(
       r.container.querySelector('input[type="email"]'),
       'sam@example.org'
@@ -32,7 +36,7 @@ describe('ResendLinkForm', () => {
       project_id: 40,
       email: 'sam@example.org',
     })
-    expect(r.container.textContent).toContain(
+    expect(r.container.querySelector('[role="status"]')?.textContent).toContain(
       'If that address matches the submission'
     )
     r.unmount()
