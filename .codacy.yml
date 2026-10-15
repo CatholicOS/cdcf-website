@@ -19,3 +19,17 @@ exclude_paths:
   - 'wordpress/plugins/cdcf-mcp/vendor/**'
   - 'wordpress/plugins/cdcf-mcp/.phpunit.cache/**'
   - 'wordpress/plugins/cdcf-mcp/.phpunit.result.cache'
+
+engines:
+  # CLAUDE.md and GEMINI.md are symlinks to AGENTS.md; analysing them
+  # double-counts every AGENTS.md finding.
+  agentlinter:
+    exclude_paths:
+      - 'CLAUDE.md'
+      - 'GEMINI.md'
+  # Vitest fixtures embed HTML strings that the i18n raw-JSX-text rules
+  # misread as untranslated UI copy.
+  semgrep:
+    exclude_paths:
+      - '**/*.test.ts'
+      - '**/*.test.tsx'
