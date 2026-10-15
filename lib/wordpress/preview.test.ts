@@ -7,6 +7,7 @@ vi.mock('next/headers', () => ({
 
 import { cookies, draftMode } from 'next/headers'
 import {
+  activePreviewId,
   getPreviewTarget,
   previewMatchesSlug,
   serializePreviewCookie,
@@ -98,5 +99,26 @@ describe('getPreviewTarget', () => {
     setup(true, '{not json')
     expect(await getPreviewTarget()).toBeNull()
     expect(spy).toHaveBeenCalled()
+  })
+})
+
+describe('activePreviewId', () => {
+  const cookie = serializePreviewCookie({ id: 825, type: 'post', slug: 'hello' })
+
+  it('returns the draft id when previewing this type at this slug or id', async () => {
+    setup(true, cookie)
+    expect(await activePreviewId('post', 'hello')).toBe(825)
+    expect(await activePreviewId('post', '825')).toBe(825)
+  })
+
+  it('returns null outside draft mode', async () => {
+    setup(false, cookie)
+    expect(await activePreviewId('post', 'hello')).toBeNull()
+  })
+
+  it('returns null for another type or another slug', async () => {
+    setup(true, cookie)
+    expect(await activePreviewId('page', 'hello')).toBeNull()
+    expect(await activePreviewId('post', 'other')).toBeNull()
   })
 })

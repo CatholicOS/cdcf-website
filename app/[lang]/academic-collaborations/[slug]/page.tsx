@@ -6,7 +6,7 @@ import {
   getAcademicCollaboration,
   getAcademicCollaborationPreview,
 } from '@/lib/wordpress/api'
-import { getPreviewTarget, previewMatchesSlug } from '@/lib/wordpress/preview'
+import { activePreviewId } from '@/lib/wordpress/preview'
 import { stripHtml } from '@/lib/strip-html'
 import { Link } from '@/src/i18n/navigation'
 import GovernanceSection from '@/components/sections/GovernanceSection'
@@ -24,7 +24,11 @@ export async function generateMetadata({
   params,
 }: AcademicCollaborationPageProps): Promise<Metadata> {
   const { lang, slug } = await params
-  const collab = await getAcademicCollaboration(slug, lang)
+  // In preview, describe the draft (addressed by id), like the page body.
+  const previewId = await activePreviewId('acad_collab', slug)
+  const collab = previewId
+    ? await getAcademicCollaborationPreview(previewId)
+    : await getAcademicCollaboration(slug, lang)
 
   if (!collab) return {}
 
@@ -59,9 +63,12 @@ export async function generateMetadata({
       description,
       ...(image && { images: [image.sourceUrl] }),
     },
-    alternates: {
-      canonical: `${SITE_URL}/${lang === 'en' ? '' : `${lang}/`}academic-collaborations/${slug}`,
-    },
+    // A draft has no public URL, so no canonical.
+    ...(!previewId && {
+      alternates: {
+        canonical: `${SITE_URL}/${lang === 'en' ? '' : `${lang}/`}academic-collaborations/${slug}`,
+      },
+    }),
   }
 }
 
@@ -73,13 +80,11 @@ export default async function AcademicCollaborationPage({
 
   // In a preview session, render the draft by id (it may have no usable
   // slug yet); otherwise fall through to the normal published lookup.
-  const preview = await getPreviewTarget()
-  const usePreview =
-    preview?.type === 'acad_collab' && previewMatchesSlug(preview, slug)
+  const previewId = await activePreviewId('acad_collab', slug)
 
   const [collab, t] = await Promise.all([
-    usePreview
-      ? getAcademicCollaborationPreview(preview.id)
+    previewId
+      ? getAcademicCollaborationPreview(previewId)
       : getAcademicCollaboration(slug, lang),
     getTranslations('academicCollaborations'),
   ])
