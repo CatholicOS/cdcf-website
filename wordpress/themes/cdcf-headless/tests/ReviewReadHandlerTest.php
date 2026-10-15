@@ -193,7 +193,10 @@ final class ReviewReadHandlerTest extends TestCase
             return [];
         });
 
-        $this->assertSame(['projects' => []], cdcf_rest_review_list_projects($this->request(['stage' => ''])));
+        $this->assertSame(
+            ['projects' => [], 'page' => 1, 'has_more' => false],
+            cdcf_rest_review_list_projects($this->request(['stage' => '']))
+        );
         $this->assertArrayNotHasKey('meta_value', $query);
         $this->assertSame('_cdcf_review_stage', $query['meta_key']);
         // Polylang would otherwise narrow the query to the request's
@@ -265,5 +268,37 @@ final class ReviewReadHandlerTest extends TestCase
         Functions\when('get_field')->alias(static fn(string $f) => $f === 'project_repo_url' ? 'https://github.com/x/y' : '');
 
         $this->assertSame(['https://github.com/x/y'], cdcf_review_submission_fields(40)['repo_urls']);
+    }
+
+    public function test_list_pages_through_results_and_signals_more(): void
+    {
+        $this->signIn(7);
+        $query = null;
+        Functions\when('get_posts')->alias(function (array $q) use (&$query): array {
+            $query = $q;
+            // One more than a page: the extra post only signals has_more.
+            return array_map(fn(int $i) => $this->post(1000 + $i), range(1, CDCF_REVIEW_LIST_PAGE_SIZE + 1));
+        });
+        Functions\when('cdcf_review_tallies')->justReturn([]);
+        Functions\when('cdcf_review_votes_by_user')->justReturn([]);
+        Functions\when('cdcf_review_unread_counts')->justReturn([]);
+
+        $out = cdcf_rest_review_list_projects($this->request(['stage' => '', 'page' => 3]));
+
+        $this->assertSame(CDCF_REVIEW_LIST_PAGE_SIZE + 1, $query['posts_per_page']);
+        $this->assertSame(2 * CDCF_REVIEW_LIST_PAGE_SIZE, $query['offset']);
+        $this->assertSame('date', $query['orderby']);
+        $this->assertCount(CDCF_REVIEW_LIST_PAGE_SIZE, $out['projects']);
+        $this->assertSame(3, $out['page']);
+        $this->assertTrue($out['has_more']);
+    }
+
+    public function test_list_page_arg_defaults_to_one_and_is_validated(): void
+    {
+        $page = cdcf_review_route_args()['/review/projects']['page'];
+
+        $this->assertSame(1, $page['default']);
+        $this->assertSame(1, $page['minimum']);
+        $this->assertSame('rest_validate_request_arg', $page['validate_callback']);
     }
 }

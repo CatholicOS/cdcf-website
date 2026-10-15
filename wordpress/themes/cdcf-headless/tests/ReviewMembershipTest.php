@@ -208,11 +208,29 @@ final class ReviewMembershipTest extends TestCase
         $bio = new stdClass();
         $bio->post_type = 'team_member';
         $page = new stdClass();
+        $page->ID = 6;
         $page->post_type = 'page';
+        Functions\when('get_page_template_slug')->justReturn('templates/home.php');
 
         cdcf_review_flush_on_status_change('trash', 'publish', $bio);
         cdcf_review_flush_on_status_change('publish', 'publish', $bio);
         cdcf_review_flush_on_status_change('trash', 'publish', $page);
+
+        $this->assertSame(1, $this->options['cdcf_review_membership_gen']);
+    }
+
+    public function test_about_page_status_change_bumps_generation(): void
+    {
+        Functions\when('get_page_template_slug')->alias(static fn(int $id): string => $id === 5 ? 'templates/about.php' : 'templates/home.php');
+        $about = new stdClass();
+        $about->ID = 5;
+        $about->post_type = 'page';
+        $home = new stdClass();
+        $home->ID = 6;
+        $home->post_type = 'page';
+
+        cdcf_review_flush_on_status_change('trash', 'publish', $about);
+        cdcf_review_flush_on_status_change('draft', 'publish', $home);
 
         $this->assertSame(1, $this->options['cdcf_review_membership_gen']);
     }

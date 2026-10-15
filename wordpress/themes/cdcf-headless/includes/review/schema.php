@@ -24,6 +24,7 @@ const CDCF_REVIEW_STAGE_META  = '_cdcf_review_stage';
 const CDCF_REVIEW_STAGES      = ['in_review', 'awaiting_submitter', 'decided'];
 const CDCF_REVIEW_VOTES       = ['cdcf', 'community', 'reject'];
 const CDCF_REVIEW_BODY_MAX    = 50000;
+const CDCF_REVIEW_LIST_PAGE_SIZE = 200;
 
 function cdcf_review_table(string $name): string {
     global $wpdb;

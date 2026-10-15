@@ -131,9 +131,19 @@ function cdcf_review_flush_on_post_meta($meta_id, $object_id, $meta_key): void {
     }
 }
 
-/** transition_post_status callback: a bio published, trashed or unpublished. */
+/**
+ * transition_post_status callback: a bio, or the About page itself (whose
+ * id is resolved from published pages only), published, trashed or
+ * unpublished.
+ */
 function cdcf_review_flush_on_status_change($new_status, $old_status, $post): void {
-    if ($new_status !== $old_status && isset($post->post_type) && $post->post_type === 'team_member') {
+    if ($new_status === $old_status || !isset($post->post_type)) {
+        return;
+    }
+    $is_bio   = $post->post_type === 'team_member';
+    $is_about = $post->post_type === 'page'
+        && get_page_template_slug((int) $post->ID) === 'templates/about.php';
+    if ($is_bio || $is_about) {
         cdcf_review_bump_membership_generation();
     }
 }

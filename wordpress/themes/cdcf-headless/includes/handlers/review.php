@@ -3,7 +3,7 @@
  * REST handlers for council review of submitted projects.
  *
  *   GET   /cdcf/v1/review/me                      membership flags
- *   GET   /cdcf/v1/review/projects?stage=         list
+ *   GET   /cdcf/v1/review/projects?stage=&page=   list (paged, has_more)
  *   GET   /cdcf/v1/review/projects/{id}           one project's workspace
  *   PUT   /cdcf/v1/review/projects/{id}/my-review create/update own review + vote
  *   POST  /cdcf/v1/review/projects/{id}/entries   reply or discussion post
@@ -134,10 +134,14 @@ function cdcf_rest_review_me(WP_REST_Request $request) {
 }
 
 function cdcf_rest_review_list_projects(WP_REST_Request $request) {
+    $page  = max(1, (int) ($request['page'] ?? 1));
     $query = [
         'post_type'      => ['project', 'community_project'],
         'post_status'    => 'any',
-        'posts_per_page' => 200,
+        // One extra row tells us whether another page exists without a
+        // COUNT query; it is dropped before building the response.
+        'posts_per_page' => CDCF_REVIEW_LIST_PAGE_SIZE + 1,
+        'offset'         => ($page - 1) * CDCF_REVIEW_LIST_PAGE_SIZE,
         'orderby'        => 'date',
         'order'          => 'DESC',
         'meta_key'       => CDCF_REVIEW_STAGE_META,
@@ -147,8 +151,10 @@ function cdcf_rest_review_list_projects(WP_REST_Request $request) {
     if ($stage !== '') {
         $query['meta_value'] = $stage;
     }
-    $posts = get_posts($query);
-    $ids   = array_map(static fn($p): int => (int) $p->ID, $posts);
+    $posts    = get_posts($query);
+    $has_more = count($posts) > CDCF_REVIEW_LIST_PAGE_SIZE;
+    $posts    = array_slice($posts, 0, CDCF_REVIEW_LIST_PAGE_SIZE);
+    $ids      = array_map(static fn($p): int => (int) $p->ID, $posts);
     $uid   = get_current_user_id();
 
     $tallies = cdcf_review_tallies($ids);
@@ -173,7 +179,7 @@ function cdcf_rest_review_list_projects(WP_REST_Request $request) {
             'unread'         => $unread[$pid] ?? 0,
         ];
     }
-    return rest_ensure_response(['projects' => $items]);
+    return rest_ensure_response(['projects' => $items, 'page' => $page, 'has_more' => $has_more]);
 }
 
 function cdcf_rest_review_get_project(WP_REST_Request $request) {
@@ -447,6 +453,14 @@ function cdcf_review_route_args(): array {
                 'enum'              => array_merge([''], CDCF_REVIEW_STAGES),
                 'default'           => '',
                 'sanitize_callback' => 'sanitize_key',
+                'validate_callback' => 'rest_validate_request_arg',
+            ],
+            'page'  => [
+                'required'          => false,
+                'type'              => 'integer',
+                'minimum'           => 1,
+                'default'           => 1,
+                'sanitize_callback' => 'absint',
                 'validate_callback' => 'rest_validate_request_arg',
             ],
         ],
