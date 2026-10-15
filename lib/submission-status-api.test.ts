@@ -7,6 +7,8 @@ import {
   vi,
   type Mock,
 } from 'vitest'
+vi.mock('@/lib/auth-utils', () => ({ getAccessToken: vi.fn() }))
+
 import { ReviewApiError } from './review-api'
 import {
   fetchSubmissionStatus,
