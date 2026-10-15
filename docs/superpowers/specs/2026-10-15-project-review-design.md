@@ -222,7 +222,7 @@ repository's sanitization convention.
 
 | Method | Route                              | Permission | Description                                                                                                                                                                                                      |
 | ------ | ---------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/review/me`                       | signed in  | Membership flags. Used to show the `/review` link and the bell.                                                                                                                                                  |
+| GET    | `/review/me`                       | signed in  | Caller's WordPress user id and membership flags. Used to show the `/review` link and the bell, and to mark the caller's own entries.                                                                             |
 | GET    | `/review/projects?stage=`          | `view`     | List: id, title, category, language, submitted_at, stage, tally, my vote, unread count.                                                                                                                          |
 | GET    | `/review/projects/{id}`            | `view`     | Submission fields; reviews with replies; discussion; Q&A; tally; plurality; attachment metadata; decision (when decided). Submitter email only when the caller has `decide`.                                     |
 | PUT    | `/review/projects/{id}/my-review`  | `vote`     | Create or update the caller's review: `vote`, `body_md`, `version` (required when a review exists; missing → `409 review_exists`).                                                                               |
@@ -263,8 +263,8 @@ streams the WordPress response and forwards its security headers unchanged.
 - `/[lang]/review` — tabs: In review · Awaiting submitter · Decided. Each card
   shows project name, category, submission date and language, a tally bar
   (CDCF / Community / Reject / not yet voted), the caller's vote or an
-  "awaiting your vote" badge, and an unread marker. Non-members see a `403`
-  page; anonymous visitors are redirected to sign in.
+  "awaiting your vote" badge, and an unread marker. Non-members see an explanation of who can review
+  (rendered with HTTP 200); anonymous visitors are redirected to sign in.
 - `/[lang]/review/[id]` — the workspace, top to bottom:
   1. Submission card: all submitted fields, repo links, tags, submitter name
      (and email for Board members).
@@ -279,7 +279,8 @@ streams the WordPress response and forwards its security headers unchanged.
      attachment chips, "edited" marker, reply thread and reply box.
   5. General discussion.
   6. Questions to submitter: Q&A history and an "Ask the submitter" composer
-     warning that the text is emailed verbatim.
+     warning that the text is emailed verbatim. In Phase 2 this section is read-only; the composer
+     arrives with Phase 3.
 - `/[lang]/review/inbox` — full notification list with an unread filter.
 
 Every composer has an Attach control (upload, or Paste Markdown with title

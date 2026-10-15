@@ -292,7 +292,8 @@
     "signIn": "Accedi",
     "signOut": "Esci",
     "loading": "Caricamento\u2026",
-    "editMyBio": "Modifica la mia bio"
+    "editMyBio": "Modifica la mia bio",
+    "projectReview": "Revisione progetti"
   },
   "MyBio": {
     "title": "Modifica la mia bio",
@@ -333,6 +334,122 @@
       "linkNavigate": "Vai all'URL",
       "apply": "Applica",
       "cancel": "Annulla"
+    }
+  },
+  "Review": {
+    "title": "Revisione progetti",
+    "intro": "Progetti proposti in attesa della revisione dei consigli consultivi.",
+    "notMember": "La revisione dei progetti è riservata ai membri del Consiglio tecnico, del Consiglio ecclesiale e del Consiglio di amministrazione. Se ne fai parte, chiedi a un amministratore di collegare il tuo account alla tua scheda biografica.",
+    "backToList": "Tutte le proposte",
+    "empty": "Nessuna proposta qui.",
+    "newer": "Più recenti",
+    "older": "Meno recenti",
+    "stage": {
+      "in_review": "In revisione",
+      "awaiting_submitter": "In attesa del proponente",
+      "decided": "Decisi"
+    },
+    "vote": {
+      "cdcf": "Accetta come progetto CDCF",
+      "community": "Accetta come progetto della comunità",
+      "reject": "Rifiuta"
+    },
+    "council": {
+      "technical": "Consiglio tecnico",
+      "ecclesial": "Consiglio ecclesiale",
+      "board": "Consiglio di amministrazione"
+    },
+    "tally": {
+      "heading": "Voti",
+      "pending": "{count} non hanno ancora votato"
+    },
+    "plurality": "Più votato: {vote}",
+    "yourVote": "Il tuo voto: {vote}",
+    "awaitingYourVote": "In attesa del tuo voto",
+    "unread": "{count} nuovi",
+    "submittedOn": "Proposto il {date}",
+    "locked": "Questa revisione è stata decisa. Revisioni e discussione sono ora in sola lettura.",
+    "edited": "modificato",
+    "cancel": "Annulla",
+    "save": "Salva",
+    "saving": "Salvataggio…",
+    "edit": "Modifica",
+    "submission": {
+      "heading": "Proposta",
+      "website": "Sito web",
+      "repositories": "Repository",
+      "tags": "Tag",
+      "submitter": "Proposto da",
+      "language": "Lingua",
+      "category": "Categoria"
+    },
+    "myReview": {
+      "heading": "La tua revisione",
+      "voteLabel": "Il tuo voto",
+      "rationale": "La tua revisione",
+      "submit": "Pubblica revisione",
+      "update": "Aggiorna revisione",
+      "edit": "Modifica la tua revisione",
+      "voteRequired": "Scegli prima un voto."
+    },
+    "editor": {
+      "write": "Scrivi",
+      "preview": "Anteprima",
+      "placeholder": "È supportato il Markdown.",
+      "emptyPreview": "Niente da visualizzare."
+    },
+    "reviews": {
+      "heading": "Revisioni",
+      "none": "Ancora nessuna revisione.",
+      "reply": "Rispondi",
+      "postReply": "Pubblica risposta",
+      "replyLabel": "La tua risposta"
+    },
+    "discussion": {
+      "heading": "Discussione generale",
+      "none": "Ancora nessuna discussione.",
+      "post": "Pubblica",
+      "label": "Contribuisci alla discussione"
+    },
+    "questions": {
+      "heading": "Domande al proponente",
+      "none": "Non sono state inviate domande al proponente.",
+      "submitter": "Proponente",
+      "awaiting": "In attesa della risposta del proponente."
+    },
+    "attach": {
+      "button": "Allega file",
+      "paste": "Incolla Markdown",
+      "titleLabel": "Titolo",
+      "markdownLabel": "Markdown",
+      "add": "Aggiungi",
+      "hint": "Markdown (.md, fino a 512 KB) o immagini (PNG, JPEG, WebP, GIF, fino a 5 MB).",
+      "remove": "Rimuovi {name}",
+      "failed": "{name}: {error}"
+    },
+    "panel": {
+      "close": "Chiudi",
+      "raw": "Mostra sorgente",
+      "rendered": "Mostra formattato",
+      "download": "Scarica",
+      "previous": "Precedente",
+      "next": "Successiva",
+      "loading": "Caricamento…",
+      "loadFailed": "Impossibile caricare l'allegato."
+    },
+    "errors": {
+      "sessionExpired": "La sessione è scaduta. Accedi di nuovo.",
+      "forbidden": "Non hai il permesso di farlo.",
+      "locked": "Questa revisione è stata decisa e non può più essere modificata.",
+      "stale": "È stato modificato da quando l'hai aperto. Ricarica per vedere la versione più recente.",
+      "reviewExists": "Hai già pubblicato una revisione. Ricarica per modificarla.",
+      "tooLarge": "Il file è troppo grande.",
+      "unsupportedType": "Questo tipo di file non è supportato.",
+      "tooMany": "Questo messaggio ha già il numero massimo di allegati.",
+      "invalidInput": "Controlla i dati inseriti.",
+      "notFound": "Non trovato.",
+      "generic": "Qualcosa è andato storto. Riprova.",
+      "reload": "Ricarica"
     }
   }
 }

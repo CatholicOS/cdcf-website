@@ -292,7 +292,8 @@
     "signIn": "Se connecter",
     "signOut": "Se d\u00e9connecter",
     "loading": "Chargement\u2026",
-    "editMyBio": "Modifier ma bio"
+    "editMyBio": "Modifier ma bio",
+    "projectReview": "Évaluation des projets"
   },
   "MyBio": {
     "title": "Modifier ma bio",
@@ -333,6 +334,122 @@
       "linkNavigate": "Aller à l'URL",
       "apply": "Appliquer",
       "cancel": "Annuler"
+    }
+  },
+  "Review": {
+    "title": "Évaluation des projets",
+    "intro": "Projets soumis en attente de l'évaluation des conseils consultatifs.",
+    "notMember": "L'évaluation des projets est réservée aux membres du Conseil technique, du Conseil ecclésial et du Conseil d'administration. Si vous en faites partie, demandez à un administrateur de lier votre compte à votre fiche biographique.",
+    "backToList": "Toutes les soumissions",
+    "empty": "Aucune soumission ici.",
+    "newer": "Plus récentes",
+    "older": "Plus anciennes",
+    "stage": {
+      "in_review": "En évaluation",
+      "awaiting_submitter": "En attente du proposant",
+      "decided": "Décidées"
+    },
+    "vote": {
+      "cdcf": "Accepter comme projet CDCF",
+      "community": "Accepter comme projet communautaire",
+      "reject": "Refuser"
+    },
+    "council": {
+      "technical": "Conseil technique",
+      "ecclesial": "Conseil ecclésial",
+      "board": "Conseil d'administration"
+    },
+    "tally": {
+      "heading": "Votes",
+      "pending": "{count} n'ont pas encore voté"
+    },
+    "plurality": "Le plus de voix : {vote}",
+    "yourVote": "Votre vote : {vote}",
+    "awaitingYourVote": "En attente de votre vote",
+    "unread": "{count} nouveaux",
+    "submittedOn": "Soumis le {date}",
+    "locked": "Cette évaluation a été tranchée. Les évaluations et la discussion sont désormais en lecture seule.",
+    "edited": "modifié",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "edit": "Modifier",
+    "submission": {
+      "heading": "Soumission",
+      "website": "Site web",
+      "repositories": "Dépôts",
+      "tags": "Étiquettes",
+      "submitter": "Soumis par",
+      "language": "Langue",
+      "category": "Catégorie"
+    },
+    "myReview": {
+      "heading": "Votre évaluation",
+      "voteLabel": "Votre vote",
+      "rationale": "Votre évaluation",
+      "submit": "Publier l'évaluation",
+      "update": "Mettre à jour l'évaluation",
+      "edit": "Modifier votre évaluation",
+      "voteRequired": "Choisissez d'abord un vote."
+    },
+    "editor": {
+      "write": "Écrire",
+      "preview": "Aperçu",
+      "placeholder": "Le Markdown est pris en charge.",
+      "emptyPreview": "Rien à afficher."
+    },
+    "reviews": {
+      "heading": "Évaluations",
+      "none": "Aucune évaluation pour l'instant.",
+      "reply": "Répondre",
+      "postReply": "Publier la réponse",
+      "replyLabel": "Votre réponse"
+    },
+    "discussion": {
+      "heading": "Discussion générale",
+      "none": "Aucune discussion pour l'instant.",
+      "post": "Publier",
+      "label": "Contribuer à la discussion"
+    },
+    "questions": {
+      "heading": "Questions au proposant",
+      "none": "Aucune question n'a été envoyée au proposant.",
+      "submitter": "Proposant",
+      "awaiting": "En attente de la réponse du proposant."
+    },
+    "attach": {
+      "button": "Joindre un fichier",
+      "paste": "Coller du Markdown",
+      "titleLabel": "Titre",
+      "markdownLabel": "Markdown",
+      "add": "Ajouter",
+      "hint": "Markdown (.md, jusqu'à 512 Ko) ou images (PNG, JPEG, WebP, GIF, jusqu'à 5 Mo).",
+      "remove": "Retirer {name}",
+      "failed": "{name} : {error}"
+    },
+    "panel": {
+      "close": "Fermer",
+      "raw": "Afficher la source",
+      "rendered": "Afficher le rendu",
+      "download": "Télécharger",
+      "previous": "Précédente",
+      "next": "Suivante",
+      "loading": "Chargement…",
+      "loadFailed": "Impossible de charger la pièce jointe."
+    },
+    "errors": {
+      "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
+      "forbidden": "Vous n'avez pas l'autorisation de faire cela.",
+      "locked": "Cette évaluation a été tranchée et ne peut plus être modifiée.",
+      "stale": "Cet élément a changé depuis son ouverture. Rechargez pour voir la dernière version.",
+      "reviewExists": "Vous avez déjà publié une évaluation. Rechargez pour la modifier.",
+      "tooLarge": "Le fichier est trop volumineux.",
+      "unsupportedType": "Ce type de fichier n'est pas pris en charge.",
+      "tooMany": "Ce message a déjà le nombre maximal de pièces jointes.",
+      "invalidInput": "Vérifiez votre saisie.",
+      "notFound": "Introuvable.",
+      "generic": "Une erreur s'est produite. Veuillez réessayer.",
+      "reload": "Recharger"
     }
   }
 }

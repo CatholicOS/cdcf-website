@@ -18,6 +18,7 @@ final class ReviewAccessScreenTest extends TestCase
         Functions\when('esc_html')->returnArg(1);
         Functions\when('esc_html__')->returnArg(1);
         Functions\when('esc_url')->returnArg(1);
+        Functions\when('cdcf_review_storage_dir')->justReturn(['path' => '/srv/x', 'fallback' => false]);
         Functions\when('get_edit_user_link')->alias(static fn(int $id): string => "user-edit.php?user_id={$id}");
         Functions\when('get_userdata')->alias(static function (int $id) {
             $u = new WP_User($id);
@@ -86,5 +87,19 @@ final class ReviewAccessScreenTest extends TestCase
         cdcf_review_access_render();
 
         $this->assertSame('', ob_get_clean());
+    }
+
+    public function test_render_warns_while_storage_fallback_is_used(): void
+    {
+        Functions\when('current_user_can')->justReturn(true);
+        Functions\when('cdcf_review_roster')->justReturn([]);
+        Functions\when('cdcf_review_storage_dir')->justReturn(['path' => '/var/www/wp-content/uploads/cdcf-review', 'fallback' => true]);
+
+        ob_start();
+        cdcf_review_access_render();
+        $html = (string) ob_get_clean();
+
+        $this->assertStringContainsString('CDCF_REVIEW_STORAGE_DIR', $html);
+        $this->assertStringContainsString('notice-warning', $html);
     }
 }

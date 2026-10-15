@@ -32,6 +32,7 @@ final class ReviewWriteHandlerTest extends TestCase
         Functions\when('get_post_meta')->justReturn('in_review');
         Functions\when('cdcf_review_membership')->justReturn(['technical' => true, 'ecclesial' => false, 'board' => false]);
         Functions\when('get_userdata')->justReturn(false);
+        Functions\when('cdcf_review_attachments_for_entries')->justReturn([]);
         Functions\when('cdcf_review_record_event')->alias(
             function (int $pid, string $type, ?int $actor, ?int $entry = null, array $data = []): int {
                 $this->events[] = [$pid, $type, $actor, $entry, $data];
@@ -74,6 +75,12 @@ final class ReviewWriteHandlerTest extends TestCase
         $this->assertSame("# Title\n\nText", cdcf_review_sanitize_markdown("  # Title\n\nT\0ext  "));
         $this->assertSame('', cdcf_review_sanitize_markdown("\xC3\x28"));
         $this->assertSame('', cdcf_review_sanitize_markdown(['not', 'a', 'string']));
+    }
+
+    public function test_invisible_unicode_only_body_is_empty(): void
+    {
+        $this->assertSame('empty_body', cdcf_review_validate_body("\u{00A0}\u{200B}\u{3000} \u{FEFF}\u{2060}")->get_error_code());
+        $this->assertTrue(cdcf_review_validate_body("\u{00A0}ok\u{200B}"));
     }
 
     public function test_whitespace_only_and_oversized_bodies_are_rejected(): void

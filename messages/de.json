@@ -292,7 +292,8 @@
     "signIn": "Anmelden",
     "signOut": "Abmelden",
     "loading": "Wird geladen\u2026",
-    "editMyBio": "Meine Bio bearbeiten"
+    "editMyBio": "Meine Bio bearbeiten",
+    "projectReview": "Projektprüfung"
   },
   "MyBio": {
     "title": "Meine Bio bearbeiten",
@@ -333,6 +334,122 @@
       "linkNavigate": "Zur URL navigieren",
       "apply": "Übernehmen",
       "cancel": "Abbrechen"
+    }
+  },
+  "Review": {
+    "title": "Projektprüfung",
+    "intro": "Eingereichte Projekte, die auf die Prüfung durch die Beiräte warten.",
+    "notMember": "Die Projektprüfung steht Mitgliedern des Technischen Rates, des Kirchlichen Rates und des Vorstands offen. Wenn Sie dazugehören, bitten Sie eine Administratorin oder einen Administrator, Ihr Konto mit Ihrer Profilkarte zu verknüpfen.",
+    "backToList": "Alle Einreichungen",
+    "empty": "Hier gibt es keine Einreichungen.",
+    "newer": "Neuere",
+    "older": "Ältere",
+    "stage": {
+      "in_review": "In Prüfung",
+      "awaiting_submitter": "Wartet auf Einreichende",
+      "decided": "Entschieden"
+    },
+    "vote": {
+      "cdcf": "Als CDCF-Projekt annehmen",
+      "community": "Als Community-Projekt annehmen",
+      "reject": "Ablehnen"
+    },
+    "council": {
+      "technical": "Technischer Rat",
+      "ecclesial": "Kirchlicher Rat",
+      "board": "Vorstand"
+    },
+    "tally": {
+      "heading": "Stimmen",
+      "pending": "{count} haben noch nicht abgestimmt"
+    },
+    "plurality": "Meiste Stimmen: {vote}",
+    "yourVote": "Ihre Stimme: {vote}",
+    "awaitingYourVote": "Wartet auf Ihre Stimme",
+    "unread": "{count} neu",
+    "submittedOn": "Eingereicht am {date}",
+    "locked": "Über diese Prüfung wurde entschieden. Bewertungen und Diskussion sind jetzt schreibgeschützt.",
+    "edited": "bearbeitet",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "saving": "Wird gespeichert …",
+    "edit": "Bearbeiten",
+    "submission": {
+      "heading": "Einreichung",
+      "website": "Website",
+      "repositories": "Repositorys",
+      "tags": "Schlagwörter",
+      "submitter": "Eingereicht von",
+      "language": "Sprache",
+      "category": "Kategorie"
+    },
+    "myReview": {
+      "heading": "Ihre Bewertung",
+      "voteLabel": "Ihre Stimme",
+      "rationale": "Ihre Bewertung",
+      "submit": "Bewertung veröffentlichen",
+      "update": "Bewertung aktualisieren",
+      "edit": "Ihre Bewertung bearbeiten",
+      "voteRequired": "Wählen Sie zuerst eine Stimme."
+    },
+    "editor": {
+      "write": "Schreiben",
+      "preview": "Vorschau",
+      "placeholder": "Markdown wird unterstützt.",
+      "emptyPreview": "Nichts anzuzeigen."
+    },
+    "reviews": {
+      "heading": "Bewertungen",
+      "none": "Noch keine Bewertungen.",
+      "reply": "Antworten",
+      "postReply": "Antwort veröffentlichen",
+      "replyLabel": "Ihre Antwort"
+    },
+    "discussion": {
+      "heading": "Allgemeine Diskussion",
+      "none": "Noch keine Diskussion.",
+      "post": "Veröffentlichen",
+      "label": "Zur Diskussion beitragen"
+    },
+    "questions": {
+      "heading": "Fragen an die Einreichenden",
+      "none": "Es wurden keine Fragen an die Einreichenden gesendet.",
+      "submitter": "Einreichende",
+      "awaiting": "Wartet auf die Antwort der Einreichenden."
+    },
+    "attach": {
+      "button": "Datei anhängen",
+      "paste": "Markdown einfügen",
+      "titleLabel": "Titel",
+      "markdownLabel": "Markdown",
+      "add": "Hinzufügen",
+      "hint": "Markdown (.md, bis 512 KB) oder Bilder (PNG, JPEG, WebP, GIF, bis 5 MB).",
+      "remove": "{name} entfernen",
+      "failed": "{name}: {error}"
+    },
+    "panel": {
+      "close": "Schließen",
+      "raw": "Quelltext anzeigen",
+      "rendered": "Formatiert anzeigen",
+      "download": "Herunterladen",
+      "previous": "Zurück",
+      "next": "Weiter",
+      "loading": "Wird geladen …",
+      "loadFailed": "Der Anhang konnte nicht geladen werden."
+    },
+    "errors": {
+      "sessionExpired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+      "forbidden": "Dazu sind Sie nicht berechtigt.",
+      "locked": "Über diese Prüfung wurde entschieden; sie kann nicht mehr geändert werden.",
+      "stale": "Dies wurde seit dem Öffnen geändert. Laden Sie die Seite neu, um die aktuelle Fassung zu sehen.",
+      "reviewExists": "Sie haben bereits eine Bewertung veröffentlicht. Laden Sie neu, um sie zu bearbeiten.",
+      "tooLarge": "Die Datei ist zu groß.",
+      "unsupportedType": "Dieser Dateityp wird nicht unterstützt.",
+      "tooMany": "Dieser Beitrag hat bereits die maximale Anzahl an Anhängen.",
+      "invalidInput": "Bitte prüfen Sie Ihre Eingabe.",
+      "notFound": "Nicht gefunden.",
+      "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+      "reload": "Neu laden"
     }
   }
 }

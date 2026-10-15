@@ -805,6 +805,7 @@ require_once __DIR__ . '/includes/review/schema.php';
 require_once __DIR__ . '/includes/review/membership.php';
 require_once __DIR__ . '/includes/review/repository.php';
 require_once __DIR__ . '/includes/review/events.php';
+require_once __DIR__ . '/includes/review/attachments.php';
 require_once __DIR__ . '/includes/handlers/review.php';
 require_once __DIR__ . '/includes/admin/review-access.php';
 
@@ -819,6 +820,7 @@ add_action('added_user_meta', 'cdcf_review_flush_on_user_meta', 10, 3);
 add_action('updated_user_meta', 'cdcf_review_flush_on_user_meta', 10, 3);
 add_action('deleted_user_meta', 'cdcf_review_flush_on_user_meta', 10, 3);
 add_action('admin_menu', 'cdcf_review_access_admin_menu', 20);
+add_filter('rest_pre_serve_request', 'cdcf_review_serve_attachment', 10, 3);
 
 add_action('rest_api_init', function () {
     $args = cdcf_review_route_args();
@@ -829,6 +831,8 @@ add_action('rest_api_init', function () {
         '/review/projects/(?P<id>\d+)/my-review' => ['PUT', 'cdcf_rest_review_put_my_review', 'cdcf_rest_review_permission_vote'],
         '/review/projects/(?P<id>\d+)/entries'   => ['POST', 'cdcf_rest_review_post_entry', 'cdcf_rest_review_permission_discuss'],
         '/review/entries/(?P<id>\d+)'            => ['PATCH', 'cdcf_rest_review_patch_entry', 'cdcf_rest_review_permission_discuss'],
+        '/review/entries/(?P<id>\d+)/attachments' => ['POST', 'cdcf_rest_review_post_attachment', 'cdcf_rest_review_permission_discuss'],
+        '/review/attachments/(?P<id>\d+)'         => ['GET', 'cdcf_rest_review_get_attachment', 'cdcf_rest_review_permission_view'],
     ];
     foreach ($routes as $route => [$method, $callback, $permission]) {
         register_rest_route('cdcf/v1', $route, [

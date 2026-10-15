@@ -141,6 +141,31 @@ final class ReviewMembershipTest extends TestCase
         $this->assertSame([8], cdcf_review_member_user_ids('decide'));
     }
 
+    public function test_member_user_ids_are_cached_per_generation_and_permission(): void
+    {
+        $this->options['cdcf_review_membership_gen'] = 3;
+        $stored = [];
+        Functions\when('set_transient')->alias(function (string $k, $v) use (&$stored): bool {
+            $stored[$k] = $v;
+            return true;
+        });
+        Functions\when('get_users')->justReturn(['7', '8', '9']);
+
+        cdcf_review_member_user_ids('vote');
+
+        $this->assertSame([7], $stored['cdcf_review_members_3_vote']);
+    }
+
+    public function test_member_user_ids_use_the_cache_without_scanning_users(): void
+    {
+        Functions\when('get_transient')->alias(
+            static fn(string $k) => $k === 'cdcf_review_members_0_decide' ? [8] : false
+        );
+        Functions\expect('get_users')->never();
+
+        $this->assertSame([8], cdcf_review_member_user_ids('decide'));
+    }
+
     public function test_saving_the_about_page_bumps_generation(): void
     {
         Functions\when('get_page_template_slug')->justReturn('templates/about.php');

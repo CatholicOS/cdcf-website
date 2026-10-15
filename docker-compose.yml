@@ -210,6 +210,7 @@ services:
       - wordpress_data:/var/www/html
       - ./wordpress/themes/cdcf-headless:/var/www/html/wp-content/themes/cdcf-headless
       - ./wordpress/plugins/cdcf-redis-translations:/var/www/html/wp-content/plugins/cdcf-redis-translations
+      - ./wordpress/php/uploads.ini:/usr/local/etc/php/conf.d/cdcf-uploads.ini:ro
 
   wp-init:
     image: wordpress:cli

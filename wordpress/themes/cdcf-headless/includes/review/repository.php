@@ -27,6 +27,9 @@ function cdcf_review_insert_entry(array $row): int {
     global $wpdb;
     $is_review = $row['kind'] === 'review';
     $author    = isset($row['author_user_id']) ? (int) $row['author_user_id'] : null;
+    // A duplicate review_slot is an expected conflict (the caller answers
+    // 409); keep wpdb from printing it under WP_DEBUG_DISPLAY.
+    $suppressed = $wpdb->suppress_errors();
     $ok = $wpdb->insert(cdcf_review_table('entries'), [
         'project_id'     => (int) $row['project_id'],
         'kind'           => (string) $row['kind'],
@@ -37,6 +40,7 @@ function cdcf_review_insert_entry(array $row): int {
         'vote'           => $is_review ? (string) $row['vote'] : null,
         'created_at'     => cdcf_review_now(),
     ]);
+    $wpdb->suppress_errors($suppressed);
     return $ok ? (int) $wpdb->insert_id : 0;
 }
 
@@ -144,6 +148,31 @@ function cdcf_review_plurality(array $tally): ?string {
 }
 
 /** @return array<int, string> project id => the user's vote */
+/**
+ * Who has voted on each project, including people who have since left a
+ * council.
+ *
+ * @param list<int> $project_ids
+ * @return array<int, list<int>>
+ */
+function cdcf_review_voter_ids(array $project_ids): array {
+    if (!$project_ids) {
+        return [];
+    }
+    global $wpdb;
+    $table = cdcf_review_table('entries');
+    $rows = $wpdb->get_results(
+        "SELECT project_id, author_user_id FROM {$table} WHERE kind = 'review' AND project_id IN ("
+        . cdcf_review_id_list($project_ids) . ')',
+        ARRAY_A
+    );
+    $out = [];
+    foreach ($rows as $row) {
+        $out[(int) $row['project_id']][] = (int) $row['author_user_id'];
+    }
+    return $out;
+}
+
 function cdcf_review_votes_by_user(int $user_id, array $project_ids): array {
     if (!$project_ids) {
         return [];

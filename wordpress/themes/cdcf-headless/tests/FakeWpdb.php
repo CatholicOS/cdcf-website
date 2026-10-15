@@ -21,6 +21,9 @@ final class FakeWpdb
     /** @var list<mixed> */
     public array $results = [];
     public bool $failInsert = false;
+    /** Whether errors were suppressed when insert() ran. */
+    public ?bool $insertSuppressed = null;
+    private bool $suppress = false;
     private int $nextId = 1;
 
     public function get_charset_collate(): string
@@ -40,8 +43,21 @@ final class FakeWpdb
         ));
     }
 
+    public function esc_like(string $text): string
+    {
+        return addcslashes($text, '_%\\');
+    }
+
+    public function suppress_errors(bool $suppress = true): bool
+    {
+        $previous = $this->suppress;
+        $this->suppress = $suppress;
+        return $previous;
+    }
+
     public function insert(string $table, array $data, mixed $format = null): int|false
     {
+        $this->insertSuppressed = $this->suppress;
         if ($this->failInsert) {
             $this->last_error = 'Duplicate entry';
             return false;
