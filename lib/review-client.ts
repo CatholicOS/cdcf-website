@@ -63,3 +63,21 @@ export function uploadAttachment(
     jsonInit('POST', { title: pending.title, markdown: pending.markdown })
   )
 }
+
+/**
+ * Upload attachments one at a time (parallel uploads would race the
+ * per-entry cap and each other's error reporting) and return the ones
+ * that failed, so the caller can keep them pending and show why.
+ */
+export async function uploadAll(
+  entryId: number,
+  pending: PendingAttachment[]
+): Promise<{ pending: PendingAttachment; errorKey: ReviewErrorKey }[]> {
+  const failures: { pending: PendingAttachment; errorKey: ReviewErrorKey }[] =
+    []
+  for (const item of pending) {
+    const result = await uploadAttachment(entryId, item)
+    if (!result.ok) failures.push({ pending: item, errorKey: result.errorKey })
+  }
+  return failures
+}

@@ -638,6 +638,12 @@ function cdcf_review_serve_attachment($served, $result, $request, $server): bool
     if (!($result instanceof WP_REST_Response)) {
         return false;
     }
+    // Only the attachment route may stream a file: a marker key smuggled
+    // into any other endpoint's response data must never read from disk.
+    if (!is_object($request) || !method_exists($request, 'get_route')
+        || !preg_match('#^/cdcf/v1/review/attachments/\d+$#', (string) $request->get_route())) {
+        return false;
+    }
     $data = $result->get_data();
     if (!is_array($data) || !isset($data[CDCF_REVIEW_FILE_MARKER])) {
         return false;

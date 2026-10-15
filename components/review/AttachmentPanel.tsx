@@ -27,12 +27,15 @@ export function AttachmentPanel({ index }: { index: AttachmentIndex }) {
   const id = parseAttachmentParam(searchParams.get('att'))
   const item = id !== null ? index[String(id)] : undefined
 
+  // Stepping to another attachment pushes a history entry (Back returns
+  // to the previous one); closing replaces, so the panel-less URL doesn't
+  // stack up.
   const go = useCallback(
-    (next: number | null) =>
-      router.replace(
-        `${pathname}${withAttachmentParam(searchParams.toString(), next)}`,
-        { scroll: false }
-      ),
+    (next: number | null) => {
+      const href = `${pathname}${withAttachmentParam(searchParams.toString(), next)}`
+      if (next === null) router.replace(href, { scroll: false })
+      else router.push(href, { scroll: false })
+    },
     [router, pathname, searchParams]
   )
 

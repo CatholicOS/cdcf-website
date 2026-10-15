@@ -16,7 +16,7 @@ export function AttachControl({
   onAdd,
   disabled = false,
 }: {
-  onAdd: (p: PendingAttachment) => void
+  onAdd: (items: PendingAttachment[]) => void
   disabled?: boolean
 }) {
   const t = useTranslations('Review')
@@ -30,18 +30,21 @@ export function AttachControl({
 
   function onFiles(files: FileList | null) {
     const problems: { name: string; errorKey: ReviewErrorKey }[] = []
+    const accepted: PendingAttachment[] = []
     for (const file of Array.from(files ?? [])) {
       const problem = checkAttachmentFile(file.name, file.size)
       if (problem) problems.push({ name: file.name, errorKey: problem })
-      else onAdd({ key: nextKey(), kind: 'file', file })
+      else accepted.push({ key: nextKey(), kind: 'file', file })
     }
+    // One call per selection, so callers can upload the batch in order.
+    if (accepted.length > 0) onAdd(accepted)
     setRejected(problems)
     if (input.current) input.current.value = ''
   }
 
   function addPaste() {
     if (!markdown.trim()) return
-    onAdd({ key: nextKey(), kind: 'paste', title, markdown })
+    onAdd([{ key: nextKey(), kind: 'paste', title, markdown }])
     setTitle('')
     setMarkdown('')
     setPasting(false)

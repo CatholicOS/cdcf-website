@@ -2,27 +2,31 @@
 
 import { useState } from 'react'
 import { useRouter } from '@/src/i18n/navigation'
-import { uploadAttachment, type ReviewResult } from '@/lib/review-client'
+import { uploadAll, type ReviewResult } from '@/lib/review-client'
 import type { PendingAttachment, ReviewEntry } from '@/lib/review-types'
-import { pendingName, type ReviewErrorKey } from '@/lib/review-ui'
+import type { ReviewErrorKey } from '@/lib/review-ui'
+
+export type UploadFailure = {
+  pending: PendingAttachment
+  errorKey: ReviewErrorKey
+}
 
 /**
  * Save an entry, then upload its pending attachments one by one (they can
  * only be attached once the entry exists), then refresh the server page.
- * An attachment failure does not undo the saved entry; it is reported.
+ * An attachment failure does not undo the saved entry; it is returned so
+ * the composer can stay open and show why.
  */
 export function useEntrySubmit() {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [errorKey, setErrorKey] = useState<ReviewErrorKey | null>(null)
-  const [failed, setFailed] = useState<
-    { name: string; errorKey: ReviewErrorKey }[]
-  >([])
+  const [failed, setFailed] = useState<UploadFailure[]>([])
 
   async function submit(
     save: () => Promise<ReviewResult<ReviewEntry>>,
     pending: PendingAttachment[]
-  ): Promise<boolean> {
+  ): Promise<{ saved: boolean; failures: UploadFailure[] }> {
     setBusy(true)
     setErrorKey(null)
     setFailed([])
@@ -30,18 +34,13 @@ export function useEntrySubmit() {
     if (!saved.ok) {
       setErrorKey(saved.errorKey)
       setBusy(false)
-      return false
+      return { saved: false, failures: [] }
     }
-    const failures: { name: string; errorKey: ReviewErrorKey }[] = []
-    for (const p of pending) {
-      const result = await uploadAttachment(saved.data.id, p)
-      if (!result.ok)
-        failures.push({ name: pendingName(p), errorKey: result.errorKey })
-    }
+    const failures = await uploadAll(saved.data.id, pending)
     setFailed(failures)
     setBusy(false)
     router.refresh()
-    return true
+    return { saved: true, failures }
   }
 
   return { busy, errorKey, failed, submit }

@@ -1,14 +1,15 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import type { ReviewErrorKey } from '@/lib/review-ui'
+import { pendingName, type ReviewErrorKey } from '@/lib/review-ui'
+import type { UploadFailure } from './useEntrySubmit'
 
 export function ComposerStatus({
   errorKey,
   failed,
 }: {
   errorKey: ReviewErrorKey | null
-  failed: { name: string; errorKey: ReviewErrorKey }[]
+  failed: UploadFailure[]
 }) {
   const t = useTranslations('Review')
   if (!errorKey && failed.length === 0) return null
@@ -30,9 +31,9 @@ export function ComposerStatus({
         </p>
       )}
       {failed.map((f) => (
-        <p key={f.name}>
+        <p key={f.pending.key}>
           {t('attach.failed', {
-            name: f.name,
+            name: pendingName(f.pending),
             error: t(`errors.${f.errorKey}`),
           })}
         </p>

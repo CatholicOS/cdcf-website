@@ -42,9 +42,10 @@ export function reviewErrorResponse(err: unknown): NextResponse {
   throw err
 }
 
+// No content-length: undici may decompress the upstream body, so a
+// forwarded length could disagree with the bytes actually sent.
 export const ATTACHMENT_PASSTHROUGH_HEADERS = [
   'content-type',
-  'content-length',
   'content-disposition',
   'cache-control',
   'x-content-type-options',

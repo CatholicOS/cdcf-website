@@ -77,6 +77,7 @@ describe('review-route helpers', () => {
         'X-Content-Type-Options': 'nosniff',
         'Content-Security-Policy': "default-src 'none'; sandbox",
         'Cache-Control': 'private, no-store',
+        'Content-Length': '5',
         'Set-Cookie': 'wp=1',
       },
     })
@@ -90,5 +91,7 @@ describe('review-route helpers', () => {
       "default-src 'none'; sandbox"
     )
     expect(out.headers.get('set-cookie')).toBeNull()
+    // undici may decompress the upstream body; a forwarded length would lie.
+    expect(out.headers.get('content-length')).toBeNull()
   })
 })

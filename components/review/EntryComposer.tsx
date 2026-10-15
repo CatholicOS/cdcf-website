@@ -40,7 +40,7 @@ export function EntryComposer({
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    const ok = await submit(
+    const result = await submit(
       () =>
         reviewFetch<ReviewEntry>(
           `/api/review/projects/${projectId}/entries`,
@@ -52,10 +52,12 @@ export function EntryComposer({
         ),
       pending
     )
-    if (ok) {
+    if (result.saved) {
       setBody('')
       setPending([])
-      if (kind === 'reply') setOpen(false)
+      // Keep the composer open while an attachment failed, so the reason
+      // stays visible; the author can re-attach to the saved post.
+      if (kind === 'reply' && result.failures.length === 0) setOpen(false)
     }
   }
 
@@ -75,7 +77,7 @@ export function EntryComposer({
         onRemove={(key) => setPending((ps) => ps.filter((p) => p.key !== key))}
       />
       <AttachControl
-        onAdd={(p) => setPending((ps) => [...ps, p])}
+        onAdd={(items) => setPending((ps) => [...ps, ...items])}
         disabled={busy}
       />
       <div className="flex items-center gap-3">

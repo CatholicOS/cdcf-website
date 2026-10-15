@@ -55,6 +55,15 @@ if (!class_exists('WP_REST_Request')) {
     class WP_REST_Request implements ArrayAccess {
         private array $params = [];
         private array $files = [];
+        private string $route = '';
+
+        public function set_route(string $route): void {
+            $this->route = $route;
+        }
+
+        public function get_route(): string {
+            return $this->route;
+        }
 
         public function set_file_params(array $files): void {
             $this->files = $files;

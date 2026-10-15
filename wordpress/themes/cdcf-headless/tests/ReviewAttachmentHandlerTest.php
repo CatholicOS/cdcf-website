@@ -237,14 +237,24 @@ final class ReviewAttachmentHandlerTest extends TestCase
         $this->cleanup[] = $file;
         $marked = new WP_REST_Response([CDCF_REVIEW_FILE_MARKER => $file], 200);
 
+        $route = new WP_REST_Request();
+        $route->set_route('/cdcf/v1/review/attachments/4');
+        $other = new WP_REST_Request();
+        $other->set_route('/wp/v2/settings');
+
         ob_start();
-        $served = cdcf_review_serve_attachment(false, $marked, null, null);
+        $served = cdcf_review_serve_attachment(false, $marked, $route, null);
         $out = ob_get_clean();
 
         $this->assertTrue($served);
         $this->assertSame('raw-bytes', $out);
-        $this->assertFalse(cdcf_review_serve_attachment(false, new WP_REST_Response(['ok' => true]), null, null));
-        $this->assertTrue(cdcf_review_serve_attachment(true, $marked, null, null));
+        $this->assertFalse(cdcf_review_serve_attachment(false, new WP_REST_Response(['ok' => true]), $route, null));
+        $this->assertTrue(cdcf_review_serve_attachment(true, $marked, $route, null));
+
+        // A marker smuggled into any other route's data is never served.
+        ob_start();
+        $this->assertFalse(cdcf_review_serve_attachment(false, $marked, $other, null));
+        $this->assertSame('', ob_get_clean());
     }
 
     // ─── route args ──────────────────────────────────────────────────

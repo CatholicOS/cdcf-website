@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/src/i18n/navigation'
-import { jsonInit, reviewFetch, uploadAttachment } from '@/lib/review-client'
+import { jsonInit, reviewFetch, uploadAll } from '@/lib/review-client'
 import type { PendingAttachment, ReviewEntry } from '@/lib/review-types'
-import { pendingName, type ReviewErrorKey } from '@/lib/review-ui'
+import type { ReviewErrorKey } from '@/lib/review-ui'
 import { AttachControl } from './AttachControl'
 import { ComposerStatus } from './ComposerStatus'
 import { MarkdownEditor } from './MarkdownEditor'
+import type { UploadFailure } from './useEntrySubmit'
 
 /**
  * Author-only controls on an existing entry: inline edit (replies and
@@ -33,9 +34,7 @@ export function EntryActions({
   const [draft, setDraft] = useState(body)
   const [busy, setBusy] = useState(false)
   const [errorKey, setErrorKey] = useState<ReviewErrorKey | null>(null)
-  const [failed, setFailed] = useState<
-    { name: string; errorKey: ReviewErrorKey }[]
-  >([])
+  const [failed, setFailed] = useState<UploadFailure[]>([])
 
   async function save() {
     setBusy(true)
@@ -53,14 +52,12 @@ export function EntryActions({
     router.refresh()
   }
 
-  async function attach(p: PendingAttachment) {
+  async function attach(items: PendingAttachment[]) {
     setBusy(true)
-    const result = await uploadAttachment(entryId, p)
+    const failures = await uploadAll(entryId, items)
     setBusy(false)
-    setFailed(
-      result.ok ? [] : [{ name: pendingName(p), errorKey: result.errorKey }]
-    )
-    if (result.ok) router.refresh()
+    setFailed(failures)
+    if (failures.length < items.length) router.refresh()
   }
 
   if (editing) {

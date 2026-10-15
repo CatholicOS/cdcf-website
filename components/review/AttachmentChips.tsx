@@ -24,7 +24,7 @@ export function AttachmentChips({
             <button
               type="button"
               onClick={() =>
-                router.replace(
+                router.push(
                   `${pathname}${withAttachmentParam(searchParams.toString(), a.id)}`,
                   { scroll: false }
                 )

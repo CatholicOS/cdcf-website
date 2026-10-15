@@ -55,7 +55,7 @@ export function MyReviewComposer({
       return
     }
     setVoteMissing(false)
-    const ok = await submit(
+    const result = await submit(
       () =>
         reviewFetch<ReviewEntry>(
           `/api/review/projects/${projectId}/my-review`,
@@ -67,9 +67,11 @@ export function MyReviewComposer({
         ),
       pending
     )
-    if (ok) {
+    if (result.saved) {
       setPending([])
-      if (existing) setEditing(false)
+      // Stay in the form while an attachment failed, so the reason stays
+      // visible; the author can re-attach to the saved review.
+      if (existing && result.failures.length === 0) setEditing(false)
     }
   }
 
@@ -119,7 +121,7 @@ export function MyReviewComposer({
         onRemove={(key) => setPending((ps) => ps.filter((p) => p.key !== key))}
       />
       <AttachControl
-        onAdd={(p) => setPending((ps) => [...ps, p])}
+        onAdd={(items) => setPending((ps) => [...ps, ...items])}
         disabled={busy}
       />
       <div className="flex items-center gap-3">

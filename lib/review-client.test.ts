@@ -7,7 +7,12 @@ import {
   vi,
   type Mock,
 } from 'vitest'
-import { jsonInit, reviewFetch, uploadAttachment } from './review-client'
+import {
+  jsonInit,
+  reviewFetch,
+  uploadAll,
+  uploadAttachment,
+} from './review-client'
 
 let fetchMock: Mock
 
@@ -98,5 +103,34 @@ describe('uploadAttachment', () => {
       title: 'T',
       markdown: '# T',
     })
+  })
+})
+
+describe('uploadAll', () => {
+  it('uploads one at a time and returns the failures with their items', async () => {
+    const order: string[] = []
+    let inFlight = 0
+    fetchMock.mockImplementation(async (_url: string, init: RequestInit) => {
+      inFlight++
+      expect(inFlight).toBe(1)
+      const title = JSON.parse(String(init.body)).title as string
+      order.push(title)
+      await new Promise((r) => setTimeout(r, 1))
+      inFlight--
+      return title === 'bad'
+        ? json(413, { error: 'file_too_large' })
+        : json(201, { id: 1 })
+    })
+    const items = ['a', 'bad', 'c'].map((title) => ({
+      key: title,
+      kind: 'paste' as const,
+      title,
+      markdown: '#',
+    }))
+
+    const failures = await uploadAll(9, items)
+
+    expect(order).toEqual(['a', 'bad', 'c'])
+    expect(failures).toEqual([{ pending: items[1], errorKey: 'tooLarge' }])
   })
 })
