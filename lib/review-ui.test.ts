@@ -127,6 +127,12 @@ describe('formatting', () => {
     expect(formatBytes(1536)).toBe('1.5 KB')
     expect(formatBytes(5 * 1024 * 1024)).toBe('5.0 MB')
   })
+
+  it('formats byte sizes with the locale decimal separator', () => {
+    expect(formatBytes(1536, 'it')).toBe('1,5 KB')
+    expect(formatBytes(5 * 1024 * 1024, 'de')).toBe('5,0 MB')
+    expect(formatBytes(2048, 'en')).toBe('2.0 KB')
+  })
 })
 
 describe('attachments', () => {

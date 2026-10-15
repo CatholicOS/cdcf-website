@@ -275,17 +275,17 @@ final class ReviewAttachmentHandlerTest extends TestCase
         $other->set_route('/wp/v2/settings');
 
         ob_start();
-        $served = cdcf_review_serve_attachment(false, $marked, $route, null);
+        $served = cdcf_review_serve_attachment(false, $marked, $route);
         $out = ob_get_clean();
 
         $this->assertTrue($served);
         $this->assertSame('raw-bytes', $out);
-        $this->assertFalse(cdcf_review_serve_attachment(false, new WP_REST_Response(['ok' => true]), $route, null));
-        $this->assertTrue(cdcf_review_serve_attachment(true, $marked, $route, null));
+        $this->assertFalse(cdcf_review_serve_attachment(false, new WP_REST_Response(['ok' => true]), $route));
+        $this->assertTrue(cdcf_review_serve_attachment(true, $marked, $route));
 
         // A marker smuggled into any other route's data is never served.
         ob_start();
-        $this->assertFalse(cdcf_review_serve_attachment(false, $marked, $other, null));
+        $this->assertFalse(cdcf_review_serve_attachment(false, $marked, $other));
         $this->assertSame('', ob_get_clean());
     }
 

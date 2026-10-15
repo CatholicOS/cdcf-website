@@ -650,7 +650,7 @@ function cdcf_rest_review_get_attachment(WP_REST_Request $request) {
 }
 
 /** rest_pre_serve_request: write raw bytes for marked attachment responses. */
-function cdcf_review_serve_attachment($served, $result, $request, $server): bool {
+function cdcf_review_serve_attachment($served, $result, $request): bool {
     if ($served) {
         return true;
     }

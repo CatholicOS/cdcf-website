@@ -2,11 +2,6 @@ import { useFormatter, useTranslations } from 'next-intl'
 import type { ReviewProject } from '@/lib/review-types'
 import { parseWpGmt, safeHttpUrl } from '@/lib/review-ui'
 
-const external = {
-  target: '_blank',
-  rel: 'noopener noreferrer nofollow',
-} as const
-
 /** Links only http(s) URLs; anything else is shown as plain text. */
 function SubmittedLink({ url, className }: { url: string; className: string }) {
   const href = safeHttpUrl(url)
@@ -14,7 +9,8 @@ function SubmittedLink({ url, className }: { url: string; className: string }) {
   return (
     <a
       href={href}
-      {...external}
+      target="_blank"
+      rel="noopener noreferrer nofollow"
       className={`${className} text-cdcf-navy hover:underline`}
     >
       {url}

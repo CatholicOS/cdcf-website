@@ -820,7 +820,7 @@ add_action('added_user_meta', 'cdcf_review_flush_on_user_meta', 10, 3);
 add_action('updated_user_meta', 'cdcf_review_flush_on_user_meta', 10, 3);
 add_action('deleted_user_meta', 'cdcf_review_flush_on_user_meta', 10, 3);
 add_action('admin_menu', 'cdcf_review_access_admin_menu', 20);
-add_filter('rest_pre_serve_request', 'cdcf_review_serve_attachment', 10, 4);
+add_filter('rest_pre_serve_request', 'cdcf_review_serve_attachment', 10, 3);
 
 add_action('rest_api_init', function () {
     $args = cdcf_review_route_args();

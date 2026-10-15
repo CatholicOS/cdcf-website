@@ -88,10 +88,14 @@ export function parseWpGmt(value: string): Date {
   return new Date(`${value.replace(' ', 'T')}Z`)
 }
 
-export function formatBytes(bytes: number): string {
+export function formatBytes(bytes: number, locale = 'en'): string {
   if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  const oneDecimal = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })
+  if (bytes < 1024 * 1024) return `${oneDecimal.format(bytes / 1024)} KB`
+  return `${oneDecimal.format(bytes / (1024 * 1024))} MB`
 }
 
 export function imageNeighbours(

@@ -1,6 +1,7 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
+import { useLocale } from 'next-intl'
 import { DocumentTextIcon, PhotoIcon } from '@heroicons/react/24/outline'
 import { usePathname, useRouter } from '@/src/i18n/navigation'
 import type { ReviewAttachment } from '@/lib/review-types'
@@ -11,6 +12,7 @@ export function AttachmentChips({
 }: {
   attachments: ReviewAttachment[]
 }) {
+  const locale = useLocale()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -33,7 +35,9 @@ export function AttachmentChips({
             >
               <Icon className="h-4 w-4" aria-hidden="true" />
               {a.name}
-              <span className="text-gray-400">{formatBytes(a.size)}</span>
+              <span className="text-gray-400">
+                {formatBytes(a.size, locale)}
+              </span>
             </button>
           </li>
         )
