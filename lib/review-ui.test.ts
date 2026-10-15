@@ -115,6 +115,12 @@ describe('formatting', () => {
     )
   })
 
+  it('parses microsecond datetimes from the review tables', () => {
+    expect(parseWpGmt('2026-10-15 10:00:00.123456').toISOString()).toBe(
+      '2026-10-15T10:00:00.123Z'
+    )
+  })
+
   it('formats byte sizes', () => {
     expect(formatBytes(512)).toBe('512 B')
     expect(formatBytes(1536)).toBe('1.5 KB')
