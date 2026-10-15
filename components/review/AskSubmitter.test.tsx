@@ -87,4 +87,12 @@ describe('AskSubmitter', () => {
     expect(c.textContent).not.toContain('could not be sent')
     expect(refresh).toHaveBeenCalled()
   })
+
+  it('limits the question to the length WordPress accepts', () => {
+    const r = renderDom(<AskSubmitter projectId={40} />)
+    unmount = r.unmount
+    expect(
+      r.container.querySelector('textarea')?.getAttribute('maxlength')
+    ).toBe('50000')
+  })
 })

@@ -438,6 +438,7 @@
       "stale": "È stato modificato da quando l'hai aperto. Ricarica per vedere la versione più recente.",
       "reviewExists": "Hai già pubblicato una revisione. Ricarica per modificarla.",
       "tooLarge": "Il file è troppo grande.",
+      "bodyTooLong": "Il testo è troppo lungo.",
       "unsupportedType": "Questo tipo di file non è supportato.",
       "tooMany": "Questo messaggio ha già il numero massimo di allegati.",
       "invalidInput": "Controlla i dati inseriti.",

@@ -438,6 +438,7 @@
       "stale": "Cet élément a changé depuis son ouverture. Rechargez pour voir la dernière version.",
       "reviewExists": "Vous avez déjà publié une évaluation. Rechargez pour la modifier.",
       "tooLarge": "Le fichier est trop volumineux.",
+      "bodyTooLong": "Ce texte est trop long.",
       "unsupportedType": "Ce type de fichier n'est pas pris en charge.",
       "tooMany": "Ce message a déjà le nombre maximal de pièces jointes.",
       "invalidInput": "Vérifiez votre saisie.",

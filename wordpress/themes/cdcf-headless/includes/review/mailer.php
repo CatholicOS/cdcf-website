@@ -17,50 +17,65 @@ function cdcf_review_status_url(int $project_id, string $lang, string $token): s
 }
 
 /**
- * `$token` (project_id, hash, issued_at) is the status token the email
- * carries: it becomes valid only once the email has been sent — here when
- * sending inline, in CDCF_Review_Email_Job when queued.
+ * Plain email, queued when the queue plugin is active, otherwise inline.
  *
- * @param array{project_id?: int, hash?: string, issued_at?: string} $token
  * @return 'queued'|'sent'|'failed'
  */
-function cdcf_review_send_email(string $to, string $subject, string $body, array $token = []): string {
-    if (function_exists('redis_queue') && class_exists('CDCF_Review_Email_Job')) {
-        $payload = ['to' => $to, 'subject' => $subject, 'body' => $body];
-        if ($token) {
-            $payload['token'] = $token;
-        }
-        try {
-            redis_queue()->queue_manager->enqueue(new CDCF_Review_Email_Job($payload));
-            return 'queued';
-        } catch (\Throwable $e) {
-            error_log('[cdcf-review] email enqueue failed, sending inline: ' . $e->getMessage());
-        }
+function cdcf_review_send_email(string $to, string $subject, string $body): string {
+    if (cdcf_review_enqueue_email(['to' => $to, 'subject' => $subject, 'body' => $body])) {
+        return 'queued';
     }
     if (wp_mail($to, $subject, $body)) {
-        cdcf_review_commit_sent_token($token);
         return 'sent';
     }
-    // Never log the address or the body (it carries the status token).
+    // Never log the address or the body.
     error_log('[cdcf-review] email could not be sent: ' . $subject);
     return 'failed';
 }
 
-/** Commit the token an email carried, now that it has been sent. */
-function cdcf_review_commit_sent_token(array $token): void {
-    if (isset($token['project_id'], $token['hash'], $token['issued_at'])) {
-        cdcf_review_commit_token((int) $token['project_id'], (string) $token['hash'], (string) $token['issued_at']);
+/** Hand a job payload to the redis queue; false when it is unavailable. */
+function cdcf_review_enqueue_email(array $payload): bool {
+    if (!function_exists('redis_queue') || !class_exists('CDCF_Review_Email_Job')) {
+        return false;
+    }
+    try {
+        redis_queue()->queue_manager->enqueue(new CDCF_Review_Email_Job($payload));
+        return true;
+    } catch (\Throwable $e) {
+        error_log('[cdcf-review] email enqueue failed, sending inline: ' . $e->getMessage());
+        return false;
     }
 }
 
 /**
  * Email the submitter `$template` with a fresh status link, in the
- * submission language. The new link replaces the old one only once the
- * email is sent, so a failed email leaves the working link in place.
+ * submission language.
+ *
+ * When queued, the job stores only the project id, template and variables:
+ * the redis-queue plugin keeps job records in MySQL, so the address, the
+ * link and its token are worked out when the job runs, never stored.
  *
  * @return 'queued'|'sent'|'failed'|'no_email'
  */
 function cdcf_review_send_submitter_email(int $project_id, string $template, array $vars = []): string {
+    if (!is_email((string) get_post_meta($project_id, '_submission_submitter_email', true))) {
+        return 'no_email';
+    }
+    $job = ['submitter' => ['project_id' => $project_id, 'template' => $template, 'vars' => $vars]];
+    if (cdcf_review_enqueue_email($job)) {
+        return 'queued';
+    }
+    return cdcf_review_deliver_submitter_email($project_id, $template, $vars);
+}
+
+/**
+ * Build and send a submitter email now. The new link replaces the old one
+ * only once the email has been sent, so a failed email leaves the working
+ * link in place.
+ *
+ * @return 'sent'|'failed'|'no_email'
+ */
+function cdcf_review_deliver_submitter_email(int $project_id, string $template, array $vars = []): string {
     $to = (string) get_post_meta($project_id, '_submission_submitter_email', true);
     if (!is_email($to)) {
         return 'no_email';
@@ -72,9 +87,11 @@ function cdcf_review_send_submitter_email(int $project_id, string $template, arr
         'title' => (string) get_post_field('post_title', $project_id),
         'link'  => cdcf_review_status_url($project_id, $lang, $token['token']),
     ]);
-    return cdcf_review_send_email($to, $mail['subject'], $mail['body'], [
-        'project_id' => $project_id,
-        'hash'       => $token['hash'],
-        'issued_at'  => $token['issued_at'],
-    ]);
+    if (!wp_mail($to, $mail['subject'], $mail['body'])) {
+        // Never log the address or the body (it carries the status token).
+        error_log('[cdcf-review] submitter email could not be sent: ' . $template);
+        return 'failed';
+    }
+    cdcf_review_commit_token($project_id, $token['hash'], $token['issued_at']);
+    return 'sent';
 }

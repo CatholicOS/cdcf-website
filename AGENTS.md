@@ -293,7 +293,10 @@ in the frontend's web-server access log and in browser history; this is
 inherent to an emailed link and bounded by rotation (every submitter email
 issues a new token).
 Review emails go through the Redis queue (`cdcf_review_email` job) when
-the queue plugin is active, otherwise inline — never WP-Cron.
+the queue plugin is active, otherwise inline — never WP-Cron. The queue
+plugin keeps job records in MySQL, so a queued submitter email stores only
+the project id, template and variables; the address, link and token are
+worked out when the job runs.
 
 ### Zitadel bearer authentication
 

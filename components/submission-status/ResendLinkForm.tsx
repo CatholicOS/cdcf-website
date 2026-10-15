@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTranslations } from 'next-intl'
 
 export function ResendLinkForm({ projectId }: { projectId: number }) {
@@ -8,6 +8,13 @@ export function ResendLinkForm({ projectId }: { projectId: number }) {
   const id = useId()
   const [email, setEmail] = useState('')
   const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle')
+  const statusRef = useRef<HTMLParagraphElement>(null)
+
+  // The form (and its focused button) goes away once sent: hand focus to
+  // the confirmation so keyboard users are not dropped at the page top.
+  useEffect(() => {
+    if (state === 'done') statusRef.current?.focus()
+  }, [state])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -26,7 +33,12 @@ export function ResendLinkForm({ projectId }: { projectId: number }) {
 
   return (
     <div className="space-y-2">
-      <p role="status" className="text-sm text-gray-700">
+      <p
+        ref={statusRef}
+        role="status"
+        tabIndex={-1}
+        className="text-sm text-gray-700 focus:outline-none"
+      >
         {state === 'done' ? t('resendDone') : null}
       </p>
       {state !== 'done' && (

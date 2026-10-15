@@ -26,7 +26,7 @@ beforeEach(() => {
   redirectMock.mockReset()
   // Like the real redirect(): throws, so the handler stops there.
   redirectMock.mockImplementation((path: string) => {
-    throw new Error('REDIRECT:' + path)
+    throw new Error(`REDIRECT:${path}`)
   })
 })
 

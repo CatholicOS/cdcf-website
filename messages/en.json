@@ -438,6 +438,7 @@
       "stale": "This was changed since you opened it. Reload to see the latest version.",
       "reviewExists": "You have already posted a review. Reload to edit it.",
       "tooLarge": "The file is too large.",
+      "bodyTooLong": "This text is too long.",
       "unsupportedType": "That file type isn't supported.",
       "tooMany": "This post already has the maximum number of attachments.",
       "invalidInput": "Please check what you entered.",

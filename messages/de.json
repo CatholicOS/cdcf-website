@@ -438,6 +438,7 @@
       "stale": "Dies wurde seit dem Öffnen geändert. Laden Sie die Seite neu, um die aktuelle Fassung zu sehen.",
       "reviewExists": "Sie haben bereits eine Bewertung veröffentlicht. Laden Sie neu, um sie zu bearbeiten.",
       "tooLarge": "Die Datei ist zu groß.",
+      "bodyTooLong": "Dieser Text ist zu lang.",
       "unsupportedType": "Dieser Dateityp wird nicht unterstützt.",
       "tooMany": "Dieser Beitrag hat bereits die maximale Anzahl an Anhängen.",
       "invalidInput": "Bitte prüfen Sie Ihre Eingabe.",

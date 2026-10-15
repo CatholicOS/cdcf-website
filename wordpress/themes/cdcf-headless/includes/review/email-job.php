@@ -18,17 +18,26 @@ class CDCF_Review_Email_Job extends \Soderlind\RedisQueue\Jobs\Abstract_Base_Job
 
     public function execute()
     {
-        $sent = wp_mail(
-            (string) $this->get_payload_value('to'),
-            (string) $this->get_payload_value('subject'),
-            (string) $this->get_payload_value('body')
-        );
+        $submitter = $this->get_payload_value('submitter');
+        if (is_array($submitter)) {
+            // A submitter email: built and sent now, so the stored job never
+            // holds the address, the status link or its token.
+            $sent = cdcf_review_deliver_submitter_email(
+                (int) ($submitter['project_id'] ?? 0),
+                (string) ($submitter['template'] ?? ''),
+                (array) ($submitter['vars'] ?? [])
+            ) !== 'failed';
+        } else {
+            $sent = wp_mail(
+                (string) $this->get_payload_value('to'),
+                (string) $this->get_payload_value('subject'),
+                (string) $this->get_payload_value('body')
+            );
+        }
         if (!$sent) {
             // Throwing hands the job back to the queue for a retry.
             throw new \RuntimeException('wp_mail failed for a review email');
         }
-        // The status link in this email becomes valid only now that it is sent.
-        cdcf_review_commit_sent_token((array) $this->get_payload_value('token'));
         return $this->success();
     }
 }

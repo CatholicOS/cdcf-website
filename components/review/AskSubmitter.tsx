@@ -52,6 +52,7 @@ export function AskSubmitter({ projectId }: { projectId: number }) {
       </label>
       <textarea
         id={id}
+        maxLength={50000}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         rows={4}

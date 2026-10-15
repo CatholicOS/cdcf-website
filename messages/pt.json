@@ -438,6 +438,7 @@
       "stale": "Foi alterado desde que o abriu. Recarregue para ver a versão mais recente.",
       "reviewExists": "Já publicou uma revisão. Recarregue para a editar.",
       "tooLarge": "O ficheiro é demasiado grande.",
+      "bodyTooLong": "Este texto é demasiado longo.",
       "unsupportedType": "Esse tipo de ficheiro não é suportado.",
       "tooMany": "Esta publicação já tem o número máximo de anexos.",
       "invalidInput": "Verifique os dados introduzidos.",
