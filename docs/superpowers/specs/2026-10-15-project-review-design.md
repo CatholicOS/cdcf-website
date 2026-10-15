@@ -378,10 +378,14 @@ records `admin_override`. No submitter email is sent.
 | `decision_recorded`   | yes                             | all members                          |
 | `admin_override`      | yes                             | all members                          |
 
-Emails are plain text, one per recipient, sent asynchronously through
-`wp_schedule_single_event`. Planning must confirm WP-Cron runs reliably in
-production; if it does not, dispatch through the existing Redis queue
-instead.
+Emails are plain text, one per recipient, sent asynchronously through the
+existing Redis queue: a `cdcf_review_email` job type is registered on the
+`redis_queue_create_job` filter (as `cdcf-redis-translations` does for
+translations), enqueued with `redis_queue()->queue_manager->enqueue()`, and
+drained by `cdcf-queue-worker` through `/process-queue`. WP-Cron is not used:
+on a headless install the WordPress site gets almost no page views, so
+WP-Cron would rarely fire. When the `redis_queue` plugin is unavailable, the
+email is sent inline and any failure is logged; the request still succeeds.
 
 ### Submitter emails
 
