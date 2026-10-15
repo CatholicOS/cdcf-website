@@ -180,6 +180,46 @@ final class ZitadelBearerTest extends TestCase
         $this->assertSame(60, $captured['ttl']);
     }
 
+    public function test_userinfo_headers_omit_host_by_default(): void
+    {
+        $this->assertSame(
+            ['Authorization' => 'Bearer tok', 'Accept' => 'application/json'],
+            cdcf_zitadel_bearer_userinfo_headers('tok', '')
+        );
+    }
+
+    public function test_userinfo_headers_carry_a_configured_host(): void
+    {
+        // The local stack reaches Zitadel by its compose service name but
+        // Zitadel resolves its instance from the Host header.
+        $this->assertSame(
+            ['Authorization' => 'Bearer tok', 'Accept' => 'application/json', 'Host' => 'localhost:8090'],
+            cdcf_zitadel_bearer_userinfo_headers('tok', 'localhost:8090')
+        );
+    }
+
+    public function test_userinfo_request_goes_to_the_configured_url_with_those_headers(): void
+    {
+        $token = $this->mintJwt();
+        $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $token;
+        $this->stubWp();
+        $call = null;
+        Functions\when('wp_remote_post')->alias(
+            function (string $url, array $args) use (&$call): array {
+                $call = [$url, $args['headers']];
+                return $this->buildUserinfoResponse(401, []);
+            }
+        );
+
+        cdcf_zitadel_bearer_authenticate(false);
+
+        $this->assertSame(CDCF_ZITADEL_USERINFO_URL, $call[0]);
+        $this->assertSame(
+            cdcf_zitadel_bearer_userinfo_headers($token, CDCF_ZITADEL_USERINFO_HOST),
+            $call[1]
+        );
+    }
+
     public function test_token_hash_used_as_cache_key_not_raw_token(): void
     {
         // Mint a JWT with a memorable marker in a non-aud claim so we can

@@ -155,11 +155,19 @@ green-looking setup that never left production.
 
 These Compose variables come from `.env` (Compose does not read `.env.local`):
 
-| Variable              | Default                            | Notes                                                |
-| --------------------- | ---------------------------------- | ---------------------------------------------------- |
-| `ZITADEL_PORT`        | `8090`                             | 8080 collides with the LitCal and Martyrology stacks |
-| `ZITADEL_MASTERKEY`   | `MasterkeyNeedsToHave32Characters` | Exactly 32 chars, and never change it — see below    |
-| `ZITADEL_DB_PASSWORD` | `postgres` / `zitadel`             | Local only                                           |
+| Variable                    | Default                            | Notes                                                |
+| --------------------------- | ---------------------------------- | ---------------------------------------------------- |
+| `ZITADEL_PORT`              | `8090`                             | 8080 collides with the LitCal and Martyrology stacks |
+| `ZITADEL_MASTERKEY`         | `MasterkeyNeedsToHave32Characters` | Exactly 32 chars, and never change it — see below    |
+| `ZITADEL_DB_PASSWORD`       | `postgres` / `zitadel`             | Local only                                           |
+| `CDCF_ZITADEL_EXPECTED_AUD` | _(empty)_                          | Your local `AUTH_ZITADEL_ID`; see below              |
+
+Signed-in REST calls from Next.js to the local WordPress (the council review
+pages, the bio editor) are checked against the local Zitadel. Set
+`CDCF_ZITADEL_EXPECTED_AUD` in `.env` to the same client ID as
+`AUTH_ZITADEL_ID` in `.env.local`, then recreate WordPress with
+`docker compose up -d wordpress`. While it is empty, WordPress rejects every
+bearer token and those pages report an expired session.
 
 Changing `ZITADEL_MASTERKEY` after first boot makes existing instance data
 undecryptable; recovery means removing the Zitadel services and their
