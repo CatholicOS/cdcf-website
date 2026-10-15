@@ -59,6 +59,7 @@ def get_post_parent(client: CdcfClient, post_id: int) -> int:
         client._wp_url(f"/wp/v2/pages/{post_id}"),
         auth=client.wp_auth,
         params={"_fields": "id,parent"},
+        timeout=120,
     )
     resp.raise_for_status()
     return resp.json()["parent"]
@@ -72,6 +73,7 @@ def set_post_parent(client: CdcfClient, post_id: int, parent_id: int) -> None:
         client._wp_url(f"/wp/v2/pages/{post_id}"),
         auth=client.wp_auth,
         json={"parent": parent_id},
+        timeout=120,
     )
     resp.raise_for_status()
 
@@ -84,6 +86,7 @@ def trigger_translate(client: CdcfClient, source_id: int, target_lang: str) -> d
         client._wp_url("/cdcf/v1/translate"),
         auth=client.wp_auth,
         json={"source_id": source_id, "target_lang": target_lang},
+        timeout=120,
     )
     resp.raise_for_status()
     return resp.json()
