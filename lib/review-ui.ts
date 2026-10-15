@@ -134,7 +134,9 @@ export function checkAttachmentFile(
   name: string,
   size: number
 ): ReviewErrorKey | null {
-  const ext = name.includes('.') ? name.split('.').pop()!.toLowerCase() : ''
+  const ext = name.includes('.')
+    ? (name.split('.').pop() ?? '').toLowerCase()
+    : ''
   if (ext === 'md')
     return size > ATTACHMENT_LIMITS.markdownBytes ? 'tooLarge' : null
   if ((IMAGE_EXTENSIONS as readonly string[]).includes(ext)) {

@@ -25,15 +25,17 @@ export function AttachControl({
   const [title, setTitle] = useState('')
   const [markdown, setMarkdown] = useState('')
   const [rejected, setRejected] = useState<
-    { name: string; errorKey: ReviewErrorKey }[]
+    { key: string; name: string; errorKey: ReviewErrorKey }[]
   >([])
 
   function onFiles(files: FileList | null) {
-    const problems: { name: string; errorKey: ReviewErrorKey }[] = []
+    const problems: { key: string; name: string; errorKey: ReviewErrorKey }[] =
+      []
     const accepted: PendingAttachment[] = []
     for (const file of Array.from(files ?? [])) {
       const problem = checkAttachmentFile(file.name, file.size)
-      if (problem) problems.push({ name: file.name, errorKey: problem })
+      if (problem)
+        problems.push({ key: nextKey(), name: file.name, errorKey: problem })
       else accepted.push({ key: nextKey(), kind: 'file', file })
     }
     // One call per selection, so callers can upload the batch in order.
@@ -81,10 +83,8 @@ export function AttachControl({
         />
       </div>
       <p className="text-xs text-gray-500">{t('attach.hint')}</p>
-      {/* Two picked files can share a name; the list is replaced whole, so
-          the index is a stable key. */}
-      {rejected.map((r, i) => (
-        <p key={i} className="text-xs text-red-700">
+      {rejected.map((r) => (
+        <p key={r.key} className="text-xs text-red-700">
           {t('attach.failed', {
             name: r.name,
             error: t(`errors.${r.errorKey}`),

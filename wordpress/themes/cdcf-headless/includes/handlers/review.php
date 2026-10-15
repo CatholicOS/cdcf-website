@@ -590,7 +590,7 @@ function cdcf_rest_review_post_attachment(WP_REST_Request $request) {
         $source = tempnam(get_temp_dir(), 'cdcfmd');
         if ($source === false || file_put_contents($source, $markdown) !== strlen($markdown)) {
             if ($source !== false) {
-                @unlink($source);
+                wp_delete_file($source);
             }
             return new WP_Error('store_failed', 'The attachment could not be saved.', ['status' => 500]);
         }
@@ -599,16 +599,17 @@ function cdcf_rest_review_post_attachment(WP_REST_Request $request) {
 
     $meta = cdcf_review_validate_upload($source, $name);
     if (is_wp_error($meta)) {
-        @unlink($source);
+        wp_delete_file($source);
         return $meta;
     }
     $key = cdcf_review_store_file($source);
     if (is_wp_error($key)) {
+        wp_delete_file($source);
         return $key;
     }
     $id = cdcf_review_insert_attachment($entry['id'], $meta, $name, $key);
     if ($id <= 0) {
-        @unlink(cdcf_review_attachment_path(['storage_key' => $key]));
+        wp_delete_file(cdcf_review_attachment_path(['storage_key' => $key]));
         return new WP_Error('insert_failed', 'The attachment could not be saved.', ['status' => 500]);
     }
     cdcf_review_record_event($entry['project_id'], 'attachment_added', get_current_user_id(), $entry['id'], ['attachment_id' => $id]);

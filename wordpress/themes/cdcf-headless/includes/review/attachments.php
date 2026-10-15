@@ -61,7 +61,7 @@ function cdcf_review_validate_upload(string $path, string $original_name) {
     if ($type === null) {
         return new WP_Error('unsupported_type', 'Only Markdown (.md) and PNG, JPEG, WebP or GIF images can be attached.', ['status' => 400]);
     }
-    $size = (int) @filesize($path);
+    $size = is_file($path) ? (int) filesize($path) : 0;
     if ($size <= 0) {
         return new WP_Error('empty_file', 'The file is empty.', ['status' => 400]);
     }
@@ -96,13 +96,13 @@ function cdcf_review_store_file(string $source_path) {
     }
     $key  = bin2hex(random_bytes(32));
     $dest = "{$dir}/{$key}";
-    if (!@rename($source_path, $dest)) {
-        if (!@copy($source_path, $dest)) {
-            return new WP_Error('store_failed', 'The attachment could not be saved.', ['status' => 500]);
-        }
-        @unlink($source_path);
+    // Copy, then delete: rename() warns across filesystems (PHP's upload
+    // tmp dir is often on another mount than the storage dir).
+    if (!copy($source_path, $dest)) {
+        return new WP_Error('store_failed', 'The attachment could not be saved.', ['status' => 500]);
     }
-    @chmod($dest, 0640);
+    wp_delete_file($source_path);
+    chmod($dest, 0640);
     return $key;
 }
 

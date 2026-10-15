@@ -137,16 +137,26 @@ function AttachmentView({
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- authenticated same-origin stream; next/image would refetch it server-side without the session cookie */}
-              <img
-                src={src}
-                alt={attachment.name}
+              <button
+                type="button"
+                aria-pressed={zoomed}
                 onClick={() => setZoomed((z) => !z)}
                 className={clsx(
                   zoomed
-                    ? 'max-w-none cursor-zoom-out'
-                    : 'max-h-full max-w-full cursor-zoom-in object-contain'
+                    ? 'cursor-zoom-out'
+                    : 'flex max-h-full max-w-full cursor-zoom-in'
                 )}
-              />
+              >
+                <img
+                  src={src}
+                  alt={attachment.name}
+                  className={clsx(
+                    zoomed
+                      ? 'max-w-none'
+                      : 'max-h-full max-w-full object-contain'
+                  )}
+                />
+              </button>
             </div>
             {(prev !== null || next !== null) && (
               <div className="mt-3 flex justify-between text-sm">

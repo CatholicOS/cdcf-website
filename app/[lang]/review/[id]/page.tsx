@@ -83,7 +83,7 @@ export default async function ReviewProjectPage({
           <MyReviewComposer
             projectId={project.id}
             existing={
-              myReview && myReview.vote
+              myReview?.vote
                 ? {
                     vote: myReview.vote,
                     body_md: myReview.body_md,

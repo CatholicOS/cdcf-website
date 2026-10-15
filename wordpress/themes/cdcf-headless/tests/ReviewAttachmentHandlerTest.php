@@ -34,6 +34,11 @@ final class ReviewAttachmentHandlerTest extends TestCase
         Functions\when('get_post_meta')->justReturn('in_review');
         Functions\when('get_temp_dir')->justReturn(sys_get_temp_dir() . '/');
         Functions\when('sanitize_file_name')->returnArg(1);
+        Functions\when('wp_delete_file')->alias(static function (string $f): void {
+            if (is_file($f)) {
+                unlink($f);
+            }
+        });
         Functions\when('cdcf_review_get_entry')->justReturn($this->entry());
         Functions\when('cdcf_review_count_attachments')->justReturn(0);
         Functions\when('cdcf_review_is_uploaded_file')->justReturn(true);
@@ -123,6 +128,22 @@ final class ReviewAttachmentHandlerTest extends TestCase
 
         $this->assertSame('store_failed', $res->get_error_code());
         $this->assertSame(500, $res->get_error_data()['status']);
+    }
+
+    public function test_pasted_markdown_temp_file_is_removed_when_storing_fails(): void
+    {
+        $temp = null;
+        Functions\when('cdcf_review_validate_upload')->alias(function (string $path) use (&$temp) {
+            $temp = $path;
+            $this->cleanup[] = $path;
+            return ['kind' => 'markdown', 'mime' => 'text/markdown', 'size' => 9];
+        });
+        Functions\when('cdcf_review_store_file')->justReturn(new WP_Error('storage_unavailable', 'x', ['status' => 500]));
+
+        $res = cdcf_rest_review_post_attachment($this->request(['id' => 9, 'title' => 'license', 'markdown' => '# License']));
+
+        $this->assertSame('storage_unavailable', $res->get_error_code());
+        $this->assertFileDoesNotExist($temp);
     }
 
     public function test_neither_file_nor_markdown_is_400(): void

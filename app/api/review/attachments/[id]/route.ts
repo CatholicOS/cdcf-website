@@ -1,4 +1,4 @@
-import { type NextRequest } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
 import { fetchReviewAttachment } from '@/lib/review-api'
 import {

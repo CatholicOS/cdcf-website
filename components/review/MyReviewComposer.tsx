@@ -70,8 +70,9 @@ export function MyReviewComposer({
     if (result.saved) {
       setPending([])
       // Stay in the form while an attachment failed, so the reason stays
-      // visible; the author can re-attach to the saved review.
-      if (existing && result.failures.length === 0) setEditing(false)
+      // visible; the author can re-attach to the saved review. A first
+      // review closes too: the refresh supplies `existing` for the summary.
+      if (result.failures.length === 0) setEditing(false)
     }
   }
 

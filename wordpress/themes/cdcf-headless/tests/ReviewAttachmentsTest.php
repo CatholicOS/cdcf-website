@@ -31,6 +31,11 @@ final class ReviewAttachmentsTest extends TestCase
         Functions\when('untrailingslashit')->alias(static fn(string $s): string => rtrim($s, '/\\'));
         Functions\when('sanitize_title')->alias(static fn(string $s): string => trim((string) preg_replace('/[^a-z0-9]+/', '-', strtolower($s)), '-'));
         Functions\when('sanitize_file_name')->returnArg(1);
+        Functions\when('wp_delete_file')->alias(static function (string $f): void {
+            if (is_file($f)) {
+                unlink($f);
+            }
+        });
     }
 
     protected function tearDown(): void
