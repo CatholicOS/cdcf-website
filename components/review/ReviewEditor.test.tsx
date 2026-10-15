@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, useState } from 'react'
 import type { Editor } from '@tiptap/core'
+import messages from '@/messages/en.json'
 import { EDITOR_MODE_KEY } from '@/lib/review-editor'
 import { ReviewEditor } from './ReviewEditor'
 import {
@@ -19,7 +20,8 @@ afterEach(() => {
   unmounts = []
 })
 
-const LABEL = 'Your review'
+// The label the review composer really uses.
+const LABEL = messages.Review.myReview.rationale
 
 function Harness({
   initial,

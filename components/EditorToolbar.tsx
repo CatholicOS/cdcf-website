@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  Fragment,
   useCallback,
   useEffect,
   useId,
@@ -188,96 +189,21 @@ export function EditorToolbar({
         aria-label={ariaLabel}
         className="flex flex-wrap items-center gap-1 rounded-t-md border border-b-0 border-gray-300 bg-gray-50 px-2 py-1.5"
       >
-        <ToolbarButton
-          label={t('bold')}
-          isActive={editor.isActive('bold')}
-          onClick={() => editor.chain().focus().toggleBold().run()}
-        >
-          <BoldIcon className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          label={t('italic')}
-          isActive={editor.isActive('italic')}
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-        >
-          <ItalicIcon className="h-4 w-4" />
-        </ToolbarButton>
-        {review && (
-          <>
-            <ToolbarButton
-              label={t('strike')}
-              isActive={editor.isActive('strike')}
-              onClick={() => editor.chain().focus().toggleStrike().run()}
-            >
-              <StrikethroughIcon className="h-4 w-4" />
-            </ToolbarButton>
-            <ToolbarButton
-              label={t('code')}
-              isActive={editor.isActive('code')}
-              onClick={() => editor.chain().focus().toggleCode().run()}
-            >
-              <CodeBracketIcon className="h-4 w-4" />
-            </ToolbarButton>
-          </>
-        )}
-
-        <ToolbarSeparator />
-
-        <ToolbarButton
-          label={t('h2')}
-          isActive={editor.isActive('heading', { level: 2 })}
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 2 }).run()
-          }
-        >
-          <H2Icon className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          label={t('h3')}
-          isActive={editor.isActive('heading', { level: 3 })}
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 3 }).run()
-          }
-        >
-          <H3Icon className="h-4 w-4" />
-        </ToolbarButton>
-
-        <ToolbarSeparator />
-
-        <ToolbarButton
-          label={t('bulletList')}
-          isActive={editor.isActive('bulletList')}
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-        >
-          <ListBulletIcon className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          label={t('orderedList')}
-          isActive={editor.isActive('orderedList')}
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        >
-          <NumberedListIcon className="h-4 w-4" />
-        </ToolbarButton>
-        {review && (
-          <>
-            <ToolbarButton
-              label={t('blockquote')}
-              isActive={editor.isActive('blockquote')}
-              onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            >
-              <ChatBubbleBottomCenterTextIcon className="h-4 w-4" />
-            </ToolbarButton>
-            <ToolbarButton
-              label={t('codeBlock')}
-              isActive={editor.isActive('codeBlock')}
-              onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-            >
-              <CodeBracketSquareIcon className="h-4 w-4" />
-            </ToolbarButton>
-          </>
-        )}
-
-        <ToolbarSeparator />
+        {formatGroups(editor, review).map((group) => (
+          <Fragment key={group[0].key}>
+            {group.map((b) => (
+              <ToolbarButton
+                key={b.key}
+                label={t(b.key)}
+                isActive={b.isActive()}
+                onClick={b.run}
+              >
+                <b.Icon className="h-4 w-4" />
+              </ToolbarButton>
+            ))}
+            <ToolbarSeparator />
+          </Fragment>
+        ))}
 
         <ToolbarButton
           ref={linkButtonRef}
@@ -318,6 +244,95 @@ export function EditorToolbar({
       )}
     </div>
   )
+}
+
+type FormatButton = {
+  key:
+    | 'bold'
+    | 'italic'
+    | 'strike'
+    | 'code'
+    | 'h2'
+    | 'h3'
+    | 'bulletList'
+    | 'orderedList'
+    | 'blockquote'
+    | 'codeBlock'
+  Icon: typeof BoldIcon
+  isActive: () => boolean
+  run: () => void
+}
+
+/** Toolbar buttons in separator-delimited groups; `review` adds four. */
+function formatGroups(editor: Editor, review: boolean): FormatButton[][] {
+  const chain = () => editor.chain().focus()
+  const marks: FormatButton[] = [
+    {
+      key: 'bold',
+      Icon: BoldIcon,
+      isActive: () => editor.isActive('bold'),
+      run: () => chain().toggleBold().run(),
+    },
+    {
+      key: 'italic',
+      Icon: ItalicIcon,
+      isActive: () => editor.isActive('italic'),
+      run: () => chain().toggleItalic().run(),
+    },
+    ...(review
+      ? ([
+          {
+            key: 'strike',
+            Icon: StrikethroughIcon,
+            isActive: () => editor.isActive('strike'),
+            run: () => chain().toggleStrike().run(),
+          },
+          {
+            key: 'code',
+            Icon: CodeBracketIcon,
+            isActive: () => editor.isActive('code'),
+            run: () => chain().toggleCode().run(),
+          },
+        ] satisfies FormatButton[])
+      : []),
+  ]
+  const headings: FormatButton[] = ([2, 3] as const).map((level) => ({
+    key: level === 2 ? 'h2' : 'h3',
+    Icon: level === 2 ? H2Icon : H3Icon,
+    isActive: () => editor.isActive('heading', { level }),
+    run: () => chain().toggleHeading({ level }).run(),
+  }))
+  const blocks: FormatButton[] = [
+    {
+      key: 'bulletList',
+      Icon: ListBulletIcon,
+      isActive: () => editor.isActive('bulletList'),
+      run: () => chain().toggleBulletList().run(),
+    },
+    {
+      key: 'orderedList',
+      Icon: NumberedListIcon,
+      isActive: () => editor.isActive('orderedList'),
+      run: () => chain().toggleOrderedList().run(),
+    },
+    ...(review
+      ? ([
+          {
+            key: 'blockquote',
+            Icon: ChatBubbleBottomCenterTextIcon,
+            isActive: () => editor.isActive('blockquote'),
+            run: () => chain().toggleBlockquote().run(),
+          },
+          {
+            key: 'codeBlock',
+            Icon: CodeBracketSquareIcon,
+            isActive: () => editor.isActive('codeBlock'),
+            run: () => chain().toggleCodeBlock().run(),
+          },
+        ] satisfies FormatButton[])
+      : []),
+  ]
+  return [marks, headings, blocks]
 }
 
 function ToolbarButton({
@@ -363,20 +378,7 @@ function ToolbarButton({
   )
 }
 
-function LinkPopover({
-  ref,
-  urlInputRef,
-  href,
-  onHrefChange,
-  invalid,
-  target,
-  onTargetChange,
-  canUnlink,
-  onApply,
-  onRemove,
-  onCancel,
-  onNavigate,
-}: {
+function LinkPopover(props: {
   ref: React.Ref<HTMLDivElement>
   urlInputRef: React.Ref<HTMLInputElement>
   href: string
@@ -391,6 +393,20 @@ function LinkPopover({
   onCancel: () => void
   onNavigate: () => void
 }) {
+  const {
+    ref,
+    urlInputRef,
+    href,
+    onHrefChange,
+    invalid,
+    target,
+    onTargetChange,
+    canUnlink,
+    onApply,
+    onRemove,
+    onCancel,
+    onNavigate,
+  } = props
   const t = useTranslations('EditorToolbar')
   const urlInputId = useId()
   const targetSelectId = useId()
