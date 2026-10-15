@@ -10,6 +10,7 @@ import {
 import type { ReviewMe, ReviewProject } from '@/lib/review-types'
 import { buildAttachmentIndex } from '@/lib/review-ui'
 import { Link } from '@/src/i18n/navigation'
+import { AskSubmitter } from '@/components/review/AskSubmitter'
 import { AttachmentPanel } from '@/components/review/AttachmentPanel'
 import { EntryCard } from '@/components/review/EntryCard'
 import { EntryComposer } from '@/components/review/EntryComposer'
@@ -139,6 +140,7 @@ export default async function ReviewProjectPage({
         <section className="space-y-4">
           <h2 className="cdcf-heading text-2xl">{t('questions.heading')}</h2>
           <QuestionsList questions={project.questions} />
+          {me.can.discuss && !locked && <AskSubmitter projectId={project.id} />}
         </section>
       </div>
       <AttachmentPanel index={buildAttachmentIndex(project)} />

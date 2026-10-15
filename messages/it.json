@@ -403,7 +403,13 @@
       "heading": "Domande al proponente",
       "none": "Non sono state inviate domande al proponente.",
       "submitter": "Proponente",
-      "awaiting": "In attesa della risposta del proponente."
+      "awaiting": "In attesa della risposta del proponente.",
+      "askHeading": "Fai una domanda al proponente",
+      "askLabel": "Domanda",
+      "askWarning": "Il proponente riceve questo testo via email esattamente come è scritto, da parte del \"comitato di revisione della CDCF\" e senza il tuo nome.",
+      "askSubmit": "Invia domanda",
+      "askSending": "Invio in corso…",
+      "emailFailed": "La domanda è stata salvata, ma non è stato possibile inviare l'email al proponente."
     },
     "attach": {
       "button": "Allega file",

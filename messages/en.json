@@ -403,7 +403,13 @@
       "heading": "Questions to the submitter",
       "none": "No questions have been sent to the submitter.",
       "submitter": "Submitter",
-      "awaiting": "Awaiting the submitter's answer."
+      "awaiting": "Awaiting the submitter's answer.",
+      "askHeading": "Ask the submitter",
+      "askLabel": "Question",
+      "askWarning": "The submitter receives this text by email exactly as written, from \"the CDCF review committee\" and without your name.",
+      "askSubmit": "Send question",
+      "askSending": "Sending…",
+      "emailFailed": "The question was saved, but the email to the submitter could not be sent."
     },
     "attach": {
       "button": "Attach file",

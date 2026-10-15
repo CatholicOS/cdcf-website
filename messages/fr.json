@@ -403,7 +403,13 @@
       "heading": "Questions au proposant",
       "none": "Aucune question n'a été envoyée au proposant.",
       "submitter": "Proposant",
-      "awaiting": "En attente de la réponse du proposant."
+      "awaiting": "En attente de la réponse du proposant.",
+      "askHeading": "Poser une question au proposant",
+      "askLabel": "Question",
+      "askWarning": "Le proposant reçoit ce texte par e-mail tel qu'il est écrit, de la part du « comité d'examen de la CDCF » et sans votre nom.",
+      "askSubmit": "Envoyer la question",
+      "askSending": "Envoi…",
+      "emailFailed": "La question a été enregistrée, mais l'e-mail au proposant n'a pas pu être envoyé."
     },
     "attach": {
       "button": "Joindre un fichier",
