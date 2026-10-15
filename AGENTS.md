@@ -99,23 +99,29 @@ Uses `@import 'tailwindcss'` (not `@tailwind` directives). Custom utilities via 
 
 All endpoints accept either **Application Password** (for the Python CLI and other server-side callers) or **Zitadel OIDC bearer tokens** (for the Next.js frontend acting on behalf of a signed-in user — see [Zitadel bearer authentication](#zitadel-bearer-authentication) below). Most endpoints require `edit_posts` capability; `/process-queue` and `/maintenance` require `manage_options` (administrator); `/create-user` and `/author-team-member` require the custom `cdcf_create_limited_users` capability — see the row notes where capability differs.
 
-| Method  | Route                        | Description                                                                                                                                                                                                                           |
-| ------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`   | `/relationship`              | Read an ACF relationship field (`post_id`, `field`)                                                                                                                                                                                   |
-| `POST`  | `/relationship`              | Update an ACF relationship field (`post_id`, `field`, `value[]`)                                                                                                                                                                      |
-| `POST`  | `/translate`                 | Translate a post to a target language via OpenAI (`source_id`, `target_lang`, optional `post_id`)                                                                                                                                     |
-| `POST`  | `/translate-all`             | Create-or-reuse drafts for ALL non-source Polylang languages of `source_id` and queue each translation atomically (one `pll_save_post_translations` call). Fixes the lost-update race that orphaned 2-3 of 5 langs per Translate-All. |
-| `POST`  | `/update-disposable-domains` | Download latest disposable email domain blocklist from GitHub (called daily by Redis worker)                                                                                                                                          |
-| `POST`  | `/team-member`               | Create a team member with auto-translation and About page linking (see below)                                                                                                                                                         |
-| `POST`  | `/community-channel`         | Create a community channel with auto-translation and Community page linking (see below)                                                                                                                                               |
-| `POST`  | `/local-group`               | Create a local group with auto-translation and Community page linking (see below)                                                                                                                                                     |
-| `POST`  | `/maintenance`               | Pause or resume the cdcf-queue-worker by setting/clearing a Redis flag. Body: `action` is `"begin"` or `"end"`; optional `duration_seconds` is clamped server-side to 60–600. Requires administrator (`manage_options`) capability.   |
-| `POST`  | `/academic-collaboration`    | Create an academic collaboration with auto-translation and Community page linking (see below)                                                                                                                                         |
-| `POST`  | `/create-user`               | Provision a low-privilege WordPress user (author/contributor/subscriber only) and email a set-password link. Requires the custom `cdcf_create_limited_users` capability, NOT `edit_posts` (see below).                                |
-| `POST`  | `/author-team-member`        | Link (or unlink) a WordPress user to their `team_member` bio card by writing the `author_team_member` ACF field on the user (`user_id`, `team_member_id`; pass `0` to clear). Requires `cdcf_create_limited_users` (see below).       |
-| `GET`   | `/my-team-member`            | Discover the caller's linked `team_member` post + every Polylang sibling translation. Returns 403 when the caller has no `author_team_member` link. Phase 3 of bio self-edit.                                                         |
-| `PATCH` | `/my-team-member/{lang}`     | Edit the `{lang}` version of the caller's bio (content + member_title/linkedin/github) and queue re-translation to the other 5 langs from the just-saved source. Ownership enforced via the Polylang group. See below.                |
-| `GET`   | `/translation-status`        | Read the queued-translation lifecycle (`enqueued`/`processing`/`completed`/`failed`/`unknown`) recorded on a target post. Used by the AI-translate meta-box JS to poll until the worker is done so the badge can flip past "Queued".  |
+| Method  | Route                             | Description                                                                                                                                                                                                                           |
+| ------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`   | `/relationship`                   | Read an ACF relationship field (`post_id`, `field`)                                                                                                                                                                                   |
+| `POST`  | `/relationship`                   | Update an ACF relationship field (`post_id`, `field`, `value[]`)                                                                                                                                                                      |
+| `POST`  | `/translate`                      | Translate a post to a target language via OpenAI (`source_id`, `target_lang`, optional `post_id`)                                                                                                                                     |
+| `POST`  | `/translate-all`                  | Create-or-reuse drafts for ALL non-source Polylang languages of `source_id` and queue each translation atomically (one `pll_save_post_translations` call). Fixes the lost-update race that orphaned 2-3 of 5 langs per Translate-All. |
+| `POST`  | `/update-disposable-domains`      | Download latest disposable email domain blocklist from GitHub (called daily by Redis worker)                                                                                                                                          |
+| `POST`  | `/team-member`                    | Create a team member with auto-translation and About page linking (see below)                                                                                                                                                         |
+| `POST`  | `/community-channel`              | Create a community channel with auto-translation and Community page linking (see below)                                                                                                                                               |
+| `POST`  | `/local-group`                    | Create a local group with auto-translation and Community page linking (see below)                                                                                                                                                     |
+| `POST`  | `/maintenance`                    | Pause or resume the cdcf-queue-worker by setting/clearing a Redis flag. Body: `action` is `"begin"` or `"end"`; optional `duration_seconds` is clamped server-side to 60–600. Requires administrator (`manage_options`) capability.   |
+| `POST`  | `/academic-collaboration`         | Create an academic collaboration with auto-translation and Community page linking (see below)                                                                                                                                         |
+| `POST`  | `/create-user`                    | Provision a low-privilege WordPress user (author/contributor/subscriber only) and email a set-password link. Requires the custom `cdcf_create_limited_users` capability, NOT `edit_posts` (see below).                                |
+| `POST`  | `/author-team-member`             | Link (or unlink) a WordPress user to their `team_member` bio card by writing the `author_team_member` ACF field on the user (`user_id`, `team_member_id`; pass `0` to clear). Requires `cdcf_create_limited_users` (see below).       |
+| `GET`   | `/my-team-member`                 | Discover the caller's linked `team_member` post + every Polylang sibling translation. Returns 403 when the caller has no `author_team_member` link. Phase 3 of bio self-edit.                                                         |
+| `PATCH` | `/my-team-member/{lang}`          | Edit the `{lang}` version of the caller's bio (content + member_title/linkedin/github) and queue re-translation to the other 5 langs from the just-saved source. Ownership enforced via the Polylang group. See below.                |
+| `GET`   | `/translation-status`             | Read the queued-translation lifecycle (`enqueued`/`processing`/`completed`/`failed`/`unknown`) recorded on a target post. Used by the AI-translate meta-box JS to poll until the worker is done so the badge can flip past "Queued".  |
+| `GET`   | `/review/me`                      | Caller's council/Board membership and review permissions (`member`, `councils[]`, `can{view,discuss,vote,decide}`). Any signed-in user.                                                                                               |
+| `GET`   | `/review/projects`                | Submissions under council review, optional `stage` filter, with tally, caller's vote and unread count. Council/Board members only (see [Council review](#council-review-review)).                                                     |
+| `GET`   | `/review/projects/{id}`           | One submission's review workspace: fields, reviews with replies, discussion, submitter Q&A, tally, plurality. Submitter email only for Board members.                                                                                 |
+| `PUT`   | `/review/projects/{id}/my-review` | Create or update the caller's review (`vote`, `body_md`, `edited_at`). Technical/Ecclesial council members only. `409` on a stale `edited_at`.                                                                                        |
+| `POST`  | `/review/projects/{id}/entries`   | Post a `reply` (to a review, `parent_id`) or a `discussion` entry (`body_md`).                                                                                                                                                        |
+| `PATCH` | `/review/entries/{id}`            | Edit the caller's own reply or discussion entry (`body_md`, `edited_at`).                                                                                                                                                             |
 
 ### Sanitization convention
 
@@ -235,6 +241,21 @@ Read the lifecycle of a queued AI translation. `cdcf_enqueue_post_translation()`
 - `error` is a short message (≤500 chars) recorded on the `failed` path, empty otherwise.
 
 **Status codes:** `200` on success, `400` when `post_id` is missing or zero, `404` when the post doesn't exist.
+
+### Council review (`/review/*`)
+
+Public project submissions enter council review (`_cdcf_review_stage = in_review`)
+instead of waiting for an administrator. Reviews, votes and discussion are stored
+in custom tables (`{prefix}cdcf_review_*`, created by `cdcf_review_maybe_upgrade()`),
+never in comments or posts, so nothing exposes them publicly. Design:
+`docs/superpowers/specs/2026-10-15-project-review-design.md`.
+
+Access is derived, not granted: a signed-in user is a member when their
+`author_team_member` bio (any language) is listed in the English About page's
+`technical_council`, `ecclesial_council` or `team_members` (Board) field.
+Technical and Ecclesial members vote; Board members decide; everyone discusses.
+Administrators who are not members have no access. **Projects → Review access** in
+wp-admin lists every seat and whether a WordPress user is linked to it.
 
 ### Zitadel bearer authentication
 

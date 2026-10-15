@@ -74,12 +74,15 @@ bool, board: bool}`:
 1. Read the user's `author_team_member` link (ACF user field). No link → all
    false.
 2. Collect the linked `team_member` post's Polylang translation ids.
-3. For each language's About page, read `technical_council`,
-   `ecclesial_council` and `team_members` (the Board). A flag is true when any
-   of the collected ids appears in the corresponding field in any language.
+3. Read `technical_council`, `ecclesial_council` and `team_members` (the
+   Board) on the **English** About page — the canonical copy, as in the
+   existing `cdcf_my_team_member_is_board_member()` check. A flag is true
+   when any of the collected ids appears in the corresponding field.
 
-The result is cached in a per-user transient. Saving any About page deletes
-all `cdcf_review_membership_*` transients.
+The result is cached in a per-user transient whose key embeds a generation
+counter (`cdcf_review_membership_gen`). Saving an About page or writing any
+user's `author_team_member` meta bumps the counter, so changes apply
+immediately.
 
 | Permission | Granted to                                  |
 | ---------- | ------------------------------------------- |
@@ -136,14 +139,16 @@ Table names below omit `$wpdb->prefix`.
 | `kind`           | varchar(20)        | `review` · `reply` · `discussion` · `question` · `answer`    |
 | `parent_id`      | bigint unsigned    | `reply` → its `review`; `answer` → its `question`; else NULL |
 | `author_user_id` | bigint unsigned    | NULL only for `answer` (the submitter)                       |
+| `review_slot`    | bigint unsigned    | `author_user_id` on `review` rows, else NULL                 |
 | `body_md`        | longtext           | Markdown                                                     |
 | `vote`           | varchar(20)        | `review` only: `cdcf` · `community` · `reject`               |
 | `created_at`     | datetime (UTC)     |                                                              |
 | `edited_at`      | datetime (UTC)     | NULL until edited; used for optimistic concurrency           |
 
-A generated column `review_author` (equal to `author_user_id` when
-`kind = 'review'`, else NULL) carries a unique key with `project_id`,
-enforcing one review per reviewer per project.
+A plain column `review_slot` (equal to `author_user_id` on `review` rows,
+NULL otherwise) carries a unique key with `project_id`, enforcing one
+review per reviewer per project. `dbDelta()` does not handle generated
+columns, and MySQL permits many NULLs under a unique key.
 
 `cdcf_review_attachments`
 
