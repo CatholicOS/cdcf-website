@@ -317,23 +317,7 @@
     "noLanguages": "Nessuna versione linguistica disponibile per la modifica.",
     "loadError": "Impossibile caricare questa versione della tua bio.",
     "toolbar": {
-      "ariaLabel": "Barra di formattazione della bio",
-      "bold": "Grassetto",
-      "italic": "Corsivo",
-      "h2": "Titolo 2",
-      "h3": "Titolo 3",
-      "bulletList": "Elenco puntato",
-      "orderedList": "Elenco numerato",
-      "link": "Inserisci o modifica il collegamento",
-      "unlink": "Rimuovi il collegamento",
-      "linkPopoverLabel": "Impostazioni del collegamento",
-      "linkUrlLabel": "URL",
-      "linkTargetLabel": "Apri in",
-      "linkTargetSelf": "Stessa finestra",
-      "linkTargetBlank": "Nuova scheda o finestra",
-      "linkNavigate": "Vai all'URL",
-      "apply": "Applica",
-      "cancel": "Annulla"
+      "ariaLabel": "Barra di formattazione della bio"
     }
   },
   "Review": {
@@ -396,7 +380,11 @@
       "write": "Scrivi",
       "preview": "Anteprima",
       "placeholder": "È supportato il Markdown.",
-      "emptyPreview": "Niente da visualizzare."
+      "emptyPreview": "Niente da visualizzare.",
+      "toolbarLabel": "Formattazione",
+      "useMarkdown": "Usa l'editor Markdown",
+      "useVisual": "Usa l'editor visuale",
+      "visualUnavailable": "Questo testo usa una formattazione che l'editor visuale non può mostrare (come tabelle o immagini), quindi resta nell'editor Markdown."
     },
     "reviews": {
       "heading": "Revisioni",
@@ -451,5 +439,28 @@
       "generic": "Qualcosa è andato storto. Riprova.",
       "reload": "Ricarica"
     }
+  },
+  "EditorToolbar": {
+    "bold": "Grassetto",
+    "italic": "Corsivo",
+    "h2": "Titolo 2",
+    "h3": "Titolo 3",
+    "bulletList": "Elenco puntato",
+    "orderedList": "Elenco numerato",
+    "link": "Inserisci o modifica il collegamento",
+    "unlink": "Rimuovi il collegamento",
+    "linkPopoverLabel": "Impostazioni del collegamento",
+    "linkUrlLabel": "URL",
+    "linkTargetLabel": "Apri in",
+    "linkTargetSelf": "Stessa finestra",
+    "linkTargetBlank": "Nuova scheda o finestra",
+    "linkNavigate": "Vai all'URL",
+    "apply": "Applica",
+    "cancel": "Annulla",
+    "strike": "Barrato",
+    "code": "Codice in linea",
+    "blockquote": "Citazione",
+    "codeBlock": "Blocco di codice",
+    "linkInvalid": "Usa un link che inizi con https://, http:// o mailto:"
   }
 }

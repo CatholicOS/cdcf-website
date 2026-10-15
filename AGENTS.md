@@ -271,6 +271,11 @@ The frontend lives at `/[lang]/review` (list) and `/[lang]/review/[id]`
 (workspace), backed by `lib/review-api.ts` (server-only) and the
 `app/api/review/*` route handlers. All review Markdown is rendered through
 `components/review/MarkdownView.tsx` (no raw HTML, no remote images).
+Entries are written in `components/review/ReviewEditor.tsx`: a visual
+TipTap editor with a toolbar (default) or a Markdown textarea with preview,
+chosen per browser. Both store Markdown; text the visual editor cannot hold
+without changing what readers see (tables, images, footnotes) stays in the
+Markdown editor.
 
 ### Zitadel bearer authentication
 
@@ -410,7 +415,7 @@ The scp upload step occasionally fails transiently with `kex_exchange_identifica
 
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 

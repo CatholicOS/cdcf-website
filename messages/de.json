@@ -317,23 +317,7 @@
     "noLanguages": "Es sind noch keine Sprachversionen zur Bearbeitung verf\u00fcgbar.",
     "loadError": "Diese Version deiner Bio konnte nicht geladen werden.",
     "toolbar": {
-      "ariaLabel": "Bio-Formatierungsleiste",
-      "bold": "Fett",
-      "italic": "Kursiv",
-      "h2": "Überschrift 2",
-      "h3": "Überschrift 3",
-      "bulletList": "Aufzählung",
-      "orderedList": "Nummerierte Liste",
-      "link": "Link einfügen oder bearbeiten",
-      "unlink": "Link entfernen",
-      "linkPopoverLabel": "Link-Einstellungen",
-      "linkUrlLabel": "URL",
-      "linkTargetLabel": "Öffnen in",
-      "linkTargetSelf": "Selbes Fenster",
-      "linkTargetBlank": "Neuer Tab oder neues Fenster",
-      "linkNavigate": "Zur URL navigieren",
-      "apply": "Übernehmen",
-      "cancel": "Abbrechen"
+      "ariaLabel": "Bio-Formatierungsleiste"
     }
   },
   "Review": {
@@ -396,7 +380,11 @@
       "write": "Schreiben",
       "preview": "Vorschau",
       "placeholder": "Markdown wird unterstützt.",
-      "emptyPreview": "Nichts anzuzeigen."
+      "emptyPreview": "Nichts anzuzeigen.",
+      "toolbarLabel": "Formatierung",
+      "useMarkdown": "Markdown-Editor verwenden",
+      "useVisual": "Visuellen Editor verwenden",
+      "visualUnavailable": "Dieser Text nutzt Formatierungen, die der visuelle Editor nicht darstellen kann (etwa Tabellen oder Bilder), daher bleibt er im Markdown-Editor."
     },
     "reviews": {
       "heading": "Bewertungen",
@@ -451,5 +439,28 @@
       "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
       "reload": "Neu laden"
     }
+  },
+  "EditorToolbar": {
+    "bold": "Fett",
+    "italic": "Kursiv",
+    "h2": "Überschrift 2",
+    "h3": "Überschrift 3",
+    "bulletList": "Aufzählung",
+    "orderedList": "Nummerierte Liste",
+    "link": "Link einfügen oder bearbeiten",
+    "unlink": "Link entfernen",
+    "linkPopoverLabel": "Link-Einstellungen",
+    "linkUrlLabel": "URL",
+    "linkTargetLabel": "Öffnen in",
+    "linkTargetSelf": "Selbes Fenster",
+    "linkTargetBlank": "Neuer Tab oder neues Fenster",
+    "linkNavigate": "Zur URL navigieren",
+    "apply": "Übernehmen",
+    "cancel": "Abbrechen",
+    "strike": "Durchgestrichen",
+    "code": "Inline-Code",
+    "blockquote": "Zitat",
+    "codeBlock": "Codeblock",
+    "linkInvalid": "Verwenden Sie einen Link, der mit https://, http:// oder mailto: beginnt."
   }
 }

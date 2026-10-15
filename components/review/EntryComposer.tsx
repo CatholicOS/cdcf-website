@@ -7,7 +7,7 @@ import { jsonInit, reviewFetch } from '@/lib/review-client'
 import type { PendingAttachment, ReviewEntry } from '@/lib/review-types'
 import { AttachControl } from './AttachControl'
 import { ComposerStatus } from './ComposerStatus'
-import { MarkdownEditor } from './MarkdownEditor'
+import { ReviewEditor } from './ReviewEditor'
 import { PendingList } from './PendingList'
 import { useEntrySubmit } from './useEntrySubmit'
 
@@ -63,7 +63,7 @@ export function EntryComposer({
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
-      <MarkdownEditor
+      <ReviewEditor
         value={body}
         onChange={setBody}
         label={

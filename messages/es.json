@@ -317,23 +317,7 @@
     "noLanguages": "A\u00fan no hay versiones en otros idiomas para editar.",
     "loadError": "No se pudo cargar esta versi\u00f3n de tu biograf\u00eda.",
     "toolbar": {
-      "ariaLabel": "Barra de formato de la biograf\u00eda",
-      "bold": "Negrita",
-      "italic": "Cursiva",
-      "h2": "Encabezado 2",
-      "h3": "Encabezado 3",
-      "bulletList": "Lista con vi\u00f1etas",
-      "orderedList": "Lista numerada",
-      "link": "Insertar o editar enlace",
-      "unlink": "Quitar enlace",
-      "linkPopoverLabel": "Ajustes del enlace",
-      "linkUrlLabel": "URL",
-      "linkTargetLabel": "Abrir en",
-      "linkTargetSelf": "Misma ventana",
-      "linkTargetBlank": "Nueva pesta\u00f1a o ventana",
-      "linkNavigate": "Ir a la URL",
-      "apply": "Aplicar",
-      "cancel": "Cancelar"
+      "ariaLabel": "Barra de formato de la biograf\u00eda"
     }
   },
   "Review": {
@@ -396,7 +380,11 @@
       "write": "Escribir",
       "preview": "Vista previa",
       "placeholder": "Se admite Markdown.",
-      "emptyPreview": "Nada que mostrar."
+      "emptyPreview": "Nada que mostrar.",
+      "toolbarLabel": "Formato",
+      "useMarkdown": "Usar el editor Markdown",
+      "useVisual": "Usar el editor visual",
+      "visualUnavailable": "Este texto usa un formato que el editor visual no puede mostrar (como tablas o imágenes), así que se queda en el editor Markdown."
     },
     "reviews": {
       "heading": "Revisiones",
@@ -451,5 +439,28 @@
       "generic": "Algo ha salido mal. Inténtalo de nuevo.",
       "reload": "Recargar"
     }
+  },
+  "EditorToolbar": {
+    "bold": "Negrita",
+    "italic": "Cursiva",
+    "h2": "Encabezado 2",
+    "h3": "Encabezado 3",
+    "bulletList": "Lista con vi\u00f1etas",
+    "orderedList": "Lista numerada",
+    "link": "Insertar o editar enlace",
+    "unlink": "Quitar enlace",
+    "linkPopoverLabel": "Ajustes del enlace",
+    "linkUrlLabel": "URL",
+    "linkTargetLabel": "Abrir en",
+    "linkTargetSelf": "Misma ventana",
+    "linkTargetBlank": "Nueva pesta\u00f1a o ventana",
+    "linkNavigate": "Ir a la URL",
+    "apply": "Aplicar",
+    "cancel": "Cancelar",
+    "strike": "Tachado",
+    "code": "Código en línea",
+    "blockquote": "Cita",
+    "codeBlock": "Bloque de código",
+    "linkInvalid": "Usa un enlace que empiece por https://, http:// o mailto:"
   }
 }
