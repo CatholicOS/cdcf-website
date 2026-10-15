@@ -209,6 +209,7 @@ require_once __DIR__ . '/../includes/review/membership.php';
 require_once __DIR__ . '/../includes/review/repository.php';
 require_once __DIR__ . '/../includes/review/events.php';
 require_once __DIR__ . '/../includes/handlers/review.php';
+require_once __DIR__ . '/../includes/admin/review-access.php';
 require_once __DIR__ . '/../includes/admin/limited-user-provisioning.php';
 require_once __DIR__ . '/../includes/admin/author-profile-guard.php';
 // Pin the expected-audience allow-list BEFORE loading zitadel-bearer.php
