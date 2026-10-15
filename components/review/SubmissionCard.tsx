@@ -1,11 +1,26 @@
 import { useFormatter, useTranslations } from 'next-intl'
 import type { ReviewProject } from '@/lib/review-types'
-import { parseWpGmt } from '@/lib/review-ui'
+import { parseWpGmt, safeHttpUrl } from '@/lib/review-ui'
 
 const external = {
   target: '_blank',
   rel: 'noopener noreferrer nofollow',
 } as const
+
+/** Links only http(s) URLs; anything else is shown as plain text. */
+function SubmittedLink({ url, className }: { url: string; className: string }) {
+  const href = safeHttpUrl(url)
+  if (href === null) return <span className={className}>{url}</span>
+  return (
+    <a
+      href={href}
+      {...external}
+      className={`${className} text-cdcf-navy hover:underline`}
+    >
+      {url}
+    </a>
+  )
+}
 
 export function SubmissionCard({ project }: { project: ReviewProject }) {
   const t = useTranslations('Review')
@@ -50,13 +65,7 @@ export function SubmissionCard({ project }: { project: ReviewProject }) {
               {t('submission.website')}
             </dt>
             <dd>
-              <a
-                href={fields.url}
-                {...external}
-                className="break-all text-cdcf-navy hover:underline"
-              >
-                {fields.url}
-              </a>
+              <SubmittedLink url={fields.url} className="break-all" />
             </dd>
           </div>
         )}
@@ -67,14 +76,11 @@ export function SubmissionCard({ project }: { project: ReviewProject }) {
             </dt>
             <dd className="space-y-1">
               {fields.repo_urls.map((url) => (
-                <a
+                <SubmittedLink
                   key={url}
-                  href={url}
-                  {...external}
-                  className="block break-all text-cdcf-navy hover:underline"
-                >
-                  {url}
-                </a>
+                  url={url}
+                  className="block break-all"
+                />
               ))}
             </dd>
           </div>

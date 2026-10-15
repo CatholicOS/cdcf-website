@@ -148,3 +148,19 @@ export function pendingName(p: PendingAttachment): string {
   const title = p.title.trim()
   return `${title !== '' ? title : 'notes'}.md`
 }
+
+/**
+ * The URL as an http(s) href, or null. Submission URLs come from the
+ * public form; WordPress already strips unsafe schemes, but the review
+ * page renders them for Board members, so check again before linking.
+ */
+export function safeHttpUrl(value: string): string | null {
+  try {
+    const url = new URL(value.trim())
+    return url.protocol === 'http:' || url.protocol === 'https:'
+      ? url.href
+      : null
+  } catch {
+    return null
+  }
+}

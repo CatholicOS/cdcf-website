@@ -13,6 +13,7 @@ import {
   parseWpGmt,
   pendingName,
   reviewErrorKey,
+  safeHttpUrl,
   tallySegments,
   withAttachmentParam,
 } from './review-ui'
@@ -177,5 +178,17 @@ describe('attachments', () => {
     expect(
       pendingName({ key: 'c', kind: 'file', file: new File(['x'], 'a.png') })
     ).toBe('a.png')
+  })
+})
+
+describe('safeHttpUrl', () => {
+  it('keeps http(s) URLs and rejects every other scheme', () => {
+    expect(safeHttpUrl('https://github.com/a/b')).toBe('https://github.com/a/b')
+    expect(safeHttpUrl('http://example.org')).toBe('http://example.org/')
+    expect(safeHttpUrl('javascript:alert(1)')).toBeNull()
+    expect(safeHttpUrl(' JaVaScRiPt:alert(1)')).toBeNull()
+    expect(safeHttpUrl('data:text/html,<script>x</script>')).toBeNull()
+    expect(safeHttpUrl('not a url')).toBeNull()
+    expect(safeHttpUrl('')).toBeNull()
   })
 })
