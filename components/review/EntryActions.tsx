@@ -8,7 +8,7 @@ import type { PendingAttachment, ReviewEntry } from '@/lib/review-types'
 import type { ReviewErrorKey } from '@/lib/review-ui'
 import { AttachControl } from './AttachControl'
 import { ComposerStatus } from './ComposerStatus'
-import { MarkdownEditor } from './MarkdownEditor'
+import { ReviewEditor } from './ReviewEditor'
 import type { UploadFailure } from './useEntrySubmit'
 
 /**
@@ -63,7 +63,7 @@ export function EntryActions({
   if (editing) {
     return (
       <div className="space-y-2">
-        <MarkdownEditor
+        <ReviewEditor
           value={draft}
           onChange={setDraft}
           label={t('edit')}

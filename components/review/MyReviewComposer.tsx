@@ -12,7 +12,7 @@ import {
 } from '@/lib/review-types'
 import { AttachControl } from './AttachControl'
 import { ComposerStatus } from './ComposerStatus'
-import { MarkdownEditor } from './MarkdownEditor'
+import { ReviewEditor } from './ReviewEditor'
 import { PendingList } from './PendingList'
 import { useEntrySubmit } from './useEntrySubmit'
 
@@ -110,7 +110,7 @@ export function MyReviewComposer({
           <p className="text-sm text-red-700">{t('myReview.voteRequired')}</p>
         )}
       </fieldset>
-      <MarkdownEditor
+      <ReviewEditor
         value={body}
         onChange={setBody}
         label={t('myReview.rationale')}

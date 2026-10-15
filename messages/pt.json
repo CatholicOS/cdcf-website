@@ -317,23 +317,7 @@
     "noLanguages": "Ainda n\u00e3o h\u00e1 vers\u00f5es lingu\u00edsticas dispon\u00edveis para edi\u00e7\u00e3o.",
     "loadError": "N\u00e3o foi poss\u00edvel carregar esta vers\u00e3o da sua bio.",
     "toolbar": {
-      "ariaLabel": "Barra de formata\u00e7\u00e3o da bio",
-      "bold": "Negrito",
-      "italic": "It\u00e1lico",
-      "h2": "T\u00edtulo 2",
-      "h3": "T\u00edtulo 3",
-      "bulletList": "Lista com marcadores",
-      "orderedList": "Lista numerada",
-      "link": "Inserir ou editar liga\u00e7\u00e3o",
-      "unlink": "Remover liga\u00e7\u00e3o",
-      "linkPopoverLabel": "Defini\u00e7\u00f5es da liga\u00e7\u00e3o",
-      "linkUrlLabel": "URL",
-      "linkTargetLabel": "Abrir em",
-      "linkTargetSelf": "Mesma janela",
-      "linkTargetBlank": "Novo separador ou janela",
-      "linkNavigate": "Ir para o URL",
-      "apply": "Aplicar",
-      "cancel": "Cancelar"
+      "ariaLabel": "Barra de formata\u00e7\u00e3o da bio"
     }
   },
   "Review": {
@@ -396,7 +380,11 @@
       "write": "Escrever",
       "preview": "Pré-visualizar",
       "placeholder": "O Markdown é suportado.",
-      "emptyPreview": "Nada para pré-visualizar."
+      "emptyPreview": "Nada para pré-visualizar.",
+      "toolbarLabel": "Formatação",
+      "useMarkdown": "Usar o editor Markdown",
+      "useVisual": "Usar o editor visual",
+      "visualUnavailable": "Este texto usa uma formatação que o editor visual não consegue mostrar (como tabelas ou imagens), por isso fica no editor Markdown."
     },
     "reviews": {
       "heading": "Revisões",
@@ -451,5 +439,28 @@
       "generic": "Ocorreu um erro. Tente novamente.",
       "reload": "Recarregar"
     }
+  },
+  "EditorToolbar": {
+    "bold": "Negrito",
+    "italic": "It\u00e1lico",
+    "h2": "T\u00edtulo 2",
+    "h3": "T\u00edtulo 3",
+    "bulletList": "Lista com marcadores",
+    "orderedList": "Lista numerada",
+    "link": "Inserir ou editar liga\u00e7\u00e3o",
+    "unlink": "Remover liga\u00e7\u00e3o",
+    "linkPopoverLabel": "Defini\u00e7\u00f5es da liga\u00e7\u00e3o",
+    "linkUrlLabel": "URL",
+    "linkTargetLabel": "Abrir em",
+    "linkTargetSelf": "Mesma janela",
+    "linkTargetBlank": "Novo separador ou janela",
+    "linkNavigate": "Ir para o URL",
+    "apply": "Aplicar",
+    "cancel": "Cancelar",
+    "strike": "Riscado",
+    "code": "Código em linha",
+    "blockquote": "Citação",
+    "codeBlock": "Bloco de código",
+    "linkInvalid": "Use um link que comece com https://, http:// ou mailto:"
   }
 }

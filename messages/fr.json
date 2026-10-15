@@ -317,23 +317,7 @@
     "noLanguages": "Aucune version linguistique n'est disponible \u00e0 la modification.",
     "loadError": "Impossible de charger cette version de votre bio.",
     "toolbar": {
-      "ariaLabel": "Barre de mise en forme de la bio",
-      "bold": "Gras",
-      "italic": "Italique",
-      "h2": "Titre 2",
-      "h3": "Titre 3",
-      "bulletList": "Liste à puces",
-      "orderedList": "Liste numérotée",
-      "link": "Insérer ou modifier le lien",
-      "unlink": "Supprimer le lien",
-      "linkPopoverLabel": "Paramètres du lien",
-      "linkUrlLabel": "URL",
-      "linkTargetLabel": "Ouvrir dans",
-      "linkTargetSelf": "Même fenêtre",
-      "linkTargetBlank": "Nouvel onglet ou fenêtre",
-      "linkNavigate": "Aller à l'URL",
-      "apply": "Appliquer",
-      "cancel": "Annuler"
+      "ariaLabel": "Barre de mise en forme de la bio"
     }
   },
   "Review": {
@@ -396,7 +380,11 @@
       "write": "Écrire",
       "preview": "Aperçu",
       "placeholder": "Le Markdown est pris en charge.",
-      "emptyPreview": "Rien à afficher."
+      "emptyPreview": "Rien à afficher.",
+      "toolbarLabel": "Mise en forme",
+      "useMarkdown": "Utiliser l'éditeur Markdown",
+      "useVisual": "Utiliser l'éditeur visuel",
+      "visualUnavailable": "Ce texte utilise une mise en forme que l'éditeur visuel ne peut pas afficher (comme des tableaux ou des images) ; il reste donc dans l'éditeur Markdown."
     },
     "reviews": {
       "heading": "Évaluations",
@@ -451,5 +439,28 @@
       "generic": "Une erreur s'est produite. Veuillez réessayer.",
       "reload": "Recharger"
     }
+  },
+  "EditorToolbar": {
+    "bold": "Gras",
+    "italic": "Italique",
+    "h2": "Titre 2",
+    "h3": "Titre 3",
+    "bulletList": "Liste à puces",
+    "orderedList": "Liste numérotée",
+    "link": "Insérer ou modifier le lien",
+    "unlink": "Supprimer le lien",
+    "linkPopoverLabel": "Paramètres du lien",
+    "linkUrlLabel": "URL",
+    "linkTargetLabel": "Ouvrir dans",
+    "linkTargetSelf": "Même fenêtre",
+    "linkTargetBlank": "Nouvel onglet ou fenêtre",
+    "linkNavigate": "Aller à l'URL",
+    "apply": "Appliquer",
+    "cancel": "Annuler",
+    "strike": "Barré",
+    "code": "Code en ligne",
+    "blockquote": "Citation",
+    "codeBlock": "Bloc de code",
+    "linkInvalid": "Utilisez un lien commençant par https://, http:// ou mailto:"
   }
 }
