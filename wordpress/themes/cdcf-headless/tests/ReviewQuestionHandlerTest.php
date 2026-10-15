@@ -82,17 +82,23 @@ final class ReviewQuestionHandlerTest extends TestCase
         $this->assertSame(['email_failed'], $response->get_data()['warnings']);
     }
 
-    public function test_locked_reviews_and_missing_addresses_refuse_before_saving(): void
+    public function test_a_decided_review_refuses_before_saving(): void
     {
         $this->meta[40][CDCF_REVIEW_STAGE_META] = 'decided';
-        $this->assertSame('review_locked', $this->ask('Q?')->get_error_code());
 
-        $this->meta[40][CDCF_REVIEW_STAGE_META] = 'in_review';
+        $this->assertSame('review_locked', $this->ask('Q?')->get_error_code());
+        $this->assertSame([], $this->inserted);
+        $this->assertSame([], $this->emails);
+    }
+
+    public function test_a_submission_without_an_address_refuses_before_saving(): void
+    {
         $this->meta[40]['_submission_submitter_email'] = '';
+
         $result = $this->ask('Q?');
+
         $this->assertSame('no_submitter_email', $result->get_error_code());
         $this->assertSame(409, $result->get_error_data()['status']);
-
         $this->assertSame([], $this->inserted);
         $this->assertSame([], $this->emails);
     }
