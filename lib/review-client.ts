@@ -15,6 +15,9 @@ export async function reviewFetch<T>(
 ): Promise<ReviewResult<T>> {
   let response: Response
   try {
+    // Browser fetch to this app's own /api/review/* routes; callers pass
+    // fixed paths, never user-supplied hosts, so this is not SSRF.
+    // nosemgrep
     response = await fetch(url, { cache: 'no-store', ...init })
   } catch {
     return { ok: false, status: 0, errorKey: 'generic' }

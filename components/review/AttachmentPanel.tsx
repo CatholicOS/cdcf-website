@@ -136,7 +136,6 @@ function AttachmentView({
                 zoomed ? 'overflow-auto' : 'flex items-center justify-center'
               )}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element -- authenticated same-origin stream; next/image would refetch it server-side without the session cookie */}
               <button
                 type="button"
                 aria-pressed={zoomed}
@@ -147,6 +146,9 @@ function AttachmentView({
                     : 'flex max-h-full max-w-full cursor-zoom-in'
                 )}
               >
+                {/* An authenticated same-origin stream: next/image would refetch it server-side without the session cookie. */}
+                {/* eslint-disable @next/next/no-img-element -- see above */}
+                {/* biome-ignore lint/performance/noImgElement: see above */}
                 <img
                   src={src}
                   alt={attachment.name}
@@ -156,6 +158,7 @@ function AttachmentView({
                       : 'max-h-full max-w-full object-contain'
                   )}
                 />
+                {/* eslint-enable @next/next/no-img-element */}
               </button>
             </div>
             {(prev !== null || next !== null) && (
