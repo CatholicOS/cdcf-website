@@ -1,6 +1,6 @@
-import clsx from "clsx";
-import Markdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
+import clsx from 'clsx'
+import Markdown, { type Components } from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 /**
  * The only Markdown renderer for council review content (review bodies
@@ -16,25 +16,25 @@ const components: Components = {
     </a>
   ),
   img: ({ src, alt }) =>
-    typeof src === "string" && src !== "" ? (
+    typeof src === 'string' && src !== '' ? (
       <a href={src} target="_blank" rel="noopener noreferrer nofollow">
         {alt || src}
       </a>
     ) : null,
-};
+}
 
 export function MarkdownView({
   source,
   className,
 }: {
-  source: string;
-  className?: string;
+  source: string
+  className?: string
 }) {
   return (
-    <div className={clsx("prose prose-sm max-w-none", className)}>
+    <div className={clsx('prose prose-sm max-w-none', className)}>
       <Markdown remarkPlugins={[remarkGfm]} skipHtml components={components}>
         {source}
       </Markdown>
     </div>
-  );
+  )
 }
