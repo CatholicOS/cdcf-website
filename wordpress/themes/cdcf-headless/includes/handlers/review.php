@@ -245,3 +245,156 @@ function cdcf_rest_review_get_project(WP_REST_Request $request) {
         ],
     ]);
 }
+
+/**
+ * sanitize_callback for Markdown bodies. Markdown is stored verbatim and
+ * rendered with raw HTML disabled (Phase 2), so sanitizing means only:
+ * reject invalid UTF-8, drop NUL bytes, trim.
+ */
+function cdcf_review_sanitize_markdown($value): string {
+    if (!is_string($value)) {
+        return '';
+    }
+    return trim(str_replace("\0", '', wp_check_invalid_utf8($value)));
+}
+
+/** @return true|WP_Error */
+function cdcf_review_validate_body(string $body) {
+    if ($body === '') {
+        return new WP_Error('empty_body', 'Write something before posting.', ['status' => 400]);
+    }
+    if (mb_strlen($body) > CDCF_REVIEW_BODY_MAX) {
+        return new WP_Error(
+            'body_too_long',
+            sprintf('Text is limited to %d characters. Attach longer documents as a Markdown file.', CDCF_REVIEW_BODY_MAX),
+            ['status' => 400]
+        );
+    }
+    return true;
+}
+
+/** @return WP_REST_Response|WP_Error */
+function cdcf_review_entry_response(int $id, int $status) {
+    $entry = cdcf_review_get_entry($id);
+    if ($entry === null) {
+        return new WP_Error('entry_missing', 'The entry was saved but could not be read back.', ['status' => 500]);
+    }
+    return new WP_REST_Response(cdcf_review_present_entry($entry), $status);
+}
+
+/** @return true|WP_Error First error among the reviewable/open/body checks. */
+function cdcf_review_guard_write(int $project_id, string $body) {
+    foreach ([
+        cdcf_review_get_reviewable_project($project_id),
+        cdcf_review_assert_open($project_id),
+        cdcf_review_validate_body($body),
+    ] as $result) {
+        if (is_wp_error($result)) {
+            return $result;
+        }
+    }
+    return true;
+}
+
+function cdcf_rest_review_put_my_review(WP_REST_Request $request) {
+    $pid  = (int) $request['id'];
+    $body = (string) $request['body_md'];
+    $ok   = cdcf_review_guard_write($pid, $body);
+    if (is_wp_error($ok)) {
+        return $ok;
+    }
+    $uid      = get_current_user_id();
+    $vote     = (string) $request['vote'];
+    $existing = cdcf_review_find_review($pid, $uid);
+
+    if ($existing === null) {
+        $id = cdcf_review_insert_entry([
+            'project_id'     => $pid,
+            'kind'           => 'review',
+            'author_user_id' => $uid,
+            'body_md'        => $body,
+            'vote'           => $vote,
+        ]);
+        if ($id <= 0) {
+            // A concurrent first save by the same reviewer won the
+            // one_review unique key.
+            if (cdcf_review_find_review($pid, $uid) !== null) {
+                return new WP_Error('review_exists', 'Your review was already saved. Reload to edit it.', ['status' => 409]);
+            }
+            return new WP_Error('insert_failed', 'Could not save the review.', ['status' => 500]);
+        }
+        cdcf_review_record_event($pid, 'review_posted', $uid, $id);
+        return cdcf_review_entry_response($id, 201);
+    }
+
+    $expected = (string) ($request['edited_at'] ?? '');
+    $stale    = new WP_Error('stale_entry', 'This review changed since you opened it. Reload and try again.', ['status' => 409]);
+    if ((string) ($existing['edited_at'] ?? '') !== $expected) {
+        return $stale;
+    }
+    if (!cdcf_review_update_entry($existing['id'], ['body_md' => $body, 'vote' => $vote], $expected)) {
+        return $stale;
+    }
+    if ($existing['vote'] !== $vote) {
+        cdcf_review_record_event($pid, 'vote_changed', $uid, $existing['id'], ['from' => $existing['vote'], 'to' => $vote]);
+    }
+    if ($existing['body_md'] !== $body) {
+        cdcf_review_record_event($pid, 'review_edited', $uid, $existing['id']);
+    }
+    return cdcf_review_entry_response($existing['id'], 200);
+}
+
+function cdcf_rest_review_post_entry(WP_REST_Request $request) {
+    $pid  = (int) $request['id'];
+    $body = (string) $request['body_md'];
+    $ok   = cdcf_review_guard_write($pid, $body);
+    if (is_wp_error($ok)) {
+        return $ok;
+    }
+    $kind      = (string) $request['kind'];
+    $parent_id = null;
+    if ($kind === 'reply') {
+        $parent = cdcf_review_get_entry((int) $request['parent_id']);
+        if ($parent === null || $parent['kind'] !== 'review' || $parent['project_id'] !== $pid) {
+            return new WP_Error('invalid_parent', 'Replies must answer a review on this project.', ['status' => 400]);
+        }
+        $parent_id = $parent['id'];
+    }
+    $uid = get_current_user_id();
+    $id  = cdcf_review_insert_entry([
+        'project_id'     => $pid,
+        'kind'           => $kind,
+        'parent_id'      => $parent_id,
+        'author_user_id' => $uid,
+        'body_md'        => $body,
+    ]);
+    if ($id <= 0) {
+        return new WP_Error('insert_failed', 'Could not save the post.', ['status' => 500]);
+    }
+    cdcf_review_record_event($pid, $kind === 'reply' ? 'reply_posted' : 'discussion_posted', $uid, $id);
+    return cdcf_review_entry_response($id, 201);
+}
+
+function cdcf_rest_review_patch_entry(WP_REST_Request $request) {
+    $entry = cdcf_review_get_entry((int) $request['id']);
+    if ($entry === null) {
+        return new WP_Error('entry_not_found', 'No such entry.', ['status' => 404]);
+    }
+    if ($entry['author_user_id'] !== get_current_user_id()) {
+        return new WP_Error('not_author', 'You can only edit your own posts.', ['status' => 403]);
+    }
+    if (!in_array($entry['kind'], ['reply', 'discussion'], true)) {
+        return new WP_Error('use_my_review', 'Edit your review through the my-review endpoint.', ['status' => 400]);
+    }
+    $body = (string) $request['body_md'];
+    $ok   = cdcf_review_guard_write($entry['project_id'], $body);
+    if (is_wp_error($ok)) {
+        return $ok;
+    }
+    $expected = (string) ($request['edited_at'] ?? '');
+    if ((string) ($entry['edited_at'] ?? '') !== $expected
+        || !cdcf_review_update_entry($entry['id'], ['body_md' => $body], $expected)) {
+        return new WP_Error('stale_entry', 'This post changed since you opened it. Reload and try again.', ['status' => 409]);
+    }
+    return cdcf_review_entry_response($entry['id'], 200);
+}
