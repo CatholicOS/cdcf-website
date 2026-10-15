@@ -14,6 +14,7 @@ vi.mock('@/lib/auth-utils', () => ({ getAccessToken: vi.fn() }))
 import { getAccessToken } from '@/lib/auth-utils'
 import {
   ReviewApiError,
+  askSubmitter,
   fetchReviewAttachment,
   fetchReviewMe,
   fetchReviewProject,
@@ -228,5 +229,24 @@ describe('review-api', () => {
       status: 404,
       code: 'file_missing',
     })
+  })
+})
+
+describe('askSubmitter', () => {
+  it('posts the question with the bearer token', async () => {
+    mockedGetAccessToken.mockReturnValue('tok')
+    fetchMock.mockResolvedValue(
+      jsonResponse(201, { id: 5, kind: 'question', warnings: [] })
+    )
+
+    const out = await askSubmitter(session, 40, { body: 'Which licence?' })
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe(
+      'https://wp.example.org/wp-json/cdcf/v1/review/projects/40/question'
+    )
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body as string)).toEqual({ body: 'Which licence?' })
+    expect(out.warnings).toEqual([])
   })
 })

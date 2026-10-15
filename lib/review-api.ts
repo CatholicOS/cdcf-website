@@ -28,7 +28,7 @@ export class ReviewApiError extends Error {
   }
 }
 
-function getWpRestUrl(): string {
+export function getWpRestUrl(): string {
   const url =
     process.env.WP_REST_URL ??
     process.env.WP_GRAPHQL_URL?.replace(/\/graphql\/?$/, '/wp-json')
@@ -185,6 +185,19 @@ export async function postReviewEntry(
   return wpRequest<ReviewEntry>(
     session,
     `/cdcf/v1/review/projects/${projectId}/entries`,
+    { method: 'POST', json: payload }
+  )
+}
+
+export async function askSubmitter(
+  session: Session | null,
+  projectId: number,
+  payload: { body: string }
+): Promise<ReviewEntry & { warnings: string[] }> {
+  assertId(projectId)
+  return wpRequest<ReviewEntry & { warnings: string[] }>(
+    session,
+    `/cdcf/v1/review/projects/${projectId}/question`,
     { method: 'POST', json: payload }
   )
 }
