@@ -32,6 +32,7 @@ final class ReviewWriteHandlerTest extends TestCase
         Functions\when('get_post_meta')->justReturn('in_review');
         Functions\when('cdcf_review_membership')->justReturn(['technical' => true, 'ecclesial' => false, 'board' => false]);
         Functions\when('get_userdata')->justReturn(false);
+        Functions\when('cdcf_review_attachments_for_entries')->justReturn([]);
         Functions\when('cdcf_review_record_event')->alias(
             function (int $pid, string $type, ?int $actor, ?int $entry = null, array $data = []): int {
                 $this->events[] = [$pid, $type, $actor, $entry, $data];

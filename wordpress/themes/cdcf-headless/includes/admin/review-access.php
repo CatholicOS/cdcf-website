@@ -31,6 +31,11 @@ function cdcf_review_access_render(): void {
     }
     $rows = cdcf_review_roster();
     echo '<div class="wrap"><h1>' . esc_html('Review access') . '</h1>';
+    if (cdcf_review_storage_dir()['fallback']) {
+        echo '<div class="notice notice-warning"><p>'
+            . esc_html('Review attachments are stored under wp-content/uploads/cdcf-review/. Define CDCF_REVIEW_STORAGE_DIR in wp-config.php to keep them outside the web root, or make sure the web server denies that path.')
+            . '</p></div>';
+    }
     echo '<p>' . esc_html('Council and Board members review submitted projects at /review. Each one needs a WordPress user linked to their bio card.') . '</p>';
     if (!$rows) {
         echo '<p>' . esc_html('No council members are listed on the English About page.') . '</p></div>';

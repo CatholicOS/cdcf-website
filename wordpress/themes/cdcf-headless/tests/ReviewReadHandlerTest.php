@@ -51,6 +51,7 @@ final class ReviewReadHandlerTest extends TestCase
         Functions\when('pll_get_post_language')->justReturn('it');
         Functions\when('get_post')->alias(fn(int $id) => $this->post($id));
         Functions\when('cdcf_review_member_user_ids')->justReturn([7, 10, 11]);
+        Functions\when('cdcf_review_attachments_for_entries')->justReturn([]);
     }
 
     protected function tearDown(): void
@@ -125,6 +126,7 @@ final class ReviewReadHandlerTest extends TestCase
         $this->signIn(7);
         $me = cdcf_rest_review_me($this->request([]));
         $this->assertTrue($me['member']);
+        $this->assertSame(7, $me['user_id']);
         $this->assertSame(['technical'], $me['councils']);
         $this->assertSame(['view' => true, 'discuss' => true, 'vote' => true, 'decide' => false], $me['can']);
 
@@ -301,4 +303,22 @@ final class ReviewReadHandlerTest extends TestCase
         $this->assertSame(1, $page['minimum']);
         $this->assertSame('rest_validate_request_arg', $page['validate_callback']);
     }
+
+        public function test_detail_presents_attachments_per_entry(): void
+        {
+            $this->signIn(7);
+            Functions\when('cdcf_review_project_entries')->justReturn([$this->entry(['id' => 1])]);
+            Functions\when('cdcf_review_tallies')->justReturn([]);
+            Functions\when('cdcf_review_find_review')->justReturn(null);
+            $asked = null;
+            Functions\when('cdcf_review_attachments_for_entries')->alias(function (array $ids) use (&$asked): array {
+                $asked = $ids;
+                return [1 => [['id' => 4, 'entry_id' => 1, 'kind' => 'image', 'mime' => 'image/png', 'original_name' => 'a.png', 'storage_key' => 'k', 'size' => 70]]];
+            });
+
+            $out = cdcf_rest_review_get_project($this->request(['id' => 40]));
+
+            $this->assertSame([1], $asked);
+            $this->assertSame([['id' => 4, 'kind' => 'image', 'mime' => 'image/png', 'name' => 'a.png', 'size' => 70]], $out['reviews'][0]['attachments']);
+        }
 }

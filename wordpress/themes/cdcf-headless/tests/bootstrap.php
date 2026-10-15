@@ -106,6 +106,20 @@ if (!class_exists('WP_REST_Response')) {
         public function get_status(): int {
             return $this->status;
         }
+
+        private array $headers = [];
+
+        public function header(string $key, string $value): void {
+            $this->headers[$key] = $value;
+        }
+
+        public function get_headers(): array {
+            return $this->headers;
+        }
+
+        public function set_data(mixed $data): void {
+            $this->data = $data;
+        }
     }
 }
 if (!class_exists('WP_User')) {
