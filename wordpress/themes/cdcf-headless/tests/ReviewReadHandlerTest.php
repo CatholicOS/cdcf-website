@@ -67,6 +67,8 @@ final class ReviewReadHandlerTest extends TestCase
         Functions\when('get_current_user_id')->justReturn($uid);
     }
 
+    private bool $zeroGmt = false;
+
     private function post(int $id, string $status = 'pending', string $type = 'project'): ?stdClass
     {
         if ($id === 404) {
@@ -78,7 +80,8 @@ final class ReviewReadHandlerTest extends TestCase
         $p->post_content = 'Description';
         $p->post_status = $id === 45 ? 'trash' : $status;
         $p->post_type = $id === 46 ? 'page' : $type;
-        $p->post_date_gmt = '2026-10-01 09:00:00';
+        $p->post_date = '2026-10-01 11:00:00';
+        $p->post_date_gmt = $this->zeroGmt ? '0000-00-00 00:00:00' : '2026-10-01 09:00:00';
         return $p;
     }
 
@@ -223,6 +226,37 @@ final class ReviewReadHandlerTest extends TestCase
 
         $this->assertSame(3, $out['voters_pending']);
         $this->assertSame(1, $out['tally']['reject']);
+    }
+
+    public function test_submitted_at_falls_back_to_local_date_for_pending_posts(): void
+    {
+        // WordPress leaves post_date_gmt zeroed on pending posts, and every
+        // public submission is created pending.
+        Functions\expect('get_gmt_from_date')->once()->with('2026-10-15 21:42:07')->andReturn('2026-10-15 19:42:07');
+        $pending = (object) ['post_date' => '2026-10-15 21:42:07', 'post_date_gmt' => '0000-00-00 00:00:00'];
+        $this->assertSame('2026-10-15 19:42:07', cdcf_review_submitted_at($pending));
+    }
+
+    public function test_submitted_at_uses_stored_gmt_when_present(): void
+    {
+        Functions\expect('get_gmt_from_date')->never();
+        $published = (object) ['post_date' => '2026-10-01 11:00:00', 'post_date_gmt' => '2026-10-01 09:00:00'];
+        $this->assertSame('2026-10-01 09:00:00', cdcf_review_submitted_at($published));
+    }
+
+    public function test_detail_reports_a_real_date_for_a_pending_submission(): void
+    {
+        $this->signIn(7);
+        $this->zeroGmt = true;
+        Functions\when('get_gmt_from_date')->justReturn('2026-10-15 19:42:07');
+        Functions\when('cdcf_review_project_entries')->justReturn([]);
+        Functions\when('cdcf_review_tallies')->justReturn([]);
+        Functions\when('cdcf_review_find_review')->justReturn(null);
+        Functions\when('cdcf_review_voter_ids')->justReturn([]);
+
+        $out = cdcf_rest_review_get_project($this->request(['id' => 40]));
+
+        $this->assertSame('2026-10-15 19:42:07', $out['submitted_at']);
     }
 
     public function test_detail_nests_replies_and_answers_and_hides_email_from_non_board(): void

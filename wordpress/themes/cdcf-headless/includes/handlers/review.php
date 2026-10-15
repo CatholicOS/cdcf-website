@@ -175,7 +175,7 @@ function cdcf_rest_review_list_projects(WP_REST_Request $request) {
             'title'          => (string) $post->post_title,
             'category'       => cdcf_review_submission_fields($pid)['category'],
             'language'       => cdcf_review_post_language($pid),
-            'submitted_at'   => (string) $post->post_date_gmt,
+            'submitted_at'   => cdcf_review_submitted_at($post),
             'stage'          => (string) get_post_meta($pid, CDCF_REVIEW_STAGE_META, true),
             'tally'          => $tally,
             'voters_pending' => cdcf_review_pending_count($voters, $voted[$pid] ?? []),
@@ -241,7 +241,7 @@ function cdcf_rest_review_get_project(WP_REST_Request $request) {
         'post_status'    => (string) $post->post_status,
         'stage'          => (string) get_post_meta($pid, CDCF_REVIEW_STAGE_META, true),
         'language'       => cdcf_review_post_language($pid),
-        'submitted_at'   => (string) $post->post_date_gmt,
+        'submitted_at'   => cdcf_review_submitted_at($post),
         'fields'         => cdcf_review_submission_fields($pid),
         'submitter'      => [
             'name'  => (string) get_post_meta($pid, '_submission_submitter_name', true),
@@ -280,6 +280,19 @@ function cdcf_review_sanitize_markdown($value): string {
  * @param list<int> $voters
  * @param list<int> $voted
  */
+/**
+ * Submission time in GMT. WordPress leaves post_date_gmt zeroed on pending
+ * posts (every public submission starts pending), so fall back to the
+ * site-local post_date converted to GMT.
+ */
+function cdcf_review_submitted_at(object $post): string {
+    $gmt = (string) $post->post_date_gmt;
+    if ($gmt !== '' && $gmt !== '0000-00-00 00:00:00') {
+        return $gmt;
+    }
+    return (string) get_gmt_from_date((string) $post->post_date);
+}
+
 function cdcf_review_pending_count(array $voters, array $voted): int {
     return count(array_diff($voters, $voted));
 }
