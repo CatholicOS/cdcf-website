@@ -406,7 +406,7 @@
       "awaiting": "En attente de la réponse du proposant.",
       "askHeading": "Poser une question au proposant",
       "askLabel": "Question",
-      "askWarning": "Le proposant reçoit ce texte par e-mail tel qu'il est écrit, de la part du « comité d'examen de la CDCF » et sans votre nom.",
+      "askWarning": "Le proposant reçoit ce texte par e-mail en texte brut, de la part du « comité d'examen de la CDCF » et sans votre nom.",
       "askSubmit": "Envoyer la question",
       "askSending": "Envoi…",
       "emailFailed": "La question a été enregistrée, mais l'e-mail au proposant n'a pas pu être envoyé."
@@ -438,6 +438,7 @@
       "stale": "Cet élément a changé depuis son ouverture. Rechargez pour voir la dernière version.",
       "reviewExists": "Vous avez déjà publié une évaluation. Rechargez pour la modifier.",
       "tooLarge": "Le fichier est trop volumineux.",
+      "bodyTooLong": "Ce texte est trop long.",
       "unsupportedType": "Ce type de fichier n'est pas pris en charge.",
       "tooMany": "Ce message a déjà le nombre maximal de pièces jointes.",
       "invalidInput": "Vérifiez votre saisie.",

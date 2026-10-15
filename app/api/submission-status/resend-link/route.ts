@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { clientIp, createIpRateLimiter } from '@/lib/ip-rate-limit'
-import { readJsonObject } from '@/lib/review-route'
+import { readLimitedJsonObject } from '@/lib/review-route'
 import { requestStatusLink } from '@/lib/submission-status-api'
 
 const limited = createIpRateLimiter(5, 60 * 60 * 1000)
@@ -8,8 +8,9 @@ const limited = createIpRateLimiter(5, 60 * 60 * 1000)
 /** Always the same answer, as in WordPress, whatever happened. */
 export async function POST(request: NextRequest) {
   const accepted = NextResponse.json({ accepted: true }, { status: 202 })
-  const body = await readJsonObject(request)
-  const { project_id, email } = body ?? {}
+  // A project id and an address fit easily in 4 KiB.
+  const read = await readLimitedJsonObject(request, 4 * 1024)
+  const { project_id, email } = read.ok ? read.value : {}
   if (
     limited(clientIp(request)) ||
     typeof project_id !== 'number' ||

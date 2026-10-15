@@ -19,6 +19,7 @@ export type ReviewErrorKey =
   | 'stale'
   | 'reviewExists'
   | 'tooLarge'
+  | 'bodyTooLong'
   | 'unsupportedType'
   | 'tooMany'
   | 'invalidInput'
@@ -30,6 +31,7 @@ const CODE_KEYS: Record<string, ReviewErrorKey> = {
   stale_entry: 'stale',
   review_exists: 'reviewExists',
   file_too_large: 'tooLarge',
+  body_too_long: 'bodyTooLong',
   unsupported_type: 'unsupportedType',
   type_mismatch: 'unsupportedType',
   too_many_attachments: 'tooMany',

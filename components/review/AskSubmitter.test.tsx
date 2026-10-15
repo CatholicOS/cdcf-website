@@ -43,7 +43,7 @@ describe('AskSubmitter', () => {
 
     const c = await ask('Which licence?')
 
-    expect(c.textContent).toContain('exactly as written')
+    expect(c.textContent).toContain('as plain text')
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('/api/review/projects/40/question')
     expect(JSON.parse(init.body as string)).toEqual({ body: 'Which licence?' })
@@ -61,5 +61,38 @@ describe('AskSubmitter', () => {
     const c = await ask('Which licence?')
 
     expect(c.textContent).toContain('could not be sent')
+  })
+
+  it('shows the forbidden message and keeps the text on a 403', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: 'rest_forbidden' }), {
+        status: 403,
+      })
+    )
+
+    const c = await ask('Which licence?')
+
+    expect(c.textContent).toContain("You don't have permission to do that.")
+    expect(c.querySelector('textarea')?.value).toBe('Which licence?')
+    expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it('accepts a 201 without a warnings field', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ id: 5 }), { status: 201 })
+    )
+
+    const c = await ask('Which licence?')
+
+    expect(c.textContent).not.toContain('could not be sent')
+    expect(refresh).toHaveBeenCalled()
+  })
+
+  it('limits the question to the length WordPress accepts', () => {
+    const r = renderDom(<AskSubmitter projectId={40} />)
+    unmount = r.unmount
+    expect(
+      r.container.querySelector('textarea')?.getAttribute('maxlength')
+    ).toBe('50000')
   })
 })

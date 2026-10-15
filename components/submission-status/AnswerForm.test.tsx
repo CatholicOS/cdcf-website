@@ -59,10 +59,41 @@ describe('AnswerForm', () => {
     const r = renderDom(<AnswerForm projectId={40} questionId={1} />)
     unmount = r.unmount
 
+    const textarea = r.container.querySelector(
+      'textarea'
+    ) as HTMLTextAreaElement
+    document.body.append(r.container)
+    textarea.focus()
     await submit(r.container, 'buy now')
 
+    expect(document.activeElement).toBe(textarea)
     expect(r.container.textContent).toContain('could not be accepted')
     expect(r.container.querySelector('textarea')?.value).toBe('buy now')
     expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it('does not disable the textarea while sending, so focus is kept', async () => {
+    let finish: (r: Response) => void = () => {}
+    fetchMock.mockReturnValue(new Promise<Response>((res) => (finish = res)))
+    const r = renderDom(<AnswerForm projectId={40} questionId={1} />)
+    unmount = r.unmount
+    document.body.append(r.container)
+    const textarea = r.container.querySelector(
+      'textarea'
+    ) as HTMLTextAreaElement
+    typeInto(textarea, 'hello')
+    textarea.focus()
+    await act(async () => {
+      buttonByText(r.container, 'Send answer')?.click()
+    })
+
+    expect(textarea.disabled).toBe(false)
+    expect(textarea.readOnly).toBe(true)
+    expect(textarea.getAttribute('aria-busy')).toBe('true')
+    expect(document.activeElement).toBe(textarea)
+
+    await act(async () => {
+      finish(new Response('{}', { status: 201 }))
+    })
   })
 })

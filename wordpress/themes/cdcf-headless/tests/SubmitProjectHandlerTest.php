@@ -180,4 +180,15 @@ final class SubmitProjectHandlerTest extends SubmissionHandlerTestBase
 
         $this->assertSame([[800, 'confirmation']], $sent);
     }
+
+    public function test_a_failed_confirmation_email_does_not_fail_the_submission(): void
+    {
+        $this->stubCommonFunctions();
+        Functions\when('cdcf_review_send_submitter_email')->justReturn('failed');
+        $this->allowAllFunctionsToExist();
+
+        $result = $this->invokeHandler($this->makeRequest());
+
+        $this->assertSame(['success' => true, 'post_id' => 800], $result);
+    }
 }

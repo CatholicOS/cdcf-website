@@ -52,6 +52,7 @@ describe('reviewErrorKey', () => {
     expect(reviewErrorKey(403, 'review_locked')).toBe('locked')
     expect(reviewErrorKey(409, 'stale_entry')).toBe('stale')
     expect(reviewErrorKey(409, 'review_exists')).toBe('reviewExists')
+    expect(reviewErrorKey(400, 'body_too_long')).toBe('bodyTooLong')
     expect(reviewErrorKey(413, 'file_too_large')).toBe('tooLarge')
     expect(reviewErrorKey(400, 'type_mismatch')).toBe('unsupportedType')
     expect(reviewErrorKey(400, 'unsupported_type')).toBe('unsupportedType')

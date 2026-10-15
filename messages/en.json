@@ -406,7 +406,7 @@
       "awaiting": "Awaiting the submitter's answer.",
       "askHeading": "Ask the submitter",
       "askLabel": "Question",
-      "askWarning": "The submitter receives this text by email exactly as written, from \"the CDCF review committee\" and without your name.",
+      "askWarning": "The submitter receives this text by email as plain text, from \"the CDCF review committee\" and without your name.",
       "askSubmit": "Send question",
       "askSending": "Sending…",
       "emailFailed": "The question was saved, but the email to the submitter could not be sent."
@@ -438,6 +438,7 @@
       "stale": "This was changed since you opened it. Reload to see the latest version.",
       "reviewExists": "You have already posted a review. Reload to edit it.",
       "tooLarge": "The file is too large.",
+      "bodyTooLong": "This text is too long.",
       "unsupportedType": "That file type isn't supported.",
       "tooMany": "This post already has the maximum number of attachments.",
       "invalidInput": "Please check what you entered.",

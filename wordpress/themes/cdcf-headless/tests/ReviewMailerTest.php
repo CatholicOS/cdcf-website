@@ -78,6 +78,36 @@ final class ReviewMailerTest extends TestCase
 
         $this->assertSame('sent', cdcf_review_send_email('sam@example.org', 'S', 'B'));
         $this->assertCount(1, $this->mails);
+        foreach ($this->logs as $line) {
+            $this->assertStringNotContainsString('redis down', $line, 'exception text is never logged');
+        }
+    }
+
+    public function test_falls_back_inline_when_enqueue_returns_false(): void
+    {
+        // The plugin's enqueue() never throws: every failure returns false.
+        $manager = new class {
+            public function enqueue($job) { return false; }
+        };
+        Functions\when('redis_queue')->justReturn((object) ['queue_manager' => $manager]);
+        $old = $this->submission();
+
+        $this->assertSame('sent', cdcf_review_send_submitter_email(42, 'link'));
+        $this->assertCount(1, $this->mails);
+        $this->assertFalse(cdcf_review_token_matches(42, $old), 'the inline email carried the new link');
+    }
+
+    public function test_a_job_queued_before_the_payload_change_still_activates_its_link(): void
+    {
+        $this->submission();
+        $token = cdcf_review_new_token();
+        $job = new CDCF_Review_Email_Job([
+            'to' => 'sam@example.org', 'subject' => 'S', 'body' => 'B',
+            'token' => ['project_id' => 42, 'hash' => $token['hash'], 'issued_at' => $token['issued_at']],
+        ]);
+
+        $this->assertTrue($job->execute()['success']);
+        $this->assertTrue(cdcf_review_token_matches(42, $token['token']));
     }
 
     public function test_reports_failure_without_logging_the_address(): void
@@ -158,33 +188,56 @@ final class ReviewMailerTest extends TestCase
         $this->assertTrue(cdcf_review_token_matches(42, $old));
     }
 
-    public function test_a_queued_email_commits_its_token_only_when_the_job_sends(): void
+    public function test_a_queued_submitter_email_stores_no_address_link_or_token(): void
     {
-        $old = $this->submission();
+        $this->submission();
         $manager = new class {
             public array $jobs = [];
             public function enqueue($job) { $this->jobs[] = $job; return 'job-1'; }
         };
         Functions\when('redis_queue')->justReturn((object) ['queue_manager' => $manager]);
 
-        $this->assertSame('queued', cdcf_review_send_submitter_email(42, 'link'));
-        $job = $manager->jobs[0];
-        $new = $this->linkToken((string) $job->get_payload_value('body'));
-        $this->assertTrue(cdcf_review_token_matches(42, $old), 'old link still works while the email waits in the queue');
-        $this->assertFalse(cdcf_review_token_matches(42, $new));
+        $this->assertSame('queued', cdcf_review_send_submitter_email(42, 'question', ['question' => 'Q?']));
+        // The redis-queue plugin keeps job records in MySQL indefinitely, so
+        // the payload must hold nothing secret.
+        $payload = $manager->jobs[0]->get_payload();
+        $this->assertSame(['submitter' => ['project_id' => 42, 'template' => 'question', 'vars' => ['question' => 'Q?']]], $payload);
+        $this->assertStringNotContainsString('sam@example.org', serialize($payload));
+        $this->assertSame([], $this->mails, 'nothing is sent until the job runs');
+    }
+
+    public function test_the_queued_job_mints_the_link_and_commits_it_only_once_sent(): void
+    {
+        $old = $this->submission();
+        $job = new CDCF_Review_Email_Job(['submitter' => ['project_id' => 42, 'template' => 'link', 'vars' => []]]);
 
         Functions\when('wp_mail')->justReturn(false);
         try {
             $job->execute();
             $this->fail('a failed send must throw so the queue retries');
         } catch (RuntimeException $e) {
-            $this->assertTrue(cdcf_review_token_matches(42, $old), 'a failed attempt changes nothing');
+            $this->assertTrue(cdcf_review_token_matches(42, $old), 'a failed attempt keeps the working link');
         }
 
-        Functions\when('wp_mail')->justReturn(true);
-        $job->execute();
+        Functions\when('wp_mail')->alias(function (string $to, string $subject, string $body): bool {
+            $this->mails[] = compact('to', 'subject', 'body');
+            return true;
+        });
+        $this->assertTrue($job->execute()['success']);
+        $this->assertSame('sam@example.org', $this->mails[0]['to']);
+        $new = $this->linkToken($this->mails[0]['body']);
         $this->assertTrue(cdcf_review_token_matches(42, $new));
         $this->assertFalse(cdcf_review_token_matches(42, $old));
+    }
+
+    public function test_a_queued_job_for_a_submission_without_an_address_does_nothing(): void
+    {
+        $this->submission();
+        $this->meta['_submission_submitter_email'] = '';
+        $job = new CDCF_Review_Email_Job(['submitter' => ['project_id' => 42, 'template' => 'link', 'vars' => []]]);
+
+        $this->assertTrue($job->execute()['success']);
+        $this->assertSame([], $this->mails);
     }
 
     public function test_submitter_email_is_skipped_without_a_valid_address(): void

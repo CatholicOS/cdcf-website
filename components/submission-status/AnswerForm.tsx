@@ -59,8 +59,9 @@ export function AnswerForm({
         onChange={(e) => setBody(e.target.value)}
         rows={5}
         maxLength={10000}
-        disabled={busy}
-        className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-cdcf-navy focus:outline-none focus:ring-1 focus:ring-cdcf-navy"
+        readOnly={busy}
+        aria-busy={busy}
+        className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-cdcf-navy focus:outline-none focus:ring-1 focus:ring-cdcf-navy read-only:bg-gray-50 read-only:text-gray-500"
       />
       <button
         type="submit"

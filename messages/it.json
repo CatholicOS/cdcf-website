@@ -406,7 +406,7 @@
       "awaiting": "In attesa della risposta del proponente.",
       "askHeading": "Fai una domanda al proponente",
       "askLabel": "Domanda",
-      "askWarning": "Il proponente riceve questo testo via email esattamente come è scritto, da parte del \"comitato di revisione della CDCF\" e senza il tuo nome.",
+      "askWarning": "Il proponente riceve questo testo via email come testo semplice, da parte del \"comitato di revisione della CDCF\" e senza il tuo nome.",
       "askSubmit": "Invia domanda",
       "askSending": "Invio in corso…",
       "emailFailed": "La domanda è stata salvata, ma non è stato possibile inviare l'email al proponente."
@@ -438,6 +438,7 @@
       "stale": "È stato modificato da quando l'hai aperto. Ricarica per vedere la versione più recente.",
       "reviewExists": "Hai già pubblicato una revisione. Ricarica per modificarla.",
       "tooLarge": "Il file è troppo grande.",
+      "bodyTooLong": "Il testo è troppo lungo.",
       "unsupportedType": "Questo tipo di file non è supportato.",
       "tooMany": "Questo messaggio ha già il numero massimo di allegati.",
       "invalidInput": "Controlla i dati inseriti.",

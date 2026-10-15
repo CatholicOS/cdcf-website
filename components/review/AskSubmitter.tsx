@@ -6,11 +6,10 @@ import { useTranslations } from 'next-intl'
 import { jsonInit, reviewFetch } from '@/lib/review-client'
 import type { ReviewEntry } from '@/lib/review-types'
 import type { ReviewErrorKey } from '@/lib/review-ui'
-
 import { useRouter } from '@/src/i18n/navigation'
 import { ComposerStatus } from './ComposerStatus'
 
-/** Plain text: the submitter receives it by email exactly as written. */
+/** Plain text: the submitter receives it by email as plain text. */
 export function AskSubmitter({ projectId }: { projectId: number }) {
   const t = useTranslations('Review')
   const router = useRouter()
@@ -25,7 +24,7 @@ export function AskSubmitter({ projectId }: { projectId: number }) {
     setBusy(true)
     setErrorKey(null)
     setEmailFailed(false)
-    const result = await reviewFetch<ReviewEntry & { warnings: string[] }>(
+    const result = await reviewFetch<ReviewEntry & { warnings?: string[] }>(
       `/api/review/projects/${projectId}/question`,
       jsonInit('POST', { body })
     )
@@ -35,7 +34,7 @@ export function AskSubmitter({ projectId }: { projectId: number }) {
       return
     }
     setBody('')
-    setEmailFailed(result.data.warnings.includes('email_failed'))
+    setEmailFailed(result.data.warnings?.includes('email_failed') ?? false)
     router.refresh()
   }
 
@@ -53,6 +52,7 @@ export function AskSubmitter({ projectId }: { projectId: number }) {
       </label>
       <textarea
         id={id}
+        maxLength={50000}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         rows={4}
