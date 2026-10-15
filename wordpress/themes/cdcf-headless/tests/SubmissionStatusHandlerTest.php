@@ -239,6 +239,22 @@ final class SubmissionStatusHandlerTest extends TestCase
         $this->assertSame(201, $ok->get_status());
     }
 
+    public function test_answer_insert_failure_is_a_500_and_changes_nothing(): void
+    {
+        Functions\when('cdcf_review_insert_entry')->alias(function (array $row): int {
+            $this->inserted[] = $row;
+            return 0;
+        });
+
+        $result = cdcf_rest_submission_status_answer($this->request(['id' => 40, 'question_id' => 1, 'body' => 'MIT licence']));
+
+        $this->assertInstanceOf(WP_Error::class, $result);
+        $this->assertSame('insert_failed', $result->get_error_code());
+        $this->assertSame(500, $result->get_error_data()['status']);
+        $this->assertSame('awaiting_submitter', $this->meta[40][CDCF_REVIEW_STAGE_META]);
+        $this->assertSame([], $this->events);
+    }
+
     // ─── POST resend-link ──────────────────────────────────────────────
 
     public function test_matching_email_gets_a_new_link_case_insensitively(): void
@@ -275,5 +291,16 @@ final class SubmissionStatusHandlerTest extends TestCase
             $this->assertSame(['accepted' => true], $response->get_data());
         }
         $this->assertCount(5, $this->emails, 'non-matching requests are not counted, so five of the six matching ones send (the cap)');
+    }
+
+    public function test_resend_with_no_stored_address_sends_nothing(): void
+    {
+        $this->meta[40]['_submission_submitter_email'] = '';
+
+        $response = cdcf_rest_submission_status_resend_link($this->request(['project_id' => 40, 'email' => 'sam@example.org'], null));
+
+        $this->assertSame(202, $response->get_status());
+        $this->assertSame(['accepted' => true], $response->get_data());
+        $this->assertSame([], $this->emails);
     }
 }
