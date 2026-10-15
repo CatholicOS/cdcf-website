@@ -31,6 +31,7 @@ final class ReviewMembershipTest extends TestCase
         });
         Functions\when('get_transient')->justReturn(false);
         Functions\when('set_transient')->justReturn(true);
+        Functions\when('get_post_status')->justReturn('publish');
         Functions\when('cdcf_my_team_member_get_english_about_page_id')->justReturn(5);
         Functions\when('get_field')->alias(static function (string $field, $post_id) {
             return match ($field) {
@@ -181,5 +182,38 @@ final class ReviewMembershipTest extends TestCase
             ],
             cdcf_review_roster()
         );
+    }
+
+    public function test_unpublished_council_bios_are_ignored(): void
+    {
+        Functions\when('get_post_status')->alias(static fn(int $id): string => $id === 700 ? 'trash' : 'publish');
+
+        $this->assertSame([], cdcf_review_council_ids()['technical']);
+        $this->assertFalse(cdcf_review_membership(7)['technical']);
+    }
+
+    public function test_council_field_meta_write_on_about_page_bumps_generation(): void
+    {
+        Functions\when('get_page_template_slug')->alias(static fn(int $id): string => $id === 5 ? 'templates/about.php' : '');
+
+        cdcf_review_flush_on_post_meta(1, 5, 'technical_council');
+        cdcf_review_flush_on_post_meta(2, 5, 'hero_title');
+        cdcf_review_flush_on_post_meta(3, 6, 'team_members');
+
+        $this->assertSame(1, $this->options['cdcf_review_membership_gen']);
+    }
+
+    public function test_team_member_status_change_bumps_generation(): void
+    {
+        $bio = new stdClass();
+        $bio->post_type = 'team_member';
+        $page = new stdClass();
+        $page->post_type = 'page';
+
+        cdcf_review_flush_on_status_change('trash', 'publish', $bio);
+        cdcf_review_flush_on_status_change('publish', 'publish', $bio);
+        cdcf_review_flush_on_status_change('trash', 'publish', $page);
+
+        $this->assertSame(1, $this->options['cdcf_review_membership_gen']);
     }
 }

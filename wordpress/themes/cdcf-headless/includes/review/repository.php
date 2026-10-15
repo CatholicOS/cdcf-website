@@ -70,14 +70,23 @@ function cdcf_review_project_entries(int $project_id): array {
 }
 
 /**
- * Compare-and-set update. Succeeds only when the row's edited_at still
- * equals $expected_edited_at ('' = never edited), so two people editing
- * from stale copies can't silently overwrite each other.
+ * Optimistic-concurrency token for an entry: its last edit time, or its
+ * creation time when never edited. Never empty, so "no token" can't be
+ * confused with "never edited".
  */
-function cdcf_review_update_entry(int $id, array $fields, string $expected_edited_at): bool {
+function cdcf_review_entry_version(array $entry): string {
+    return (string) ($entry['edited_at'] ?? $entry['created_at']);
+}
+
+/**
+ * Compare-and-set update. Succeeds only when the row's version token
+ * (cdcf_review_entry_version) still equals $expected_version, so two
+ * people editing from stale copies can't silently overwrite each other.
+ */
+function cdcf_review_update_entry(int $id, array $fields, string $expected_version): bool {
     global $wpdb;
     $fields = array_intersect_key($fields, array_flip(['body_md', 'vote']));
-    if (!$fields) {
+    if (!$fields || $expected_version === '') {
         return false;
     }
     $sets = [];
@@ -89,14 +98,10 @@ function cdcf_review_update_entry(int $id, array $fields, string $expected_edite
     $sets[] = 'edited_at = %s';
     $args[] = cdcf_review_now();
     $args[] = $id;
+    $args[] = $expected_version;
     $table = cdcf_review_table('entries');
-    $sql   = "UPDATE {$table} SET " . implode(', ', $sets) . ' WHERE id = %d AND ';
-    if ($expected_edited_at === '') {
-        $sql .= 'edited_at IS NULL';
-    } else {
-        $sql .= 'edited_at = %s';
-        $args[] = $expected_edited_at;
-    }
+    $sql   = "UPDATE {$table} SET " . implode(', ', $sets)
+        . ' WHERE id = %d AND COALESCE(edited_at, created_at) = %s';
     return 1 === (int) $wpdb->query($wpdb->prepare($sql, $args));
 }
 

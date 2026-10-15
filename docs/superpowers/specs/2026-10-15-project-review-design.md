@@ -132,18 +132,18 @@ Table names below omit `$wpdb->prefix`.
 
 `cdcf_review_entries`
 
-| Column           | Type               | Notes                                                        |
-| ---------------- | ------------------ | ------------------------------------------------------------ |
-| `id`             | bigint unsigned PK |                                                              |
-| `project_id`     | bigint unsigned    | indexed                                                      |
-| `kind`           | varchar(20)        | `review` · `reply` · `discussion` · `question` · `answer`    |
-| `parent_id`      | bigint unsigned    | `reply` → its `review`; `answer` → its `question`; else NULL |
-| `author_user_id` | bigint unsigned    | NULL only for `answer` (the submitter)                       |
-| `review_slot`    | bigint unsigned    | `author_user_id` on `review` rows, else NULL                 |
-| `body_md`        | longtext           | Markdown                                                     |
-| `vote`           | varchar(20)        | `review` only: `cdcf` · `community` · `reject`               |
-| `created_at`     | datetime (UTC)     |                                                              |
-| `edited_at`      | datetime (UTC)     | NULL until edited; used for optimistic concurrency           |
+| Column           | Type               | Notes                                                                                                          |
+| ---------------- | ------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `id`             | bigint unsigned PK |                                                                                                                |
+| `project_id`     | bigint unsigned    | indexed                                                                                                        |
+| `kind`           | varchar(20)        | `review` · `reply` · `discussion` · `question` · `answer`                                                      |
+| `parent_id`      | bigint unsigned    | `reply` → its `review`; `answer` → its `question`; else NULL                                                   |
+| `author_user_id` | bigint unsigned    | NULL only for `answer` (the submitter)                                                                         |
+| `review_slot`    | bigint unsigned    | `author_user_id` on `review` rows, else NULL                                                                   |
+| `body_md`        | longtext           | Markdown                                                                                                       |
+| `vote`           | varchar(20)        | `review` only: `cdcf` · `community` · `reject`                                                                 |
+| `created_at`     | datetime (UTC)     |                                                                                                                |
+| `edited_at`      | datetime (UTC)     | NULL until edited. `COALESCE(edited_at, created_at)` is the entry's `version` token for optimistic concurrency |
 
 A plain column `review_slot` (equal to `author_user_id` on `review` rows,
 NULL otherwise) carries a unique key with `project_id`, enforcing one
@@ -225,9 +225,9 @@ repository's sanitization convention.
 | GET    | `/review/me`                       | signed in  | Membership flags. Used to show the `/review` link and the bell.                                                                                                                                                  |
 | GET    | `/review/projects?stage=`          | `view`     | List: id, title, category, language, submitted_at, stage, tally, my vote, unread count.                                                                                                                          |
 | GET    | `/review/projects/{id}`            | `view`     | Submission fields; reviews with replies; discussion; Q&A; tally; plurality; attachment metadata; decision (when decided). Submitter email only when the caller has `decide`.                                     |
-| PUT    | `/review/projects/{id}/my-review`  | `vote`     | Create or update the caller's review: `vote`, `body_md`, `edited_at` (when updating).                                                                                                                            |
+| PUT    | `/review/projects/{id}/my-review`  | `vote`     | Create or update the caller's review: `vote`, `body_md`, `version` (required when a review exists; missing → `409 review_exists`).                                                                               |
 | POST   | `/review/projects/{id}/entries`    | `discuss`  | `kind` = `reply` (requires `parent_id` of a review) or `discussion`; `body_md`.                                                                                                                                  |
-| PATCH  | `/review/entries/{id}`             | author     | `body_md`, `edited_at`. `409` when `edited_at` does not match.                                                                                                                                                   |
+| PATCH  | `/review/entries/{id}`             | author     | `body_md`, `version`. `409` when `version` does not match.                                                                                                                                                       |
 | POST   | `/review/entries/{id}/attachments` | author     | Multipart file, or JSON `{ title, markdown }`.                                                                                                                                                                   |
 | GET    | `/review/attachments/{id}`         | `view`     | Streams the file with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: sandbox`, `Cache-Control: private, no-store` and `Content-Disposition` (`inline` for images, `attachment` for `?download=1`). |
 | POST   | `/review/projects/{id}/question`   | `discuss`  | `body` (plain text). Sets stage `awaiting_submitter`, rotates the token and emails the submitter the fresh link.                                                                                                 |
@@ -407,7 +407,7 @@ the most recent email's link is the valid one.
 ## Error handling
 
 - `401` anonymous; `403` missing permission or `review_locked`; `404` unknown
-  project or entry; `409` stale `edited_at`; `400` invalid input or rejected
+  project or entry; `409` stale or missing `version`; `400` invalid input or rejected
   attachment, with a reason the UI shows on the chip.
 - Submitter endpoints return a generic `404` for every token failure.
 - Conversion failures roll back as described above.

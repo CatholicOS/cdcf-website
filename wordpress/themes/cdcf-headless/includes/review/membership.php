@@ -32,7 +32,14 @@ function cdcf_review_council_ids(): array {
     }
     foreach (CDCF_REVIEW_COUNCIL_FIELDS as $council => $field) {
         $ids = get_field($field, $about_id, false);
-        $out[$council] = is_array($ids) ? array_values(array_map('intval', $ids)) : [];
+        // A trashed or unpublished bio no longer appears on the About
+        // page, so it must not keep granting review access either.
+        $out[$council] = is_array($ids)
+            ? array_values(array_filter(
+                array_map('intval', $ids),
+                static fn(int $id): bool => get_post_status($id) === 'publish'
+            ))
+            : [];
     }
     return $out;
 }
@@ -108,6 +115,25 @@ function cdcf_review_flush_on_about_save($post_id): void {
         return;
     }
     if (get_page_template_slug((int) $post_id) === 'templates/about.php') {
+        cdcf_review_bump_membership_generation();
+    }
+}
+
+/**
+ * added_/updated_/deleted_post_meta callback. Council fields are often
+ * written with update_field() (the /relationship and /team-member
+ * endpoints, the Python CLI), which never fires acf/save_post.
+ */
+function cdcf_review_flush_on_post_meta($meta_id, $object_id, $meta_key): void {
+    if (in_array($meta_key, CDCF_REVIEW_COUNCIL_FIELDS, true)
+        && get_page_template_slug((int) $object_id) === 'templates/about.php') {
+        cdcf_review_bump_membership_generation();
+    }
+}
+
+/** transition_post_status callback: a bio published, trashed or unpublished. */
+function cdcf_review_flush_on_status_change($new_status, $old_status, $post): void {
+    if ($new_status !== $old_status && isset($post->post_type) && $post->post_type === 'team_member') {
         cdcf_review_bump_membership_generation();
     }
 }

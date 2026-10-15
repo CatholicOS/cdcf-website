@@ -119,9 +119,9 @@ All endpoints accept either **Application Password** (for the Python CLI and oth
 | `GET`   | `/review/me`                      | Caller's council/Board membership and review permissions (`member`, `councils[]`, `can{view,discuss,vote,decide}`). Any signed-in user.                                                                                               |
 | `GET`   | `/review/projects`                | Submissions under council review, optional `stage` filter, with tally, caller's vote and unread count. Council/Board members only (see [Council review](#council-review-review)).                                                     |
 | `GET`   | `/review/projects/{id}`           | One submission's review workspace: fields, reviews with replies, discussion, submitter Q&A, tally, plurality. Submitter email only for Board members.                                                                                 |
-| `PUT`   | `/review/projects/{id}/my-review` | Create or update the caller's review (`vote`, `body_md`, `edited_at`). Technical/Ecclesial council members only. `409` on a stale `edited_at`.                                                                                        |
+| `PUT`   | `/review/projects/{id}/my-review` | Create or update the caller's review (`vote`, `body_md`, `version`). Technical/Ecclesial council members only. `409` on a stale or missing `version` (each entry's `version` is returned with it).                                    |
 | `POST`  | `/review/projects/{id}/entries`   | Post a `reply` (to a review, `parent_id`) or a `discussion` entry (`body_md`).                                                                                                                                                        |
-| `PATCH` | `/review/entries/{id}`            | Edit the caller's own reply or discussion entry (`body_md`, `edited_at`).                                                                                                                                                             |
+| `PATCH` | `/review/entries/{id}`            | Edit the caller's own reply or discussion entry (`body_md`, `version`).                                                                                                                                                               |
 
 ### Sanitization convention
 

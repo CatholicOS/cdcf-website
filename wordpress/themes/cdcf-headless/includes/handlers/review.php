@@ -113,6 +113,7 @@ function cdcf_review_present_entry(array $row): array {
         'author'      => $author,
         'created_at'  => (string) $row['created_at'],
         'edited_at'   => $row['edited_at'],
+        'version'     => cdcf_review_entry_version($row),
         'attachments' => [],
     ];
 }
@@ -303,8 +304,11 @@ function cdcf_rest_review_put_my_review(WP_REST_Request $request) {
     if (is_wp_error($ok)) {
         return $ok;
     }
+    $vote = (string) $request['vote'];
+    if (!in_array($vote, CDCF_REVIEW_VOTES, true)) {
+        return new WP_Error('invalid_vote', 'Vote must be cdcf, community or reject.', ['status' => 400]);
+    }
     $uid      = get_current_user_id();
-    $vote     = (string) $request['vote'];
     $existing = cdcf_review_find_review($pid, $uid);
 
     if ($existing === null) {
@@ -327,9 +331,14 @@ function cdcf_rest_review_put_my_review(WP_REST_Request $request) {
         return cdcf_review_entry_response($id, 201);
     }
 
-    $expected = (string) ($request['edited_at'] ?? '');
-    $stale    = new WP_Error('stale_entry', 'This review changed since you opened it. Reload and try again.', ['status' => 409]);
-    if ((string) ($existing['edited_at'] ?? '') !== $expected) {
+    $expected = (string) ($request['version'] ?? '');
+    if ($expected === '') {
+        // Another tab or device created this review after the caller
+        // loaded the page; never overwrite it blind.
+        return new WP_Error('review_exists', 'Your review was already saved. Reload to edit it.', ['status' => 409]);
+    }
+    $stale = new WP_Error('stale_entry', 'This review changed since you opened it. Reload and try again.', ['status' => 409]);
+    if (cdcf_review_entry_version($existing) !== $expected) {
         return $stale;
     }
     if (!cdcf_review_update_entry($existing['id'], ['body_md' => $body, 'vote' => $vote], $expected)) {
@@ -351,7 +360,10 @@ function cdcf_rest_review_post_entry(WP_REST_Request $request) {
     if (is_wp_error($ok)) {
         return $ok;
     }
-    $kind      = (string) $request['kind'];
+    $kind = (string) $request['kind'];
+    if (!in_array($kind, ['reply', 'discussion'], true)) {
+        return new WP_Error('invalid_kind', 'Only replies and discussion posts can be created here.', ['status' => 400]);
+    }
     $parent_id = null;
     if ($kind === 'reply') {
         $parent = cdcf_review_get_entry((int) $request['parent_id']);
@@ -391,10 +403,86 @@ function cdcf_rest_review_patch_entry(WP_REST_Request $request) {
     if (is_wp_error($ok)) {
         return $ok;
     }
-    $expected = (string) ($request['edited_at'] ?? '');
-    if ((string) ($entry['edited_at'] ?? '') !== $expected
+    $expected = (string) ($request['version'] ?? '');
+    if (cdcf_review_entry_version($entry) !== $expected
         || !cdcf_review_update_entry($entry['id'], ['body_md' => $body], $expected)) {
         return new WP_Error('stale_entry', 'This post changed since you opened it. Reload and try again.', ['status' => 409]);
     }
     return cdcf_review_entry_response($entry['id'], 200);
+}
+
+/**
+ * REST args per review route, keyed by route path. Lives here (not in
+ * functions.php) so tests can assert on it. Every arg that carries an
+ * `enum` also sets `validate_callback => rest_validate_request_arg`:
+ * once a custom sanitize_callback is present, core no longer runs schema
+ * validation (type/enum) on its own.
+ *
+ * @return array<string, array<string, array<string, mixed>>>
+ */
+function cdcf_review_route_args(): array {
+    $id = [
+        'required'          => true,
+        'type'              => 'integer',
+        'sanitize_callback' => 'absint',
+    ];
+    $body = [
+        'required'          => true,
+        'type'              => 'string',
+        'sanitize_callback' => 'cdcf_review_sanitize_markdown',
+    ];
+    $version = [
+        'required'          => false,
+        'type'              => 'string',
+        'sanitize_callback' => 'sanitize_text_field',
+        'default'           => '',
+    ];
+    return [
+        '/review/me'       => [],
+        '/review/projects' => [
+            'stage' => [
+                'required'          => false,
+                'type'              => 'string',
+                'enum'              => array_merge([''], CDCF_REVIEW_STAGES),
+                'default'           => '',
+                'sanitize_callback' => 'sanitize_key',
+                'validate_callback' => 'rest_validate_request_arg',
+            ],
+        ],
+        '/review/projects/(?P<id>\d+)'           => ['id' => $id],
+        '/review/projects/(?P<id>\d+)/my-review' => [
+            'id'      => $id,
+            'vote'    => [
+                'required'          => true,
+                'type'              => 'string',
+                'enum'              => CDCF_REVIEW_VOTES,
+                'sanitize_callback' => 'sanitize_key',
+                'validate_callback' => 'rest_validate_request_arg',
+            ],
+            'body_md' => $body,
+            'version' => $version,
+        ],
+        '/review/projects/(?P<id>\d+)/entries' => [
+            'id'        => $id,
+            'kind'      => [
+                'required'          => true,
+                'type'              => 'string',
+                'enum'              => ['reply', 'discussion'],
+                'sanitize_callback' => 'sanitize_key',
+                'validate_callback' => 'rest_validate_request_arg',
+            ],
+            'parent_id' => [
+                'required'          => false,
+                'type'              => 'integer',
+                'sanitize_callback' => 'absint',
+                'default'           => 0,
+            ],
+            'body_md'   => $body,
+        ],
+        '/review/entries/(?P<id>\d+)' => [
+            'id'      => $id,
+            'body_md' => $body,
+            'version' => $version,
+        ],
+    ];
 }

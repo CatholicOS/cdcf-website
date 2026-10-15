@@ -140,11 +140,11 @@ final class ReviewWriteHandlerTest extends TestCase
         });
 
         $res = cdcf_rest_review_put_my_review($this->request([
-            'id' => 40, 'vote' => 'community', 'body_md' => 'New body', 'edited_at' => '',
+            'id' => 40, 'vote' => 'community', 'body_md' => 'New body', 'version' => '2026-10-15 10:00:00.000000',
         ]));
 
         $this->assertSame(200, $res->get_status());
-        $this->assertSame([1, ['body_md' => 'New body', 'vote' => 'community'], ''], $update);
+        $this->assertSame([1, ['body_md' => 'New body', 'vote' => 'community'], '2026-10-15 10:00:00.000000'], $update);
         $this->assertSame(
             [
                 [40, 'vote_changed', 7, 1, ['from' => 'reject', 'to' => 'community']],
@@ -154,13 +154,13 @@ final class ReviewWriteHandlerTest extends TestCase
         );
     }
 
-    public function test_stale_edited_at_returns_409_without_writing(): void
+    public function test_stale_version_returns_409_without_writing(): void
     {
         Functions\when('cdcf_review_find_review')->justReturn($this->entry(['edited_at' => '2026-10-15 11:00:00.000000']));
         Functions\expect('cdcf_review_update_entry')->never();
 
         $res = cdcf_rest_review_put_my_review($this->request([
-            'id' => 40, 'vote' => 'cdcf', 'body_md' => 'x', 'edited_at' => '',
+            'id' => 40, 'vote' => 'cdcf', 'body_md' => 'x', 'version' => '2026-10-15 10:00:00.000000',
         ]));
 
         $this->assertSame('stale_entry', $res->get_error_code());
@@ -173,7 +173,7 @@ final class ReviewWriteHandlerTest extends TestCase
         Functions\when('cdcf_review_update_entry')->justReturn(false);
 
         $res = cdcf_rest_review_put_my_review($this->request([
-            'id' => 40, 'vote' => 'cdcf', 'body_md' => 'x', 'edited_at' => '',
+            'id' => 40, 'vote' => 'cdcf', 'body_md' => 'x', 'version' => '2026-10-15 10:00:00.000000',
         ]));
 
         $this->assertSame(409, $res->get_error_data()['status']);
@@ -258,9 +258,9 @@ final class ReviewWriteHandlerTest extends TestCase
     public function test_author_can_edit_own_reply(): void
     {
         Functions\when('cdcf_review_get_entry')->justReturn($this->entry(['id' => 9, 'kind' => 'reply', 'parent_id' => 1, 'vote' => null]));
-        Functions\expect('cdcf_review_update_entry')->once()->with(9, ['body_md' => 'Edited'], '')->andReturn(true);
+        Functions\expect('cdcf_review_update_entry')->once()->with(9, ['body_md' => 'Edited'], '2026-10-15 10:00:00.000000')->andReturn(true);
 
-        $res = cdcf_rest_review_patch_entry($this->request(['id' => 9, 'body_md' => 'Edited', 'edited_at' => '']));
+        $res = cdcf_rest_review_patch_entry($this->request(['id' => 9, 'body_md' => 'Edited', 'version' => '2026-10-15 10:00:00.000000']));
 
         $this->assertSame(200, $res->get_status());
         $this->assertSame([], $this->events);
@@ -270,7 +270,7 @@ final class ReviewWriteHandlerTest extends TestCase
     {
         Functions\when('cdcf_review_get_entry')->justReturn($this->entry(['kind' => 'reply', 'author_user_id' => 8]));
 
-        $res = cdcf_rest_review_patch_entry($this->request(['id' => 9, 'body_md' => 'x', 'edited_at' => '']));
+        $res = cdcf_rest_review_patch_entry($this->request(['id' => 9, 'body_md' => 'x', 'version' => '']));
 
         $this->assertSame('not_author', $res->get_error_code());
         $this->assertSame(403, $res->get_error_data()['status']);
@@ -280,7 +280,7 @@ final class ReviewWriteHandlerTest extends TestCase
     {
         Functions\when('cdcf_review_get_entry')->justReturn($this->entry([]));
 
-        $res = cdcf_rest_review_patch_entry($this->request(['id' => 1, 'body_md' => 'x', 'edited_at' => '']));
+        $res = cdcf_rest_review_patch_entry($this->request(['id' => 1, 'body_md' => 'x', 'version' => '']));
 
         $this->assertSame('use_my_review', $res->get_error_code());
     }
@@ -289,8 +289,66 @@ final class ReviewWriteHandlerTest extends TestCase
     {
         Functions\when('cdcf_review_get_entry')->justReturn(null);
 
-        $res = cdcf_rest_review_patch_entry($this->request(['id' => 77, 'body_md' => 'x', 'edited_at' => '']));
+        $res = cdcf_rest_review_patch_entry($this->request(['id' => 77, 'body_md' => 'x', 'version' => '']));
 
         $this->assertSame(404, $res->get_error_data()['status']);
+    }
+
+    // ─── final-review fixes ──────────────────────────────────────────
+
+    public function test_put_without_version_when_review_exists_is_409_not_overwrite(): void
+    {
+        Functions\when('cdcf_review_find_review')->justReturn($this->entry([]));
+        Functions\expect('cdcf_review_update_entry')->never();
+
+        $res = cdcf_rest_review_put_my_review($this->request(['id' => 40, 'vote' => 'cdcf', 'body_md' => 'Tab B text']));
+
+        $this->assertSame('review_exists', $res->get_error_code());
+        $this->assertSame(409, $res->get_error_data()['status']);
+    }
+
+    public function test_entry_response_carries_version_token(): void
+    {
+        Functions\when('cdcf_review_find_review')->justReturn(null);
+        Functions\when('cdcf_review_insert_entry')->justReturn(5);
+
+        $res = cdcf_rest_review_put_my_review($this->request(['id' => 40, 'vote' => 'cdcf', 'body_md' => 'Fits.']));
+
+        $this->assertSame('2026-10-15 10:00:00.000000', $res->get_data()['version']);
+    }
+
+    public function test_entries_endpoint_rejects_kinds_other_than_reply_or_discussion(): void
+    {
+        Functions\expect('cdcf_review_insert_entry')->never();
+        foreach (['review', 'question', 'answer', 'bogus', ''] as $kind) {
+            $res = cdcf_rest_review_post_entry($this->request(['id' => 40, 'kind' => $kind, 'body_md' => 'x']));
+
+            $this->assertSame('invalid_kind', $res->get_error_code(), $kind);
+            $this->assertSame(400, $res->get_error_data()['status'], $kind);
+        }
+    }
+
+    public function test_unknown_vote_is_rejected(): void
+    {
+        Functions\expect('cdcf_review_insert_entry')->never();
+
+        $res = cdcf_rest_review_put_my_review($this->request(['id' => 40, 'vote' => 'maybe', 'body_md' => 'x']));
+
+        $this->assertSame('invalid_vote', $res->get_error_code());
+        $this->assertSame(400, $res->get_error_data()['status']);
+    }
+
+    public function test_every_enum_route_arg_is_validated_by_core(): void
+    {
+        $checked = 0;
+        foreach (cdcf_review_route_args() as $route => $args) {
+            foreach ($args as $name => $arg) {
+                if (isset($arg['enum'])) {
+                    $this->assertSame('rest_validate_request_arg', $arg['validate_callback'] ?? null, "{$route} {$name}");
+                    $checked++;
+                }
+            }
+        }
+        $this->assertSame(3, $checked);
     }
 }

@@ -112,28 +112,39 @@ final class ReviewRepositoryTest extends TestCase
         $this->assertStringContainsString('ORDER BY created_at ASC, id ASC', $this->wpdb->queries[0]);
     }
 
-    public function test_update_never_edited_entry_matches_null_edited_at(): void
+    public function test_update_matches_version_token(): void
     {
         $this->wpdb->results[] = 1;
 
-        $this->assertTrue(cdcf_review_update_entry(3, ['body_md' => 'New', 'vote' => 'reject'], ''));
+        $this->assertTrue(cdcf_review_update_entry(3, ['body_md' => 'New', 'vote' => 'reject'], '2026-10-15 10:00:00.000000'));
         $sql = $this->wpdb->queries[0];
         $this->assertStringContainsString("body_md = 'New'", $sql);
         $this->assertStringContainsString("vote = 'reject'", $sql);
-        $this->assertStringContainsString('WHERE id = 3 AND edited_at IS NULL', $sql);
+        $this->assertStringContainsString("WHERE id = 3 AND COALESCE(edited_at, created_at) = '2026-10-15 10:00:00.000000'", $sql);
     }
 
-    public function test_update_with_stale_edited_at_returns_false(): void
+    public function test_update_with_stale_version_returns_false(): void
     {
         $this->wpdb->results[] = 0;
 
         $this->assertFalse(cdcf_review_update_entry(3, ['body_md' => 'New'], '2026-10-15 10:00:00.000001'));
-        $this->assertStringContainsString("edited_at = '2026-10-15 10:00:00.000001'", $this->wpdb->queries[0]);
+    }
+
+    public function test_update_with_empty_version_never_writes(): void
+    {
+        $this->assertFalse(cdcf_review_update_entry(3, ['body_md' => 'New'], ''));
+        $this->assertSame([], $this->wpdb->queries);
+    }
+
+    public function test_entry_version_is_edited_at_or_created_at(): void
+    {
+        $this->assertSame('2026-10-15 10:00:00.000000', cdcf_review_entry_version(cdcf_review_normalize_row($this->row())));
+        $this->assertSame('2026-10-16 08:00:00.000000', cdcf_review_entry_version(cdcf_review_normalize_row($this->row(['edited_at' => '2026-10-16 08:00:00.000000']))));
     }
 
     public function test_update_ignores_columns_outside_allowlist(): void
     {
-        $this->assertFalse(cdcf_review_update_entry(3, ['author_user_id' => 1], ''));
+        $this->assertFalse(cdcf_review_update_entry(3, ['author_user_id' => 1], 'v'));
         $this->assertSame([], $this->wpdb->queries);
     }
 

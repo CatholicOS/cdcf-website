@@ -811,101 +811,33 @@ require_once __DIR__ . '/includes/admin/review-access.php';
 add_action('admin_init', 'cdcf_review_maybe_upgrade');
 add_action('rest_api_init', 'cdcf_review_maybe_upgrade', 5);
 add_action('acf/save_post', 'cdcf_review_flush_on_about_save', 20);
+add_action('added_post_meta', 'cdcf_review_flush_on_post_meta', 10, 3);
+add_action('updated_post_meta', 'cdcf_review_flush_on_post_meta', 10, 3);
+add_action('deleted_post_meta', 'cdcf_review_flush_on_post_meta', 10, 3);
+add_action('transition_post_status', 'cdcf_review_flush_on_status_change', 10, 3);
 add_action('added_user_meta', 'cdcf_review_flush_on_user_meta', 10, 3);
 add_action('updated_user_meta', 'cdcf_review_flush_on_user_meta', 10, 3);
 add_action('deleted_user_meta', 'cdcf_review_flush_on_user_meta', 10, 3);
 add_action('admin_menu', 'cdcf_review_access_admin_menu', 20);
 
 add_action('rest_api_init', function () {
-    $id_arg = [
-        'required'          => true,
-        'type'              => 'integer',
-        'sanitize_callback' => 'absint',
+    $args = cdcf_review_route_args();
+    $routes = [
+        '/review/me'                             => ['GET', 'cdcf_rest_review_me', 'cdcf_rest_review_permission_signed_in'],
+        '/review/projects'                       => ['GET', 'cdcf_rest_review_list_projects', 'cdcf_rest_review_permission_view'],
+        '/review/projects/(?P<id>\d+)'           => ['GET', 'cdcf_rest_review_get_project', 'cdcf_rest_review_permission_view'],
+        '/review/projects/(?P<id>\d+)/my-review' => ['PUT', 'cdcf_rest_review_put_my_review', 'cdcf_rest_review_permission_vote'],
+        '/review/projects/(?P<id>\d+)/entries'   => ['POST', 'cdcf_rest_review_post_entry', 'cdcf_rest_review_permission_discuss'],
+        '/review/entries/(?P<id>\d+)'            => ['PATCH', 'cdcf_rest_review_patch_entry', 'cdcf_rest_review_permission_discuss'],
     ];
-    $body_arg = [
-        'required'          => true,
-        'type'              => 'string',
-        'sanitize_callback' => 'cdcf_review_sanitize_markdown',
-    ];
-    $edited_at_arg = [
-        'required'          => false,
-        'type'              => 'string',
-        'sanitize_callback' => 'sanitize_text_field',
-        'default'           => '',
-    ];
-
-    register_rest_route('cdcf/v1', '/review/me', [
-        'methods'             => 'GET',
-        'callback'            => 'cdcf_rest_review_me',
-        'permission_callback' => 'cdcf_rest_review_permission_signed_in',
-    ]);
-    register_rest_route('cdcf/v1', '/review/projects', [
-        'methods'             => 'GET',
-        'callback'            => 'cdcf_rest_review_list_projects',
-        'permission_callback' => 'cdcf_rest_review_permission_view',
-        'args'                => [
-            'stage' => [
-                'required'          => false,
-                'type'              => 'string',
-                'sanitize_callback' => 'sanitize_key',
-                'enum'              => array_merge([''], CDCF_REVIEW_STAGES),
-                'default'           => '',
-            ],
-        ],
-    ]);
-    register_rest_route('cdcf/v1', '/review/projects/(?P<id>\d+)', [
-        'methods'             => 'GET',
-        'callback'            => 'cdcf_rest_review_get_project',
-        'permission_callback' => 'cdcf_rest_review_permission_view',
-        'args'                => ['id' => $id_arg],
-    ]);
-    register_rest_route('cdcf/v1', '/review/projects/(?P<id>\d+)/my-review', [
-        'methods'             => 'PUT',
-        'callback'            => 'cdcf_rest_review_put_my_review',
-        'permission_callback' => 'cdcf_rest_review_permission_vote',
-        'args'                => [
-            'id'        => $id_arg,
-            'vote'      => [
-                'required'          => true,
-                'type'              => 'string',
-                'sanitize_callback' => 'sanitize_key',
-                'enum'              => CDCF_REVIEW_VOTES,
-            ],
-            'body_md'   => $body_arg,
-            'edited_at' => $edited_at_arg,
-        ],
-    ]);
-    register_rest_route('cdcf/v1', '/review/projects/(?P<id>\d+)/entries', [
-        'methods'             => 'POST',
-        'callback'            => 'cdcf_rest_review_post_entry',
-        'permission_callback' => 'cdcf_rest_review_permission_discuss',
-        'args'                => [
-            'id'        => $id_arg,
-            'kind'      => [
-                'required'          => true,
-                'type'              => 'string',
-                'sanitize_callback' => 'sanitize_key',
-                'enum'              => ['reply', 'discussion'],
-            ],
-            'parent_id' => [
-                'required'          => false,
-                'type'              => 'integer',
-                'sanitize_callback' => 'absint',
-                'default'           => 0,
-            ],
-            'body_md'   => $body_arg,
-        ],
-    ]);
-    register_rest_route('cdcf/v1', '/review/entries/(?P<id>\d+)', [
-        'methods'             => 'PATCH',
-        'callback'            => 'cdcf_rest_review_patch_entry',
-        'permission_callback' => 'cdcf_rest_review_permission_discuss',
-        'args'                => [
-            'id'        => $id_arg,
-            'body_md'   => $body_arg,
-            'edited_at' => $edited_at_arg,
-        ],
-    ]);
+    foreach ($routes as $route => [$method, $callback, $permission]) {
+        register_rest_route('cdcf/v1', $route, [
+            'methods'             => $method,
+            'callback'            => $callback,
+            'permission_callback' => $permission,
+            'args'                => $args[$route],
+        ]);
+    }
 });
 
 add_action('rest_api_init', function () {
