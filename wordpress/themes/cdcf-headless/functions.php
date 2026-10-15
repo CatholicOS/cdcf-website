@@ -1027,6 +1027,35 @@ add_action('rest_api_init', function () {
 
 // cdcf_rest_submit_project() lives in includes/handlers/submit-project.php
 
+// ─── Public submitter status endpoints (token-authenticated) ─────────
+// Handler bodies live in includes/handlers/submission-status.php.
+require_once __DIR__ . '/includes/handlers/submission-status.php';
+
+add_action('rest_api_init', function () {
+    $id = ['required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint'];
+    register_rest_route('cdcf/v1', '/submission-status/(?P<id>\d+)', [
+        'methods' => 'GET', 'callback' => 'cdcf_rest_submission_status_get',
+        'permission_callback' => '__return_true', 'args' => ['id' => $id],
+    ]);
+    register_rest_route('cdcf/v1', '/submission-status/(?P<id>\d+)/answer', [
+        'methods' => 'POST', 'callback' => 'cdcf_rest_submission_status_answer',
+        'permission_callback' => '__return_true',
+        'args' => [
+            'id'          => $id,
+            'question_id' => $id,
+            'body'        => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
+        ],
+    ]);
+    register_rest_route('cdcf/v1', '/submission-status/resend-link', [
+        'methods' => 'POST', 'callback' => 'cdcf_rest_submission_status_resend_link',
+        'permission_callback' => '__return_true',
+        'args' => [
+            'project_id' => $id,
+            'email'      => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
+        ],
+    ]);
+});
+
 // ─── ACF Field Groups (registered programmatically) ──────────────────
 
 add_action('acf/init', function () {
