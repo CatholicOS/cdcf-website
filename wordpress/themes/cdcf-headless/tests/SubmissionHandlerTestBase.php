@@ -91,6 +91,7 @@ abstract class SubmissionHandlerTestBase extends TestCase
         Functions\when('wp_insert_post')->justReturn(800);
         Functions\when('wp_json_encode')->alias(static fn($v) => json_encode($v));
         Functions\when('esc_url_raw')->returnArg(1);
+        Functions\when('cdcf_review_record_event')->justReturn(1);
     }
 
     protected function allowAllFunctionsToExist(): void

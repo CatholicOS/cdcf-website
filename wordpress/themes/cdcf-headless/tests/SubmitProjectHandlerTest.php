@@ -142,4 +142,25 @@ final class SubmitProjectHandlerTest extends SubmissionHandlerTestBase
         $this->assertFalse($repoUrlWritten, 'project_repo_url should not be set with no repos');
         $this->assertFalse($metaRepoWritten, '_submission_repo_urls meta should not be set with no repos');
     }
+
+    public function test_new_submission_enters_council_review(): void
+    {
+        $this->stubCommonFunctions();
+        $meta = [];
+        Functions\when('update_post_meta')->alias(function (int $id, string $key, $value) use (&$meta): bool {
+            $meta[$key] = $value;
+            return true;
+        });
+        $events = [];
+        Functions\when('cdcf_review_record_event')->alias(function (int $pid, string $type, ?int $actor) use (&$events): int {
+            $events[] = [$pid, $type, $actor];
+            return 1;
+        });
+        $this->allowAllFunctionsToExist();
+
+        $this->invokeHandler($this->makeRequest());
+
+        $this->assertSame('in_review', $meta['_cdcf_review_stage']);
+        $this->assertSame([[800, 'submission_received', null]], $events);
+    }
 }

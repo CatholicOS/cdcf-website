@@ -17,6 +17,7 @@ if (!defined('ABSPATH')) {
 if (!defined('MINUTE_IN_SECONDS')) define('MINUTE_IN_SECONDS', 60);
 if (!defined('HOUR_IN_SECONDS'))   define('HOUR_IN_SECONDS', 3600);
 if (!defined('DAY_IN_SECONDS'))    define('DAY_IN_SECONDS', 86400);
+if (!defined('ARRAY_A'))           define('ARRAY_A', 'ARRAY_A');
 
 // Define minimal WP constants/classes the production code touches at
 // load time, so requiring the handler file doesn't blow up before
@@ -203,6 +204,12 @@ require_once __DIR__ . '/../includes/handlers/submit-project.php';
 require_once __DIR__ . '/../includes/handlers/create-user.php';
 require_once __DIR__ . '/../includes/handlers/author-team-member.php';
 require_once __DIR__ . '/../includes/handlers/my-team-member.php';
+require_once __DIR__ . '/../includes/review/schema.php';
+require_once __DIR__ . '/../includes/review/membership.php';
+require_once __DIR__ . '/../includes/review/repository.php';
+require_once __DIR__ . '/../includes/review/events.php';
+require_once __DIR__ . '/../includes/handlers/review.php';
+require_once __DIR__ . '/../includes/admin/review-access.php';
 require_once __DIR__ . '/../includes/admin/limited-user-provisioning.php';
 require_once __DIR__ . '/../includes/admin/author-profile-guard.php';
 // Pin the expected-audience allow-list BEFORE loading zitadel-bearer.php
@@ -254,3 +261,4 @@ if (!class_exists('CdcfAjaxError')) {
 require_once __DIR__ . '/CommunityHandlerTestBase.php';
 require_once __DIR__ . '/SendCodeHandlerTestBase.php';
 require_once __DIR__ . '/SubmissionHandlerTestBase.php';
+require_once __DIR__ . '/FakeWpdb.php';

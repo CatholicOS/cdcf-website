@@ -132,6 +132,11 @@ function cdcf_rest_submit_project(WP_REST_Request $request) {
     update_post_meta($post_id, '_submission_submitter_name', $request['submitter_name']);
     update_post_meta($post_id, '_submission_submitter_email', $request['submitter_email']);
 
+    // Hand the submission to the advisory councils (see
+    // includes/review/). The admin notification below stays as-is.
+    update_post_meta($post_id, CDCF_REVIEW_STAGE_META, 'in_review');
+    cdcf_review_record_event((int) $post_id, 'submission_received', null);
+
     // Send admin notification email.
     $admin_email = get_option('admin_email');
     $edit_link   = admin_url("post.php?post={$post_id}&action=edit");
