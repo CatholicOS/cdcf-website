@@ -434,12 +434,13 @@
     "decision": {
       "heading": "Decisão",
       "panelHeading": "Registar a decisão",
-      "plurality": "Voto maioritário dos conselhos: {vote}.",
-      "noPlurality": "Os conselhos não têm um voto maioritário, por isso a justificação é obrigatória.",
+      "plurality": "Mais votado pelos conselhos: {vote}.",
+      "noPlurality": "Nenhum resultado é o mais votado pelos conselhos (ainda sem votos, ou empate), por isso a justificação é obrigatória.",
       "outcomeLabel": "Resultado",
       "rationaleLabel": "Justificação (apenas para membros dos conselhos e da Direção)",
       "rationaleOptional": "opcional",
-      "rationaleRequired": "obrigatória, porque a decisão difere do voto maioritário",
+      "rationaleRequired": "obrigatória, porque a decisão difere do resultado mais votado",
+      "rationaleRequiredNoLeader": "obrigatória, porque nenhum resultado é o mais votado",
       "summaryLabel": "Resumo para quem submeteu o projeto, em {language}",
       "summaryPlaceholder": "[o seu resumo]",
       "linkPlaceholder": "[link para a página de estado]",
@@ -454,7 +455,7 @@
       "summaryHeading": "Resumo enviado a quem submeteu o projeto"
     },
     "errors": {
-      "rationaleRequired": "Explique porque é que a decisão difere do voto maioritário.",
+      "rationaleRequired": "Acrescente uma justificação: a decisão difere do resultado mais votado, ou nenhum resultado é o mais votado.",
       "summaryRequired": "Escreva um resumo para quem submeteu o projeto.",
       "decisionInProgress": "Outro membro da Direção está a registar uma decisão. Recarregue daqui a pouco.",
       "sessionExpired": "A sua sessão expirou. Inicie sessão novamente.",

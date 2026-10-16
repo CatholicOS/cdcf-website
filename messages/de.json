@@ -434,12 +434,13 @@
     "decision": {
       "heading": "Entscheidung",
       "panelHeading": "Entscheidung festhalten",
-      "plurality": "Mehrheitsvotum der Räte: {vote}.",
-      "noPlurality": "Die Räte haben kein Mehrheitsvotum, daher ist eine Begründung erforderlich.",
+      "plurality": "Meiste Stimmen der Räte: {vote}.",
+      "noPlurality": "Kein Ergebnis hat die meisten Stimmen der Räte (noch keine Stimmen oder Gleichstand), daher ist eine Begründung erforderlich.",
       "outcomeLabel": "Ergebnis",
       "rationaleLabel": "Begründung (nur für Mitglieder der Räte und des Vorstands)",
       "rationaleOptional": "optional",
-      "rationaleRequired": "erforderlich, weil die Entscheidung vom Mehrheitsvotum abweicht",
+      "rationaleRequired": "erforderlich, weil die Entscheidung vom Ergebnis mit den meisten Stimmen abweicht",
+      "rationaleRequiredNoLeader": "erforderlich, weil kein Ergebnis die meisten Stimmen hat",
       "summaryLabel": "Zusammenfassung für die einreichende Person, auf {language}",
       "summaryPlaceholder": "[Ihre Zusammenfassung]",
       "linkPlaceholder": "[Link zur Statusseite]",
@@ -454,7 +455,7 @@
       "summaryHeading": "An die einreichende Person gesendete Zusammenfassung"
     },
     "errors": {
-      "rationaleRequired": "Erläutern Sie, warum die Entscheidung vom Mehrheitsvotum abweicht.",
+      "rationaleRequired": "Bitte begründen Sie die Entscheidung: Sie weicht vom Ergebnis mit den meisten Stimmen ab, oder kein Ergebnis hat die meisten Stimmen.",
       "summaryRequired": "Schreiben Sie eine Zusammenfassung für die einreichende Person.",
       "decisionInProgress": "Ein anderes Vorstandsmitglied hält gerade eine Entscheidung fest. Laden Sie die Seite gleich neu.",
       "sessionExpired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",

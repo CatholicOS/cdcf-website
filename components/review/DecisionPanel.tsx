@@ -166,9 +166,11 @@ export function DecisionPanel({
           {t('decision.rationaleLabel')}
           <span className="normal-case tracking-normal">
             {' — '}
-            {rationaleNeeded
-              ? t('decision.rationaleRequired')
-              : t('decision.rationaleOptional')}
+            {!rationaleNeeded
+              ? t('decision.rationaleOptional')
+              : plurality === null
+                ? t('decision.rationaleRequiredNoLeader')
+                : t('decision.rationaleRequired')}
           </span>
         </label>
         <textarea
