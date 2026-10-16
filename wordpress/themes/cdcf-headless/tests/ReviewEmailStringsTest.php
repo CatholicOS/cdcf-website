@@ -37,4 +37,25 @@ final class ReviewEmailStringsTest extends TestCase
             cdcf_review_render_email('link', 'xx', ['title' => 'T', 'link' => 'L'])
         );
     }
+
+    public function test_decision_email_names_the_outcome_and_carries_the_summary_in_every_language(): void
+    {
+        foreach (['en', 'it', 'es', 'fr', 'pt', 'de'] as $lang) {
+            $mail = cdcf_review_render_email('decision', $lang, [
+                'title' => 'Liturgy Helper', 'link' => 'https://x/l', 'outcome' => 'community', 'summary' => 'Well done.',
+            ]);
+            $this->assertStringContainsString('Liturgy Helper', $mail['subject'] . $mail['body'], $lang);
+            $this->assertStringContainsString(cdcf_review_outcome_labels()[$lang]['community'], $mail['body'], $lang);
+            $this->assertStringContainsString('Well done.', $mail['body'], $lang);
+            $this->assertStringContainsString('https://x/l', $mail['body'], $lang);
+        }
+    }
+
+    public function test_outcome_labels_match_the_status_page(): void
+    {
+        foreach (['en', 'it', 'es', 'fr', 'pt', 'de'] as $lang) {
+            $messages = json_decode(file_get_contents(__DIR__ . "/../../../../messages/{$lang}.json"), true);
+            $this->assertSame($messages['SubmissionStatus']['outcome'], cdcf_review_outcome_labels()[$lang], $lang);
+        }
+    }
 }

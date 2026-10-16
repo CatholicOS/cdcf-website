@@ -10,6 +10,7 @@
  *   PATCH /cdcf/v1/review/entries/{id}            edit own reply/discussion post
  *   POST  /cdcf/v1/review/entries/{id}/attachments upload (multipart or pasted Markdown)
  *   GET   /cdcf/v1/review/attachments/{id}       stream an attachment
+ *   POST  /cdcf/v1/review/projects/{id}/decision  Board decision (outcome, rationale, submitter summary)
  *
  * Callers authenticate with a Zitadel bearer token (zitadel-bearer.php);
  * membership comes from includes/review/membership.php. Request fields
@@ -17,6 +18,8 @@
  */
 
 defined('ABSPATH') || exit;
+
+const CDCF_REVIEW_SUMMARY_MAX = 10000;
 
 /** @return true|WP_Error */
 function cdcf_review_check_permission(string $permission) {
@@ -47,6 +50,11 @@ function cdcf_rest_review_permission_vote(WP_REST_Request $request) {
 function cdcf_rest_review_permission_discuss(WP_REST_Request $request) {
     unset($request);
     return cdcf_review_check_permission('discuss');
+}
+
+function cdcf_rest_review_permission_decide(WP_REST_Request $request) {
+    unset($request);
+    return cdcf_review_check_permission('decide');
 }
 
 /** @return object|WP_Error The post, or 404 when it is not under review. */
@@ -231,6 +239,7 @@ function cdcf_rest_review_get_project(WP_REST_Request $request) {
 
     $tally      = cdcf_review_tallies([$pid])[$pid] ?? cdcf_review_empty_tally();
     $can_decide = cdcf_review_can($uid, 'decide');
+    $stage      = (string) get_post_meta($pid, CDCF_REVIEW_STAGE_META, true);
     $mine       = cdcf_review_find_review($pid, $uid);
 
     return rest_ensure_response([
@@ -239,7 +248,7 @@ function cdcf_rest_review_get_project(WP_REST_Request $request) {
         'content'        => (string) $post->post_content,
         'post_type'      => (string) $post->post_type,
         'post_status'    => (string) $post->post_status,
-        'stage'          => (string) get_post_meta($pid, CDCF_REVIEW_STAGE_META, true),
+        'stage'          => $stage,
         'language'       => cdcf_review_post_language($pid),
         'submitted_at'   => cdcf_review_submitted_at($post),
         'fields'         => cdcf_review_submission_fields($pid),
@@ -253,6 +262,8 @@ function cdcf_rest_review_get_project(WP_REST_Request $request) {
         'reviews'        => array_values($reviews),
         'discussion'     => $discussion,
         'questions'      => array_values($questions),
+        'decision'       => $stage === 'decided' ? cdcf_review_present_decision($pid) : null,
+        'decision_email' => $can_decide && $stage !== 'decided' ? cdcf_review_decision_email_preview($pid) : null,
         'me'             => [
             'can_vote'   => cdcf_review_can($uid, 'vote'),
             'can_decide' => $can_decide,
@@ -492,6 +503,82 @@ function cdcf_rest_review_post_question(WP_REST_Request $request) {
  *
  * @return array<string, array<string, array<string, mixed>>>
  */
+/** Lock against two Board members deciding at once; stale after 5 minutes. */
+function cdcf_review_take_decision_lock(int $project_id): bool {
+    if (add_post_meta($project_id, '_cdcf_review_deciding', (string) time(), true)) {
+        return true;
+    }
+    $since = (int) get_post_meta($project_id, '_cdcf_review_deciding', true);
+    if ($since > 0 && time() - $since > 300) {
+        delete_post_meta($project_id, '_cdcf_review_deciding');
+        return (bool) add_post_meta($project_id, '_cdcf_review_deciding', (string) time(), true);
+    }
+    return false;
+}
+
+function cdcf_rest_review_post_decision(WP_REST_Request $request) {
+    $pid  = (int) $request['id'];
+    $post = cdcf_review_get_reviewable_project($pid);
+    if (is_wp_error($post)) {
+        return $post;
+    }
+    $open = cdcf_review_assert_open($pid);
+    if (is_wp_error($open)) {
+        return $open;
+    }
+    $decision  = (string) $request['decision'];
+    $rationale = trim((string) $request['rationale']);
+    $summary   = trim((string) $request['submitter_summary']);
+    if ($summary === '') {
+        return new WP_Error('summary_required', 'Write a summary for the submitter.', ['status' => 400]);
+    }
+    if (mb_strlen($summary) > CDCF_REVIEW_SUMMARY_MAX || mb_strlen($rationale) > CDCF_REVIEW_BODY_MAX) {
+        return new WP_Error('body_too_long', 'This text is too long.', ['status' => 400]);
+    }
+    $tally     = cdcf_review_tallies([$pid])[$pid] ?? cdcf_review_empty_tally();
+    $plurality = cdcf_review_plurality($tally);
+    if ($decision !== $plurality && $rationale === '') {
+        return new WP_Error('rationale_required', 'Explain why the decision differs from the councils\' plurality vote.', ['status' => 400]);
+    }
+    if (!cdcf_review_take_decision_lock($pid)) {
+        return new WP_Error('decision_in_progress', 'Another decision on this project is being recorded.', ['status' => 409]);
+    }
+    try {
+        $applied = cdcf_review_apply_outcome($pid, $decision);
+        if (is_wp_error($applied)) {
+            return $applied;
+        }
+        $uid = get_current_user_id();
+        cdcf_review_record_decision($pid, $decision, $uid, $rationale, $summary);
+        cdcf_review_record_event($pid, 'decision_recorded', $uid, null, ['decision' => $decision, 'plurality' => $plurality]);
+    } finally {
+        delete_post_meta($pid, '_cdcf_review_deciding');
+    }
+
+    $email = cdcf_review_send_submitter_email($pid, 'decision', ['outcome' => $decision, 'summary' => $summary]);
+    return rest_ensure_response([
+        'id'          => $pid,
+        'stage'       => 'decided',
+        'decision'    => $decision,
+        'post_type'   => (string) get_post_type($pid),
+        'post_status' => (string) get_post_status($pid),
+        'warnings'    => in_array($email, ['failed', 'no_email'], true) ? ['email_failed'] : [],
+    ]);
+}
+
+/** @return array{language: string, subject: string, body: string, outcomes: array<string, string>} */
+function cdcf_review_decision_email_preview(int $project_id): array {
+    $lang = cdcf_review_post_language($project_id);
+    $mail = cdcf_review_render_email('decision', $lang, [
+        'title'   => (string) get_post_field('post_title', $project_id),
+        'link'    => '{link}',
+        'outcome' => '{outcome}',
+        'summary' => '{summary}',
+    ]);
+    $labels = cdcf_review_outcome_labels();
+    return $mail + ['language' => $lang, 'outcomes' => $labels[$lang] ?? $labels['en']];
+}
+
 function cdcf_review_route_args(): array {
     $id = [
         'required'          => true,
@@ -562,6 +649,18 @@ function cdcf_review_route_args(): array {
         '/review/projects/(?P<id>\d+)/question' => [
             'id'   => $id,
             'body' => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
+        ],
+        '/review/projects/(?P<id>\d+)/decision' => [
+            'id'                => $id,
+            'decision'          => [
+                'required'          => true,
+                'type'              => 'string',
+                'enum'              => CDCF_REVIEW_VOTES,
+                'sanitize_callback' => 'sanitize_key',
+                'validate_callback' => 'rest_validate_request_arg',
+            ],
+            'rationale'         => ['required' => false, 'type' => 'string', 'default' => '', 'sanitize_callback' => 'sanitize_textarea_field'],
+            'submitter_summary' => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
         ],
         '/review/entries/(?P<id>\d+)' => [
             'id'      => $id,

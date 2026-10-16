@@ -1,7 +1,7 @@
 <?php
 /**
  * Council review — submitter email templates, one per submission language.
- * Plain text. Placeholders: {title}, {link}, {question}.
+ * Plain text. Placeholders: {title}, {link}, {question}, {outcome}, {summary}.
  */
 
 defined('ABSPATH') || exit;
@@ -23,6 +23,10 @@ function cdcf_review_email_strings(): array {
                 'subject' => 'Your link to follow your project: {title}',
                 'body'    => "Here is a new link to the status page for \"{title}\":\n\n{link}\n\nIt replaces any earlier link. If you did not ask for it, you can ignore this email." . $sig,
             ],
+            'decision' => [
+                'subject' => 'Decision on your project: {title}',
+                'body'    => "The review of \"{title}\" is complete.\n\nDecision: {outcome}\n\n{summary}\n\nYou can see the decision on your submission's status page:\n\n{link}\n\nThis link replaces any earlier one and works for 90 days." . $sig,
+            ],
         ],
         'it' => [
             'confirmation' => [
@@ -36,6 +40,10 @@ function cdcf_review_email_strings(): array {
             'link' => [
                 'subject' => 'Il tuo link per seguire il progetto: {title}',
                 'body'    => "Ecco un nuovo link alla pagina di stato di \"{title}\":\n\n{link}\n\nSostituisce i link precedenti. Se non l'hai richiesto, puoi ignorare questa email." . $sig,
+            ],
+            'decision' => [
+                'subject' => 'Decisione sul tuo progetto: {title}',
+                'body'    => "La revisione di \"{title}\" è conclusa.\n\nDecisione: {outcome}\n\n{summary}\n\nPuoi vedere la decisione nella pagina di stato della tua proposta:\n\n{link}\n\nQuesto link sostituisce quelli precedenti e resta valido per 90 giorni." . $sig,
             ],
         ],
         'es' => [
@@ -51,6 +59,10 @@ function cdcf_review_email_strings(): array {
                 'subject' => 'Tu enlace para seguir tu proyecto: {title}',
                 'body'    => "Aquí tienes un nuevo enlace a la página de estado de \"{title}\":\n\n{link}\n\nSustituye a los enlaces anteriores. Si no lo has pedido, puedes ignorar este correo." . $sig,
             ],
+            'decision' => [
+                'subject' => 'Decisión sobre tu proyecto: {title}',
+                'body'    => "La revisión de \"{title}\" ha concluido.\n\nDecisión: {outcome}\n\n{summary}\n\nPuedes ver la decisión en la página de estado de tu propuesta:\n\n{link}\n\nEste enlace sustituye a los anteriores y es válido durante 90 días." . $sig,
+            ],
         ],
         'fr' => [
             'confirmation' => [
@@ -64,6 +76,10 @@ function cdcf_review_email_strings(): array {
             'link' => [
                 'subject' => 'Votre lien pour suivre votre projet : {title}',
                 'body'    => "Voici un nouveau lien vers la page de suivi de « {title} » :\n\n{link}\n\nIl remplace les liens précédents. Si vous ne l'avez pas demandé, vous pouvez ignorer cet e-mail." . $sig,
+            ],
+            'decision' => [
+                'subject' => 'Décision concernant votre projet : {title}',
+                'body'    => "L'examen de « {title} » est terminé.\n\nDécision : {outcome}\n\n{summary}\n\nVous pouvez consulter la décision sur la page de suivi de votre proposition :\n\n{link}\n\nCe lien remplace les précédents et reste valable 90 jours." . $sig,
             ],
         ],
         'pt' => [
@@ -79,6 +95,10 @@ function cdcf_review_email_strings(): array {
                 'subject' => 'O seu link para acompanhar o projeto: {title}',
                 'body'    => "Aqui está um novo link para a página de estado de \"{title}\":\n\n{link}\n\nSubstitui os links anteriores. Se não o pediu, pode ignorar este email." . $sig,
             ],
+            'decision' => [
+                'subject' => 'Decisão sobre o seu projeto: {title}',
+                'body'    => "A avaliação de \"{title}\" está concluída.\n\nDecisão: {outcome}\n\n{summary}\n\nPode ver a decisão na página de estado da sua proposta:\n\n{link}\n\nEste link substitui os anteriores e é válido durante 90 dias." . $sig,
+            ],
         ],
         'de' => [
             'confirmation' => [
@@ -93,17 +113,36 @@ function cdcf_review_email_strings(): array {
                 'subject' => 'Ihr Link zur Verfolgung Ihres Projekts: {title}',
                 'body'    => "Hier ist ein neuer Link zur Statusseite von „{title}“:\n\n{link}\n\nEr ersetzt alle früheren Links. Wenn Sie ihn nicht angefordert haben, können Sie diese E-Mail ignorieren." . $sig,
             ],
+            'decision' => [
+                'subject' => 'Entscheidung zu Ihrem Projekt: {title}',
+                'body'    => "Die Prüfung von „{title}“ ist abgeschlossen.\n\nEntscheidung: {outcome}\n\n{summary}\n\nDie Entscheidung finden Sie auf der Statusseite Ihres Vorschlags:\n\n{link}\n\nDieser Link ersetzt alle früheren und ist 90 Tage gültig." . $sig,
+            ],
         ],
+    ];
+}
+
+/** Same labels as SubmissionStatus.outcome in messages/*.json (a test keeps them in step). */
+function cdcf_review_outcome_labels(): array {
+    return [
+        'en' => ['cdcf' => 'Accepted as a CDCF project', 'community' => 'Accepted as a community project', 'reject' => 'Not accepted'],
+        'it' => ['cdcf' => 'Accettato come progetto CDCF', 'community' => 'Accettato come progetto della comunità', 'reject' => 'Non accettato'],
+        'es' => ['cdcf' => 'Aceptado como proyecto de la CDCF', 'community' => 'Aceptado como proyecto comunitario', 'reject' => 'No aceptado'],
+        'fr' => ['cdcf' => 'Accepté comme projet de la CDCF', 'community' => 'Accepté comme projet communautaire', 'reject' => 'Non retenu'],
+        'pt' => ['cdcf' => 'Aceite como projeto CDCF', 'community' => 'Aceite como projeto da comunidade', 'reject' => 'Não aceite'],
+        'de' => ['cdcf' => 'Als CDCF-Projekt angenommen', 'community' => 'Als Community-Projekt angenommen', 'reject' => 'Nicht angenommen'],
     ];
 }
 
 /** @return array{subject: string, body: string} */
 function cdcf_review_render_email(string $template, string $lang, array $vars): array {
-    $all  = cdcf_review_email_strings();
-    $raw  = $all[$lang][$template] ?? $all['en'][$template];
-    $map  = [];
-    foreach (['title', 'link', 'question'] as $key) {
+    $all    = cdcf_review_email_strings();
+    $raw    = $all[$lang][$template] ?? $all['en'][$template];
+    $labels = cdcf_review_outcome_labels()[$lang] ?? cdcf_review_outcome_labels()['en'];
+    $map    = [];
+    foreach (['title', 'link', 'question', 'summary'] as $key) {
         $map['{' . $key . '}'] = (string) ($vars[$key] ?? '');
     }
+    $outcome          = (string) ($vars['outcome'] ?? '');
+    $map['{outcome}'] = $labels[$outcome] ?? $outcome;
     return ['subject' => strtr($raw['subject'], $map), 'body' => strtr($raw['body'], $map)];
 }
