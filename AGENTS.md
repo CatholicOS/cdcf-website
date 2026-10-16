@@ -12,6 +12,7 @@ needs a different name.
 npm run dev               # Start Next.js dev server (localhost:3000)
 npm run build             # Production build (catches TypeScript errors)
 npm run lint              # ESLint with Next.js rules
+npm run format            # Prettier over JS/TS (format:check to verify; format:md for Markdown)
 npm test                  # Vitest suite over lib/wordpress/* (data layer)
 npm run test:watch        # Vitest in watch mode
 npm run test:coverage     # Vitest with v8 coverage
@@ -82,7 +83,7 @@ Headless CMS: Next.js 15 (App Router) frontend fetches content from WordPress vi
 - Use `clsx()` for conditional classNames
 - WordPress content rendered via `dangerouslySetInnerHTML` with Tailwind `.prose` class
 - Brand custom utilities are `cdcf-` prefixed (e.g. `cdcf-section`, `cdcf-btn-primary`, `cdcf-heading`) defined in `css/globals.css`
-- Code style is set in `.prettierrc.json` (single quotes, no semicolons, ES5 trailing commas, 80 columns). Run `npx prettier --write` on the files you change; every JS/TS file already conforms, so formatting adds no unrelated diff
+- Code style is set in `.prettierrc.json` (single quotes, no semicolons, ES5 trailing commas, 80 columns). `npm run format` fixes and `npm run format:check` verifies every JS/TS file; CI runs the check (blocking) in `lint-eslint.yml`
 
 ## Tailwind CSS v4
 

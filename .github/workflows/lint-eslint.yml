@@ -1,6 +1,8 @@
 name: ESLint
 
-# Runs `npm run lint` (eslint .) over the Next.js source.
+# Runs `npm run lint` (eslint .) and `npm run format:check` (Prettier,
+# configured in .prettierrc.json) over the Next.js source. Fix formatting
+# locally with `npm run format`.
 #
 # This gap was found the hard way: the typescript@7 dependabot PR (#284)
 # showed every check green while `npm run lint` could not start at all —
@@ -32,6 +34,8 @@ on:
       - '**/*.mjs'
       - '**/*.cjs'
       - 'eslint.config.mjs'
+      - '.prettierrc.json'
+      - '.prettierignore'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/lint-eslint.yml'
@@ -45,6 +49,8 @@ on:
       - '**/*.mjs'
       - '**/*.cjs'
       - 'eslint.config.mjs'
+      - '.prettierrc.json'
+      - '.prettierignore'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/lint-eslint.yml'
@@ -72,3 +78,6 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint
+
+      - name: Check prettier formatting
+        run: npm run format:check
