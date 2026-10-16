@@ -296,6 +296,22 @@ final class SubmissionStatusHandlerTest extends TestCase
         $this->assertSame([[40, 'link']], $this->emails);
     }
 
+    public function test_the_link_email_cap_is_per_project_whichever_visitor_asks(): void
+    {
+        // Each link replaces the last, so changing address must not buy more.
+        putenv('CDCF_CLIENT_IP_SECRET=forwarding-secret');
+        for ($i = 1; $i <= 7; $i++) {
+            $ip = '203.0.113.' . $i;
+            $r  = $this->request(['project_id' => 40, 'email' => 'sam@example.org'], null);
+            $r->set_header('X-CDCF-Client-IP', $ip);
+            $r->set_header('X-CDCF-Client-IP-Signature', hash_hmac('sha256', $ip, 'forwarding-secret'));
+            cdcf_rest_submission_status_resend_link($r);
+        }
+        putenv('CDCF_CLIENT_IP_SECRET');
+
+        $this->assertCount(5, $this->emails);
+    }
+
     public function test_wrong_email_unknown_project_and_send_cap_all_look_the_same(): void
     {
         $responses = [

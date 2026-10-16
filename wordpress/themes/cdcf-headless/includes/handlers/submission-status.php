@@ -16,14 +16,16 @@ const CDCF_SUBMISSION_ANSWER_MAX = 10000;
 /**
  * Rate limiting counts only what an attacker can cause and a legitimate
  * submitter cannot: failed token checks (GET/answer) and link emails sent
- * (resend). A valid token is never limited. Keys are per visitor *and*
- * project; the visitor is the address the Next.js server forwards, signed
- * (cdcf_request_client_ip). Peek and count are separate so tokenless junk
- * cannot spend a valid caller's budget.
+ * (resend). A valid token is never limited. Failure keys are per visitor
+ * *and* project; the visitor is the address the Next.js server forwards,
+ * signed (cdcf_request_client_ip). The 'send' bucket is per project only:
+ * each link email replaces the previous link, so changing address must not
+ * buy more of them. Peek and count are separate so tokenless junk cannot
+ * spend a valid caller's budget.
  */
 function cdcf_submission_status_key(WP_REST_Request $request, string $bucket, int $project_id): string {
-    $ip = cdcf_request_client_ip($request);
-    return 'cdcf_sst_' . $bucket . '_' . hash('sha256', $ip . '|' . $project_id);
+    $who = $bucket === 'send' ? 'project' : cdcf_request_client_ip($request);
+    return 'cdcf_sst_' . $bucket . '_' . hash('sha256', $who . '|' . $project_id);
 }
 
 function cdcf_submission_status_over_limit(WP_REST_Request $request, string $bucket, int $project_id, int $limit): bool {
