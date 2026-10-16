@@ -13,6 +13,9 @@ final class ReviewDecisionHandlerTest extends TestCase
     private array $recorded = [];
     private array $tally = ['cdcf' => 0, 'community' => 0, 'reject' => 0];
     private bool $decideOnLock = false;
+    private string $lockResult = '1';
+    /** @var list<string> */
+    private array $lockSql = [];
     private string $emailResult = 'queued';
     /** @var mixed */
     private $applyResult = true;
@@ -27,7 +30,25 @@ final class ReviewDecisionHandlerTest extends TestCase
         $this->emailResult = 'queued';
         $this->applyResult = true;
         $this->decideOnLock = false;
+        $this->lockResult = '1';
+        $this->lockSql = [];
         Functions\when('wp_cache_delete')->justReturn(true);
+        $test = $this;
+        $GLOBALS['wpdb'] = new class ($test) {
+            public function __construct(private ReviewDecisionHandlerTest $test)
+            {
+            }
+
+            public function prepare(string $query, mixed ...$args): string
+            {
+                return str_replace('%s', "'" . $args[0] . "'", $query);
+            }
+
+            public function get_var(string $sql): mixed
+            {
+                return $this->test->onLockQuery($sql);
+            }
+        };
 
         Functions\when('is_wp_error')->alias(static fn($v): bool => $v instanceof WP_Error);
         Functions\when('rest_ensure_response')->alias(static fn($d) => new WP_REST_Response($d, 200));
@@ -38,20 +59,6 @@ final class ReviewDecisionHandlerTest extends TestCase
         Functions\when('get_post_meta')->alias(fn(int $id, string $k, bool $s = false) => $this->meta[$id][$k] ?? '');
         Functions\when('update_post_meta')->alias(function (int $id, string $k, $v): bool {
             $this->meta[$id][$k] = $v;
-            return true;
-        });
-        Functions\when('add_post_meta')->alias(function (int $id, string $k, $v, bool $unique = false) {
-            if (isset($this->meta[$id][$k])) {
-                return false;
-            }
-            $this->meta[$id][$k] = $v;
-            if ($this->decideOnLock) {
-                $this->meta[$id][CDCF_REVIEW_STAGE_META] = 'decided';
-            }
-            return 1;
-        });
-        Functions\when('delete_post_meta')->alias(function (int $id, string $k): bool {
-            unset($this->meta[$id][$k]);
             return true;
         });
         Functions\when('cdcf_review_tallies')->alias(fn() => [40 => $this->tally]);
@@ -73,8 +80,30 @@ final class ReviewDecisionHandlerTest extends TestCase
         });
     }
 
+    /** Called by the $wpdb double for GET_LOCK / RELEASE_LOCK. */
+    public function onLockQuery(string $sql): mixed
+    {
+        $this->lockSql[] = $sql;
+        if (str_starts_with($sql, 'SELECT GET_LOCK(')) {
+            if ($this->lockResult === '1' && $this->decideOnLock) {
+                $this->meta[40][CDCF_REVIEW_STAGE_META] = 'decided';
+            }
+            return $this->lockResult;
+        }
+        return '1';
+    }
+
+    private function assertLockReleased(): void
+    {
+        $this->assertSame(
+            ["SELECT GET_LOCK('cdcf_review_decide_40', 0)", "SELECT RELEASE_LOCK('cdcf_review_decide_40')"],
+            $this->lockSql
+        );
+    }
+
     protected function tearDown(): void
     {
+        unset($GLOBALS['wpdb']);
         Monkey\tearDown();
         parent::tearDown();
     }
@@ -98,6 +127,7 @@ final class ReviewDecisionHandlerTest extends TestCase
         $this->assertSame([[40, 'cdcf', 9, '', 'Thank you.']], $this->recorded);
         $this->assertSame('decision_recorded', $this->events[0][1]);
         $this->assertSame([[40, 'decision', ['outcome' => 'cdcf', 'summary' => 'Thank you.']]], $this->emails);
+        $this->assertLockReleased();
     }
 
     public function test_overriding_the_plurality_requires_a_rationale(): void
@@ -139,18 +169,22 @@ final class ReviewDecisionHandlerTest extends TestCase
 
     public function test_a_concurrent_decision_is_refused(): void
     {
-        $this->meta[40]['_cdcf_review_deciding'] = (string) time();
+        $this->lockResult = '0';
         $res = $this->decide(['decision' => 'cdcf', 'rationale' => 'x']);
         $this->assertSame('decision_in_progress', $res->get_error_code());
         $this->assertSame(409, $res->get_error_data()['status']);
         $this->assertSame([], $this->applied);
+        $this->assertSame([], $this->recorded);
+        $this->assertSame([], $this->emails);
+        // A lock that was never granted is not released.
+        $this->assertSame(["SELECT GET_LOCK('cdcf_review_decide_40', 0)"], $this->lockSql);
     }
 
-    public function test_a_stale_lock_is_taken_over(): void
+    public function test_a_lock_query_error_is_treated_as_in_progress(): void
     {
-        $this->meta[40]['_cdcf_review_deciding'] = (string) (time() - 600);
-        $this->assertSame(200, $this->decide(['decision' => 'cdcf', 'rationale' => 'x'])->get_status());
-        $this->assertArrayNotHasKey('_cdcf_review_deciding', $this->meta[40]);
+        $this->lockResult = '';
+        $this->assertSame('decision_in_progress', $this->decide(['decision' => 'cdcf', 'rationale' => 'x'])->get_error_code());
+        $this->assertSame([], $this->applied);
     }
 
     public function test_a_failed_outcome_records_nothing_and_releases_the_lock(): void
@@ -160,7 +194,7 @@ final class ReviewDecisionHandlerTest extends TestCase
         $this->assertSame('conversion_failed', $res->get_error_code());
         $this->assertSame([], $this->recorded);
         $this->assertSame([], $this->emails);
-        $this->assertArrayNotHasKey('_cdcf_review_deciding', $this->meta[40]);
+        $this->assertLockReleased();
     }
 
     public function test_an_email_failure_is_a_warning_not_an_error(): void
@@ -195,6 +229,6 @@ final class ReviewDecisionHandlerTest extends TestCase
         $this->assertSame('review_locked', $res->get_error_code());
         $this->assertSame([], $this->applied);
         $this->assertSame([], $this->emails);
-        $this->assertArrayNotHasKey('_cdcf_review_deciding', $this->meta[40]);
+        $this->assertLockReleased();
     }
 }

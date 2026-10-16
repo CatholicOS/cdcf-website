@@ -494,17 +494,21 @@ function cdcf_rest_review_post_question(WP_REST_Request $request) {
     return $response;
 }
 
-/** Lock against two Board members deciding at once; stale after 5 minutes. */
+/**
+ * Lock against two Board members deciding at once. A MySQL named lock is
+ * atomic (unlike add_post_meta's SELECT-then-INSERT) and is released by
+ * the server when the connection ends, so a crashed request never leaves
+ * it held. Timeout 0: a second decider is refused, not queued.
+ */
 function cdcf_review_take_decision_lock(int $project_id): bool {
-    if (add_post_meta($project_id, '_cdcf_review_deciding', (string) time(), true)) {
-        return true;
-    }
-    $since = (int) get_post_meta($project_id, '_cdcf_review_deciding', true);
-    if ($since > 0 && time() - $since > 300) {
-        delete_post_meta($project_id, '_cdcf_review_deciding');
-        return (bool) add_post_meta($project_id, '_cdcf_review_deciding', (string) time(), true);
-    }
-    return false;
+    global $wpdb;
+    $got = $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', 'cdcf_review_decide_' . $project_id));
+    return (string) $got === '1';
+}
+
+function cdcf_review_release_decision_lock(int $project_id): void {
+    global $wpdb;
+    $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', 'cdcf_review_decide_' . $project_id));
 }
 
 function cdcf_rest_review_post_decision(WP_REST_Request $request) {
@@ -538,7 +542,7 @@ function cdcf_rest_review_post_decision(WP_REST_Request $request) {
     wp_cache_delete($pid, 'post_meta');
     $open = cdcf_review_assert_open($pid);
     if (is_wp_error($open)) {
-        delete_post_meta($pid, '_cdcf_review_deciding');
+        cdcf_review_release_decision_lock($pid);
         return $open;
     }
     try {
@@ -550,7 +554,7 @@ function cdcf_rest_review_post_decision(WP_REST_Request $request) {
         cdcf_review_record_decision($pid, $decision, $uid, $rationale, $summary);
         cdcf_review_record_event($pid, 'decision_recorded', $uid, null, ['decision' => $decision, 'plurality' => $plurality]);
     } finally {
-        delete_post_meta($pid, '_cdcf_review_deciding');
+        cdcf_review_release_decision_lock($pid);
     }
 
     $email = cdcf_review_send_submitter_email($pid, 'decision', ['outcome' => $decision, 'summary' => $summary]);
