@@ -158,3 +158,46 @@ export const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif'] as const
 export type PendingAttachment =
   | { key: string; kind: 'file'; file: File }
   | { key: string; kind: 'paste'; title: string; markdown: string }
+
+export type ReviewEventType =
+  | 'submission_received'
+  | 'review_posted'
+  | 'review_edited'
+  | 'vote_changed'
+  | 'reply_posted'
+  | 'discussion_posted'
+  | 'attachment_added'
+  | 'question_sent'
+  | 'submitter_answered'
+  | 'decision_recorded'
+  | 'admin_override'
+
+export interface InboxItem {
+  event_id: number
+  type: ReviewEventType
+  project: { id: number; title: string }
+  /** null for the submitter's own actions and migrated records */
+  actor: { id: number; name: string } | null
+  entry_id: number | null
+  data: Record<string, unknown>
+  /** UTC, as WordPress stores it: 'Y-m-d H:i:s.u' */
+  created_at: string
+  read: boolean
+  /** a reply to the viewer's own review */
+  to_you: boolean
+}
+
+export interface InboxPage {
+  items: InboxItem[]
+  page: number
+  has_more: boolean
+  unread: number
+}
+
+export interface InboxCount {
+  unread: number
+}
+
+export type InboxReadPayload = { event_ids: number[] } | { all: true }
+
+export const INBOX_READ_MAX = 200

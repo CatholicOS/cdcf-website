@@ -8,6 +8,9 @@ import 'server-only'
 import type { Session } from 'next-auth'
 import { getAccessToken } from '@/lib/auth-utils'
 import type {
+  InboxCount,
+  InboxPage,
+  InboxReadPayload,
   ReviewAttachment,
   ReviewDecisionPayload,
   ReviewDecisionResult,
@@ -267,4 +270,32 @@ export async function fetchReviewAttachment(
     )
   }
   return response
+}
+
+export function fetchInbox(
+  session: Session | null,
+  options: { unread?: boolean; page?: number } = {}
+): Promise<InboxPage> {
+  const params = new URLSearchParams()
+  if (options.unread) params.set('unread', '1')
+  if (options.page && options.page > 1) params.set('page', String(options.page))
+  const qs = params.toString()
+  return wpRequest<InboxPage>(
+    session,
+    `/cdcf/v1/review/inbox${qs ? `?${qs}` : ''}`
+  )
+}
+
+export function fetchInboxCount(session: Session | null): Promise<InboxCount> {
+  return wpRequest<InboxCount>(session, '/cdcf/v1/review/inbox/count')
+}
+
+export function markInboxRead(
+  session: Session | null,
+  payload: InboxReadPayload
+): Promise<InboxCount> {
+  return wpRequest<InboxCount>(session, '/cdcf/v1/review/inbox/read', {
+    method: 'POST',
+    json: payload,
+  })
 }

@@ -16,10 +16,13 @@ import {
   ReviewApiError,
   askSubmitter,
   decideProject,
+  fetchInbox,
+  fetchInboxCount,
   fetchReviewAttachment,
   fetchReviewMe,
   fetchReviewProject,
   fetchReviewProjects,
+  markInboxRead,
   patchReviewEntry,
   postReviewEntry,
   saveMyReview,
@@ -281,5 +284,48 @@ describe('decideProject', () => {
     expect(JSON.parse(init.body as string)).toEqual(payload)
     expect(new Headers(init.headers).get('Authorization')).toBe('Bearer tok')
     expect(out.stage).toBe('decided')
+  })
+})
+
+describe('inbox', () => {
+  it('fetches a page with the unread filter', async () => {
+    const page = { items: [], page: 2, has_more: false, unread: 0 }
+    fetchMock.mockResolvedValue(jsonResponse(200, page))
+
+    expect(await fetchInbox(session, { unread: true, page: 2 })).toEqual(page)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://wp.example.org/wp-json/cdcf/v1/review/inbox?unread=1&page=2',
+      expect.objectContaining({
+        method: 'GET',
+        headers: { Authorization: 'Bearer token-abc' },
+      })
+    )
+  })
+
+  it('omits default query parameters', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, { items: [], page: 1, has_more: false, unread: 0 })
+    )
+    await fetchInbox(session)
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'https://wp.example.org/wp-json/cdcf/v1/review/inbox'
+    )
+  })
+
+  it('fetches the unread count', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { unread: 4 }))
+    expect(await fetchInboxCount(session)).toEqual({ unread: 4 })
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'https://wp.example.org/wp-json/cdcf/v1/review/inbox/count'
+    )
+  })
+
+  it('posts what to mark read', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { unread: 0 }))
+    expect(await markInboxRead(session, { all: true })).toEqual({ unread: 0 })
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('https://wp.example.org/wp-json/cdcf/v1/review/inbox/read')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body)).toEqual({ all: true })
   })
 })
