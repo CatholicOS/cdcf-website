@@ -19,7 +19,7 @@
 
 defined('ABSPATH') || exit;
 
-const CDCF_REVIEW_DB_VERSION  = '2';
+const CDCF_REVIEW_DB_VERSION  = '3';
 const CDCF_REVIEW_STAGE_META  = '_cdcf_review_stage';
 const CDCF_REVIEW_STAGES      = ['in_review', 'awaiting_submitter', 'decided'];
 const CDCF_REVIEW_VOTES       = ['cdcf', 'community', 'reject'];
@@ -87,7 +87,8 @@ function cdcf_review_schema_sql(string $charset_collate): array {
   user_id bigint(20) unsigned NOT NULL,
   read_at datetime(6) DEFAULT NULL,
   PRIMARY KEY  (event_id,user_id),
-  KEY user_unread (user_id,read_at)
+  KEY user_unread (user_id,read_at),
+  KEY user_event (user_id,event_id)
 ) {$charset_collate};",
     ];
 }

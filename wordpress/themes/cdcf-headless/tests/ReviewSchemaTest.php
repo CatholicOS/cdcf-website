@@ -60,6 +60,7 @@ final class ReviewSchemaTest extends TestCase
 
         $this->assertStringContainsString('PRIMARY KEY  (event_id,user_id)', $sql);
         $this->assertStringContainsString('KEY user_unread (user_id,read_at)', $sql);
+        $this->assertStringContainsString('KEY user_event (user_id,event_id)', $sql);
     }
 
     public function test_maybe_upgrade_is_a_noop_when_version_is_current(): void
@@ -137,9 +138,9 @@ final class ReviewSchemaTest extends TestCase
         );
     }
 
-    public function test_db_version_is_bumped_for_the_published_backfill(): void
+    public function test_db_version_is_bumped_for_the_inbox_index(): void
     {
-        $this->assertSame('2', CDCF_REVIEW_DB_VERSION);
+        $this->assertSame('3', CDCF_REVIEW_DB_VERSION);
     }
 
     public function test_maybe_upgrade_from_version_1_backfills_published_decisions(): void

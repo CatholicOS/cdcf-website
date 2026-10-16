@@ -20,24 +20,34 @@ function cdcf_review_inbox(int $user_id, bool $unread_only, int $page): array {
             'SELECT e.id, e.project_id, e.type, e.actor_user_id, e.entry_id, e.data, e.created_at, n.read_at'
             . " FROM {$notifications} n JOIN {$events} e ON e.id = n.event_id WHERE n.user_id = %d"
             . ($unread_only ? ' AND n.read_at IS NULL' : '')
-            . ' ORDER BY e.id DESC LIMIT %d OFFSET %d',
+            // n.event_id equals e.id; sorting on it lets user_event / user_unread serve the order.
+            . ' ORDER BY n.event_id DESC LIMIT %d OFFSET %d',
             $user_id,
             $limit + 1,
             (max(1, $page) - 1) * $limit
         ),
         ARRAY_A
     );
-    $rows = is_array($rows) ? $rows : [];
+    $rows    = is_array($rows) ? $rows : [];
+    $page    = array_slice($rows, 0, $limit);
+    $replies = [];
+    foreach ($page as $row) {
+        if ($row['type'] === 'reply_posted' && $row['entry_id'] !== null) {
+            $replies[] = (int) $row['entry_id'];
+        }
+    }
+    $authors = cdcf_review_reply_parent_authors($replies);
     return [
         'items'    => array_map(
-            static fn(array $row) => cdcf_review_present_notification($row, $user_id),
-            array_slice($rows, 0, $limit)
+            static fn(array $row) => cdcf_review_present_notification($row, $user_id, $authors),
+            $page
         ),
         'has_more' => count($rows) > $limit,
     ];
 }
 
-function cdcf_review_present_notification(array $row, int $user_id): array {
+/** @param array<int, int> $reply_authors reply entry id => author of the review it answers */
+function cdcf_review_present_notification(array $row, int $user_id, array $reply_authors = []): array {
     $event = cdcf_review_normalize_event($row);
     $actor = $event['actor_user_id'];
     $user  = $actor !== null ? get_userdata($actor) : null;
@@ -51,7 +61,7 @@ function cdcf_review_present_notification(array $row, int $user_id): array {
         'created_at' => $event['created_at'],
         'read'       => ($row['read_at'] ?? null) !== null,
         'to_you'     => $event['type'] === 'reply_posted' && $event['entry_id'] !== null
-            && cdcf_review_reply_parent_author($event['entry_id']) === $user_id,
+            && ($reply_authors[$event['entry_id']] ?? null) === $user_id,
     ];
 }
 

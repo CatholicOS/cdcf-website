@@ -39,6 +39,7 @@ final class ReviewMemberEmailsTest extends TestCase
         Functions\when('get_user_locale')->alias(fn(int $uid) => $this->users[$uid]['locale'] ?? 'en_US');
         Functions\when('is_email')->alias(static fn($e) => is_string($e) && str_contains($e, '@'));
         Functions\when('get_post_field')->justReturn('Liturgy Helper');
+        Functions\when('get_post')->alias(static fn($id) => (object) ['ID' => $id]);
         Functions\when('wp_mail')->alias(function (string $to, string $subject, string $body): bool {
             $this->mails[] = compact('to', 'subject', 'body');
             return true;
@@ -127,6 +128,14 @@ final class ReviewMemberEmailsTest extends TestCase
         $this->assertSame('skipped', cdcf_review_deliver_member_email(9, 3), 'no valid address');
         $this->event['type'] = 'review_posted';
         $this->assertSame('skipped', cdcf_review_deliver_member_email(7, 3), 'type not emailed');
+        $this->assertSame([], $this->mails);
+    }
+
+    public function test_a_project_no_longer_there_sends_nothing(): void
+    {
+        Functions\when('get_post')->justReturn(null);
+
+        $this->assertSame('skipped', cdcf_review_deliver_member_email(7, 3));
         $this->assertSame([], $this->mails);
     }
 

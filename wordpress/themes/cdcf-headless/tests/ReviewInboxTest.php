@@ -56,7 +56,7 @@ final class ReviewInboxTest extends TestCase
         $this->assertTrue($out['has_more']);
         $sql = $this->wpdb->queries[0];
         $this->assertStringContainsString('n.user_id = 7', $sql);
-        $this->assertStringContainsString('ORDER BY e.id DESC LIMIT 21 OFFSET 20', $sql);
+        $this->assertStringContainsString('ORDER BY n.event_id DESC LIMIT 21 OFFSET 20', $sql);
         $this->assertStringNotContainsString('read_at IS NULL', $sql);
     }
 
@@ -94,13 +94,30 @@ final class ReviewInboxTest extends TestCase
         $this->assertTrue(cdcf_review_present_notification($this->row(['read_at' => '2026-10-16 10:00:00']), 7)['read']);
     }
 
-    public function test_a_reply_to_the_callers_review_is_marked_to_you(): void
+    public function test_replies_on_a_page_resolve_their_review_authors_in_one_query(): void
     {
-        // get_row: the reply (parent 3), then its parent review (author 7).
-        $this->wpdb->results[] = ['id' => '5', 'kind' => 'reply', 'parent_id' => '3', 'author_user_id' => '8'];
-        $this->wpdb->results[] = ['id' => '3', 'kind' => 'review', 'parent_id' => null, 'author_user_id' => '7'];
+        $this->wpdb->results[] = [
+            $this->row(['id' => '14', 'type' => 'reply_posted', 'entry_id' => '5']),
+            $this->row(['id' => '13', 'type' => 'reply_posted', 'entry_id' => '6']),
+            $this->row(['id' => '12', 'type' => 'discussion_posted', 'entry_id' => '4']),
+        ];
+        // reply 5 answers a review by 7 (the caller); reply 6 a review by 9.
+        $this->wpdb->results[] = [['id' => '5', 'author_user_id' => '7'], ['id' => '6', 'author_user_id' => '9']];
 
-        $this->assertTrue(cdcf_review_present_notification($this->row(['type' => 'reply_posted']), 7)['to_you']);
+        $items = cdcf_review_inbox(7, false, 1)['items'];
+
+        $this->assertSame([true, false, false], array_column($items, 'to_you'));
+        $this->assertCount(2, $this->wpdb->queries, 'one inbox query plus one batched author lookup');
+        $this->assertStringContainsString('r.id IN (5,6)', $this->wpdb->queries[1]);
+    }
+
+    public function test_a_page_without_replies_makes_no_author_lookup(): void
+    {
+        $this->wpdb->results[] = [$this->row()];
+
+        cdcf_review_inbox(7, false, 1);
+
+        $this->assertCount(1, $this->wpdb->queries);
     }
 
     public function test_unread_total(): void

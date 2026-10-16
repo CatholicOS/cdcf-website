@@ -62,14 +62,16 @@ function cdcf_review_send_member_email(int $user_id, int $event_id): string {
 /**
  * Build and send one member email now. 'skipped' (not a failure, so the
  * queue does not retry) when the event is gone, its type is not emailed,
- * or the user is no longer a member or has no valid address.
+ * the project is gone, or the user is no longer a member or has no valid
+ * address.
  *
  * @return 'sent'|'failed'|'skipped'
  */
 function cdcf_review_deliver_member_email(int $user_id, int $event_id): string {
     $event = cdcf_review_get_event($event_id);
     $user  = get_userdata($user_id);
-    if (!$event || !$user || !is_email((string) $user->user_email) || !cdcf_review_can($user_id, 'view')) {
+    if (!$event || !get_post($event['project_id']) || !$user || !is_email((string) $user->user_email)
+        || !cdcf_review_can($user_id, 'view')) {
         return 'skipped';
     }
     $lang  = cdcf_review_user_language($user_id);
