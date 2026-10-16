@@ -3,9 +3,9 @@
  * Council review — activity log and notification fan-out.
  *
  * Every event lands in cdcf_review_events and gets one
- * cdcf_review_notifications row per member except the actor (the bell,
- * Phase 5). The cdcf_review_event_recorded action lets the email layer
- * (Phase 5) react without this module knowing about email.
+ * cdcf_review_notifications row per member except the actor (the bell).
+ * The cdcf_review_event_recorded action lets the email layer,
+ * member-emails.php, react without this module knowing about email.
  */
 
 defined('ABSPATH') || exit;
@@ -39,7 +39,7 @@ function cdcf_review_record_event(
             'user_id'  => $user_id,
         ]);
     }
-    do_action('cdcf_review_event_recorded', $event_id, $project_id, $type, $actor_user_id, $entry_id);
+    do_action('cdcf_review_event_recorded', $event_id, $project_id, $type, $actor_user_id, $entry_id, $data);
     return $event_id;
 }
 
@@ -79,4 +79,12 @@ function cdcf_review_normalize_event(array $row): array {
         'data'          => is_array($data) ? $data : [],
         'created_at'    => (string) $row['created_at'],
     ];
+}
+
+/** @return array{id: int, project_id: int, type: string, actor_user_id: ?int, entry_id: ?int, data: array, created_at: string}|null */
+function cdcf_review_get_event(int $event_id): ?array {
+    global $wpdb;
+    $events = cdcf_review_table('events');
+    $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$events} WHERE id = %d", $event_id), ARRAY_A);
+    return is_array($row) ? cdcf_review_normalize_event($row) : null;
 }
