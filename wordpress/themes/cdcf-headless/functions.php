@@ -809,6 +809,7 @@ require_once __DIR__ . '/includes/review/events.php';
 require_once __DIR__ . '/includes/review/submitter-token.php';
 require_once __DIR__ . '/includes/review/email-strings.php';
 require_once __DIR__ . '/includes/review/mailer.php';
+require_once __DIR__ . '/includes/review/decision.php';
 require_once __DIR__ . '/includes/review/attachments.php';
 require_once __DIR__ . '/includes/handlers/review.php';
 require_once __DIR__ . '/includes/admin/review-access.php';
