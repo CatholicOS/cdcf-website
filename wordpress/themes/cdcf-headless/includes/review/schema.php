@@ -97,8 +97,8 @@ function cdcf_review_schema_sql(string $charset_collate): array {
  * Create or upgrade the tables when the stored schema version differs,
  * then backfill the review stage onto submissions that predate this
  * feature, decide the ones already published in wp-admin, and announce
- * the pending ones to members and submitters. Both
- * backfills are idempotent. Hooked on admin_init and rest_api_init; the version option
+ * the pending ones to members and submitters. Every backfill is
+ * idempotent. Hooked on admin_init and rest_api_init; the version option
  * is autoloaded, so the common path costs no query.
  */
 function cdcf_review_maybe_upgrade(): void {
