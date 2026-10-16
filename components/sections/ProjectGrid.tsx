@@ -52,16 +52,21 @@ export default function ProjectGrid({
     return projects.filter((p) => {
       const status = p.projectFields.projectStatus?.[0] || 'incubating'
       if (statusFilter !== 'all' && status !== statusFilter) return false
-      if (categoryFilter !== 'all' && p.projectFields.projectCategory !== categoryFilter) return false
+      if (
+        categoryFilter !== 'all' &&
+        p.projectFields.projectCategory !== categoryFilter
+      )
+        return false
       return true
     })
   }, [projects, statusFilter, categoryFilter])
 
-  const gridCols = {
-    2: 'sm:grid-cols-2',
-    3: 'sm:grid-cols-2 lg:grid-cols-3',
-    4: 'sm:grid-cols-2 lg:grid-cols-4',
-  }[columns] || 'sm:grid-cols-2 lg:grid-cols-3'
+  const gridCols =
+    {
+      2: 'sm:grid-cols-2',
+      3: 'sm:grid-cols-2 lg:grid-cols-3',
+      4: 'sm:grid-cols-2 lg:grid-cols-4',
+    }[columns] || 'sm:grid-cols-2 lg:grid-cols-3'
 
   // All possible statuses for filter pills (always shown)
   const allStatuses: ProjectStatus[] = ['incubating', 'active', 'archived']
@@ -125,7 +130,9 @@ export default function ProjectGrid({
                 >
                   <option value="all">{t('filterAllCategories')}</option>
                   {categories.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
                   ))}
                 </select>
               </>
@@ -135,7 +142,8 @@ export default function ProjectGrid({
 
         <div className={clsx('mt-12 grid gap-6', gridCols)}>
           {filtered.map((project) => {
-            const status = (project.projectFields.projectStatus?.[0] || 'incubating') as ProjectStatus
+            const status = (project.projectFields.projectStatus?.[0] ||
+              'incubating') as ProjectStatus
             const style = statusStyles[status] || statusStyles.incubating
 
             return (
@@ -149,7 +157,9 @@ export default function ProjectGrid({
                     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg">
                       <Image
                         src={project.featuredImage.node.sourceUrl}
-                        alt={project.featuredImage.node.altText || project.title}
+                        alt={
+                          project.featuredImage.node.altText || project.title
+                        }
                         width={96}
                         height={96}
                         className="h-full w-full object-contain"

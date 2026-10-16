@@ -19,9 +19,19 @@ export default async function StatsBar({ stats }: StatsBarProps) {
     value: number
     label: string
   }[] = [
-    { Icon: RocketLaunchIcon, value: stats.projects, label: t('openSourceProjects') },
+    {
+      Icon: RocketLaunchIcon,
+      value: stats.projects,
+      label: t('openSourceProjects'),
+    },
     ...(stats.contributors !== null
-      ? [{ Icon: UserGroupIcon, value: stats.contributors, label: t('contributors') }]
+      ? [
+          {
+            Icon: UserGroupIcon,
+            value: stats.contributors,
+            label: t('contributors'),
+          },
+        ]
       : []),
     { Icon: GlobeAltIcon, value: stats.languages, label: t('languages') },
   ]

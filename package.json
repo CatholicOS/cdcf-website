@@ -11,6 +11,8 @@
     "lint:api": "redocly lint --config .redocly.yaml",
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"#node_modules\" \"#wordpress/**/vendor\" \"#.next\" \"#coverage\" \"#.claude\" \"#scripts/tests/bats\"",
     "lint:md:fix": "markdownlint-cli2 \"**/*.md\" \"#node_modules\" \"#wordpress/**/vendor\" \"#.next\" \"#coverage\" \"#.claude\" \"#scripts/tests/bats\" --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mjs,cjs}\" \"!node_modules/**\" \"!**/vendor/**\" \"!.next/**\" \"!coverage/**\" \"!.claude/**\" \"!scripts/tests/bats/**\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mjs,cjs}\" \"!node_modules/**\" \"!**/vendor/**\" \"!.next/**\" \"!coverage/**\" \"!.claude/**\" \"!scripts/tests/bats/**\"",
     "format:md": "prettier --write \"**/*.md\" \"!node_modules/**\" \"!**/vendor/**\" \"!.next/**\" \"!coverage/**\" \"!.claude/**\" \"!scripts/tests/bats/**\"",
     "format:md:check": "prettier --check \"**/*.md\" \"!node_modules/**\" \"!**/vendor/**\" \"!.next/**\" \"!coverage/**\" \"!.claude/**\" \"!scripts/tests/bats/**\"",
     "test": "vitest run",

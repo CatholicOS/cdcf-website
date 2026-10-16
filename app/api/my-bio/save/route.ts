@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
-import { BioApiError, saveMyTeamMember, type BioSavePayload } from '@/lib/bio-api'
+import {
+  BioApiError,
+  saveMyTeamMember,
+  type BioSavePayload,
+} from '@/lib/bio-api'
 
 // Allow-list of payload fields we forward to the WP PATCH endpoint.
 // Extra keys in the request body are dropped silently (forward-compat

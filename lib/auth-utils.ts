@@ -41,7 +41,9 @@ export async function requireRole(role: string): Promise<Session> {
  * undefined when there's no session or the token expired and the refresh
  * grant failed.
  */
-export function getAccessToken(session: Session | null | undefined): string | undefined {
+export function getAccessToken(
+  session: Session | null | undefined
+): string | undefined {
   if (!session) return undefined
   if (session.error === 'RefreshAccessTokenError') return undefined
   return session.accessToken

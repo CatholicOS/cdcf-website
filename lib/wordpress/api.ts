@@ -159,7 +159,7 @@ export async function getPosts(
       posts: { nodes: WPPost[] }
     }>(GET_POSTS, { language: langCode(locale), first: count }, options)
 
-    return data.posts.nodes.filter(p => !p.postSettings?.hideFromBlog)
+    return data.posts.nodes.filter((p) => !p.postSettings?.hideFromBlog)
   } catch (error) {
     console.error('Failed to fetch posts:', error)
     return []
@@ -183,7 +183,9 @@ export async function getPostsByAuthor(
   }
 }
 
-export async function getAuthorBySlug(slug: Nicename): Promise<WPAuthor | null> {
+export async function getAuthorBySlug(
+  slug: Nicename
+): Promise<WPAuthor | null> {
   try {
     const data = await wpQuery<{ user: WPAuthor | null }>(GET_AUTHOR_BY_SLUG, {
       slug,
@@ -302,14 +304,15 @@ export async function getProject(
   }
 }
 
-
 export async function getAcademicCollaboration(
   slug: string,
   locale: string
 ): Promise<WPAcademicCollaboration | null> {
   try {
     const data = await wpQuery<{
-      academicCollaboration: { translation: WPAcademicCollaboration | null } | null
+      academicCollaboration: {
+        translation: WPAcademicCollaboration | null
+      } | null
     }>(GET_ACADEMIC_COLLABORATION_BY_SLUG, { slug, language: langCode(locale) })
 
     return data.academicCollaboration?.translation ?? null
@@ -429,7 +432,7 @@ export async function getAllPages(
       const rawEnUri =
         locale === 'en'
           ? node.uri
-          : enTranslationUri ?? stripLocalePrefix(node.uri, locale)
+          : (enTranslationUri ?? stripLocalePrefix(node.uri, locale))
       const enUri = stripTrailingSlash(rawEnUri)
       // Build the per-locale URI map (prefix-LESS paths, ready to be fed to
       // buildUrl, which re-adds the locale prefix). Includes both this node's
@@ -437,14 +440,26 @@ export async function getAllPages(
       // actual slug ("/about-2" for IT, "/about-3" for ES, …) so the sitemap
       // emits the URL Google will actually find indexed.
       const uriByLocale = new Map<string, string>()
-      uriByLocale.set(locale, stripTrailingSlash(stripLocalePrefix(node.uri, locale)))
+      uriByLocale.set(
+        locale,
+        stripTrailingSlash(stripLocalePrefix(node.uri, locale))
+      )
       for (const t of node.translations ?? []) {
         const tLocale = t.language.code.toLowerCase()
-        uriByLocale.set(tLocale, stripTrailingSlash(stripLocalePrefix(t.uri, tLocale)))
+        uriByLocale.set(
+          tLocale,
+          stripTrailingSlash(stripLocalePrefix(t.uri, tLocale))
+        )
       }
-      const otherLocales = node.translations?.map((t) => t.language.code.toLowerCase()) ?? []
+      const otherLocales =
+        node.translations?.map((t) => t.language.code.toLowerCase()) ?? []
       const availableLocales = Array.from(new Set([locale, ...otherLocales]))
-      return { enUri, uriByLocale, modified: toLastmodUtc(node.modifiedGmt), availableLocales }
+      return {
+        enUri,
+        uriByLocale,
+        modified: toLastmodUtc(node.modifiedGmt),
+        availableLocales,
+      }
     })
   } catch (error) {
     console.error('Failed to fetch all pages:', error)
@@ -537,7 +552,11 @@ export async function getAcademicCollaborationsForSitemap(
   try {
     const data = await wpQuery<{
       academicCollaborations: { nodes: RawSitemapProject[] }
-    }>(GET_ACADEMIC_COLLABORATIONS_FOR_SITEMAP, { language: langCode(locale) }, options)
+    }>(
+      GET_ACADEMIC_COLLABORATIONS_FOR_SITEMAP,
+      { language: langCode(locale) },
+      options
+    )
 
     return data.academicCollaborations.nodes.map((c) => ({
       slug: c.slug,
@@ -574,7 +593,11 @@ export async function getChildPages(
   try {
     const data = await wpQuery<{
       pages: { nodes: RawChildPage[] }
-    }>(GET_CHILD_PAGES, { parentId: parentDatabaseId, language: langCode(locale) }, options)
+    }>(
+      GET_CHILD_PAGES,
+      { parentId: parentDatabaseId, language: langCode(locale) },
+      options
+    )
 
     // The query filters children by the requested language, so node.slug is
     // already the localized slug. Using it (with the localized parent path)

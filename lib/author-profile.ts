@@ -46,7 +46,9 @@ function decodeEntities(text: string): string {
     '&nbsp;': ' ',
   }
   return text
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) =>
+      String.fromCodePoint(parseInt(h, 16))
+    )
     .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
     .replace(/&[a-z]+;/gi, (m) => named[m.toLowerCase()] ?? m)
 }
@@ -108,10 +110,7 @@ export function authorDisplayName(author: WPAuthor): string {
     .join(' ')
     .trim()
   return (
-    author.nickname?.trim() ||
-    author.name?.trim() ||
-    fullName ||
-    author.slug
+    author.nickname?.trim() || author.name?.trim() || fullName || author.slug
   )
 }
 

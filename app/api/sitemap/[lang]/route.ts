@@ -37,7 +37,9 @@ function buildAlternateLinks(
     .join('\n')
 }
 
-function buildAlternateLinksByLocale(pathByLocale: Map<string, string>): string {
+function buildAlternateLinksByLocale(
+  pathByLocale: Map<string, string>
+): string {
   const lines: string[] = []
   for (const locale of locales) {
     const path = pathByLocale.get(locale)
@@ -187,7 +189,13 @@ export async function GET(
   // Authors carry no per-entry modified date, so use the request time.
   const authorsLastmod = new Date().toISOString()
   entries.push(
-    urlEntry(buildUrl(lang, '/blog/authors'), authorsLastmod, 'weekly', 0.4, '/blog/authors')
+    urlEntry(
+      buildUrl(lang, '/blog/authors'),
+      authorsLastmod,
+      'weekly',
+      0.4,
+      '/blog/authors'
+    )
   )
   for (const author of authors) {
     const path = `/blog/authors/${deriveAuthorSlug(author)}`

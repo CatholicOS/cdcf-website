@@ -30,14 +30,21 @@ export default function AuthorCard({ profile }: { profile: AuthorProfile }) {
           {profile.name}
         </Link>
       </h2>
-      {profile.title && <p className="text-sm text-gray-500">{profile.title}</p>}
+      {profile.title && (
+        <p className="text-sm text-gray-500">{profile.title}</p>
+      )}
 
       {excerpt && (
-        <p className="mt-3 flex-1 text-sm leading-relaxed text-gray-600">{excerpt}</p>
+        <p className="mt-3 flex-1 text-sm leading-relaxed text-gray-600">
+          {excerpt}
+        </p>
       )}
 
       <div className="mt-4">
-        <SocialLinks links={profile.links} className="flex items-center justify-center gap-3" />
+        <SocialLinks
+          links={profile.links}
+          className="flex items-center justify-center gap-3"
+        />
       </div>
     </article>
   )

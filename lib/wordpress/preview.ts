@@ -64,7 +64,10 @@ export function serializePreviewCookie(target: PreviewTarget): string {
  * have no slug yet, so /api/preview falls back to the numeric id as the URL
  * segment — hence matching either the stored slug or the id.
  */
-export function previewMatchesSlug(target: PreviewTarget, slug: string): boolean {
+export function previewMatchesSlug(
+  target: PreviewTarget,
+  slug: string
+): boolean {
   return slug === target.slug || slug === String(target.id)
 }
 

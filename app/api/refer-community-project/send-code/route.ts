@@ -19,7 +19,10 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Invalid request body.' },
+      { status: 400 }
+    )
   }
 
   // Honeypot check — silently "succeed" if filled (don't alert bots)
@@ -35,37 +38,46 @@ export async function POST(request: NextRequest) {
 
   // Validate required field
   if (!body.submitter_email) {
-    return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Missing required fields.' },
+      { status: 400 }
+    )
   }
 
   // Proxy to WordPress
   const wpUrl = process.env.WP_GRAPHQL_URL
   if (!wpUrl) {
-    return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Server configuration error.' },
+      { status: 500 }
+    )
   }
 
   const wpBase = wpUrl.replace(/\/graphql$/, '')
 
   try {
-    const wpRes = await fetch(`${wpBase}/wp-json/cdcf/v1/refer-community-project/send-code`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...forwardedClientIpHeaders(ip),
-      },
-      body: JSON.stringify({
-        project_name: (body.project_name as string) || '',
-        category: (body.category as string) || '',
-        description: (body.description as string) || '',
-        project_url: (body.project_url as string) || '',
-        github_url: (body.github_url as string) || '',
-        tags: Array.isArray(body.tags) ? body.tags : [],
-        submitter_name: (body.submitter_name as string) || '',
-        submitter_email: body.submitter_email as string,
-        honeypot: (body.website as string) || '',
-        elapsed_ms: body.elapsed_ms || 0,
-      }),
-    })
+    const wpRes = await fetch(
+      `${wpBase}/wp-json/cdcf/v1/refer-community-project/send-code`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...forwardedClientIpHeaders(ip),
+        },
+        body: JSON.stringify({
+          project_name: (body.project_name as string) || '',
+          category: (body.category as string) || '',
+          description: (body.description as string) || '',
+          project_url: (body.project_url as string) || '',
+          github_url: (body.github_url as string) || '',
+          tags: Array.isArray(body.tags) ? body.tags : [],
+          submitter_name: (body.submitter_name as string) || '',
+          submitter_email: body.submitter_email as string,
+          honeypot: (body.website as string) || '',
+          elapsed_ms: body.elapsed_ms || 0,
+        }),
+      }
+    )
 
     if (!wpRes.ok) {
       const err = await wpRes.json().catch(() => ({}))

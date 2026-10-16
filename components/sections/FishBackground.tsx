@@ -1,4 +1,3 @@
-
 /**
  * Inline SVG path data for stylized fish in various poses.
  * Each fish is drawn in a 100×50 viewBox.
@@ -64,7 +63,13 @@ function seededBetween(rng: () => number, min: number, max: number) {
   return min + rng() * (max - min)
 }
 
-export default function FishBackground({ count = 5, seed }: { count?: number; seed?: number }) {
+export default function FishBackground({
+  count = 5,
+  seed,
+}: {
+  count?: number
+  seed?: number
+}) {
   const rng = createSeededRng(seed ?? count * 7919)
   const fish: PlacedFish[] = []
   const minDistance = 8 // minimum % distance between fish centers

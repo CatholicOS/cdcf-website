@@ -617,4 +617,3 @@ export const GET_ACADEMIC_COLLABORATIONS_FOR_SITEMAP = `
     }
   }
 `
-

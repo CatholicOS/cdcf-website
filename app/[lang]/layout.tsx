@@ -99,7 +99,11 @@ export default async function LangLayout({
   const [messages, session] = await Promise.all([getMessages(), auth()])
 
   return (
-    <html lang={lang} className={`${inter.variable} ${merriweather.variable} ${playfairDisplay.variable}`} suppressHydrationWarning>
+    <html
+      lang={lang}
+      className={`${inter.variable} ${merriweather.variable} ${playfairDisplay.variable}`}
+      suppressHydrationWarning
+    >
       <body className="flex min-h-screen flex-col bg-white font-sans text-gray-900 antialiased">
         <SessionProvider session={session}>
           <NextIntlClientProvider messages={messages}>

@@ -145,9 +145,7 @@ describe('fetchTeamMemberPost', () => {
       is_board_member: false,
     })
     const [url] = fetchMock.mock.calls[0]
-    expect(url).toBe(
-      'https://wp.example.org/wp-json/cdcf/v1/my-team-member/de'
-    )
+    expect(url).toBe('https://wp.example.org/wp-json/cdcf/v1/my-team-member/de')
   })
 
   it('returns empty strings + undefined optional fields when keys are absent', async () => {
@@ -243,8 +241,9 @@ describe('saveMyTeamMember', () => {
       })
     )
 
-    const err = await saveMyTeamMember(session, 'en', { content: '<p>x</p>' })
-      .catch((e) => e)
+    const err = await saveMyTeamMember(session, 'en', {
+      content: '<p>x</p>',
+    }).catch((e) => e)
     expect(err.status).toBe(403)
     expect(err.code).toBe('rest_forbidden')
   })

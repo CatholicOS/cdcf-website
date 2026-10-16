@@ -58,13 +58,17 @@ export async function GET(request: NextRequest) {
 
   // Carry the target so the page routes can fetch it by id and scope preview
   // rendering to this post only (draft mode otherwise affects every route).
-  ;(await cookies()).set(PREVIEW_COOKIE, serializePreviewCookie({ id: postId, type, slug }), {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: 60 * 60, // 1h; bounds an orphaned preview target if exit isn't hit
-  })
+  ;(await cookies()).set(
+    PREVIEW_COOKIE,
+    serializePreviewCookie({ id: postId, type, slug }),
+    {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60, // 1h; bounds an orphaned preview target if exit isn't hit
+    }
+  )
 
   // Address the preview target by its database id, not its slug. The editor
   // can hand us a stale slug — e.g. after a slug change the block editor hasn't

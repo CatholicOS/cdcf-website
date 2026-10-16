@@ -56,10 +56,7 @@ describe('canonicalRedirectPath', () => {
 describe('canonicalAbsoluteUrl', () => {
   it('builds an absolute url from a localized page uri', () => {
     expect(
-      canonicalAbsoluteUrl(
-        'https://catholicdigitalcommons.org',
-        '/it/about-2/'
-      )
+      canonicalAbsoluteUrl('https://catholicdigitalcommons.org', '/it/about-2/')
     ).toBe('https://catholicdigitalcommons.org/it/about-2')
   })
 
@@ -71,7 +68,10 @@ describe('canonicalAbsoluteUrl', () => {
 
   it('does not double the slash when siteUrl has a trailing slash', () => {
     expect(
-      canonicalAbsoluteUrl('https://catholicdigitalcommons.org/', '/it/about-2/')
+      canonicalAbsoluteUrl(
+        'https://catholicdigitalcommons.org/',
+        '/it/about-2/'
+      )
     ).toBe('https://catholicdigitalcommons.org/it/about-2')
   })
 })

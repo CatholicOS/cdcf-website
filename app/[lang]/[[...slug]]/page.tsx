@@ -1,7 +1,15 @@
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { setRequestLocale } from 'next-intl/server'
-import { getPage, getPagePreview, getPostBySlug, getPosts, getProjects, getSponsors, getChildPages } from '@/lib/wordpress/api'
+import {
+  getPage,
+  getPagePreview,
+  getPostBySlug,
+  getPosts,
+  getProjects,
+  getSponsors,
+  getChildPages,
+} from '@/lib/wordpress/api'
 import { canonicalAbsoluteUrl, canonicalRedirectPath } from '@/lib/canonical'
 import { activePreviewId } from '@/lib/wordpress/preview'
 import PageRenderer from '@/components/sections/PageRenderer'
@@ -10,9 +18,12 @@ interface PageProps {
   params: Promise<{ lang: string; slug?: string[] }>
 }
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://catholicdigitalcommons.org'
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://catholicdigitalcommons.org'
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { lang, slug } = await params
   const pageSlug = slug?.join('/') || '/'
 
@@ -81,23 +92,20 @@ export default async function CatchAllPage({ params }: PageProps) {
   const isLogoSymbolism = slug?.at(-1) === 'logo-symbolism'
 
   // Fetch additional data based on template
-  const [posts, projects, sponsors, fishExplanation, childPages] = await Promise.all([
-    template === 'Blog' || template === 'Home'
-      ? getPosts(lang, page.blogFields?.maxPosts || 6)
-      : Promise.resolve([]),
-    template === 'Projects'
-      ? getProjects(lang)
-      : Promise.resolve([]),
-    template === 'Home'
-      ? getSponsors(lang)
-      : Promise.resolve([]),
-    isLogoSymbolism
-      ? getPostBySlug('symbolism-of-24', lang)
-      : Promise.resolve(null),
-    template === 'Governance TOC'
-      ? getChildPages(page.databaseId, lang)
-      : Promise.resolve([]),
-  ])
+  const [posts, projects, sponsors, fishExplanation, childPages] =
+    await Promise.all([
+      template === 'Blog' || template === 'Home'
+        ? getPosts(lang, page.blogFields?.maxPosts || 6)
+        : Promise.resolve([]),
+      template === 'Projects' ? getProjects(lang) : Promise.resolve([]),
+      template === 'Home' ? getSponsors(lang) : Promise.resolve([]),
+      isLogoSymbolism
+        ? getPostBySlug('symbolism-of-24', lang)
+        : Promise.resolve(null),
+      template === 'Governance TOC'
+        ? getChildPages(page.databaseId, lang)
+        : Promise.resolve([]),
+    ])
 
   return (
     <PageRenderer

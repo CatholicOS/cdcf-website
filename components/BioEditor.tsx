@@ -66,7 +66,9 @@ export default function BioEditor({
 
   const [currentLang, setCurrentLang] = useState(initialLang)
   const [currentTitle, setCurrentTitle] = useState(initialPost.title)
-  const [fields, setFields] = useState<EditableFields>(postToEditable(initialPost))
+  const [fields, setFields] = useState<EditableFields>(
+    postToEditable(initialPost)
+  )
   const [isDirty, setIsDirty] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoadingLang, setIsLoadingLang] = useState(false)
@@ -288,7 +290,10 @@ export default function BioEditor({
                 {t('wordCount', { count: wordCount })}
               </span>
               <span className="text-gray-500">
-                {t('wordCountTarget', { min: BIO_TARGET_MIN, max: BIO_TARGET_MAX })}
+                {t('wordCountTarget', {
+                  min: BIO_TARGET_MIN,
+                  max: BIO_TARGET_MAX,
+                })}
               </span>
             </div>
           </div>
@@ -308,7 +313,9 @@ export default function BioEditor({
             onChange={(e) => updateField('member_title', e.target.value)}
             disabled={isBoardMember}
             readOnly={isBoardMember}
-            aria-describedby={isBoardMember ? 'member_title_readonly_hint' : undefined}
+            aria-describedby={
+              isBoardMember ? 'member_title_readonly_hint' : undefined
+            }
             className={clsx(
               'mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-cdcf-navy focus:outline-none focus:ring-1 focus:ring-cdcf-navy',
               isBoardMember && 'cursor-not-allowed bg-gray-50 text-gray-500'
@@ -366,12 +373,16 @@ export default function BioEditor({
           {status.kind === 'success' && (
             <span className="text-green-700">
               {status.queued.length > 0
-                ? t('savedQueued', { langs: status.queued.join(', ').toUpperCase() })
+                ? t('savedQueued', {
+                    langs: status.queued.join(', ').toUpperCase(),
+                  })
                 : t('savedNoChange')}
             </span>
           )}
           {status.kind === 'error' && (
-            <span className="text-red-700">{t('saveError', { error: status.message })}</span>
+            <span className="text-red-700">
+              {t('saveError', { error: status.message })}
+            </span>
           )}
         </div>
         <button
@@ -380,7 +391,8 @@ export default function BioEditor({
           disabled={!isDirty || isSaving || isLoadingLang}
           className={clsx(
             'cdcf-btn-primary text-sm',
-            (!isDirty || isSaving || isLoadingLang) && 'cursor-not-allowed opacity-60'
+            (!isDirty || isSaving || isLoadingLang) &&
+              'cursor-not-allowed opacity-60'
           )}
         >
           {isSaving ? t('saving') : t('save')}

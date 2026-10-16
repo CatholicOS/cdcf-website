@@ -28,7 +28,10 @@ export default function BlogFeed({ posts, title }: BlogFeedProps) {
               : null
 
             return (
-              <article key={post.slug} className="cdcf-card group relative flex flex-col overflow-hidden p-0 cursor-pointer">
+              <article
+                key={post.slug}
+                className="cdcf-card group relative flex flex-col overflow-hidden p-0 cursor-pointer"
+              >
                 {post.featuredImage?.node && (
                   <div className="aspect-video overflow-hidden">
                     <Image
@@ -53,7 +56,10 @@ export default function BlogFeed({ posts, title }: BlogFeedProps) {
                   </div>
 
                   <h3 className="mt-2 font-serif text-lg font-bold text-cdcf-navy transition-colors group-hover:text-cdcf-gold">
-                    <Link href={`/blog/${post.slug}`} className="after:absolute after:inset-0">
+                    <Link
+                      href={`/blog/${post.slug}`}
+                      className="after:absolute after:inset-0"
+                    >
                       {post.title}
                     </Link>
                   </h3>

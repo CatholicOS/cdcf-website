@@ -34,7 +34,10 @@ function pngToIco(pngBuf, width, height) {
 // ── Generate PNGs at various sizes ──
 async function generatePng(size, outputPath) {
   const buf = await sharp(svg, { density: Math.round((size / 475) * 72 * 2) })
-    .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .resize(size, size, {
+      fit: 'contain',
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
     .png()
     .toBuffer()
   await writeFile(outputPath, buf)
@@ -45,8 +48,13 @@ async function generatePng(size, outputPath) {
 // ── Generate OG image (1200x630, navy bg, logo centered top, text below) ──
 async function generateOgImage(outputPath) {
   const logoSize = 280
-  const logoBuf = await sharp(svg, { density: Math.round((logoSize / 475) * 72 * 2) })
-    .resize(logoSize, logoSize, { fit: 'contain', background: { r: 33, g: 52, b: 99, alpha: 1 } })
+  const logoBuf = await sharp(svg, {
+    density: Math.round((logoSize / 475) * 72 * 2),
+  })
+    .resize(logoSize, logoSize, {
+      fit: 'contain',
+      background: { r: 33, g: 52, b: 99, alpha: 1 },
+    })
     .png()
     .toBuffer()
 

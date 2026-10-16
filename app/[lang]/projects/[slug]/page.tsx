@@ -262,7 +262,9 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             <GovernanceSection
               members={project.projectFields.projectLeads.nodes}
               title={t('projectLeads')}
-              columns={project.projectFields.projectLeads.nodes.length === 1 ? 2 : 3}
+              columns={
+                project.projectFields.projectLeads.nodes.length === 1 ? 2 : 3
+              }
             />
           )}
 

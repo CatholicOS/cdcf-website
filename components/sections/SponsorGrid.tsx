@@ -30,7 +30,8 @@ export default function SponsorGrid({
 
         <div className="mt-12 grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {sponsors.map((sponsor, i) => {
-            const className = "flex flex-col items-center gap-3 rounded-lg p-6 transition-shadow hover:shadow-md"
+            const className =
+              'flex flex-col items-center gap-3 rounded-lg p-6 transition-shadow hover:shadow-md'
             const content = (
               <>
                 {sponsor.featuredImage?.node && (

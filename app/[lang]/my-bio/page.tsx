@@ -34,7 +34,10 @@ export default async function MyBioPage({
   try {
     discovery = await fetchMyTeamMember(session)
   } catch (err) {
-    if (err instanceof BioApiError && (err.status === 401 || err.status === 403)) {
+    if (
+      err instanceof BioApiError &&
+      (err.status === 401 || err.status === 403)
+    ) {
       return (
         <main className="cdcf-section">
           <div className="prose max-w-prose">

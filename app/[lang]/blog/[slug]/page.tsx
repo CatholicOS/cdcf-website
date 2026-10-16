@@ -2,7 +2,11 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { setRequestLocale, getTranslations } from 'next-intl/server'
-import { getAuthorProfile, getPostBySlug, getPostPreview } from '@/lib/wordpress/api'
+import {
+  getAuthorProfile,
+  getPostBySlug,
+  getPostPreview,
+} from '@/lib/wordpress/api'
 import { authorHref } from '@/lib/author-profile'
 import { activePreviewId } from '@/lib/wordpress/preview'
 import { stripHtml } from '@/lib/strip-html'
@@ -21,10 +25,12 @@ interface BlogPostPageProps {
   params: Promise<{ lang: string; slug: string }>
 }
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://catholicdigitalcommons.org'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://catholicdigitalcommons.org'
-
-export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: BlogPostPageProps): Promise<Metadata> {
   const { lang, slug } = await params
   // In preview, describe the draft (addressed by id), like the page body.
   const previewId = await activePreviewId('post', slug)
@@ -34,7 +40,9 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
 
   if (!post) return {}
 
-  const description = post.excerpt ? stripHtml(post.excerpt).slice(0, 160) : undefined
+  const description = post.excerpt
+    ? stripHtml(post.excerpt).slice(0, 160)
+    : undefined
   const image = post.featuredImage?.node
 
   return {

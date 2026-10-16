@@ -33,11 +33,17 @@ export default function TextSection({
   return (
     <section
       className={clsx('py-16 sm:py-20', isLogoSymbolism && 'relative')}
-      style={bgColor && bgColor !== 'white' ? { backgroundColor: bgColor } : undefined}
+      style={
+        bgColor && bgColor !== 'white'
+          ? { backgroundColor: bgColor }
+          : undefined
+      }
       {...(isLogoSymbolism ? { 'data-page-slug': 'logo-symbolism' } : {})}
     >
       {isLogoSymbolism && <FishBackground count={24} />}
-      <div className={clsx('relative mx-auto px-4 sm:px-6 lg:px-8', widthClass)}>
+      <div
+        className={clsx('relative mx-auto px-4 sm:px-6 lg:px-8', widthClass)}
+      >
         {heading && (
           <h2 className="cdcf-heading text-3xl sm:text-4xl">{heading}</h2>
         )}
@@ -57,7 +63,9 @@ export default function TextSection({
           </blockquote>
         )}
 
-        {isLogoSymbolism && <FishEasterEgg explanationHtml={fishExplanationHtml} />}
+        {isLogoSymbolism && (
+          <FishEasterEgg explanationHtml={fishExplanationHtml} />
+        )}
       </div>
     </section>
   )

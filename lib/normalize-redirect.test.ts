@@ -64,10 +64,18 @@ describe('normalizeRedirectLocation', () => {
   })
 
   it('returns null for missing or non-absolute locations', () => {
-    expect(normalizeRedirectLocation(null, 'catholicdigitalcommons.org')).toBeNull()
-    expect(normalizeRedirectLocation(undefined, 'catholicdigitalcommons.org')).toBeNull()
-    expect(normalizeRedirectLocation('', 'catholicdigitalcommons.org')).toBeNull()
-    expect(normalizeRedirectLocation('/it', 'catholicdigitalcommons.org')).toBeNull()
+    expect(
+      normalizeRedirectLocation(null, 'catholicdigitalcommons.org')
+    ).toBeNull()
+    expect(
+      normalizeRedirectLocation(undefined, 'catholicdigitalcommons.org')
+    ).toBeNull()
+    expect(
+      normalizeRedirectLocation('', 'catholicdigitalcommons.org')
+    ).toBeNull()
+    expect(
+      normalizeRedirectLocation('/it', 'catholicdigitalcommons.org')
+    ).toBeNull()
   })
 
   it('returns null when the Host header is empty', () => {
