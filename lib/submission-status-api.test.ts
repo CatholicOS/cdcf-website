@@ -33,6 +33,28 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('submission status client', () => {
+  it('forwards the signed visitor address on every call', async () => {
+    vi.stubEnv('CDCF_CLIENT_IP_SECRET', 'shared')
+    fetchMock.mockImplementation(async () => json(200, { id: 40 }))
+
+    await fetchSubmissionStatus(40, TOKEN, '203.0.113.9')
+    await postSubmissionAnswer(
+      40,
+      TOKEN,
+      { question_id: 1, body: 'MIT' },
+      '203.0.113.9'
+    )
+    await requestStatusLink({ project_id: 40, email: 'a@b.c' }, '203.0.113.9')
+    vi.unstubAllEnvs()
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    for (const [, init] of fetchMock.mock.calls as [string, RequestInit][]) {
+      const headers = init.headers as Record<string, string>
+      expect(headers['X-CDCF-Client-IP']).toBe('203.0.113.9')
+      expect(headers['X-CDCF-Client-IP-Signature']).toMatch(/^[0-9a-f]{64}$/)
+    }
+  })
+
   it('rejects a 200 response with a non-JSON body as bad_response', async () => {
     fetchMock.mockImplementation(
       async () => new Response('<html>oops</html>', { status: 200 })

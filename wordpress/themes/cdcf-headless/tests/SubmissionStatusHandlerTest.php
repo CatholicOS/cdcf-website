@@ -164,6 +164,26 @@ final class SubmissionStatusHandlerTest extends TestCase
         $this->assertNotFound(cdcf_rest_submission_status_get($this->request(['id' => 41], $bad)));
     }
 
+    public function test_failures_are_counted_per_signed_visitor_not_for_the_whole_site(): void
+    {
+        putenv('CDCF_CLIENT_IP_SECRET=forwarding-secret');
+        $from = function (string $ip): WP_REST_Request {
+            $r = $this->request(['id' => 40], str_repeat('b', 64));
+            $r->set_header('X-CDCF-Client-IP', $ip);
+            $r->set_header('X-CDCF-Client-IP-Signature', hash_hmac('sha256', $ip, 'forwarding-secret'));
+            return $r;
+        };
+        for ($i = 0; $i < 120; $i++) {
+            cdcf_rest_submission_status_get($from('203.0.113.9'));
+        }
+        $attacker = cdcf_rest_submission_status_get($from('203.0.113.9'));
+        $other    = cdcf_rest_submission_status_get($from('203.0.113.77'));
+        putenv('CDCF_CLIENT_IP_SECRET');
+
+        $this->assertSame('rate_limited', $attacker->get_error_code());
+        $this->assertNotFound($other);
+    }
+
     // ─── POST answer ───────────────────────────────────────────────────
 
     public function test_answer_is_saved_and_returns_the_review_to_in_review(): void
@@ -274,6 +294,22 @@ final class SubmissionStatusHandlerTest extends TestCase
         $this->assertSame([], $this->emails);
         cdcf_rest_submission_status_resend_link($this->request(['project_id' => 40, 'email' => 'sam@example.org'], null));
         $this->assertSame([[40, 'link']], $this->emails);
+    }
+
+    public function test_the_link_email_cap_is_per_project_whichever_visitor_asks(): void
+    {
+        // Each link replaces the last, so changing address must not buy more.
+        putenv('CDCF_CLIENT_IP_SECRET=forwarding-secret');
+        for ($i = 1; $i <= 7; $i++) {
+            $ip = '203.0.113.' . $i;
+            $r  = $this->request(['project_id' => 40, 'email' => 'sam@example.org'], null);
+            $r->set_header('X-CDCF-Client-IP', $ip);
+            $r->set_header('X-CDCF-Client-IP-Signature', hash_hmac('sha256', $ip, 'forwarding-secret'));
+            cdcf_rest_submission_status_resend_link($r);
+        }
+        putenv('CDCF_CLIENT_IP_SECRET');
+
+        $this->assertCount(5, $this->emails);
     }
 
     public function test_wrong_email_unknown_project_and_send_cap_all_look_the_same(): void

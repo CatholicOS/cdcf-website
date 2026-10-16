@@ -1,26 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { forwardedClientIpHeaders } from '@/lib/forwarded-client-ip'
+import { clientIp, createIpRateLimiter } from '@/lib/ip-rate-limit'
 
 // In-memory rate limiting: 3 submissions per hour per IP
-const rateMap = new Map<string, number[]>()
-const RATE_LIMIT = 3
-const RATE_WINDOW = 60 * 60 * 1000 // 1 hour in ms
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const timestamps = rateMap.get(ip) ?? []
-  const recent = timestamps.filter((t) => now - t < RATE_WINDOW)
-  rateMap.set(ip, recent)
-  if (recent.length >= RATE_LIMIT) return true
-  recent.push(now)
-  rateMap.set(ip, recent)
-  return false
-}
+const isRateLimited = createIpRateLimiter(3, 60 * 60 * 1000)
 
 export async function POST(request: NextRequest) {
-  const ip =
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    request.headers.get('x-real-ip') ||
-    'unknown'
+  const ip = clientIp(request)
 
   if (isRateLimited(ip)) {
     return NextResponse.json(
@@ -65,7 +51,10 @@ export async function POST(request: NextRequest) {
   try {
     const wpRes = await fetch(`${wpBase}/wp-json/cdcf/v1/refer-community-project`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...forwardedClientIpHeaders(ip),
+      },
       body: JSON.stringify({
         project_name: body.project_name,
         category: body.category || '',

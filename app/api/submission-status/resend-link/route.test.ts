@@ -37,11 +37,11 @@ afterEach(() => vi.restoreAllMocks())
 
 describe('POST /api/submission-status/resend-link', () => {
   it('forwards a well-formed request', async () => {
-    await expectAccepted(await post(valid))
-    expect(requestStatusLink).toHaveBeenCalledWith({
-      project_id: 40,
-      email: 'sam@example.org',
-    })
+    await expectAccepted(await post(valid, { 'x-real-ip': '203.0.113.9' }))
+    expect(requestStatusLink).toHaveBeenCalledWith(
+      { project_id: 40, email: 'sam@example.org' },
+      '203.0.113.9'
+    )
   })
 
   it('answers the same for malformed or oversized requests, without forwarding', async () => {

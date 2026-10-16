@@ -11,8 +11,9 @@ export async function POST(request: NextRequest) {
   // A project id and an address fit easily in 4 KiB.
   const read = await readLimitedJsonObject(request, 4 * 1024)
   const { project_id, email } = read.ok ? read.value : {}
+  const ip = clientIp(request)
   if (
-    limited(clientIp(request)) ||
+    limited(ip) ||
     typeof project_id !== 'number' ||
     !Number.isInteger(project_id) ||
     project_id <= 0 ||
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
     return accepted
   }
   try {
-    await requestStatusLink({ project_id, email })
+    await requestStatusLink({ project_id, email }, ip)
   } catch (err) {
     console.error(
       '[submission-status] resend-link failed',

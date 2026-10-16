@@ -137,6 +137,25 @@ When adding a new request field, declare its `sanitize_callback` at registration
 
 This was settled in #111: defense-in-depth re-sanitization inside the handler body was rejected because (a) the REST framework is the canonical and only ingress path for these handlers — they're not hooked into actions/filters or called from other PHP code, (b) re-sanitization would be idempotent under the actual call path and verifiable only by bypassing REST dispatch (which production callers never do), and (c) WordPress's own sinks (`wp_insert_post`, `update_field`, `wp_mail`) apply their own downstream sanitization. The args-block declaration is the authoritative layer; PR review of registration changes is the enforcement mechanism.
 
+### Visitor address on public endpoints
+
+Public requests (project submission, referrals, verification codes, submission
+status) reach WordPress from the Next.js server, so `REMOTE_ADDR` is the same
+for every visitor. The Next.js routes forward the visitor's address — the
+proxy-set `X-Real-IP` or last `X-Forwarded-For` entry, via `clientIp()` in
+`lib/ip-rate-limit.ts` — in `X-CDCF-Client-IP`, with
+`X-CDCF-Client-IP-Signature` set to its HMAC-SHA256 under
+`CDCF_CLIENT_IP_SECRET` (`lib/forwarded-client-ip.ts`). WordPress's
+`cdcf_request_client_ip()` (`includes/client-ip.php`, reading the
+`CDCF_CLIENT_IP_SECRET` constant or env var) trusts the address only when the
+signature holds and falls back to `REMOTE_ADDR` otherwise: with no secret on
+either side, or a frontend whose secret differs, every visitor shares one
+bucket. The key is deliberately not `WP_PREVIEW_SECRET`, which reaches
+browsers in preview URLs; anyone holding the signing key can choose their
+rate-limit bucket. Per-IP limits and the DNS blocklist check
+in public handlers must use `cdcf_request_client_ip($request)`, never
+`$_SERVER['REMOTE_ADDR']`.
+
 ### `POST /team-member`
 
 Creates an English `team_member` post, translates it to all 5 languages via OpenAI, and optionally appends each translation to the appropriate relationship field. For `team_members`, `ecclesial_council`, and `technical_council`, members are linked to the About page's council field. For `academic_council`, members are linked to the academic collaboration post's `collab_governance` field (requires `collab_post_id`). When `council` is omitted, the member is created with translations but not linked to any page — use this for project-only members (e.g. project leads) who should then be added to the project's `project_leads` field separately via `update-relationship`.
@@ -391,6 +410,7 @@ Required in `.env.local` (Next.js) or `.env` (Docker Compose):
 - `WP_REST_URL` — WordPress REST base URL, same host-perspective convention as above (used by `npm run dev` on the host and by `scripts/cdcf_api.py`)
 - `WP_APP_USERNAME`, `WP_APP_PASSWORD` — WordPress Application Password (used by the Python client)
 - `WP_PREVIEW_SECRET` — Shared secret for preview + revalidation
+- `CDCF_CLIENT_IP_SECRET` — Signs the visitor address forwarded to WordPress on public requests (see [Visitor address on public endpoints](#visitor-address-on-public-endpoints)); WordPress needs the same value as a `wp-config.php` constant or env var
 - `WP_DB_ROOT_PASSWORD`, `WP_DB_NAME`, `WP_DB_USER`, `WP_DB_PASSWORD` — Database config
 - `AUTH_ZITADEL_ID`, `AUTH_ZITADEL_SECRET`, `AUTH_ZITADEL_ISSUER`, `AUTH_ZITADEL_ORG_ID`, `AUTH_SECRET` — Auth.js v5 OIDC client config (see `lib/auth.ts`). The client_id/secret come from cdcf-infra's `setup-zitadel.sh --provision-cdcf-website` handoff. The issuer is environment-dependent: deployed environments (staging/production) use `https://auth.catholicdigitalcommons.org`; LOCAL development uses `http://localhost:8090`, the Zitadel in this repo's own compose stack — see the README's "Local Identity Provider (Zitadel)" section. `AUTH_ZITADEL_ORG_ID` is the CDCF Org ID (read by `lib/auth.ts:69`). It is **optional**: unset, `buildOrgScope()` contributes no scope and Zitadel authorizes any instance-wide user, so CDCF Org members still sign in. Set it to scope authentication to the CDCF Org — that routes registrations into it and rejects sign-ins from sibling-property Orgs and from the umbrella IAM admin. A value from the wrong instance (the production Org ID against a local Zitadel, say) does fail sign-in, in a way that looks like a credentials problem. `AUTH_SECRET` is generated per-env via `openssl rand -base64 32`. Each frontend (prod vs non-prod) pins **its own** `AUTH_ZITADEL_ID` (the one its sign-in flow uses). On the **shared** WordPress backend, `wp-config.php` must define `CDCF_ZITADEL_EXPECTED_AUD` as a **comma-separated allow-list of BOTH client IDs** — see [Zitadel bearer authentication](#zitadel-bearer-authentication) above for the full shape. Setting only one client ID there would 403 tokens minted by the other frontend.
 - Docker Compose reads `.env` not `.env.local` for variable substitution

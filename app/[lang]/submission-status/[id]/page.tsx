@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { getFormatter, getTranslations } from 'next-intl/server'
+import { clientIpFromHeaders } from '@/lib/ip-rate-limit'
 import { parseWpGmt } from '@/lib/review-ui'
 import { loadSubmissionStatus } from '@/lib/submission-status-load'
 import type { SubmissionStatus } from '@/lib/submission-status-types'
@@ -27,7 +28,11 @@ export default async function SubmissionStatusPage({
   const id = Number(rawId)
   const t = await getTranslations('SubmissionStatus')
   const token = (await cookies()).get(statusCookieName(id))?.value ?? ''
-  const status = await loadSubmissionStatus(id, token)
+  const status = await loadSubmissionStatus(
+    id,
+    token,
+    clientIpFromHeaders(await headers())
+  )
 
   return (
     <main className="cdcf-section">

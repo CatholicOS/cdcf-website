@@ -17,7 +17,7 @@ if (defined('ABSPATH') === false) {
 }
 
 function cdcf_rest_send_verification_code(WP_REST_Request $request) {
-    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    $ip = cdcf_request_client_ip($request); // the visitor, not the Next.js server
 
     // IP rate limit: max 5 code requests per hour.
     $ip_key   = 'cdcf_verify_' . md5($ip);

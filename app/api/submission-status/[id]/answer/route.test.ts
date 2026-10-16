@@ -44,7 +44,10 @@ describe('POST /api/submission-status/[id]/answer', () => {
       stage: 'in_review',
     })
 
-    const res = await post({ question_id: 1, body: 'MIT' })
+    const res = await post(
+      { question_id: 1, body: 'MIT' },
+      { 'x-real-ip': '203.0.113.9' }
+    )
 
     expect(res.status).toBe(201)
     expect(await res.json()).toEqual({
@@ -52,10 +55,12 @@ describe('POST /api/submission-status/[id]/answer', () => {
       question_id: 1,
       stage: 'in_review',
     })
-    expect(postSubmissionAnswer).toHaveBeenCalledWith(40, TOKEN, {
-      question_id: 1,
-      body: 'MIT',
-    })
+    expect(postSubmissionAnswer).toHaveBeenCalledWith(
+      40,
+      TOKEN,
+      { question_id: 1, body: 'MIT' },
+      '203.0.113.9'
+    )
   })
 
   it('answers 404 without a well-formed token cookie, before reading the body', async () => {

@@ -16,22 +16,24 @@ const CDCF_SUBMISSION_ANSWER_MAX = 10000;
 /**
  * Rate limiting counts only what an attacker can cause and a legitimate
  * submitter cannot: failed token checks (GET/answer) and link emails sent
- * (resend). A valid token is never limited. Keys are per IP *and* project:
- * every request reaches WordPress from the Next.js server, so a per-IP key
- * alone would be one bucket shared by everyone. Peek and count are separate
- * so tokenless junk cannot spend a valid caller's budget.
+ * (resend). A valid token is never limited. Failure keys are per visitor
+ * *and* project; the visitor is the address the Next.js server forwards,
+ * signed (cdcf_request_client_ip). The 'send' bucket is per project only:
+ * each link email replaces the previous link, so changing address must not
+ * buy more of them. Peek and count are separate so tokenless junk cannot
+ * spend a valid caller's budget.
  */
-function cdcf_submission_status_key(string $bucket, int $project_id): string {
-    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-    return 'cdcf_sst_' . $bucket . '_' . hash('sha256', $ip . '|' . $project_id);
+function cdcf_submission_status_key(WP_REST_Request $request, string $bucket, int $project_id): string {
+    $who = $bucket === 'send' ? 'project' : cdcf_request_client_ip($request);
+    return 'cdcf_sst_' . $bucket . '_' . hash('sha256', $who . '|' . $project_id);
 }
 
-function cdcf_submission_status_over_limit(string $bucket, int $project_id, int $limit): bool {
-    return (int) get_transient(cdcf_submission_status_key($bucket, $project_id)) >= $limit;
+function cdcf_submission_status_over_limit(WP_REST_Request $request, string $bucket, int $project_id, int $limit): bool {
+    return (int) get_transient(cdcf_submission_status_key($request, $bucket, $project_id)) >= $limit;
 }
 
-function cdcf_submission_status_count(string $bucket, int $project_id): void {
-    $key = cdcf_submission_status_key($bucket, $project_id);
+function cdcf_submission_status_count(WP_REST_Request $request, string $bucket, int $project_id): void {
+    $key = cdcf_submission_status_key($request, $bucket, $project_id);
     set_transient($key, (int) get_transient($key) + 1, HOUR_IN_SECONDS);
 }
 
@@ -45,17 +47,17 @@ function cdcf_submission_status_rate_error(): WP_Error {
 
 /**
  * @return object|WP_Error The project when the token is valid. Any failure is
- * the same 404 until the failure budget for this IP+project is spent, then 429.
+ * the same 404 until the failure budget for this visitor+project is spent, then 429.
  */
 function cdcf_submission_status_project(WP_REST_Request $request, string $bucket, int $limit) {
     $pid     = (int) $request['id'];
     $token   = (string) $request->get_header('x-cdcf-submission-token');
     $project = cdcf_review_get_reviewable_project($pid);
     if (is_wp_error($project) || !cdcf_review_token_matches($pid, $token)) {
-        if (cdcf_submission_status_over_limit($bucket, $pid, $limit)) {
+        if (cdcf_submission_status_over_limit($request, $bucket, $pid, $limit)) {
             return cdcf_submission_status_rate_error();
         }
-        cdcf_submission_status_count($bucket, $pid);
+        cdcf_submission_status_count($request, $bucket, $pid);
         return cdcf_submission_status_not_found();
     }
     return $project;
@@ -179,8 +181,8 @@ function cdcf_rest_submission_status_resend_link(WP_REST_Request $request) {
     $given  = strtolower(trim((string) $request['email']));
     // Only matching requests are counted, capping mail to the submitter;
     // a caller without the address cannot exhaust the budget.
-    if ($stored !== '' && hash_equals($stored, $given) && !cdcf_submission_status_over_limit('send', $pid, 5)) {
-        cdcf_submission_status_count('send', $pid);
+    if ($stored !== '' && hash_equals($stored, $given) && !cdcf_submission_status_over_limit($request, 'send', $pid, 5)) {
+        cdcf_submission_status_count($request, 'send', $pid);
         cdcf_review_send_submitter_email($pid, 'link');
     }
     return $accepted;
