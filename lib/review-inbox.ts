@@ -3,6 +3,9 @@
  */
 import type { InboxItem } from '@/lib/review-types'
 
+/** Fired on window when notifications were marked read outside the bell. */
+export const INBOX_CHANGED_EVENT = 'cdcf:inbox-changed'
+
 /** The workspace, at the entry when the event has one. */
 export function inboxHref(item: InboxItem): string {
   return `/review/${item.project.id}${item.entry_id ? `#entry-${item.entry_id}` : ''}`
@@ -46,7 +49,7 @@ export function relativeTime(date: Date, now: Date, locale: string): string {
   })
   for (const [unit, size] of UNITS) {
     if (Math.abs(seconds) >= size)
-      return rtf.format(Math.round(seconds / size), unit)
+      return rtf.format(Math.trunc(seconds / size), unit)
   }
   return rtf.format(0, 'second')
 }

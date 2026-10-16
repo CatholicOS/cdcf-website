@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/src/i18n/navigation'
 import { jsonInit, reviewFetch } from '@/lib/review-client'
+import { INBOX_CHANGED_EVENT } from '@/lib/review-inbox'
 import type { InboxCount } from '@/lib/review-types'
 
 export function InboxMarkAllRead({ disabled }: { disabled: boolean }) {
@@ -17,7 +18,10 @@ export function InboxMarkAllRead({ disabled }: { disabled: boolean }) {
       jsonInit('POST', { all: true })
     )
     setBusy(false)
-    if (result.ok) router.refresh()
+    if (!result.ok) return
+    // The header bell keeps its own count; tell it to fetch a fresh one.
+    window.dispatchEvent(new Event(INBOX_CHANGED_EVENT))
+    router.refresh()
   }
   return (
     <button

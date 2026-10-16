@@ -486,6 +486,7 @@
       "submitter": "The submitter",
       "someone": "Someone",
       "unreadMarker": "Unread",
+      "pagination": "Pages",
       "event": {
         "submission_received": "New submission: {title}",
         "review_posted": "{actor} posted a review · {title}",

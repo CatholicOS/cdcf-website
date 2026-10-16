@@ -486,6 +486,7 @@
       "submitter": "Die einreichende Person",
       "someone": "Jemand",
       "unreadMarker": "Ungelesen",
+      "pagination": "Seiten",
       "event": {
         "submission_received": "Neue Einreichung: {title}",
         "review_posted": "{actor} hat eine Bewertung veröffentlicht · {title}",

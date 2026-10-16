@@ -81,6 +81,15 @@ describe('relativeTime', () => {
       '2 days ago'
     )
   })
+  it('counts whole units, never rounding up into the next one', () => {
+    // 45 days is one month and a half; 59m50s is not yet an hour.
+    expect(relativeTime(new Date('2026-09-01T10:00:00Z'), now, 'en')).toBe(
+      'last mo.'
+    )
+    expect(relativeTime(new Date('2026-10-16T09:00:10Z'), now, 'en')).toBe(
+      '59 min. ago'
+    )
+  })
   it('says now for under a minute', () => {
     expect(relativeTime(new Date('2026-10-16T09:59:30Z'), now, 'en')).toBe(
       'now'

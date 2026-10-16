@@ -112,7 +112,10 @@ export default async function ReviewInboxPage({
           </ul>
         )}
         {(page > 1 || inbox.has_more) && (
-          <nav className="flex justify-between text-sm">
+          <nav
+            className="flex justify-between text-sm"
+            aria-label={t('inbox.pagination')}
+          >
             {page > 1 ? (
               <Link
                 href={href(unread, page - 1)}

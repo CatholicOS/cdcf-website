@@ -7,6 +7,7 @@ vi.mock('@/src/i18n/navigation', () => ({ useRouter: () => ({ refresh }) }))
 
 import { InboxMarkAllRead } from './InboxMarkAllRead'
 import { buttonByText, click, renderDom } from '@/components/testing/renderDom'
+import { INBOX_CHANGED_EVENT } from '@/lib/review-inbox'
 
 let unmount = () => {}
 let fetchMock: ReturnType<typeof vi.fn>
@@ -31,10 +32,14 @@ describe('InboxMarkAllRead', () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ unread: 0 }), { status: 200 })
     )
+    const changed = vi.fn()
+    window.addEventListener(INBOX_CHANGED_EVENT, changed)
     const c = mount(false)
     await act(async () => {
       click(buttonByText(c, 'Mark all read'))
     })
+    window.removeEventListener(INBOX_CHANGED_EVENT, changed)
+    expect(changed).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/review/inbox/read')

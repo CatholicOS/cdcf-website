@@ -3,23 +3,29 @@ import { act } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const push = vi.fn()
+let pathname = '/review'
 vi.mock('@/src/i18n/navigation', () => ({
   useRouter: () => ({ push }),
+  usePathname: () => pathname,
   Link: ({
     href,
     children,
-    ...rest
+    onClick,
+    className,
   }: {
     href: string
     children: React.ReactNode
+    onClick?: () => void
+    className?: string
   }) => (
-    <a href={href} {...rest}>
+    <a href={href} onClick={onClick} className={className}>
       {children}
     </a>
   ),
 }))
 
 import { BELL_POLL_MS, NotificationBell } from './NotificationBell'
+import { INBOX_CHANGED_EVENT } from '@/lib/review-inbox'
 import { buttonByText, click, renderDom } from '@/components/testing/renderDom'
 import type { InboxItem } from '@/lib/review-types'
 
@@ -43,9 +49,11 @@ const item = (over: Partial<InboxItem> = {}): InboxItem => ({
 })
 
 let unmount = () => {}
+let rerender = () => {}
 let fetchMock: ReturnType<typeof vi.fn>
 beforeEach(() => {
   push.mockReset()
+  pathname = '/review'
   fetchMock = vi.fn()
   vi.stubGlobal('fetch', fetchMock)
 })
@@ -65,9 +73,20 @@ async function flush() {
 async function mount() {
   const r = renderDom(<NotificationBell />)
   unmount = r.unmount
+  rerender = () => r.rerender(<NotificationBell />)
   await flush()
   return r.container
 }
+
+/** The latest fetch call's [url, init]; fails the test when there is none. */
+function lastCall(): [string, RequestInit & { body: string }] {
+  const call = fetchMock.mock.calls.at(-1)
+  if (!call) throw new Error('fetch was not called')
+  return call as [string, RequestInit & { body: string }]
+}
+
+const panelOf = (c: HTMLElement) =>
+  document.getElementById(bell(c).getAttribute('aria-controls') ?? '')
 
 const bell = (c: HTMLElement) =>
   c.querySelector('button[aria-expanded]') as HTMLButtonElement
@@ -120,7 +139,7 @@ describe('NotificationBell', () => {
       click(itemButton(c, 'Fr. A replied to your review · Liturgy Helper'))
     )
     await flush()
-    const [url, init] = fetchMock.mock.calls.at(-1)!
+    const [url, init] = lastCall()
     expect(url).toBe('/api/review/inbox/read')
     expect(JSON.parse(init.body)).toEqual({ event_ids: [12] })
     expect(push).toHaveBeenCalledWith('/review/40#entry-5')
@@ -137,7 +156,7 @@ describe('NotificationBell', () => {
     fetchMock.mockResolvedValueOnce(json({ unread: 0 }))
     await act(async () => click(buttonByText(c, 'Mark all read')))
     await flush()
-    expect(JSON.parse(fetchMock.mock.calls.at(-1)![1].body)).toEqual({
+    expect(JSON.parse(lastCall()[1].body)).toEqual({
       all: true,
     })
     expect(bell(c).getAttribute('aria-label')).toBe('Notifications')
@@ -161,10 +180,7 @@ describe('NotificationBell', () => {
     await act(async () => click(bell(c)))
     await flush()
     expect(bell(c).getAttribute('aria-expanded')).toBe('true')
-    const panel = document.getElementById(
-      bell(c).getAttribute('aria-controls')!
-    )
-    expect(panel).toBeTruthy()
+    expect(panelOf(c)).toBeTruthy()
     expect(bell(c).hasAttribute('aria-haspopup')).toBe(false)
     await act(async () => {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
@@ -247,5 +263,84 @@ describe('NotificationBell', () => {
       configurable: true,
       get: () => 'visible',
     })
+  })
+
+  it('names the panel it controls only while it is open', async () => {
+    fetchMock.mockResolvedValueOnce(json({ unread: 0 }))
+    const c = await mount()
+    expect(bell(c).hasAttribute('aria-controls')).toBe(false)
+    fetchMock.mockResolvedValueOnce(
+      json({ items: [], page: 1, has_more: false, unread: 0 })
+    )
+    await act(async () => click(bell(c)))
+    await flush()
+    expect(panelOf(c)).toBeTruthy()
+  })
+
+  it('moves focus into the panel when it opens', async () => {
+    fetchMock.mockResolvedValueOnce(json({ unread: 0 }))
+    const c = await mount()
+    fetchMock.mockResolvedValueOnce(
+      json({ items: [], page: 1, has_more: false, unread: 0 })
+    )
+    await act(async () => click(bell(c)))
+    await flush()
+    expect(document.activeElement).toBe(panelOf(c))
+  })
+
+  it('closes when focus leaves the bell and its panel', async () => {
+    fetchMock.mockResolvedValueOnce(json({ unread: 0 }))
+    const c = await mount()
+    const outside = document.createElement('button')
+    document.body.append(outside)
+    fetchMock.mockResolvedValueOnce(
+      json({ items: [], page: 1, has_more: false, unread: 0 })
+    )
+    await act(async () => click(bell(c)))
+    await flush()
+    await act(async () => outside.focus())
+    expect(bell(c).getAttribute('aria-expanded')).toBe('false')
+    outside.remove()
+  })
+
+  it('drops a list response that arrives after an outside click closed the panel', async () => {
+    fetchMock.mockResolvedValueOnce(json({ unread: 0 }))
+    const c = await mount()
+    let resolve!: (r: Response) => void
+    fetchMock.mockReturnValueOnce(new Promise<Response>((r) => (resolve = r)))
+    await act(async () => click(bell(c)))
+    await act(async () => {
+      document.body.dispatchEvent(
+        new MouseEvent('mousedown', { bubbles: true })
+      )
+    })
+    expect(bell(c).getAttribute('aria-expanded')).toBe('false')
+    await act(async () => {
+      resolve(json({ items: [item()], page: 1, has_more: false, unread: 5 }))
+    })
+    await flush()
+    expect(bell(c).getAttribute('aria-label')).toBe('Notifications')
+  })
+
+  it('refreshes the count when the page changes', async () => {
+    fetchMock.mockResolvedValueOnce(json({ unread: 3 }))
+    const c = await mount()
+    fetchMock.mockResolvedValueOnce(json({ unread: 0 }))
+    pathname = '/review/40'
+    await act(async () => rerender())
+    await flush()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(bell(c).getAttribute('aria-label')).toBe('Notifications')
+  })
+
+  it('refreshes the count when the inbox reports a change', async () => {
+    fetchMock.mockResolvedValueOnce(json({ unread: 3 }))
+    const c = await mount()
+    fetchMock.mockResolvedValueOnce(json({ unread: 0 }))
+    await act(async () => {
+      window.dispatchEvent(new Event(INBOX_CHANGED_EVENT))
+    })
+    await flush()
+    expect(bell(c).getAttribute('aria-label')).toBe('Notifications')
   })
 })

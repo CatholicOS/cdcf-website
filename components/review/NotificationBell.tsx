@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { BellIcon } from '@heroicons/react/24/outline'
-import { Link, useRouter } from '@/src/i18n/navigation'
+import { Link, usePathname, useRouter } from '@/src/i18n/navigation'
 import { jsonInit, reviewFetch } from '@/lib/review-client'
-import { inboxHref } from '@/lib/review-inbox'
+import { INBOX_CHANGED_EVENT, inboxHref } from '@/lib/review-inbox'
 import type { InboxCount, InboxItem, InboxPage } from '@/lib/review-types'
 import { InboxItemSummary } from './InboxItemSummary'
 
-export const BELL_POLL_MS = 60_000
+// Just under a minute: WordPress caches a verified bearer token for 60 s,
+// so a poll inside that window skips the identity provider round-trip.
+export const BELL_POLL_MS = 55_000
 export const BELL_ITEMS = 10
 
 const isCount = (d: unknown): d is InboxCount =>
@@ -18,19 +20,23 @@ const isPage = (d: unknown): d is InboxPage =>
   isCount(d) && Array.isArray((d as InboxPage).items)
 
 /**
- * Header bell for council and Board members. Polls the unread count every
- * minute while the tab is visible; the dropdown shows the latest
- * notifications. Every failure keeps the last known state.
+ * Header bell for council and Board members. Polls the unread count about
+ * once a minute while the tab is visible, and again on navigation (opening
+ * a workspace marks its notifications read) or when the inbox page marks
+ * them read. The dropdown shows the latest notifications. Every failure
+ * keeps the last known state.
  */
 export function NotificationBell() {
   const t = useTranslations('Review.inbox')
   const router = useRouter()
+  const pathname = usePathname()
   const [unread, setUnread] = useState(0)
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<InboxItem[] | null>(null)
   const [failed, setFailed] = useState(false)
   const root = useRef<HTMLDivElement>(null)
   const button = useRef<HTMLButtonElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
   const request = useRef(0)
   const panelId = useId()
 
@@ -59,18 +65,40 @@ export function NotificationBell() {
     }
   }, [refreshCount])
 
+  // Not on mount: the polling effect already fetched the first count.
+  const firstPath = useRef(true)
+  useEffect(() => {
+    if (firstPath.current) {
+      firstPath.current = false
+      return
+    }
+    void refreshCount()
+  }, [pathname, refreshCount])
+
+  useEffect(() => {
+    const onChanged = () => void refreshCount()
+    window.addEventListener(INBOX_CHANGED_EVENT, onChanged)
+    return () => window.removeEventListener(INBOX_CHANGED_EVENT, onChanged)
+  }, [refreshCount])
+
+  /** Close the panel; a list request still in flight is then ignored. */
+  const close = useCallback((returnFocus = false) => {
+    request.current++
+    setOpen(false)
+    if (returnFocus) button.current?.focus()
+  }, [])
+
+  useEffect(() => {
+    if (open) panel.current?.focus()
+  }, [open])
+
   useEffect(() => {
     if (!open) return
     const onPointer = (e: MouseEvent) => {
-      if (root.current && !root.current.contains(e.target as Node))
-        setOpen(false)
+      if (root.current && !root.current.contains(e.target as Node)) close()
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        request.current++
-        setOpen(false)
-        button.current?.focus()
-      }
+      if (e.key === 'Escape') close(true)
     }
     document.addEventListener('mousedown', onPointer)
     document.addEventListener('keydown', onKey)
@@ -78,12 +106,11 @@ export function NotificationBell() {
       document.removeEventListener('mousedown', onPointer)
       document.removeEventListener('keydown', onKey)
     }
-  }, [open])
+  }, [open, close])
 
   const toggle = async () => {
-    request.current++
-    if (open) return setOpen(false)
-    const mine = request.current
+    if (open) return close()
+    const mine = ++request.current
     setOpen(true)
     setFailed(false)
     const result = await reviewFetch<InboxPage>('/api/review/inbox')
@@ -97,8 +124,7 @@ export function NotificationBell() {
   }
 
   const follow = async (item: InboxItem) => {
-    request.current++
-    setOpen(false)
+    close()
     router.push(inboxHref(item))
     if (!item.read) {
       const result = await reviewFetch<InboxCount>(
@@ -121,11 +147,19 @@ export function NotificationBell() {
 
   const now = new Date()
   return (
-    <div ref={root} className="relative">
+    <div
+      ref={root}
+      className="relative"
+      onBlur={(e) => {
+        // Tabbing (or clicking) out of the bell and its panel closes it.
+        if (open && !root.current?.contains(e.relatedTarget as Node | null))
+          close()
+      }}
+    >
       <button
         ref={button}
         type="button"
-        aria-controls={panelId}
+        aria-controls={open ? panelId : undefined}
         aria-expanded={open}
         aria-label={unread > 0 ? t('bellUnread', { count: unread }) : t('bell')}
         onClick={() => void toggle()}
@@ -143,8 +177,11 @@ export function NotificationBell() {
       </button>
       {open && (
         <div
+          ref={panel}
           id={panelId}
-          className="absolute right-0 top-full z-50 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-md border border-gray-200 bg-white shadow-lg"
+          tabIndex={-1}
+          aria-label={t('title')}
+          className="absolute right-0 top-full z-50 focus:outline-none mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-md border border-gray-200 bg-white shadow-lg"
         >
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2">
             <span className="text-sm font-semibold text-gray-900">
@@ -194,7 +231,7 @@ export function NotificationBell() {
           <div className="border-t border-gray-100 px-4 py-2 text-right">
             <Link
               href="/review/inbox"
-              onClick={() => setOpen(false)}
+              onClick={() => close()}
               className="text-sm text-cdcf-navy hover:underline"
             >
               {t('viewAll')}

@@ -29,7 +29,11 @@ export async function POST(request: NextRequest) {
   const read = await readLimitedJsonObject(request, 16 * 1024)
   if (!read.ok) return badRequest(read.error)
   const payload = toPayload(read.value)
-  if (!payload) return badRequest('invalid_field', 'event_ids')
+  if (!payload)
+    return badRequest(
+      'invalid_field',
+      'all' in read.value ? 'all' : 'event_ids'
+    )
   try {
     return NextResponse.json(await markInboxRead(session, payload))
   } catch (err) {

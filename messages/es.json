@@ -486,6 +486,7 @@
       "submitter": "El proponente",
       "someone": "Alguien",
       "unreadMarker": "Sin leer",
+      "pagination": "Páginas",
       "event": {
         "submission_received": "Nueva propuesta: {title}",
         "review_posted": "{actor} publicó una revisión · {title}",

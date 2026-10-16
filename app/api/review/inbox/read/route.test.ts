@@ -49,7 +49,6 @@ describe('POST /api/review/inbox/read', () => {
     [{ event_ids: [0] }],
     [{ event_ids: [1.5] }],
     [{ event_ids: Array.from({ length: 201 }, (_, i) => i + 1) }],
-    [{ all: 'yes' }],
   ])('rejects %j', async (body) => {
     const res = await post(body)
     expect(res.status).toBe(400)
@@ -59,5 +58,12 @@ describe('POST /api/review/inbox/read', () => {
   it('needs a session', async () => {
     auth.mockResolvedValue(null)
     expect((await post({ all: true })).status).toBe(401)
+  })
+
+  it('names the all field when it is not true', async () => {
+    const res = await post({ all: 'yes' })
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({ error: 'invalid_field', field: 'all' })
+    expect(markInboxRead).not.toHaveBeenCalled()
   })
 })

@@ -323,14 +323,16 @@ the project id, template and variables; the address, link and token are
 worked out when the job runs.
 
 Members see every event in the header bell (`components/review/NotificationBell.tsx`,
-which polls `/api/review/inbox/count` every minute while the tab is visible) and on
+which polls `/api/review/inbox/count` every 55 seconds while the tab is visible, just inside
+the 60-second bearer-token cache, and again on navigation) and on
 `/[lang]/review/inbox`. Email goes out only for key events
 (`includes/review/member-emails.php`, listening on `cdcf_review_event_recorded`): a new
 submission, a submitter's answer, a decision and an administrator override to every
 member except the one who acted, and a reply to the author of the review it answers.
 Member emails are in the member's WordPress locale, carry no review content, and are
 queued holding only the user and event ids; the migration's backfilled overrides are
-never emailed.
+never emailed. Without the queue plugin they are sent inline, and a mailer error is
+logged without failing the request.
 
 ### Zitadel bearer authentication
 
