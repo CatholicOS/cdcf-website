@@ -494,15 +494,6 @@ function cdcf_rest_review_post_question(WP_REST_Request $request) {
     return $response;
 }
 
-/**
- * REST args per review route, keyed by route path. Lives here (not in
- * functions.php) so tests can assert on it. Every arg that carries an
- * `enum` also sets `validate_callback => rest_validate_request_arg`:
- * once a custom sanitize_callback is present, core no longer runs schema
- * validation (type/enum) on its own.
- *
- * @return array<string, array<string, array<string, mixed>>>
- */
 /** Lock against two Board members deciding at once; stale after 5 minutes. */
 function cdcf_review_take_decision_lock(int $project_id): bool {
     if (add_post_meta($project_id, '_cdcf_review_deciding', (string) time(), true)) {
@@ -543,6 +534,13 @@ function cdcf_rest_review_post_decision(WP_REST_Request $request) {
     if (!cdcf_review_take_decision_lock($pid)) {
         return new WP_Error('decision_in_progress', 'Another decision on this project is being recorded.', ['status' => 409]);
     }
+    // A concurrent request may have decided between the early check and the lock.
+    wp_cache_delete($pid, 'post_meta');
+    $open = cdcf_review_assert_open($pid);
+    if (is_wp_error($open)) {
+        delete_post_meta($pid, '_cdcf_review_deciding');
+        return $open;
+    }
     try {
         $applied = cdcf_review_apply_outcome($pid, $decision);
         if (is_wp_error($applied)) {
@@ -579,6 +577,15 @@ function cdcf_review_decision_email_preview(int $project_id): array {
     return $mail + ['language' => $lang, 'outcomes' => $labels[$lang] ?? $labels['en']];
 }
 
+/**
+ * REST args per review route, keyed by route path. Lives here (not in
+ * functions.php) so tests can assert on it. Every arg that carries an
+ * `enum` also sets `validate_callback => rest_validate_request_arg`:
+ * once a custom sanitize_callback is present, core no longer runs schema
+ * validation (type/enum) on its own.
+ *
+ * @return array<string, array<string, array<string, mixed>>>
+ */
 function cdcf_review_route_args(): array {
     $id = [
         'required'          => true,
