@@ -360,6 +360,7 @@ final class SubmissionStatusHandlerTest extends TestCase
         Functions\when('get_post')->alias(fn($id) => (object) ['ID' => $id, 'post_type' => 'page']);
         Functions\when('cdcf_frontend_path_for')->alias(fn($p) => (is_object($p) && $p->ID === 6) ? '/it/progetti' : null);
         $out = cdcf_rest_submission_status_get($this->request(['id' => 40]))->get_data();
-        $this->assertSame('http://localhost:3000/it/progetti', $out['public_url']);
+        $base = defined('CDCF_FRONTEND_URL') ? rtrim((string) CDCF_FRONTEND_URL, '/') : 'http://localhost:3000';
+        $this->assertSame($base . '/it/progetti', $out['public_url']);
     }
 }
