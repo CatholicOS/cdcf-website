@@ -137,6 +137,21 @@ When adding a new request field, declare its `sanitize_callback` at registration
 
 This was settled in #111: defense-in-depth re-sanitization inside the handler body was rejected because (a) the REST framework is the canonical and only ingress path for these handlers — they're not hooked into actions/filters or called from other PHP code, (b) re-sanitization would be idempotent under the actual call path and verifiable only by bypassing REST dispatch (which production callers never do), and (c) WordPress's own sinks (`wp_insert_post`, `update_field`, `wp_mail`) apply their own downstream sanitization. The args-block declaration is the authoritative layer; PR review of registration changes is the enforcement mechanism.
 
+### Visitor address on public endpoints
+
+Public requests (project submission, referrals, verification codes, submission
+status) reach WordPress from the Next.js server, so `REMOTE_ADDR` is the same
+for every visitor. The Next.js routes forward the visitor's address — the
+proxy-set `X-Real-IP` or last `X-Forwarded-For` entry, via `clientIp()` in
+`lib/ip-rate-limit.ts` — in `X-CDCF-Client-IP`, with
+`X-CDCF-Client-IP-Signature` set to its HMAC-SHA256 under `WP_PREVIEW_SECRET`
+(`lib/forwarded-client-ip.ts`). WordPress's `cdcf_request_client_ip()`
+(`includes/client-ip.php`) trusts the address only when the signature holds
+and falls back to `REMOTE_ADDR` otherwise, so a frontend whose secret differs
+(staging) gets one shared bucket. Per-IP limits and the DNS blocklist check
+in public handlers must use `cdcf_request_client_ip($request)`, never
+`$_SERVER['REMOTE_ADDR']`.
+
 ### `POST /team-member`
 
 Creates an English `team_member` post, translates it to all 5 languages via OpenAI, and optionally appends each translation to the appropriate relationship field. For `team_members`, `ecclesial_council`, and `technical_council`, members are linked to the About page's council field. For `academic_council`, members are linked to the academic collaboration post's `collab_governance` field (requires `collab_post_id`). When `council` is omitted, the member is created with translations but not linked to any page — use this for project-only members (e.g. project leads) who should then be added to the project's `project_leads` field separately via `update-relationship`.

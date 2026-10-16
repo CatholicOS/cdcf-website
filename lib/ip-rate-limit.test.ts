@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { clientIp, createIpRateLimiter } from './ip-rate-limit'
+import {
+  clientIp,
+  clientIpFromHeaders,
+  createIpRateLimiter,
+} from './ip-rate-limit'
 
 describe('createIpRateLimiter', () => {
   it('limits each IP separately within the window', () => {
@@ -34,5 +38,16 @@ describe('clientIp', () => {
 
   it('falls back to "unknown"', () => {
     expect(clientIp(req({}))).toBe('unknown')
+  })
+})
+
+describe('clientIpFromHeaders', () => {
+  it('reads the proxy-set address from request headers', () => {
+    expect(
+      clientIpFromHeaders(
+        new Headers({ 'x-forwarded-for': '6.6.6.6, 198.51.100.7' })
+      )
+    ).toBe('198.51.100.7')
+    expect(clientIpFromHeaders(new Headers())).toBe('unknown')
   })
 })

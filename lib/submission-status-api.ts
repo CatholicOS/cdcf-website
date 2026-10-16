@@ -1,4 +1,5 @@
 import 'server-only'
+import { forwardedClientIpHeaders } from '@/lib/forwarded-client-ip'
 import { ReviewApiError, getWpRestUrl } from '@/lib/review-api'
 import type {
   AnswerResult,
@@ -7,13 +8,23 @@ import type {
 
 /**
  * Calls to the public submission-status endpoints. The token goes in a
- * header (never the URL, so it stays out of WordPress access logs).
+ * header (never the URL, so it stays out of WordPress access logs). The
+ * visitor's address is forwarded, signed, so WordPress rate-limits per
+ * visitor rather than per this server.
  */
 async function statusRequest<T>(
   path: string,
-  init: { method?: string; token?: string; json?: unknown } = {}
+  init: {
+    method?: string
+    token?: string
+    json?: unknown
+    clientIp?: string
+  } = {}
 ): Promise<T> {
-  const headers: Record<string, string> = { Accept: 'application/json' }
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    ...forwardedClientIpHeaders(init.clientIp ?? ''),
+  }
   if (init.token) headers['X-CDCF-Submission-Token'] = init.token
   if (init.json !== undefined) headers['Content-Type'] = 'application/json'
   // The URL is the configured WordPress base plus a fixed endpoint path
@@ -48,31 +59,34 @@ async function statusRequest<T>(
 
 export function fetchSubmissionStatus(
   projectId: number,
-  token: string
+  token: string,
+  clientIp?: string
 ): Promise<SubmissionStatus> {
   return statusRequest<SubmissionStatus>(
     `/cdcf/v1/submission-status/${projectId}`,
-    { token }
+    { token, clientIp }
   )
 }
 
 export function postSubmissionAnswer(
   projectId: number,
   token: string,
-  payload: { question_id: number; body: string }
+  payload: { question_id: number; body: string },
+  clientIp?: string
 ): Promise<AnswerResult> {
   return statusRequest<AnswerResult>(
     `/cdcf/v1/submission-status/${projectId}/answer`,
-    { method: 'POST', token, json: payload }
+    { method: 'POST', token, json: payload, clientIp }
   )
 }
 
-export async function requestStatusLink(payload: {
-  project_id: number
-  email: string
-}): Promise<void> {
+export async function requestStatusLink(
+  payload: { project_id: number; email: string },
+  clientIp?: string
+): Promise<void> {
   await statusRequest<unknown>('/cdcf/v1/submission-status/resend-link', {
     method: 'POST',
     json: payload,
+    clientIp,
   })
 }

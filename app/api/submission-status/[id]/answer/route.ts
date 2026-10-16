@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
+import { clientIp } from '@/lib/ip-rate-limit'
 import {
   badRequest,
   parseId,
@@ -35,7 +36,12 @@ export async function POST(
   if (text.length > 10000) return badRequest('body_too_long')
   try {
     return NextResponse.json(
-      await postSubmissionAnswer(id, token, { question_id, body: text }),
+      await postSubmissionAnswer(
+        id,
+        token,
+        { question_id, body: text },
+        clientIp(request)
+      ),
       { status: 201 }
     )
   } catch (err) {
