@@ -89,6 +89,7 @@ final class ReviewSchemaTest extends TestCase
             return true;
         });
         Functions\expect('update_option')->once()->with('cdcf_review_db_version', CDCF_REVIEW_DB_VERSION);
+        Functions\expect('cdcf_review_backfill_submission_received')->once()->andReturn(0);
         foreach (['entries', 'attachments', 'events', 'notifications'] as $t) {
             $this->wpdb->results[] = "wp_cdcf_review_{$t}";
         }
@@ -154,6 +155,7 @@ final class ReviewSchemaTest extends TestCase
             return [];
         });
         Functions\expect('update_option')->once()->with('cdcf_review_db_version', CDCF_REVIEW_DB_VERSION);
+        Functions\expect('cdcf_review_backfill_submission_received')->once()->andReturn(0);
         foreach (['entries', 'attachments', 'events', 'notifications'] as $t) {
             $this->wpdb->results[] = "wp_cdcf_review_{$t}";
         }
@@ -228,5 +230,68 @@ final class ReviewSchemaTest extends TestCase
             '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6}$/',
             cdcf_review_now()
         );
+    }
+
+    // ─── Version 3: submissions that entered review before Phase 1 ─────
+
+    public function test_received_backfill_notifies_members_and_sends_first_links(): void
+    {
+        $events = $emails = $args = null;
+        Functions\when('get_posts')->alias(function (array $a) use (&$args): array {
+            $args = $a;
+            return [11, 12, 13];
+        });
+        // 13 already had a status email (a committee question), so it has a link.
+        Functions\when('get_post_meta')->alias(
+            static fn(int $id, string $key) => ($key === CDCF_REVIEW_TOKEN_HASH_META && $id === 13) ? str_repeat('a', 64) : ''
+        );
+        $events = [];
+        Functions\when('cdcf_review_record_event')->alias(function (...$a) use (&$events): int {
+            $events[] = $a;
+            return 1;
+        });
+        $emails = [];
+        Functions\when('cdcf_review_send_submitter_email')->alias(function (...$a) use (&$emails): string {
+            $emails[] = $a;
+            return 'queued';
+        });
+        // GET_LOCK, then the projects already announced (12), then RELEASE_LOCK.
+        $this->wpdb->results = ['1', [['project_id' => '12']], '1'];
+
+        $this->assertSame(2, cdcf_review_backfill_submission_received());
+
+        $this->assertSame([
+            [11, 'submission_received', null, null, ['migrated' => true]],
+            [13, 'submission_received', null, null, ['migrated' => true]],
+        ], $events);
+        $this->assertSame([[11, 'confirmation']], $emails);
+        $this->assertSame('project', $args['post_type']);
+        $this->assertSame('pending', $args['post_status']);
+        $this->assertSame('', $args['lang']);
+        $this->assertSame(
+            [['key' => CDCF_REVIEW_STAGE_META, 'value' => ['in_review', 'awaiting_submitter'], 'compare' => 'IN']],
+            $args['meta_query']
+        );
+        $this->assertStringContainsString("SELECT GET_LOCK('cdcf_review_received_backfill', 0)", $this->wpdb->queries[0]);
+        $this->assertStringContainsString("type = 'submission_received' AND project_id IN (11,12,13)", $this->wpdb->queries[1]);
+        $this->assertStringContainsString("SELECT RELEASE_LOCK('cdcf_review_received_backfill')", $this->wpdb->queries[2]);
+    }
+
+    public function test_received_backfill_leaves_the_work_to_the_request_holding_the_lock(): void
+    {
+        Functions\when('get_posts')->justReturn([11]);
+        Functions\expect('cdcf_review_record_event')->never();
+        Functions\expect('cdcf_review_send_submitter_email')->never();
+        $this->wpdb->results = ['0'];
+
+        $this->assertSame(0, cdcf_review_backfill_submission_received());
+    }
+
+    public function test_received_backfill_with_nothing_pending_takes_no_lock(): void
+    {
+        Functions\when('get_posts')->justReturn([]);
+
+        $this->assertSame(0, cdcf_review_backfill_submission_received());
+        $this->assertSame([], $this->wpdb->queries);
     }
 }
