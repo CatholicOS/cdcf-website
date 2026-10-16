@@ -10,9 +10,12 @@ interface ReferLocalGroupModalProps {
   buttonLabel: string
 }
 
-type Status = 'idle' | 'sending_code' | 'awaiting_code' | 'submitting' | 'success' | 'error'
+type Status =
+  'idle' | 'sending_code' | 'awaiting_code' | 'submitting' | 'success' | 'error'
 
-export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupModalProps) {
+export default function ReferLocalGroupModal({
+  buttonLabel,
+}: ReferLocalGroupModalProps) {
   const t = useTranslations('community')
   const tc = useTranslations('common')
   const currentLocale = useLocale() as Locale
@@ -164,8 +167,18 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
         onClick={openDialog}
         className="cdcf-btn-primary inline-flex items-center gap-2 rounded-lg px-6 py-3"
       >
-        <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        <svg
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 4.5v15m7.5-7.5h-15"
+          />
         </svg>
         {buttonLabel}
       </button>
@@ -183,7 +196,14 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
             className="rounded-full p-1 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
             aria-label="Close"
           >
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none">
+            <svg
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              stroke="currentColor"
+              strokeWidth="2"
+              fill="none"
+            >
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
@@ -193,11 +213,23 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
           {status === 'success' ? (
             <div className="text-center py-8">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                <svg
+                  className="h-6 w-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4.5 12.75l6 6 9-13.5"
+                  />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-cdcf-navy">{t('successTitle')}</h3>
+              <h3 className="text-lg font-semibold text-cdcf-navy">
+                {t('successTitle')}
+              </h3>
               <p className="mt-2 text-gray-600">{t('successMessage')}</p>
               <button
                 onClick={closeDialog}
@@ -210,11 +242,23 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
             <div className="py-4">
               <div className="mb-6 text-center">
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-                  <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                  <svg
+                    className="h-6 w-6 text-blue-600"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+                    />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-cdcf-navy">{t('checkEmailTitle')}</h3>
+                <h3 className="text-lg font-semibold text-cdcf-navy">
+                  {t('checkEmailTitle')}
+                </h3>
                 <p className="mt-2 text-sm text-gray-600">
                   {t('checkEmailMessage', { email: formData.submitter_email })}
                 </p>
@@ -227,7 +271,10 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
               )}
 
               <div className="mb-4">
-                <label htmlFor="verification_code" className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="verification_code"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   {t('codeLabel')}
                 </label>
                 <input
@@ -237,7 +284,9 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                   maxLength={6}
                   autoComplete="one-time-code"
                   value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                  onChange={(e) =>
+                    setVerificationCode(e.target.value.replace(/\D/g, ''))
+                  }
                   placeholder={t('codePlaceholder')}
                   className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-center text-lg tracking-widest focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                 />
@@ -246,10 +295,14 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
 
               <button
                 onClick={handleVerifyAndSubmit}
-                disabled={status === 'submitting' || verificationCode.length !== 6}
+                disabled={
+                  status === 'submitting' || verificationCode.length !== 6
+                }
                 className="cdcf-btn-primary w-full rounded-lg px-6 py-3 text-sm font-medium disabled:opacity-60"
               >
-                {status === 'submitting' ? t('submitting') : t('verifyAndSubmit')}
+                {status === 'submitting'
+                  ? t('submitting')
+                  : t('verifyAndSubmit')}
               </button>
 
               <div className="mt-4 flex justify-between text-sm">
@@ -271,7 +324,9 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
             </div>
           ) : (
             <>
-              <p className="mb-6 text-sm text-gray-600">{t('referDescription')}</p>
+              <p className="mb-6 text-sm text-gray-600">
+                {t('referDescription')}
+              </p>
 
               {status === 'error' && (
                 <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -279,7 +334,13 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                 </div>
               )}
 
-              <form key={formKey} onSubmit={(e) => { void handleSendCode(e) }} className="space-y-4">
+              <form
+                key={formKey}
+                onSubmit={(e) => {
+                  void handleSendCode(e)
+                }}
+                className="space-y-4"
+              >
                 {/* Honeypot — hidden from real users */}
                 <div className="absolute -left-[9999px]" aria-hidden="true">
                   <label htmlFor="website">Website</label>
@@ -293,8 +354,12 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                 </div>
 
                 <div>
-                  <label htmlFor="lg_language" className="block text-sm font-medium text-gray-700">
-                    {tc('submissionLanguage')} <span className="text-red-500">*</span>
+                  <label
+                    htmlFor="lg_language"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    {tc('submissionLanguage')}{' '}
+                    <span className="text-red-500">*</span>
                   </label>
                   <select
                     id="lg_language"
@@ -308,12 +373,18 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                       </option>
                     ))}
                   </select>
-                  <p className="mt-1 text-xs text-gray-500">{tc('submissionLanguageHint')}</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {tc('submissionLanguageHint')}
+                  </p>
                 </div>
 
                 <div>
-                  <label htmlFor="group_name" className="block text-sm font-medium text-gray-700">
-                    {t('fieldGroupName')} <span className="text-red-500">*</span>
+                  <label
+                    htmlFor="group_name"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    {t('fieldGroupName')}{' '}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -327,7 +398,10 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                 </div>
 
                 <div>
-                  <label htmlFor="location" className="block text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="location"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     {t('fieldLocation')}
                   </label>
                   <input
@@ -341,7 +415,10 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                 </div>
 
                 <div>
-                  <label htmlFor="url" className="block text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="url"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     {t('fieldUrl')} <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -356,8 +433,12 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                 </div>
 
                 <div>
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                    {t('fieldDescription')} <span className="text-red-500">*</span>
+                  <label
+                    htmlFor="description"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    {t('fieldDescription')}{' '}
+                    <span className="text-red-500">*</span>
                   </label>
                   <DescriptionField
                     key={formKey}
@@ -374,7 +455,10 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                 <hr className="my-2 border-gray-200" />
 
                 <div>
-                  <label htmlFor="submitter_name" className="block text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="submitter_name"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     {t('fieldYourName')} <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -389,8 +473,12 @@ export default function ReferLocalGroupModal({ buttonLabel }: ReferLocalGroupMod
                 </div>
 
                 <div>
-                  <label htmlFor="submitter_email" className="block text-sm font-medium text-gray-700">
-                    {t('fieldYourEmail')} <span className="text-red-500">*</span>
+                  <label
+                    htmlFor="submitter_email"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    {t('fieldYourEmail')}{' '}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="email"

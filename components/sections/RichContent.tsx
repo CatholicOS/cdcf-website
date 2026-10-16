@@ -23,7 +23,11 @@ export default function RichContent({
   return (
     <section
       className="py-16 sm:py-20"
-      style={bgColor && bgColor !== 'white' ? { backgroundColor: bgColor } : undefined}
+      style={
+        bgColor && bgColor !== 'white'
+          ? { backgroundColor: bgColor }
+          : undefined
+      }
     >
       <div className="cdcf-section grid items-center gap-12 lg:grid-cols-2">
         <div className={clsx(imagePosition === 'left' && 'lg:order-2')}>

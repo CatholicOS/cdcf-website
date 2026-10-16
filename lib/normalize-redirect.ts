@@ -37,7 +37,11 @@ function parseHostHeader(hostHeader: string): {
     return { hostname: hostHeader, authorityHost: hostHeader, port: '' }
   }
   const hostname = hostHeader.slice(0, colon)
-  return { hostname, authorityHost: hostname, port: hostHeader.slice(colon + 1) }
+  return {
+    hostname,
+    authorityHost: hostname,
+    port: hostHeader.slice(colon + 1),
+  }
 }
 
 /**

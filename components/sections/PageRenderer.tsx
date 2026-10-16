@@ -1,5 +1,10 @@
 import { getTranslations } from 'next-intl/server'
-import type { WPPage, WPPost, WPProject, WPSponsor } from '@/lib/wordpress/types'
+import type {
+  WPPage,
+  WPPost,
+  WPProject,
+  WPSponsor,
+} from '@/lib/wordpress/types'
 import type { WPChildPage } from '@/lib/wordpress/api'
 import { getStats } from '@/lib/stats'
 import HeroBanner from './HeroBanner'
@@ -52,12 +57,16 @@ export default async function PageRenderer({
       {/* Template-specific sections */}
       {template === 'Home' && (await renderHome(page, sponsors))}
       {template === 'About' && renderAbout(page, t)}
-      {template === 'Projects' && renderProjects(page, projects, await getTranslations('projects'))}
-      {template === 'Community' && renderCommunity(page, await getTranslations('community'))}
+      {template === 'Projects' &&
+        renderProjects(page, projects, await getTranslations('projects'))}
+      {template === 'Community' &&
+        renderCommunity(page, await getTranslations('community'))}
       {template === 'Blog' && renderBlog(posts)}
       {template === 'Contact' && renderContact(page)}
-      {template === 'Governance TOC' && renderGovernanceTOC(page, childPages, parentPath)}
-      {template === 'Default' && renderDefault(page, isLogoSymbolism, fishExplanationHtml)}
+      {template === 'Governance TOC' &&
+        renderGovernanceTOC(page, childPages, parentPath)}
+      {template === 'Default' &&
+        renderDefault(page, isLogoSymbolism, fishExplanationHtml)}
 
       {/* CTA — shared across templates that use it */}
       {page.cta?.ctaHeading && <CallToAction cta={page.cta} />}
@@ -71,9 +80,7 @@ async function renderHome(_page: WPPage, sponsors: WPSponsor[]) {
     <>
       <StatsBar stats={stats} />
 
-      {sponsors.length > 0 && (
-        <SponsorGrid sponsors={sponsors} />
-      )}
+      {sponsors.length > 0 && <SponsorGrid sponsors={sponsors} />}
     </>
   )
 }
@@ -82,9 +89,7 @@ function renderAbout(page: WPPage, t: (key: string) => string) {
   const about = page.aboutFields
   return (
     <>
-      {page.content && (
-        <TextSection heading="" body={page.content} />
-      )}
+      {page.content && <TextSection heading="" body={page.content} />}
 
       {about?.teamMembers?.nodes && about.teamMembers.nodes.length > 0 && (
         <GovernanceSection
@@ -95,28 +100,34 @@ function renderAbout(page: WPPage, t: (key: string) => string) {
         />
       )}
 
-      {about?.ecclesialCouncil?.nodes && about.ecclesialCouncil.nodes.length > 0 && (
-        <GovernanceSection
-          id="ecclesial-advisory-council"
-          title={t('ecclesialAdvisoryCouncil')}
-          members={about.ecclesialCouncil.nodes}
-          columns={Number(about.governanceColumns?.[0]) || 3}
-        />
-      )}
+      {about?.ecclesialCouncil?.nodes &&
+        about.ecclesialCouncil.nodes.length > 0 && (
+          <GovernanceSection
+            id="ecclesial-advisory-council"
+            title={t('ecclesialAdvisoryCouncil')}
+            members={about.ecclesialCouncil.nodes}
+            columns={Number(about.governanceColumns?.[0]) || 3}
+          />
+        )}
 
-      {about?.technicalCouncil?.nodes && about.technicalCouncil.nodes.length > 0 && (
-        <GovernanceSection
-          id="technical-advisory-council"
-          title={t('technicalAdvisoryCouncil')}
-          members={about.technicalCouncil.nodes}
-          columns={Number(about.governanceColumns?.[0]) || 3}
-        />
-      )}
+      {about?.technicalCouncil?.nodes &&
+        about.technicalCouncil.nodes.length > 0 && (
+          <GovernanceSection
+            id="technical-advisory-council"
+            title={t('technicalAdvisoryCouncil')}
+            members={about.technicalCouncil.nodes}
+            columns={Number(about.governanceColumns?.[0]) || 3}
+          />
+        )}
     </>
   )
 }
 
-function renderProjects(page: WPPage, projects: WPProject[], t: (key: string) => string) {
+function renderProjects(
+  page: WPPage,
+  projects: WPProject[],
+  t: (key: string) => string
+) {
   const settings = page.projectsPageFields
   const communityProjects = settings?.communityProjects?.nodes ?? []
   return (
@@ -153,15 +164,16 @@ function renderCommunity(page: WPPage, t: (key: string) => string) {
         />
       )}
 
-      {community?.localGroups?.nodes && community.localGroups.nodes.length > 0 && (
-        <LocalGroupsSection
-          id="local-groups"
-          groups={community.localGroups.nodes}
-          heading={t('localGroupsHeading')}
-          intro={t('localGroupsIntro')}
-          referButtonLabel={t('referButton')}
-        />
-      )}
+      {community?.localGroups?.nodes &&
+        community.localGroups.nodes.length > 0 && (
+          <LocalGroupsSection
+            id="local-groups"
+            groups={community.localGroups.nodes}
+            heading={t('localGroupsHeading')}
+            intro={t('localGroupsIntro')}
+            referButtonLabel={t('referButton')}
+          />
+        )}
 
       {academicCollaborations.length > 0 && (
         <AcademicCollaborationsSection
@@ -201,18 +213,24 @@ function renderContact(page: WPPage) {
   )
 }
 
-function renderGovernanceTOC(page: WPPage, childPages: WPChildPage[], parentPath: string) {
+function renderGovernanceTOC(
+  page: WPPage,
+  childPages: WPChildPage[],
+  parentPath: string
+) {
   return (
     <>
-      {page.content && (
-        <TextSection heading="" body={page.content} />
-      )}
+      {page.content && <TextSection heading="" body={page.content} />}
       <GovernanceTOC pages={childPages} parentPath={parentPath} />
     </>
   )
 }
 
-function renderDefault(page: WPPage, isLogoSymbolism?: boolean, fishExplanationHtml?: string) {
+function renderDefault(
+  page: WPPage,
+  isLogoSymbolism?: boolean,
+  fishExplanationHtml?: string
+) {
   if (!page.content) return null
   return (
     <TextSection

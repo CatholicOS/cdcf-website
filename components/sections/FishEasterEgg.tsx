@@ -53,7 +53,10 @@ export default function FishEasterEgg({ explanationHtml }: FishEasterEggProps) {
           {t('prompt')}
         </p>
 
-        <form onSubmit={handleSubmit} className="mt-4 flex items-center justify-center gap-3">
+        <form
+          onSubmit={handleSubmit}
+          className="mt-4 flex items-center justify-center gap-3"
+        >
           <input
             type="number"
             min="1"
@@ -106,7 +109,14 @@ export default function FishEasterEgg({ explanationHtml }: FishEasterEggProps) {
               className="rounded-full p-1 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
               aria-label="Close"
             >
-              <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none">
+              <svg
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+              >
                 <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             </button>

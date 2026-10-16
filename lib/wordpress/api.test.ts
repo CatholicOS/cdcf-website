@@ -62,7 +62,9 @@ describe('locale → language code mapping', () => {
     wpQueryMock.mockResolvedValue({ page: { translation: null } })
 
     await getPage('about', 'en')
-    expect((wpQueryMock.mock.calls[0][1] as { slug: string }).slug).toBe('/about')
+    expect((wpQueryMock.mock.calls[0][1] as { slug: string }).slug).toBe(
+      '/about'
+    )
 
     await getPage('/', 'en')
     expect((wpQueryMock.mock.calls[1][1] as { slug: string }).slug).toBe('/')
@@ -81,13 +83,17 @@ describe('getPage', () => {
   it('falls back to the EN page when the locale translation is missing', async () => {
     wpQueryMock
       .mockResolvedValueOnce({ page: { translation: null } })
-      .mockResolvedValueOnce({ page: { translation: { databaseId: 2, title: 'About' } } })
+      .mockResolvedValueOnce({
+        page: { translation: { databaseId: 2, title: 'About' } },
+      })
 
     const result = await getPage('about', 'it')
 
     expect(result).toEqual({ databaseId: 2, title: 'About' })
     expect(wpQueryMock).toHaveBeenCalledTimes(2)
-    expect((wpQueryMock.mock.calls[1][1] as { language: string }).language).toBe('EN')
+    expect(
+      (wpQueryMock.mock.calls[1][1] as { language: string }).language
+    ).toBe('EN')
   })
 
   it('does not double-fetch when locale is already EN and translation is null', async () => {
@@ -98,7 +104,9 @@ describe('getPage', () => {
   })
 
   it('returns null and swallows the error if wpQuery throws', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const errorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined)
     wpQueryMock.mockRejectedValueOnce(new Error('GraphQL down'))
 
     await expect(getPage('about', 'en')).resolves.toBeNull()
@@ -118,7 +126,9 @@ describe('getPostBySlug EN-fallback', () => {
   it('falls back to EN when the locale version is missing', async () => {
     wpQueryMock
       .mockResolvedValueOnce({ post: { translation: null } })
-      .mockResolvedValueOnce({ post: { translation: { databaseId: 8, title: 'Post EN' } } })
+      .mockResolvedValueOnce({
+        post: { translation: { databaseId: 8, title: 'Post EN' } },
+      })
 
     await expect(getPostBySlug('p', 'fr')).resolves.toEqual({
       databaseId: 8,
@@ -186,7 +196,12 @@ describe('getAllPages mapping', () => {
           {
             uri: '/pt/governanca/governanca-de-ia/',
             modifiedGmt: '2026-05-01',
-            translations: [{ language: { code: 'FR' }, uri: '/fr/gouvernance/gouvernance-de-lia/' }],
+            translations: [
+              {
+                language: { code: 'FR' },
+                uri: '/fr/gouvernance/gouvernance-de-lia/',
+              },
+            ],
           },
         ],
       },
@@ -508,7 +523,10 @@ describe('getPosts', () => {
 
     await getPosts('it', 7)
 
-    const variables = wpQueryMock.mock.calls[0][1] as { language: string; first: number }
+    const variables = wpQueryMock.mock.calls[0][1] as {
+      language: string
+      first: number
+    }
     expect(variables.language).toBe('IT')
     expect(variables.first).toBe(7)
   })
@@ -517,9 +535,17 @@ describe('getPosts', () => {
     wpQueryMock.mockResolvedValueOnce({
       posts: {
         nodes: [
-          { databaseId: 1, title: 'Visible',  postSettings: { hideFromBlog: false } },
-          { databaseId: 2, title: 'Hidden',   postSettings: { hideFromBlog: true } },
-          { databaseId: 3, title: 'No-flag',  postSettings: null },
+          {
+            databaseId: 1,
+            title: 'Visible',
+            postSettings: { hideFromBlog: false },
+          },
+          {
+            databaseId: 2,
+            title: 'Hidden',
+            postSettings: { hideFromBlog: true },
+          },
+          { databaseId: 3, title: 'No-flag', postSettings: null },
         ],
       },
     })
@@ -606,9 +632,13 @@ describe('getProjectPreview', () => {
 describe('getAcademicCollaboration', () => {
   it('returns the translated collaboration when present', async () => {
     const collab = { databaseId: 100, title: 'Catholic U' }
-    wpQueryMock.mockResolvedValueOnce({ academicCollaboration: { translation: collab } })
+    wpQueryMock.mockResolvedValueOnce({
+      academicCollaboration: { translation: collab },
+    })
 
-    await expect(getAcademicCollaboration('slug', 'it')).resolves.toEqual(collab)
+    await expect(getAcademicCollaboration('slug', 'it')).resolves.toEqual(
+      collab
+    )
   })
 
   it('returns null when wpQuery rejects', async () => {

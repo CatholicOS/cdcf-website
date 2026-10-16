@@ -17,14 +17,16 @@ describe('wpQuery', () => {
   })
 
   it('returns json.data on a successful response', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse({ data: { pages: { nodes: [{ databaseId: 1 }] } } })
-    )
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse({ data: { pages: { nodes: [{ databaseId: 1 }] } } })
+      )
     vi.stubGlobal('fetch', fetchMock)
 
-    const result = await wpQuery<{ pages: { nodes: { databaseId: number }[] } }>(
-      'query { pages { nodes { databaseId } } }'
-    )
+    const result = await wpQuery<{
+      pages: { nodes: { databaseId: number }[] }
+    }>('query { pages { nodes { databaseId } } }')
 
     expect(result.pages.nodes[0].databaseId).toBe(1)
     expect(fetchMock).toHaveBeenCalledOnce()
@@ -38,7 +40,10 @@ describe('wpQuery', () => {
 
     const [, init] = fetchMock.mock.calls[0]
     expect(init.method).toBe('POST')
-    expect(JSON.parse(init.body)).toEqual({ query: 'Q', variables: { foo: 'bar' } })
+    expect(JSON.parse(init.body)).toEqual({
+      query: 'Q',
+      variables: { foo: 'bar' },
+    })
   })
 
   it('passes revalidate and tags through to fetch next options', async () => {
@@ -91,7 +96,10 @@ describe('wpQuery', () => {
 
   it('throws on a non-ok HTTP response with status text', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response('boom', { status: 500, statusText: 'Internal Server Error' })
+      new Response('boom', {
+        status: 500,
+        statusText: 'Internal Server Error',
+      })
     )
     vi.stubGlobal('fetch', fetchMock)
 
@@ -118,6 +126,8 @@ describe('wpQuery', () => {
     )
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(wpQuery('Q')).rejects.toThrow(/Field "x" missing, rate-limited/)
+    await expect(wpQuery('Q')).rejects.toThrow(
+      /Field "x" missing, rate-limited/
+    )
   })
 })

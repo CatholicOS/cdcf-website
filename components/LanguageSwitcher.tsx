@@ -44,7 +44,9 @@ export default function LanguageSwitcher() {
         aria-label="Switch language"
       >
         <GlobeAltIcon className="h-5 w-5" />
-        <span className="hidden sm:inline">{localeLabels[locale as Locale]}</span>
+        <span className="hidden sm:inline">
+          {localeLabels[locale as Locale]}
+        </span>
       </button>
 
       {open && (

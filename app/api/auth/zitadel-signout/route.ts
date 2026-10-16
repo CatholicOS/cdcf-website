@@ -31,8 +31,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // AUTH_URL = ...` fallback has executed — otherwise isSecure would be
   // false on HTTPS and we'd look up the cookie by the wrong (unprefixed)
   // name, failing to read token.idToken and skipping id_token_hint.
-  const siteUrl =
-    process.env.AUTH_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? ''
+  const siteUrl = process.env.AUTH_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? ''
   const isSecure = siteUrl.startsWith('https://')
 
   // CSRF defence — state-changing POST must originate from our own

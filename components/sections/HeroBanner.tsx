@@ -18,7 +18,8 @@ export default function HeroBanner({ hero }: HeroBannerProps) {
   }[alignment]
 
   const bgClasses = {
-    gradient: 'bg-gradient-to-br from-cdcf-navy via-cdcf-navy-700 to-cdcf-navy-900',
+    gradient:
+      'bg-gradient-to-br from-cdcf-navy via-cdcf-navy-700 to-cdcf-navy-900',
     solid: '',
     image: 'relative',
   }[bgStyle]
@@ -30,8 +31,15 @@ export default function HeroBanner({ hero }: HeroBannerProps) {
 
   return (
     <section
-      className={clsx('relative overflow-hidden py-20 sm:py-28 lg:py-36', bgClasses)}
-      style={bgStyle === 'solid' ? { backgroundColor: hero.heroBgColor || '#213463' } : undefined}
+      className={clsx(
+        'relative overflow-hidden py-20 sm:py-28 lg:py-36',
+        bgClasses
+      )}
+      style={
+        bgStyle === 'solid'
+          ? { backgroundColor: hero.heroBgColor || '#213463' }
+          : undefined
+      }
     >
       {bgStyle === 'image' && hero.heroBackgroundImage && (
         <div className="absolute inset-0">
@@ -81,12 +89,18 @@ export default function HeroBanner({ hero }: HeroBannerProps) {
 
         <div className="mt-10 flex flex-wrap gap-4">
           {hero.heroPrimaryBtnLabel && (
-            <Link href={hero.heroPrimaryBtnUrl || '#'} className="cdcf-btn-primary text-base">
+            <Link
+              href={hero.heroPrimaryBtnUrl || '#'}
+              className="cdcf-btn-primary text-base"
+            >
               {hero.heroPrimaryBtnLabel}
             </Link>
           )}
           {hero.heroSecondaryBtnLabel && (
-            <Link href={hero.heroSecondaryBtnUrl || '#'} className="cdcf-btn-secondary border-white text-white hover:bg-white hover:text-cdcf-navy text-base">
+            <Link
+              href={hero.heroSecondaryBtnUrl || '#'}
+              className="cdcf-btn-secondary border-white text-white hover:bg-white hover:text-cdcf-navy text-base"
+            >
               {hero.heroSecondaryBtnLabel}
             </Link>
           )}

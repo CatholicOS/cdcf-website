@@ -18,7 +18,8 @@ export default function CallToAction({ cta }: CallToActionProps) {
   const innerClasses = {
     banner: 'cdcf-section text-center',
     card: 'cdcf-section',
-    inline: 'cdcf-section flex flex-col items-center gap-6 sm:flex-row sm:justify-between',
+    inline:
+      'cdcf-section flex flex-col items-center gap-6 sm:flex-row sm:justify-between',
   }[style]
 
   return (
@@ -62,12 +63,18 @@ export default function CallToAction({ cta }: CallToActionProps) {
           )}
         >
           {cta.ctaPrimaryBtnLabel && (
-            <Link href={cta.ctaPrimaryBtnUrl || '#'} className="cdcf-btn-primary text-base">
+            <Link
+              href={cta.ctaPrimaryBtnUrl || '#'}
+              className="cdcf-btn-primary text-base"
+            >
               {cta.ctaPrimaryBtnLabel}
             </Link>
           )}
           {cta.ctaSecondaryBtnLabel && (
-            <Link href={cta.ctaSecondaryBtnUrl || '#'} className="cdcf-btn-secondary text-base">
+            <Link
+              href={cta.ctaSecondaryBtnUrl || '#'}
+              className="cdcf-btn-secondary text-base"
+            >
               {cta.ctaSecondaryBtnLabel}
             </Link>
           )}

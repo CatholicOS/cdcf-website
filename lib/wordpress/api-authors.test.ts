@@ -42,10 +42,7 @@ afterEach(() => {
 })
 
 describe('getAuthorByDerivedSlug', () => {
-  const authors = [
-    author('John Doe', 'jdoe_1'),
-    author('Jane Roe', 'jroe_2'),
-  ]
+  const authors = [author('John Doe', 'jdoe_1'), author('Jane Roe', 'jroe_2')]
 
   function mockAuthors(list = authors) {
     wpQueryMock.mockResolvedValueOnce({ users: { nodes: list } })
@@ -69,10 +66,7 @@ describe('getAuthorByDerivedSlug', () => {
   })
 
   it('returns the first author on a derived-slug collision', async () => {
-    mockAuthors([
-      author('John Doe', 'jdoe_1'),
-      author('John Doe', 'jdoe_dup'),
-    ])
+    mockAuthors([author('John Doe', 'jdoe_1'), author('John Doe', 'jdoe_dup')])
     const found = await getAuthorByDerivedSlug('john-doe')
     expect(found?.slug).toBe('jdoe_1')
   })
@@ -120,7 +114,9 @@ describe('getAuthorBySlug', () => {
 
 describe('getAuthors', () => {
   it('returns the users list', async () => {
-    wpQueryMock.mockResolvedValueOnce({ users: { nodes: [author('A', 'a_1')] } })
+    wpQueryMock.mockResolvedValueOnce({
+      users: { nodes: [author('A', 'a_1')] },
+    })
     expect(await getAuthors()).toHaveLength(1)
   })
 
@@ -148,7 +144,9 @@ describe('getTeamMemberProfile', () => {
     const result = await getTeamMemberProfile(7, 'it')
     expect(result).toEqual(tm)
     expect(wpQueryMock).toHaveBeenCalledTimes(2)
-    expect((wpQueryMock.mock.calls[1][1] as { language: string }).language).toBe('EN')
+    expect(
+      (wpQueryMock.mock.calls[1][1] as { language: string }).language
+    ).toBe('EN')
   })
 
   it('does not issue an EN fallback for the en locale', async () => {
@@ -176,18 +174,16 @@ describe('getAuthorProfile', () => {
       ...author('Jane Doe', 'jane_1'),
       authorProfile: { authorTeamMember: { nodes: [{ databaseId: 9 }] } },
     }
-    wpQueryMock
-      .mockResolvedValueOnce({ user: linked })
-      .mockResolvedValueOnce({
-        teamMember: {
-          translation: {
-            title: 'TM',
-            content: '<p>Bio</p>',
-            featuredImage: null,
-            teamMemberFields: { memberTitle: 'AI Specialist' },
-          },
+    wpQueryMock.mockResolvedValueOnce({ user: linked }).mockResolvedValueOnce({
+      teamMember: {
+        translation: {
+          title: 'TM',
+          content: '<p>Bio</p>',
+          featuredImage: null,
+          teamMemberFields: { memberTitle: 'AI Specialist' },
         },
-      })
+      },
+    })
     const profile = await getAuthorProfile('jane_1' as Nicename, 'en')
     expect(profile?.slug).toBe('jane-doe')
     expect(profile?.title).toBe('AI Specialist')
@@ -197,7 +193,9 @@ describe('getAuthorProfile', () => {
 
 describe('preview fetchers', () => {
   it('getPostPreview fetches by id with draft auth', async () => {
-    wpQueryMock.mockResolvedValueOnce({ post: { databaseId: 5, title: 'Draft' } })
+    wpQueryMock.mockResolvedValueOnce({
+      post: { databaseId: 5, title: 'Draft' },
+    })
     const post = await getPostPreview(5)
     expect(post).toEqual({ databaseId: 5, title: 'Draft' })
     expect(wpQueryMock.mock.calls[0][1]).toEqual({ id: '5' })
@@ -211,7 +209,9 @@ describe('preview fetchers', () => {
   })
 
   it('getPagePreview fetches by id with draft auth', async () => {
-    wpQueryMock.mockResolvedValueOnce({ page: { databaseId: 9, title: 'Draft Page' } })
+    wpQueryMock.mockResolvedValueOnce({
+      page: { databaseId: 9, title: 'Draft Page' },
+    })
     const page = await getPagePreview(9)
     expect(page).toEqual({ databaseId: 9, title: 'Draft Page' })
     expect(wpQueryMock.mock.calls[0][1]).toEqual({ id: '9' })

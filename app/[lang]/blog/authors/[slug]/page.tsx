@@ -43,7 +43,9 @@ export async function generateMetadata({
   return {
     title: profile.name,
     description: description || undefined,
-    alternates: { canonical: absoluteUrl(lang, `blog/authors/${profile.slug}`) },
+    alternates: {
+      canonical: absoluteUrl(lang, `blog/authors/${profile.slug}`),
+    },
   }
 }
 

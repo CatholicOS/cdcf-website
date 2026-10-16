@@ -28,7 +28,10 @@ export async function GET() {
       available_languages: discovery.available_languages,
     })
   } catch (err) {
-    console.error('[my-bio/check] discovery failed (degrading to linked=false):', err)
+    console.error(
+      '[my-bio/check] discovery failed (degrading to linked=false):',
+      err
+    )
     return NextResponse.json({ linked: false, available_languages: [] })
   }
 }

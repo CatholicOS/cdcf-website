@@ -82,7 +82,9 @@ function getWpRestUrl(): string {
   return url.replace(/\/$/, '')
 }
 
-function bearerHeader(session: Session | null | undefined): Record<string, string> {
+function bearerHeader(
+  session: Session | null | undefined
+): Record<string, string> {
   const token = getAccessToken(session)
   if (!token) {
     throw new BioApiError('No access token on session', 401, 'no_token')
@@ -98,7 +100,11 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
-function toBioApiError(body: unknown, fallback: string, status: number): BioApiError {
+function toBioApiError(
+  body: unknown,
+  fallback: string,
+  status: number
+): BioApiError {
   if (body && typeof body === 'object') {
     const obj = body as { message?: unknown; code?: unknown }
     const message = typeof obj.message === 'string' ? obj.message : fallback
@@ -108,7 +114,9 @@ function toBioApiError(body: unknown, fallback: string, status: number): BioApiE
   return new BioApiError(fallback, status)
 }
 
-export async function fetchMyTeamMember(session: Session | null): Promise<BioDiscovery> {
+export async function fetchMyTeamMember(
+  session: Session | null
+): Promise<BioDiscovery> {
   const response = await fetch(`${getWpRestUrl()}/cdcf/v1/my-team-member`, {
     headers: bearerHeader(session),
     cache: 'no-store',

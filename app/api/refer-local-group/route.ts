@@ -19,7 +19,10 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Invalid request body.' },
+      { status: 400 }
+    )
   }
 
   // Honeypot check — silently "succeed" if filled (don't alert bots)
@@ -34,15 +37,35 @@ export async function POST(request: NextRequest) {
   }
 
   // Validate required fields
-  const { group_name, url, description, submitter_name, submitter_email, verification_code } = body
-  if (!group_name || !url || !description || !submitter_name || !submitter_email || !verification_code) {
-    return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
+  const {
+    group_name,
+    url,
+    description,
+    submitter_name,
+    submitter_email,
+    verification_code,
+  } = body
+  if (
+    !group_name ||
+    !url ||
+    !description ||
+    !submitter_name ||
+    !submitter_email ||
+    !verification_code
+  ) {
+    return NextResponse.json(
+      { error: 'Missing required fields.' },
+      { status: 400 }
+    )
   }
 
   // Proxy to WordPress
   const wpUrl = process.env.WP_GRAPHQL_URL
   if (!wpUrl) {
-    return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Server configuration error.' },
+      { status: 500 }
+    )
   }
 
   // Derive the WordPress base URL from the GraphQL endpoint

@@ -3,7 +3,11 @@
 import { useState, useRef } from 'react'
 import { Link } from '@/src/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { Bars3Icon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
+import {
+  Bars3Icon,
+  XMarkIcon,
+  ChevronDownIcon,
+} from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 import Logo from './Logo'
 import LanguageSwitcher from './LanguageSwitcher'
@@ -99,7 +103,9 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [desktopDropdown, setDesktopDropdown] = useState<string | null>(null)
   const [mobileDropdown, setMobileDropdown] = useState<string | null>(null)
-  const [mobileSubDropdown, setMobileSubDropdown] = useState<string | null>(null)
+  const [mobileSubDropdown, setMobileSubDropdown] = useState<string | null>(
+    null
+  )
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   function openDropdown(href: string) {
@@ -114,16 +120,24 @@ export default function Header() {
     closeTimeout.current = setTimeout(() => setDesktopDropdown(null), 150)
   }
 
-
   const navLinks: NavLink[] = [
     {
       href: '/about',
       label: t('about'),
       children: [
         { href: '/about#board-of-directors', label: t('boardOfDirectors') },
-        { href: '/about#ecclesial-advisory-council', label: t('ecclesialAdvisoryCouncil') },
-        { href: '/about#technical-advisory-council', label: t('technicalAdvisoryCouncil') },
-        { href: '/about/certificate-of-formation', label: t('certificateOfFormation') },
+        {
+          href: '/about#ecclesial-advisory-council',
+          label: t('ecclesialAdvisoryCouncil'),
+        },
+        {
+          href: '/about#technical-advisory-council',
+          label: t('technicalAdvisoryCouncil'),
+        },
+        {
+          href: '/about/certificate-of-formation',
+          label: t('certificateOfFormation'),
+        },
         { href: '/about/bylaws', label: t('bylaws') },
         { href: '/about/manifesto', label: t('manifesto') },
         { href: '/about/logo-symbolism', label: t('logoSymbolism') },
@@ -145,28 +159,58 @@ export default function Header() {
           href: '/governance/project-governance',
           label: t('govProjectGovernance'),
           children: [
-            { href: '/governance/project-governance/project-vetting-criteria', label: t('govProjectVetting') },
-            { href: '/governance/project-governance/lifecycle', label: t('govLifecycle') },
-            { href: '/governance/project-governance/committees', label: t('govCommittees') },
-            { href: '/governance/project-governance/project-types', label: t('govProjectTypes') },
-            { href: '/governance/project-governance/definitions', label: t('govDefinitions') },
+            {
+              href: '/governance/project-governance/project-vetting-criteria',
+              label: t('govProjectVetting'),
+            },
+            {
+              href: '/governance/project-governance/lifecycle',
+              label: t('govLifecycle'),
+            },
+            {
+              href: '/governance/project-governance/committees',
+              label: t('govCommittees'),
+            },
+            {
+              href: '/governance/project-governance/project-types',
+              label: t('govProjectTypes'),
+            },
+            {
+              href: '/governance/project-governance/definitions',
+              label: t('govDefinitions'),
+            },
           ],
         },
         {
           href: '/governance/standards',
           label: t('govStandards'),
           children: [
-            { href: '/governance/standards/standards-overview', label: t('govStandardsOverview') },
-            { href: '/governance/standards/standards-committees', label: t('govStandardsCommittees') },
+            {
+              href: '/governance/standards/standards-overview',
+              label: t('govStandardsOverview'),
+            },
+            {
+              href: '/governance/standards/standards-committees',
+              label: t('govStandardsCommittees'),
+            },
           ],
         },
         {
           href: '/governance/research',
           label: t('govResearch'),
           children: [
-            { href: '/governance/research/fragmented-catholic-digital-governance', label: t('govFragmented') },
-            { href: '/governance/research/governance-as-code-catholic-technology', label: t('govAsCode') },
-            { href: '/governance/research/trusted-data-infrastructure-catholic-ministry', label: t('govTrustedData') },
+            {
+              href: '/governance/research/fragmented-catholic-digital-governance',
+              label: t('govFragmented'),
+            },
+            {
+              href: '/governance/research/governance-as-code-catholic-technology',
+              label: t('govAsCode'),
+            },
+            {
+              href: '/governance/research/trusted-data-infrastructure-catholic-ministry',
+              label: t('govTrustedData'),
+            },
           ],
         },
       ],
@@ -175,9 +219,15 @@ export default function Header() {
       href: '/community',
       label: t('community'),
       children: [
-        { href: '/community#online-communities', label: t('onlineCommunities') },
+        {
+          href: '/community#online-communities',
+          label: t('onlineCommunities'),
+        },
         { href: '/community#local-groups', label: t('localGroups') },
-        { href: '/community#academic-collaborations', label: t('academicCollaborations') },
+        {
+          href: '/community#academic-collaborations',
+          label: t('academicCollaborations'),
+        },
       ],
     },
     {
@@ -247,7 +297,10 @@ export default function Header() {
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
           <AuthButton />
-          <Link href="/donate" className="cdcf-btn-primary hidden text-sm sm:inline-flex">
+          <Link
+            href="/donate"
+            className="cdcf-btn-primary hidden text-sm sm:inline-flex"
+          >
             {t('donate')}
           </Link>
 
@@ -286,12 +339,12 @@ export default function Header() {
                     {link.label}
                   </Link>
                   <button
-                    onClick={() =>
-                    {
+                    onClick={() => {
                       setMobileSubDropdown(null)
-                      setMobileDropdown(mobileDropdown === link.href ? null : link.href)
-                    }
-                    }
+                      setMobileDropdown(
+                        mobileDropdown === link.href ? null : link.href
+                      )
+                    }}
                     className="rounded-r-md px-3 py-2.5 text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
                     aria-label={`${link.label} submenu`}
                   >
@@ -319,7 +372,9 @@ export default function Header() {
                             <button
                               onClick={() =>
                                 setMobileSubDropdown(
-                                  mobileSubDropdown === child.href ? null : child.href
+                                  mobileSubDropdown === child.href
+                                    ? null
+                                    : child.href
                                 )
                               }
                               className="rounded-r-md px-3 py-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
@@ -328,7 +383,8 @@ export default function Header() {
                               <ChevronDownIcon
                                 className={clsx(
                                   'h-3.5 w-3.5 transition-transform',
-                                  mobileSubDropdown === child.href && 'rotate-180'
+                                  mobileSubDropdown === child.href &&
+                                    'rotate-180'
                                 )}
                               />
                             </button>

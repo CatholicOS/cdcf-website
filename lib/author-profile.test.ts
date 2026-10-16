@@ -45,27 +45,34 @@ describe('authorDisplayName', () => {
   it('prefers nickname over everything', () => {
     expect(
       authorDisplayName(
-        author({ nickname: 'Nick', name: 'Display', firstName: 'F', lastName: 'L' })
+        author({
+          nickname: 'Nick',
+          name: 'Display',
+          firstName: 'F',
+          lastName: 'L',
+        })
       )
     ).toBe('Nick')
   })
 
   it('falls through whitespace-only nickname to display name', () => {
-    expect(authorDisplayName(author({ nickname: '   ', name: 'Display' }))).toBe(
-      'Display'
-    )
+    expect(
+      authorDisplayName(author({ nickname: '   ', name: 'Display' }))
+    ).toBe('Display')
   })
 
   it('uses first + last when nickname and name are empty', () => {
     expect(
-      authorDisplayName(author({ name: '', firstName: 'Jane', lastName: 'Doe' }))
+      authorDisplayName(
+        author({ name: '', firstName: 'Jane', lastName: 'Doe' })
+      )
     ).toBe('Jane Doe')
   })
 
   it('uses only first name when last is missing (no stray space)', () => {
-    expect(authorDisplayName(author({ firstName: 'Jane', lastName: null }))).toBe(
-      'Jane'
-    )
+    expect(
+      authorDisplayName(author({ firstName: 'Jane', lastName: null }))
+    ).toBe('Jane')
   })
 
   it('falls back to the nicename when nothing else is set', () => {
@@ -88,19 +95,21 @@ describe('deriveAuthorSlug', () => {
   })
 
   it('collapses punctuation/whitespace and trims hyphens', () => {
-    expect(deriveAuthorSlug(author({ name: '  Foo --  Bar!! ' }))).toBe('foo-bar')
+    expect(deriveAuthorSlug(author({ name: '  Foo --  Bar!! ' }))).toBe(
+      'foo-bar'
+    )
   })
 
   it('falls back to the raw nicename only when slugify yields empty', () => {
     // name slugifies to empty → raw nicename used verbatim
-    expect(deriveAuthorSlug(author({ name: '!!!', slug: 'admin_9z' as Nicename }))).toBe(
-      'admin_9z'
-    )
+    expect(
+      deriveAuthorSlug(author({ name: '!!!', slug: 'admin_9z' as Nicename }))
+    ).toBe('admin_9z')
     // whitespace name → display name resolves to the nicename, which then
     // slugifies non-empty (underscore → hyphen), so that wins over the raw fallback
-    expect(deriveAuthorSlug(author({ name: '   ', slug: 'admin_9z' as Nicename }))).toBe(
-      'admin-9z'
-    )
+    expect(
+      deriveAuthorSlug(author({ name: '   ', slug: 'admin_9z' as Nicename }))
+    ).toBe('admin-9z')
   })
 })
 
@@ -121,7 +130,9 @@ describe('htmlToParagraphs (team_member HTML)', () => {
   })
 
   it('drops empty paragraphs and collapses whitespace', () => {
-    expect(htmlToParagraphs('<p></p><p>  Hi   there </p>')).toEqual(['Hi there'])
+    expect(htmlToParagraphs('<p></p><p>  Hi   there </p>')).toEqual([
+      'Hi there',
+    ])
   })
 
   it('decodes named, decimal and hex entities', () => {
@@ -190,7 +201,10 @@ describe('resolveAuthorProfile', () => {
 
     expect(profile.title).toBe('AI Specialist') // title, not role
     expect(profile.slug).toBe('jane-doe')
-    expect(profile.image).toEqual({ url: 'https://wp/photo.jpg', alt: 'Jane Doe' })
+    expect(profile.image).toEqual({
+      url: 'https://wp/photo.jpg',
+      alt: 'Jane Doe',
+    })
     expect(profile.bio).toEqual(['Rich bio']) // HTML stripped to plain text
     expect(profile.links).toEqual({
       website: 'https://jane.example',
@@ -210,7 +224,10 @@ describe('resolveAuthorProfile', () => {
     )
 
     expect(profile.title).toBeNull()
-    expect(profile.image).toEqual({ url: 'https://gravatar/x', alt: 'Jane Doe' })
+    expect(profile.image).toEqual({
+      url: 'https://gravatar/x',
+      alt: 'Jane Doe',
+    })
     // plain text kept verbatim — the literal "<c>" must NOT be stripped
     expect(profile.bio).toEqual(['A & B <c>'])
     expect(profile.links).toEqual({}) // no url/links → empty
@@ -225,7 +242,9 @@ describe('linkedTeamMemberId', () => {
   it('returns the first linked team_member id', () => {
     expect(
       linkedTeamMemberId(
-        author({ authorProfile: { authorTeamMember: { nodes: [{ databaseId: 7 }] } } })
+        author({
+          authorProfile: { authorTeamMember: { nodes: [{ databaseId: 7 }] } },
+        })
       )
     ).toBe(7)
   })
@@ -233,7 +252,9 @@ describe('linkedTeamMemberId', () => {
   it('returns null when nothing is linked', () => {
     expect(linkedTeamMemberId(author())).toBeNull()
     expect(
-      linkedTeamMemberId(author({ authorProfile: { authorTeamMember: { nodes: [] } } }))
+      linkedTeamMemberId(
+        author({ authorProfile: { authorTeamMember: { nodes: [] } } })
+      )
     ).toBeNull()
   })
 })

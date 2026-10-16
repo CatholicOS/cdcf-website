@@ -71,7 +71,9 @@ export default function RepoLanguages({ repos, label }: RepoLanguagesProps) {
     }
 
     const controller = new AbortController()
-    fetch(`/api/github/languages?repos=${repoIds.join(',')}`, { signal: controller.signal })
+    fetch(`/api/github/languages?repos=${repoIds.join(',')}`, {
+      signal: controller.signal,
+    })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         setLanguages(data)
@@ -83,8 +85,10 @@ export default function RepoLanguages({ repos, label }: RepoLanguagesProps) {
           setFetchedKey(repoKey)
         }
       })
-    return () => { controller.abort() }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      controller.abort()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoKey])
 
   if (loading) {
@@ -120,7 +124,9 @@ export default function RepoLanguages({ repos, label }: RepoLanguagesProps) {
           {label}
         </h3>
       )}
-      <div className={label ? 'mt-2 flex flex-wrap gap-2' : 'flex flex-wrap gap-2'}>
+      <div
+        className={label ? 'mt-2 flex flex-wrap gap-2' : 'flex flex-wrap gap-2'}
+      >
         {sorted.map(([lang]) => (
           <span
             key={lang}

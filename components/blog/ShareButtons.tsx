@@ -9,16 +9,24 @@ interface ShareButtonsProps {
   namespace?: 'blog' | 'projects'
 }
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://catholicdigitalcommons.org'
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://catholicdigitalcommons.org'
 
 const subscribeNoop = () => () => {}
 const getCanShare = () => typeof navigator.share === 'function'
 const getCanShareServer = () => false
 
-export default function ShareButtons({ title, namespace = 'blog' }: ShareButtonsProps) {
+export default function ShareButtons({
+  title,
+  namespace = 'blog',
+}: ShareButtonsProps) {
   const t = useTranslations(namespace)
   const pathname = usePathname()
-  const canShare = useSyncExternalStore(subscribeNoop, getCanShare, getCanShareServer)
+  const canShare = useSyncExternalStore(
+    subscribeNoop,
+    getCanShare,
+    getCanShareServer
+  )
   const url = `${SITE_URL}${pathname}`
 
   const encodedUrl = encodeURIComponent(url)

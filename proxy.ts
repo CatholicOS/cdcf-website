@@ -35,7 +35,8 @@ const intlProxy = createMiddleware(routing)
 // `/apiary`, `/wp-jsonary`, etc. are NOT excluded. Filename literals
 // must match exactly (anchor to end). The trailing `.*\..*` catches any
 // remaining asset-like path that contains a dot.
-const INTL_EXCLUDE = /^\/(?:(?:api|_next|wp-admin|wp-login|wp-json|graphql|wp-content)(?:\/|$)|favicon\.ico$|logo\.svg$|.*\..*)/
+const INTL_EXCLUDE =
+  /^\/(?:(?:api|_next|wp-admin|wp-login|wp-json|graphql|wp-content)(?:\/|$)|favicon\.ico$|logo\.svg$|.*\..*)/
 
 export function proxy(request: NextRequest) {
   // Run next-intl only for routes it owns; pass-through otherwise.

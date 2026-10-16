@@ -69,7 +69,11 @@ describe('getPreviewTarget', () => {
 
   it('parses a valid cookie', async () => {
     setup(true, serializePreviewCookie({ id: 42, type: 'post', slug: 'hi' }))
-    expect(await getPreviewTarget()).toEqual({ id: 42, type: 'post', slug: 'hi' })
+    expect(await getPreviewTarget()).toEqual({
+      id: 42,
+      type: 'post',
+      slug: 'hi',
+    })
   })
 
   it('coerces a numeric-string id', async () => {
@@ -103,7 +107,11 @@ describe('getPreviewTarget', () => {
 })
 
 describe('activePreviewId', () => {
-  const cookie = serializePreviewCookie({ id: 825, type: 'post', slug: 'hello' })
+  const cookie = serializePreviewCookie({
+    id: 825,
+    type: 'post',
+    slug: 'hello',
+  })
 
   it('returns the draft id when previewing this type at this slug or id', async () => {
     setup(true, cookie)

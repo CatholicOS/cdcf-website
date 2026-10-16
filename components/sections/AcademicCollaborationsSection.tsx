@@ -45,7 +45,9 @@ export default function AcademicCollaborationsSection({
                     src={collab.featuredImage.node.sourceUrl}
                     alt={collab.featuredImage.node.altText || collab.title}
                     width={collab.featuredImage.node.mediaDetails?.width || 160}
-                    height={collab.featuredImage.node.mediaDetails?.height || 160}
+                    height={
+                      collab.featuredImage.node.mediaDetails?.height || 160
+                    }
                     className="max-h-20 object-contain"
                   />
                 </div>

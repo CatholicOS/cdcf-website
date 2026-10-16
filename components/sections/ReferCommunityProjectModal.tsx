@@ -10,15 +10,21 @@ interface ReferCommunityProjectModalProps {
   buttonLabel: string
 }
 
-type Status = 'idle' | 'sending_code' | 'awaiting_code' | 'submitting' | 'success' | 'error'
+type Status =
+  'idle' | 'sending_code' | 'awaiting_code' | 'submitting' | 'success' | 'error'
 
-export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommunityProjectModalProps) {
+export default function ReferCommunityProjectModal({
+  buttonLabel,
+}: ReferCommunityProjectModalProps) {
   const t = useTranslations('communityProjects')
   const tc = useTranslations('common')
   const currentLocale = useLocale() as Locale
   const dialogRef = useRef<HTMLDialogElement>(null)
   const openedAtRef = useRef<number>(0)
-  const [formData, setFormData] = useState<{ fields: Record<string, string>; tags: string[] }>({ fields: {}, tags: [] })
+  const [formData, setFormData] = useState<{
+    fields: Record<string, string>
+    tags: string[]
+  }>({ fields: {}, tags: [] })
   const [formKey, setFormKey] = useState(0)
   const [status, setStatus] = useState<Status>('idle')
   const [verificationCode, setVerificationCode] = useState('')
@@ -168,8 +174,18 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
         onClick={openDialog}
         className="cdcf-btn-primary inline-flex items-center gap-2 rounded-lg px-6 py-3"
       >
-        <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        <svg
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 4.5v15m7.5-7.5h-15"
+          />
         </svg>
         {buttonLabel}
       </button>
@@ -187,7 +203,14 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
             className="rounded-full p-1 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
             aria-label="Close"
           >
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none">
+            <svg
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              stroke="currentColor"
+              strokeWidth="2"
+              fill="none"
+            >
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
@@ -197,11 +220,23 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
           {status === 'success' ? (
             <div className="text-center py-8">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                <svg
+                  className="h-6 w-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4.5 12.75l6 6 9-13.5"
+                  />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-cdcf-navy">{t('successTitle')}</h3>
+              <h3 className="text-lg font-semibold text-cdcf-navy">
+                {t('successTitle')}
+              </h3>
               <p className="mt-2 text-gray-600">{t('successMessage')}</p>
               <button
                 onClick={closeDialog}
@@ -214,13 +249,27 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
             <div className="py-4">
               <div className="mb-6 text-center">
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-                  <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                  <svg
+                    className="h-6 w-6 text-blue-600"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+                    />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-cdcf-navy">{t('checkEmailTitle')}</h3>
+                <h3 className="text-lg font-semibold text-cdcf-navy">
+                  {t('checkEmailTitle')}
+                </h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  {t('checkEmailMessage', { email: formData.fields.submitter_email })}
+                  {t('checkEmailMessage', {
+                    email: formData.fields.submitter_email,
+                  })}
                 </p>
               </div>
 
@@ -231,7 +280,10 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
               )}
 
               <div className="mb-4">
-                <label htmlFor="cp_verification_code" className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="cp_verification_code"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   {t('codeLabel')}
                 </label>
                 <input
@@ -241,7 +293,9 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                   maxLength={6}
                   autoComplete="one-time-code"
                   value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                  onChange={(e) =>
+                    setVerificationCode(e.target.value.replace(/\D/g, ''))
+                  }
                   placeholder={t('codePlaceholder')}
                   className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-center text-lg tracking-widest focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                 />
@@ -250,10 +304,14 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
 
               <button
                 onClick={handleVerifyAndSubmit}
-                disabled={status === 'submitting' || verificationCode.length !== 6}
+                disabled={
+                  status === 'submitting' || verificationCode.length !== 6
+                }
                 className="cdcf-btn-primary w-full rounded-lg px-6 py-3 text-sm font-medium disabled:opacity-60"
               >
-                {status === 'submitting' ? t('submitting') : t('verifyAndSubmit')}
+                {status === 'submitting'
+                  ? t('submitting')
+                  : t('verifyAndSubmit')}
               </button>
 
               <div className="mt-4 flex justify-between text-sm">
@@ -275,7 +333,9 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
             </div>
           ) : (
             <>
-              <p className="mb-6 text-sm text-gray-600">{t('referDescription')}</p>
+              <p className="mb-6 text-sm text-gray-600">
+                {t('referDescription')}
+              </p>
 
               {status === 'error' && (
                 <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -283,7 +343,13 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                 </div>
               )}
 
-              <form key={formKey} onSubmit={(e) => { void handleSendCode(e) }} className="space-y-4">
+              <form
+                key={formKey}
+                onSubmit={(e) => {
+                  void handleSendCode(e)
+                }}
+                className="space-y-4"
+              >
                 {/* Honeypot — hidden from real users */}
                 <div className="absolute -left-[9999px]" aria-hidden="true">
                   <label htmlFor="cp_website">Website</label>
@@ -297,8 +363,12 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                 </div>
 
                 <div>
-                  <label htmlFor="cp_language" className="block text-sm font-medium text-gray-700">
-                    {tc('submissionLanguage')} <span className="text-red-500">*</span>
+                  <label
+                    htmlFor="cp_language"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    {tc('submissionLanguage')}{' '}
+                    <span className="text-red-500">*</span>
                   </label>
                   <select
                     id="cp_language"
@@ -312,12 +382,18 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                       </option>
                     ))}
                   </select>
-                  <p className="mt-1 text-xs text-gray-500">{tc('submissionLanguageHint')}</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {tc('submissionLanguageHint')}
+                  </p>
                 </div>
 
                 <div>
-                  <label htmlFor="cp_project_name" className="block text-sm font-medium text-gray-700">
-                    {t('fieldProjectName')} <span className="text-red-500">*</span>
+                  <label
+                    htmlFor="cp_project_name"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    {t('fieldProjectName')}{' '}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -331,7 +407,10 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                 </div>
 
                 <div>
-                  <label htmlFor="cp_category" className="block text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="cp_category"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     {t('fieldCategory')}
                   </label>
                   <input
@@ -344,14 +423,26 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-cdcf-gold focus:ring-1 focus:ring-cdcf-gold focus:outline-none"
                   />
                   <datalist id="cp-categories">
-                    {['API', 'App', 'Web', 'AI', 'Library', 'Data', 'Plugin', 'DevOps'].map((cat) => (
+                    {[
+                      'API',
+                      'App',
+                      'Web',
+                      'AI',
+                      'Library',
+                      'Data',
+                      'Plugin',
+                      'DevOps',
+                    ].map((cat) => (
                       <option key={cat} value={cat} />
                     ))}
                   </datalist>
                 </div>
 
                 <div>
-                  <label htmlFor="cp_tags" className="block text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="cp_tags"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     {t('fieldTags')}
                   </label>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 rounded-md border border-gray-300 px-2 py-1.5 focus-within:border-cdcf-gold focus-within:ring-1 focus-within:ring-cdcf-gold">
@@ -363,7 +454,9 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                         {tag}
                         <button
                           type="button"
-                          onClick={() => setTags((prev) => prev.filter((t) => t !== tag))}
+                          onClick={() =>
+                            setTags((prev) => prev.filter((t) => t !== tag))
+                          }
                           className="ml-0.5 text-gray-400 hover:text-gray-600"
                         >
                           &times;
@@ -376,27 +469,42 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                       value={tagInput}
                       onChange={(e) => setTagInput(e.target.value)}
                       onKeyDown={(e) => {
-                        if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+                        if (
+                          (e.key === 'Enter' || e.key === ',') &&
+                          tagInput.trim()
+                        ) {
                           e.preventDefault()
                           const newTag = tagInput.trim().replace(/,+$/, '')
                           if (newTag && !tags.includes(newTag)) {
                             setTags((prev) => [...prev, newTag])
                           }
                           setTagInput('')
-                        } else if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+                        } else if (
+                          e.key === 'Backspace' &&
+                          !tagInput &&
+                          tags.length > 0
+                        ) {
                           setTags((prev) => prev.slice(0, -1))
                         }
                       }}
-                      placeholder={tags.length === 0 ? t('fieldTagsPlaceholder') : ''}
+                      placeholder={
+                        tags.length === 0 ? t('fieldTagsPlaceholder') : ''
+                      }
                       className="min-w-[120px] flex-1 border-0 bg-transparent px-1 py-0.5 text-sm focus:ring-0 focus:outline-none"
                     />
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">{t('fieldTagsHint')}</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {t('fieldTagsHint')}
+                  </p>
                 </div>
 
                 <div>
-                  <label htmlFor="cp_description" className="block text-sm font-medium text-gray-700">
-                    {t('fieldDescription')} <span className="text-red-500">*</span>
+                  <label
+                    htmlFor="cp_description"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    {t('fieldDescription')}{' '}
+                    <span className="text-red-500">*</span>
                   </label>
                   <DescriptionField
                     key={formKey}
@@ -411,7 +519,10 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                 </div>
 
                 <div>
-                  <label htmlFor="cp_project_url" className="block text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="cp_project_url"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     {t('fieldProjectUrl')}
                   </label>
                   <input
@@ -425,7 +536,10 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                 </div>
 
                 <div>
-                  <label htmlFor="cp_github_url" className="block text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="cp_github_url"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     {t('fieldGithubUrl')}
                   </label>
                   <input
@@ -441,7 +555,10 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                 <hr className="my-2 border-gray-200" />
 
                 <div>
-                  <label htmlFor="cp_submitter_name" className="block text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="cp_submitter_name"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     {t('fieldYourName')} <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -456,8 +573,12 @@ export default function ReferCommunityProjectModal({ buttonLabel }: ReferCommuni
                 </div>
 
                 <div>
-                  <label htmlFor="cp_submitter_email" className="block text-sm font-medium text-gray-700">
-                    {t('fieldYourEmail')} <span className="text-red-500">*</span>
+                  <label
+                    htmlFor="cp_submitter_email"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    {t('fieldYourEmail')}{' '}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="email"

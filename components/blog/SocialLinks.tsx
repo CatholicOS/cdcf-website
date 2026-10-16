@@ -18,7 +18,10 @@ const ICONS = {
   ),
 } as const
 
-export default async function SocialLinks({ links, className }: SocialLinksProps) {
+export default async function SocialLinks({
+  links,
+  className,
+}: SocialLinksProps) {
   const entries = (['website', 'linkedin', 'github'] as const).filter(
     (key) => links[key]
   )

@@ -6,7 +6,11 @@ import { authorHref, type AuthorProfile } from '@/lib/author-profile'
 
 /** Compact "About the author" card shown beneath an article. The full,
  *  formatted bio lives on the author page linked from here. */
-export default async function AuthorBio({ profile }: { profile: AuthorProfile }) {
+export default async function AuthorBio({
+  profile,
+}: {
+  profile: AuthorProfile
+}) {
   const t = await getTranslations('authors')
   const href = authorHref(profile.slug)
   const bio = profile.bio.join(' ')
@@ -40,7 +44,9 @@ export default async function AuthorBio({ profile }: { profile: AuthorProfile })
             <p className="text-sm text-gray-500">{profile.title}</p>
           )}
           {excerpt && (
-            <p className="mt-2 text-sm leading-relaxed text-gray-600">{excerpt}</p>
+            <p className="mt-2 text-sm leading-relaxed text-gray-600">
+              {excerpt}
+            </p>
           )}
 
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">

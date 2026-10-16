@@ -23,7 +23,9 @@ export default function DisqusComments({ slug, title }: DisqusCommentsProps) {
   useEffect(() => {
     if (!SHORTNAME) return
 
-    window.disqus_config = function (this: { page: { identifier: string; title: string } }) {
+    window.disqus_config = function (this: {
+      page: { identifier: string; title: string }
+    }) {
       this.page.identifier = slug
       this.page.title = title
     }

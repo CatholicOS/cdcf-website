@@ -16,7 +16,6 @@ interface AcademicCollaborationPageProps {
   params: Promise<{ lang: string; slug: string }>
 }
 
-
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || 'https://catholicdigitalcommons.org'
 
@@ -194,21 +193,23 @@ export default async function AcademicCollaborationPage({
       </div>
 
       {/* Related projects */}
-      {fields.collabProjects?.nodes && fields.collabProjects.nodes.length > 0 && (
-        <ProjectGrid
-          projects={fields.collabProjects.nodes}
-          title={t('relatedProjects')}
-        />
-      )}
+      {fields.collabProjects?.nodes &&
+        fields.collabProjects.nodes.length > 0 && (
+          <ProjectGrid
+            projects={fields.collabProjects.nodes}
+            title={t('relatedProjects')}
+          />
+        )}
 
       {/* Governance contacts */}
-      {fields.collabGovernance?.nodes && fields.collabGovernance.nodes.length > 0 && (
-        <GovernanceSection
-          members={fields.collabGovernance.nodes}
-          title={t('academicLiaisons')}
-          columns={fields.collabGovernance.nodes.length === 1 ? 2 : 3}
-        />
-      )}
+      {fields.collabGovernance?.nodes &&
+        fields.collabGovernance.nodes.length > 0 && (
+          <GovernanceSection
+            members={fields.collabGovernance.nodes}
+            title={t('academicLiaisons')}
+            columns={fields.collabGovernance.nodes.length === 1 ? 2 : 3}
+          />
+        )}
     </article>
   )
 }
