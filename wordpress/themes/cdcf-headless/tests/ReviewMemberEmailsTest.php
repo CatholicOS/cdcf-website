@@ -46,6 +46,11 @@ final class ReviewMemberEmailsTest extends TestCase
         Functions\when('cdcf_review_enqueue_email')->justReturn(false);
     }
 
+    private function base(): string
+    {
+        return defined('CDCF_FRONTEND_URL') ? rtrim((string) CDCF_FRONTEND_URL, '/') : 'http://localhost:3000';
+    }
+
     protected function tearDown(): void
     {
         Monkey\tearDown();
@@ -81,9 +86,9 @@ final class ReviewMemberEmailsTest extends TestCase
         $this->assertSame(['tech@example.org', 'eccl@example.org'], array_column($this->mails, 'to'));
         $this->assertSame('Decisione registrata: Liturgy Helper', $this->mails[0]['subject']);
         $this->assertStringContainsString('Fr. A ha registrato la decisione', $this->mails[0]['body']);
-        $this->assertStringContainsString('http://localhost:3000/it/review/40', $this->mails[0]['body']);
+        $this->assertStringContainsString($this->base() . '/it/review/40', $this->mails[0]['body']);
         $this->assertSame('Decision recorded: Liturgy Helper', $this->mails[1]['subject']);
-        $this->assertStringContainsString('http://localhost:3000/review/40', $this->mails[1]['body']);
+        $this->assertStringContainsString($this->base() . '/review/40', $this->mails[1]['body']);
     }
 
     public function test_backfilled_overrides_are_never_emailed(): void
@@ -111,7 +116,7 @@ final class ReviewMemberEmailsTest extends TestCase
         $this->event = ['id' => 3, 'project_id' => 40, 'type' => 'reply_posted', 'actor_user_id' => 8, 'entry_id' => 5, 'data' => [], 'created_at' => 'x'];
 
         $this->assertSame('sent', cdcf_review_deliver_member_email(7, 3));
-        $this->assertStringContainsString('http://localhost:3000/it/review/40#entry-5', $this->mails[0]['body']);
+        $this->assertStringContainsString($this->base() . '/it/review/40#entry-5', $this->mails[0]['body']);
     }
 
     public function test_send_time_checks_skip_without_failing(): void
