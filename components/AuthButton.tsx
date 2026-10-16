@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { ChevronDownIcon, UserIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 import { Link } from '@/src/i18n/navigation'
+import { NotificationBell } from '@/components/review/NotificationBell'
 
 /**
  * Header sign-in / sign-out control.
@@ -13,7 +14,8 @@ import { Link } from '@/src/i18n/navigation'
  * Unauthenticated → "Sign in" button kicking off the Zitadel OIDC flow.
  * Authenticated   → user dropdown with email + sign-out, plus an "Edit
  * my bio" entry when the caller is linked to a team_member post (resolved
- * via the /api/my-bio/check route).
+ * via the /api/my-bio/check route), plus, for council and Board members,
+ * the notification bell.
  */
 export default function AuthButton() {
   const { data: session, status } = useSession()
@@ -121,96 +123,99 @@ export default function AuthButton() {
   }
 
   return (
-    <div className="relative">
-      <button
-        type="button"
-        className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        onMouseEnter={openDropdown}
-        onMouseLeave={scheduleClose}
-        onFocus={openDropdown}
-        onBlur={scheduleClose}
-        onKeyDown={handleKeyDown}
-      >
-        <UserIcon className="h-5 w-5" />
-        <span className="hidden max-w-[100px] truncate lg:inline">
-          {session.user.name ?? session.user.email}
-        </span>
-        <ChevronDownIcon
-          className={clsx(
-            'h-3.5 w-3.5 transition-transform',
-            isOpen && 'rotate-180'
-          )}
-        />
-      </button>
-
-      {isOpen && (
-        <div
-          role="menu"
-          // Mouse + focus handlers also live on the trigger button; the
-          // menu mirrors them so transitions INTO the menu (cursor OR
-          // keyboard) cancel the close-on-leave timer scheduled when the
-          // cursor or focus left the button. Without onFocus here,
-          // tabbing from the button into a menu item would let the
-          // 150ms timer fire and close the menu mid-traversal — React's
-          // onFocus bubbles, so item focus reaches us here.
+    <div className="flex items-center gap-1">
+      {hasReviewAccess && <NotificationBell />}
+      <div className="relative">
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
           onMouseEnter={openDropdown}
           onMouseLeave={scheduleClose}
           onFocus={openDropdown}
           onBlur={scheduleClose}
-          className="absolute right-0 top-full min-w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+          onKeyDown={handleKeyDown}
         >
-          {session.user.email && (
-            <div className="mb-1 border-b border-gray-100 px-4 py-2 text-xs text-gray-500">
-              {session.user.email}
-            </div>
-          )}
-          {hasBioLink && (
-            <Link
-              href="/my-bio"
-              role="menuitem"
-              onClick={() => setIsOpen(false)}
-              className="block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
-            >
-              {t('editMyBio')}
-            </Link>
-          )}
-          {hasReviewAccess && (
-            <Link
-              href="/review"
-              role="menuitem"
-              onClick={() => setIsOpen(false)}
-              className="block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
-            >
-              {t('projectReview')}
-            </Link>
-          )}
-          {/*
-            Form POST (not next-auth/react's signOut() or next/link or a
-            window.location GET) so the request reaches our RP-initiated
-            logout route as POST — which clears the Auth.js cookies AND
-            303s through Zitadel's /oidc/v1/end_session to terminate the
-            upstream SSO session. POST (rather than GET) makes the route
-            CSRF-safe: a sign-out endpoint mutates state, and a GET form
-            would be triggerable via `<img src>` on any third-party page.
-            The browser handles the 303 and follows with GET to Zitadel.
-          */}
-          <form
-            action="/api/auth/zitadel-signout"
-            method="POST"
-            className="block"
+          <UserIcon className="h-5 w-5" />
+          <span className="hidden max-w-[100px] truncate lg:inline">
+            {session.user.name ?? session.user.email}
+          </span>
+          <ChevronDownIcon
+            className={clsx(
+              'h-3.5 w-3.5 transition-transform',
+              isOpen && 'rotate-180'
+            )}
+          />
+        </button>
+
+        {isOpen && (
+          <div
+            role="menu"
+            // Mouse + focus handlers also live on the trigger button; the
+            // menu mirrors them so transitions INTO the menu (cursor OR
+            // keyboard) cancel the close-on-leave timer scheduled when the
+            // cursor or focus left the button. Without onFocus here,
+            // tabbing from the button into a menu item would let the
+            // 150ms timer fire and close the menu mid-traversal — React's
+            // onFocus bubbles, so item focus reaches us here.
+            onMouseEnter={openDropdown}
+            onMouseLeave={scheduleClose}
+            onFocus={openDropdown}
+            onBlur={scheduleClose}
+            className="absolute right-0 top-full min-w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
           >
-            <button
-              type="submit"
-              role="menuitem"
-              className="block w-full px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+            {session.user.email && (
+              <div className="mb-1 border-b border-gray-100 px-4 py-2 text-xs text-gray-500">
+                {session.user.email}
+              </div>
+            )}
+            {hasBioLink && (
+              <Link
+                href="/my-bio"
+                role="menuitem"
+                onClick={() => setIsOpen(false)}
+                className="block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+              >
+                {t('editMyBio')}
+              </Link>
+            )}
+            {hasReviewAccess && (
+              <Link
+                href="/review"
+                role="menuitem"
+                onClick={() => setIsOpen(false)}
+                className="block px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+              >
+                {t('projectReview')}
+              </Link>
+            )}
+            {/*
+              Form POST (not next-auth/react's signOut() or next/link or a
+              window.location GET) so the request reaches our RP-initiated
+              logout route as POST — which clears the Auth.js cookies AND
+              303s through Zitadel's /oidc/v1/end_session to terminate the
+              upstream SSO session. POST (rather than GET) makes the route
+              CSRF-safe: a sign-out endpoint mutates state, and a GET form
+              would be triggerable via `<img src>` on any third-party page.
+              The browser handles the 303 and follows with GET to Zitadel.
+            */}
+            <form
+              action="/api/auth/zitadel-signout"
+              method="POST"
+              className="block"
             >
-              {t('signOut')}
-            </button>
-          </form>
-        </div>
-      )}
+              <button
+                type="submit"
+                role="menuitem"
+                className="block w-full px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-cdcf-navy"
+              >
+                {t('signOut')}
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

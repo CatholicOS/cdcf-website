@@ -470,6 +470,37 @@
       "notFound": "No encontrado.",
       "generic": "Algo ha salido mal. Inténtalo de nuevo.",
       "reload": "Recargar"
+    },
+    "inbox": {
+      "bell": "Notificaciones",
+      "bellUnread": "Notificaciones, {count} sin leer",
+      "title": "Notificaciones",
+      "intro": "Actividad en las propuestas en revisión.",
+      "all": "Todas",
+      "unread": "Sin leer",
+      "empty": "No hay notificaciones.",
+      "markAllRead": "Marcar todas como leídas",
+      "viewAll": "Ver todas",
+      "loading": "Cargando…",
+      "loadFailed": "No se pudieron cargar las notificaciones.",
+      "submitter": "El proponente",
+      "someone": "Alguien",
+      "unreadMarker": "Sin leer",
+      "event": {
+        "submission_received": "Nueva propuesta: {title}",
+        "review_posted": "{actor} publicó una revisión · {title}",
+        "review_edited": "{actor} editó su revisión · {title}",
+        "vote_changed": "{actor} cambió su voto · {title}",
+        "reply_posted": "{actor} respondió a una revisión · {title}",
+        "reply_posted_to_you": "{actor} respondió a tu revisión · {title}",
+        "discussion_posted": "{actor} escribió en la discusión · {title}",
+        "attachment_added": "{actor} añadió un archivo adjunto · {title}",
+        "question_sent": "{actor} hizo una pregunta al proponente · {title}",
+        "submitter_answered": "{actor} respondió · {title}",
+        "decision_recorded": "{actor} registró la decisión · {title}",
+        "admin_override": "{actor} lo publicó en WordPress · {title}",
+        "admin_override_backfill": "Publicado en WordPress antes de la revisión · {title}"
+      }
     }
   },
   "EditorToolbar": {
