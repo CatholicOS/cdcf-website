@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { setRequestLocale, getTranslations } from 'next-intl/server'
 import { getAuthorProfile, getPostBySlug, getPostPreview } from '@/lib/wordpress/api'
 import { authorHref } from '@/lib/author-profile'
-import { getPreviewTarget, previewMatchesSlug } from '@/lib/wordpress/preview'
+import { activePreviewId } from '@/lib/wordpress/preview'
 import { stripHtml } from '@/lib/strip-html'
 import { Link } from '@/src/i18n/navigation'
 import ShareButtons from '@/components/blog/ShareButtons'
@@ -26,7 +26,11 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://catholicdigitalcom
 
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
   const { lang, slug } = await params
-  const post = await getPostBySlug(slug, lang)
+  // In preview, describe the draft (addressed by id), like the page body.
+  const previewId = await activePreviewId('post', slug)
+  const post = previewId
+    ? await getPostPreview(previewId)
+    : await getPostBySlug(slug, lang)
 
   if (!post) return {}
 
@@ -57,9 +61,12 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       description,
       ...(image && { images: [image.sourceUrl] }),
     },
-    alternates: {
-      canonical: `${SITE_URL}/${lang === 'en' ? '' : `${lang}/`}blog/${slug}`,
-    },
+    // A draft has no public URL, so no canonical.
+    ...(!previewId && {
+      alternates: {
+        canonical: `${SITE_URL}/${lang === 'en' ? '' : `${lang}/`}blog/${slug}`,
+      },
+    }),
   }
 }
 
@@ -69,12 +76,10 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
   // In a preview session, render the draft post by id (it may have no usable
   // slug yet); otherwise fall through to the normal published lookup.
-  const preview = await getPreviewTarget()
-  const usePreview =
-    preview?.type === 'post' && previewMatchesSlug(preview, slug)
+  const previewId = await activePreviewId('post', slug)
 
   const [post, t] = await Promise.all([
-    usePreview ? getPostPreview(preview.id) : getPostBySlug(slug, lang),
+    previewId ? getPostPreview(previewId) : getPostBySlug(slug, lang),
     getTranslations('blog'),
   ])
 

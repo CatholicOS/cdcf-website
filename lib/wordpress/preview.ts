@@ -67,3 +67,20 @@ export function serializePreviewCookie(target: PreviewTarget): string {
 export function previewMatchesSlug(target: PreviewTarget, slug: string): boolean {
   return slug === target.slug || slug === String(target.id)
 }
+
+/**
+ * The id of the draft to render at this route, or null when the request is
+ * not a preview of a `type` post at `slug`. Type is matched strictly: a
+ * numeric slug like /1593 must not match another CPT's preview by id.
+ * Shared by the page bodies and their generateMetadata, so both always
+ * agree on whether the draft is shown.
+ */
+export async function activePreviewId(
+  type: string,
+  slug: string
+): Promise<number | null> {
+  const target = await getPreviewTarget()
+  return target?.type === type && previewMatchesSlug(target, slug)
+    ? target.id
+    : null
+}

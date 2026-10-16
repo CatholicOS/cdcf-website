@@ -3,7 +3,7 @@ import { notFound, permanentRedirect } from 'next/navigation'
 import { setRequestLocale } from 'next-intl/server'
 import { getPage, getPagePreview, getPostBySlug, getPosts, getProjects, getSponsors, getChildPages } from '@/lib/wordpress/api'
 import { canonicalAbsoluteUrl, canonicalRedirectPath } from '@/lib/canonical'
-import { getPreviewTarget, previewMatchesSlug } from '@/lib/wordpress/preview'
+import { activePreviewId } from '@/lib/wordpress/preview'
 import PageRenderer from '@/components/sections/PageRenderer'
 
 interface PageProps {
@@ -16,9 +16,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { lang, slug } = await params
   const pageSlug = slug?.join('/') || '/'
 
-  const page = await getPage(pageSlug, lang)
+  // In preview, describe the draft (addressed by id), like the page body.
+  const previewId = await activePreviewId('page', pageSlug)
+  const page = previewId
+    ? await getPagePreview(previewId)
+    : await getPage(pageSlug, lang)
   if (!page?.title) {
     return {}
+  }
+  // A draft has no public URL, so no canonical.
+  if (previewId) {
+    return { title: page.title }
   }
 
   return {
@@ -45,12 +53,11 @@ export default async function CatchAllPage({ params }: PageProps) {
   // through to the normal published lookup. Match on type strictly — post,
   // project and acad_collab previews have their own routes, and a numeric
   // slug like /1593 would otherwise match a CPT preview by id here.
-  const preview = await getPreviewTarget()
-  const usePreview =
-    preview?.type === 'page' && previewMatchesSlug(preview, pageSlug)
+  const previewId = await activePreviewId('page', pageSlug)
+  const usePreview = previewId !== null
 
-  const page = usePreview
-    ? await getPagePreview(preview.id)
+  const page = previewId
+    ? await getPagePreview(previewId)
     : await getPage(pageSlug, lang)
 
   if (!page) {
