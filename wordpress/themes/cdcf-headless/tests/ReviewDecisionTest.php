@@ -30,6 +30,7 @@ final class ReviewDecisionTest extends TestCase
             unset($this->meta[$id][$k]);
             return true;
         });
+        Functions\when('wp_slash')->returnArg();
         Functions\when('get_post_type')->alias(fn(int $id) => $this->posts[$id]['post_type'] ?? false);
         Functions\when('get_post_status')->alias(fn(int $id) => $this->posts[$id]['post_status'] ?? false);
         Functions\when('set_post_type')->alias(fn(int $id, string $t) => ($this->posts[$id]['post_type'] = $t) ? 1 : 0);
@@ -121,6 +122,33 @@ final class ReviewDecisionTest extends TestCase
         ksort($expected);
         ksort($actual);
         $this->assertSame($expected, $actual);
+    }
+
+    public function test_rollback_restores_backslashes_through_update_post_meta_unslashing(): void
+    {
+        // update_post_meta() unslashes what it is given, like core.
+        $unslash = static function ($v) use (&$unslash) {
+            return is_array($v) ? array_map($unslash, $v) : (is_string($v) ? stripslashes($v) : $v);
+        };
+        $slash = static function ($v) use (&$slash) {
+            return is_array($v) ? array_map($slash, $v) : (is_string($v) ? addslashes($v) : $v);
+        };
+        Functions\when('update_post_meta')->alias(function (int $id, string $k, $v) use ($unslash): bool {
+            $this->meta[$id][$k] = $unslash($v);
+            return true;
+        });
+        Functions\when('wp_slash')->alias($slash);
+        $this->posts[40] = ['post_type' => 'project', 'post_status' => 'pending'];
+        $this->meta[40] = [
+            'project_url' => 'https://example.org/a\\b', '_project_url' => 'field_project_url',
+            'project_leads' => ['C:\\x'], '_project_leads' => 'field_project_leads',
+        ];
+        $this->failPublish = true;
+
+        $this->assertInstanceOf(WP_Error::class, cdcf_review_apply_outcome(40, 'community'));
+
+        $this->assertSame('https://example.org/a\\b', $this->meta[40]['project_url']);
+        $this->assertSame(['C:\\x'], $this->meta[40]['project_leads']);
     }
 
     public function test_failed_publish_reports_an_error(): void

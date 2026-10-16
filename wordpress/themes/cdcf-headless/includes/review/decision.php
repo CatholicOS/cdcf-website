@@ -92,7 +92,8 @@ function cdcf_review_convert_to_community(int $project_id) {
         if ($value === null) {
             delete_post_meta($project_id, $key);
         } else {
-            update_post_meta($project_id, $key, $value);
+            // update_post_meta() unslashes its value; slash it so backslashes survive.
+            update_post_meta($project_id, $key, wp_slash($value));
         }
     }
     return new WP_Error('conversion_failed', 'The project could not be converted to a community project.', ['status' => 500]);
