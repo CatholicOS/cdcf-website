@@ -12,6 +12,8 @@ import { buildAttachmentIndex } from '@/lib/review-ui'
 import { Link } from '@/src/i18n/navigation'
 import { AskSubmitter } from '@/components/review/AskSubmitter'
 import { AttachmentPanel } from '@/components/review/AttachmentPanel'
+import { DecisionCard } from '@/components/review/DecisionCard'
+import { DecisionPanel } from '@/components/review/DecisionPanel'
 import { EntryCard } from '@/components/review/EntryCard'
 import { EntryComposer } from '@/components/review/EntryComposer'
 import { MyReviewComposer } from '@/components/review/MyReviewComposer'
@@ -74,10 +76,19 @@ export default async function ReviewProjectPage({
           )}
         </section>
 
+        {project.decision && <DecisionCard decision={project.decision} />}
         {locked && (
           <p className="rounded-md bg-gray-100 p-3 text-sm text-gray-700">
             {t('locked')}
           </p>
+        )}
+
+        {project.me.can_decide && !locked && project.decision_email && (
+          <DecisionPanel
+            projectId={project.id}
+            plurality={project.plurality}
+            email={project.decision_email}
+          />
         )}
 
         {project.me.can_vote && !locked && (
