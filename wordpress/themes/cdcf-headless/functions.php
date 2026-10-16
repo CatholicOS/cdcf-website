@@ -727,6 +727,7 @@ require_once __DIR__ . '/includes/handlers/update-disposable-domains.php';
 // the disposable-domain lookup can read the blocklist file path.
 require_once __DIR__ . '/includes/sanitizers.php';
 require_once __DIR__ . '/includes/security.php';
+require_once __DIR__ . '/includes/client-ip.php';
 
 // Footnote/fragment-anchor protection helper, applied at every wp_kses_post
 // content sink below so colon-bearing anchors (#fn:…/#fnref:…) survive KSES.

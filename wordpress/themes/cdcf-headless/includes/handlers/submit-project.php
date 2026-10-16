@@ -26,7 +26,7 @@ function cdcf_rest_submit_project(WP_REST_Request $request) {
     }
 
     // Rate limiting via transients: 3 submissions per hour per IP (defense-in-depth).
-    $ip = sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    $ip = cdcf_request_client_ip($request); // the visitor, not the Next.js server
     $transient_key = 'cdcf_projsub_' . md5($ip);
     $count = (int) get_transient($transient_key);
 
