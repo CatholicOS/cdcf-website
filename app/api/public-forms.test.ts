@@ -64,7 +64,7 @@ let fetchMock: ReturnType<typeof vi.fn>
 beforeEach(() => {
   vi.resetModules() // a fresh in-memory limiter per test
   vi.stubEnv('WP_GRAPHQL_URL', 'https://wp.example.org/graphql')
-  vi.stubEnv('WP_PREVIEW_SECRET', 'shared')
+  vi.stubEnv('CDCF_CLIENT_IP_SECRET', 'shared')
   fetchMock = vi.fn(async () => Response.json({ success: true }))
   vi.stubGlobal('fetch', fetchMock)
 })

@@ -105,7 +105,7 @@ abstract class SubmissionHandlerTestBase extends TestCase
     /** A request carrying the visitor's address, signed as the Next.js routes sign it. */
     private function forwardedFrom(string $ip): WP_REST_Request
     {
-        putenv('WP_PREVIEW_SECRET=forwarding-secret');
+        putenv('CDCF_CLIENT_IP_SECRET=forwarding-secret');
         $request = $this->makeRequest();
         $request->set_header('X-CDCF-Client-IP', $ip);
         $request->set_header('X-CDCF-Client-IP-Signature', hash_hmac('sha256', $ip, 'forwarding-secret'));
@@ -123,7 +123,7 @@ abstract class SubmissionHandlerTestBase extends TestCase
         $this->allowAllFunctionsToExist();
 
         $response = $this->invokeHandler($this->forwardedFrom('203.0.113.9'));
-        putenv('WP_PREVIEW_SECRET');
+        putenv('CDCF_CLIENT_IP_SECRET');
 
         $this->assertInstanceOf(WP_Error::class, $response);
         $this->assertSame('rate_limited', $response->get_error_code());
@@ -142,7 +142,7 @@ abstract class SubmissionHandlerTestBase extends TestCase
         $this->allowAllFunctionsToExist();
 
         $response = $this->invokeHandler($this->forwardedFrom('203.0.113.9'));
-        putenv('WP_PREVIEW_SECRET');
+        putenv('CDCF_CLIENT_IP_SECRET');
 
         $this->assertSame(['203.0.113.9'], $checked);
         $this->assertInstanceOf(WP_Error::class, $response);

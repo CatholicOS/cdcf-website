@@ -34,7 +34,7 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('submission status client', () => {
   it('forwards the signed visitor address on every call', async () => {
-    vi.stubEnv('WP_PREVIEW_SECRET', 'shared')
+    vi.stubEnv('CDCF_CLIENT_IP_SECRET', 'shared')
     fetchMock.mockImplementation(async () => json(200, { id: 40 }))
 
     await fetchSubmissionStatus(40, TOKEN, '203.0.113.9')

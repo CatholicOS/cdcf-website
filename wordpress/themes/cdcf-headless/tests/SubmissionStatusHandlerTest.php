@@ -166,7 +166,7 @@ final class SubmissionStatusHandlerTest extends TestCase
 
     public function test_failures_are_counted_per_signed_visitor_not_for_the_whole_site(): void
     {
-        putenv('WP_PREVIEW_SECRET=forwarding-secret');
+        putenv('CDCF_CLIENT_IP_SECRET=forwarding-secret');
         $from = function (string $ip): WP_REST_Request {
             $r = $this->request(['id' => 40], str_repeat('b', 64));
             $r->set_header('X-CDCF-Client-IP', $ip);
@@ -178,7 +178,7 @@ final class SubmissionStatusHandlerTest extends TestCase
         }
         $attacker = cdcf_rest_submission_status_get($from('203.0.113.9'));
         $other    = cdcf_rest_submission_status_get($from('203.0.113.77'));
-        putenv('WP_PREVIEW_SECRET');
+        putenv('CDCF_CLIENT_IP_SECRET');
 
         $this->assertSame('rate_limited', $attacker->get_error_code());
         $this->assertNotFound($other);

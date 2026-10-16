@@ -19,13 +19,13 @@ final class ClientIpTest extends TestCase
         Monkey\setUp();
         Functions\when('sanitize_text_field')->returnArg();
         $_SERVER['REMOTE_ADDR'] = '10.0.0.5'; // the Next.js server
-        putenv('WP_PREVIEW_SECRET=' . self::SECRET);
+        putenv('CDCF_CLIENT_IP_SECRET=' . self::SECRET);
     }
 
     protected function tearDown(): void
     {
         unset($_SERVER['REMOTE_ADDR']);
-        putenv('WP_PREVIEW_SECRET');
+        putenv('CDCF_CLIENT_IP_SECRET');
         Monkey\tearDown();
         parent::tearDown();
     }
@@ -68,7 +68,16 @@ final class ClientIpTest extends TestCase
 
     public function test_nothing_is_trusted_when_no_secret_is_configured(): void
     {
-        putenv('WP_PREVIEW_SECRET');
+        putenv('CDCF_CLIENT_IP_SECRET');
         $this->assertSame('10.0.0.5', cdcf_request_client_ip($this->request('203.0.113.9', hash_hmac('sha256', '203.0.113.9', ''))));
+    }
+
+    public function test_the_preview_secret_does_not_sign_addresses(): void
+    {
+        // It reaches browsers in preview URLs, so it must not be enough.
+        putenv('CDCF_CLIENT_IP_SECRET');
+        putenv('WP_PREVIEW_SECRET=' . self::SECRET);
+        $this->assertSame('10.0.0.5', cdcf_request_client_ip($this->request('203.0.113.9', $this->sign('203.0.113.9'))));
+        putenv('WP_PREVIEW_SECRET');
     }
 }
