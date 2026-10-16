@@ -670,8 +670,8 @@ function cdcf_review_route_args(): array {
                 'sanitize_callback' => 'sanitize_key',
                 'validate_callback' => 'rest_validate_request_arg',
             ],
-            'rationale'         => ['required' => false, 'type' => 'string', 'default' => '', 'sanitize_callback' => 'sanitize_textarea_field'],
-            'submitter_summary' => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field'],
+            'rationale'         => ['required' => false, 'type' => 'string', 'default' => '', 'sanitize_callback' => 'cdcf_review_sanitize_markdown'],
+            'submitter_summary' => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'cdcf_review_sanitize_markdown'],
         ],
         '/review/entries/(?P<id>\d+)' => [
             'id'      => $id,

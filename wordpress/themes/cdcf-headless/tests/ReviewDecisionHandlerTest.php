@@ -218,8 +218,8 @@ final class ReviewDecisionHandlerTest extends TestCase
         $args = cdcf_review_route_args()['/review/projects/(?P<id>\d+)/decision'];
         $this->assertSame(CDCF_REVIEW_VOTES, $args['decision']['enum']);
         $this->assertSame('rest_validate_request_arg', $args['decision']['validate_callback']);
-        $this->assertSame('sanitize_textarea_field', $args['rationale']['sanitize_callback']);
-        $this->assertSame('sanitize_textarea_field', $args['submitter_summary']['sanitize_callback']);
+        $this->assertSame('cdcf_review_sanitize_markdown', $args['rationale']['sanitize_callback']);
+        $this->assertSame('cdcf_review_sanitize_markdown', $args['submitter_summary']['sanitize_callback']);
     }
 
     public function test_a_review_decided_while_waiting_for_the_lock_is_refused(): void
