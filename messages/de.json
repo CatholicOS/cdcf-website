@@ -470,6 +470,38 @@
       "notFound": "Nicht gefunden.",
       "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
       "reload": "Neu laden"
+    },
+    "inbox": {
+      "bell": "Benachrichtigungen",
+      "bellUnread": "Benachrichtigungen, {count} ungelesen",
+      "title": "Benachrichtigungen",
+      "intro": "Aktivität bei den Einreichungen in Prüfung.",
+      "all": "Alle",
+      "unread": "Ungelesen",
+      "empty": "Keine Benachrichtigungen.",
+      "markAllRead": "Alle als gelesen markieren",
+      "viewAll": "Alle anzeigen",
+      "loading": "Wird geladen…",
+      "loadFailed": "Die Benachrichtigungen konnten nicht geladen werden.",
+      "submitter": "Die einreichende Person",
+      "someone": "Jemand",
+      "unreadMarker": "Ungelesen",
+      "pagination": "Seiten",
+      "event": {
+        "submission_received": "Neue Einreichung: {title}",
+        "review_posted": "{actor} hat eine Bewertung veröffentlicht · {title}",
+        "review_edited": "{actor} hat die eigene Bewertung bearbeitet · {title}",
+        "vote_changed": "{actor} hat die eigene Stimme geändert · {title}",
+        "reply_posted": "{actor} hat auf eine Bewertung geantwortet · {title}",
+        "reply_posted_to_you": "{actor} hat auf Ihre Bewertung geantwortet · {title}",
+        "discussion_posted": "{actor} hat in der Diskussion geschrieben · {title}",
+        "attachment_added": "{actor} hat einen Anhang hinzugefügt · {title}",
+        "question_sent": "{actor} hat der einreichenden Person eine Frage gestellt · {title}",
+        "submitter_answered": "{actor} hat geantwortet · {title}",
+        "decision_recorded": "{actor} hat die Entscheidung erfasst · {title}",
+        "admin_override": "{actor} hat es in WordPress veröffentlicht · {title}",
+        "admin_override_backfill": "Vor der Prüfung in WordPress veröffentlicht · {title}"
+      }
     }
   },
   "EditorToolbar": {

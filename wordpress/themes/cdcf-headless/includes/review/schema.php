@@ -19,7 +19,7 @@
 
 defined('ABSPATH') || exit;
 
-const CDCF_REVIEW_DB_VERSION  = '2';
+const CDCF_REVIEW_DB_VERSION  = '3';
 const CDCF_REVIEW_STAGE_META  = '_cdcf_review_stage';
 const CDCF_REVIEW_STAGES      = ['in_review', 'awaiting_submitter', 'decided'];
 const CDCF_REVIEW_VOTES       = ['cdcf', 'community', 'reject'];
@@ -87,7 +87,8 @@ function cdcf_review_schema_sql(string $charset_collate): array {
   user_id bigint(20) unsigned NOT NULL,
   read_at datetime(6) DEFAULT NULL,
   PRIMARY KEY  (event_id,user_id),
-  KEY user_unread (user_id,read_at)
+  KEY user_unread (user_id,read_at),
+  KEY user_event (user_id,event_id)
 ) {$charset_collate};",
     ];
 }
@@ -95,8 +96,9 @@ function cdcf_review_schema_sql(string $charset_collate): array {
 /**
  * Create or upgrade the tables when the stored schema version differs,
  * then backfill the review stage onto submissions that predate this
- * feature and decide the ones already published in wp-admin. Both
- * backfills are idempotent. Hooked on admin_init and rest_api_init; the version option
+ * feature, decide the ones already published in wp-admin, and announce
+ * the pending ones to members and submitters. Every backfill is
+ * idempotent. Hooked on admin_init and rest_api_init; the version option
  * is autoloaded, so the common path costs no query.
  */
 function cdcf_review_maybe_upgrade(): void {
@@ -120,6 +122,7 @@ function cdcf_review_maybe_upgrade(): void {
     }
     cdcf_review_backfill_stage();
     cdcf_review_backfill_published_decisions();
+    cdcf_review_backfill_submission_received();
     update_option('cdcf_review_db_version', CDCF_REVIEW_DB_VERSION);
 }
 
@@ -175,4 +178,64 @@ function cdcf_review_backfill_published_decisions(): int {
 
 function cdcf_review_now(): string {
     return (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s.u');
+}
+
+/**
+ * Version 3: submissions that entered review through the stage backfill
+ * (they predate council review) never recorded `submission_received`, so
+ * no member was notified and the submitter never got a status link.
+ * Record the event now (bell, plus the member emails it triggers) and send
+ * the confirmation email, with its link, to submitters who have none yet.
+ *
+ * Emails make a second run costly, so the work runs under a MySQL named
+ * lock and skips projects already announced: two first requests racing
+ * through the upgrade send each email once.
+ */
+function cdcf_review_backfill_submission_received(): int {
+    $ids = array_map('intval', get_posts([
+        'post_type'      => 'project',
+        'post_status'    => 'pending',
+        'posts_per_page' => -1,
+        'fields'         => 'ids',
+        'lang'           => '', // all languages; Polylang would filter to the current one
+        'meta_query'     => [
+            ['key' => CDCF_REVIEW_STAGE_META, 'value' => ['in_review', 'awaiting_submitter'], 'compare' => 'IN'],
+        ],
+    ]));
+    if (!$ids) {
+        return 0;
+    }
+    global $wpdb;
+    $lock = 'cdcf_review_received_backfill';
+    if ((string) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', $lock)) !== '1') {
+        return 0; // Another request holds the lock and is doing this work.
+    }
+    try {
+        $events    = cdcf_review_table('events');
+        $announced = [];
+        $rows      = $wpdb->get_results(
+            "SELECT DISTINCT project_id FROM {$events} WHERE type = 'submission_received'"
+            . ' AND project_id IN (' . cdcf_review_id_list($ids) . ')',
+            ARRAY_A
+        );
+        foreach (is_array($rows) ? $rows : [] as $row) {
+            $announced[(int) $row['project_id']] = true;
+        }
+        $count = 0;
+        foreach ($ids as $id) {
+            if (isset($announced[$id])) {
+                continue;
+            }
+            cdcf_review_record_event($id, 'submission_received', null, null, ['migrated' => true]);
+            // A submitter who already had a status email (a committee
+            // question) has a working link; a confirmation would only replace it.
+            if ((string) get_post_meta($id, CDCF_REVIEW_TOKEN_HASH_META, true) === '') {
+                cdcf_review_send_submitter_email($id, 'confirmation');
+            }
+            $count++;
+        }
+        return $count;
+    } finally {
+        $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock));
+    }
 }

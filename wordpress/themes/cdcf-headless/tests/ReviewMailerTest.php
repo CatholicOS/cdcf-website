@@ -265,4 +265,18 @@ final class ReviewMailerTest extends TestCase
 
         $this->assertSame($other, cdcf_review_create_email_job($other, 'cdcf_translation', ['x' => 1]));
     }
+
+    public function test_member_job_delivers_by_id_and_retries_only_on_failure(): void
+    {
+        $calls = [];
+        Functions\when('cdcf_review_deliver_member_email')->alias(function (int $uid, int $eid) use (&$calls): string {
+            $calls[] = [$uid, $eid];
+            return count($calls) === 1 ? 'skipped' : 'failed';
+        });
+        $job = new CDCF_Review_Email_Job(['member' => ['user_id' => 7, 'event_id' => 3]]);
+
+        $this->assertTrue($job->execute()['success'], 'skipped counts as done');
+        $this->expectException(RuntimeException::class);
+        $job->execute();
+    }
 }

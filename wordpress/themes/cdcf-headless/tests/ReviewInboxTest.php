@@ -1,0 +1,152 @@
+<?php
+
+declare(strict_types=1);
+
+use Brain\Monkey;
+use Brain\Monkey\Functions;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * Tests for includes/review/inbox.php — reading and marking notifications.
+ */
+final class ReviewInboxTest extends TestCase
+{
+    private FakeWpdb $wpdb;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Monkey\setUp();
+        $this->wpdb = new FakeWpdb();
+        $GLOBALS['wpdb'] = $this->wpdb;
+        Functions\when('get_post_field')->alias(static fn(string $f, int $id) => $id === 40 ? 'Liturgy Helper' : '');
+        Functions\when('get_userdata')->alias(static function (int $uid) {
+            if ($uid !== 8) {
+                return false;
+            }
+            $u = new WP_User($uid);
+            $u->display_name = 'Fr. A';
+            return $u;
+        });
+    }
+
+    protected function tearDown(): void
+    {
+        unset($GLOBALS['wpdb']);
+        Monkey\tearDown();
+        parent::tearDown();
+    }
+
+    private function row(array $over = []): array
+    {
+        return $over + [
+            'id' => '12', 'project_id' => '40', 'type' => 'discussion_posted', 'actor_user_id' => '8',
+            'entry_id' => '5', 'data' => null, 'created_at' => '2026-10-16 09:00:00.000000', 'read_at' => null,
+        ];
+    }
+
+    public function test_page_is_newest_first_for_the_user_and_reports_more(): void
+    {
+        $rows = array_map(fn(int $i) => $this->row(['id' => (string) (100 - $i)]), range(0, 20)); // 21 rows
+        $this->wpdb->results[] = $rows;
+
+        $out = cdcf_review_inbox(7, false, 2);
+
+        $this->assertCount(20, $out['items']);
+        $this->assertTrue($out['has_more']);
+        $sql = $this->wpdb->queries[0];
+        $this->assertStringContainsString('n.user_id = 7', $sql);
+        $this->assertStringContainsString('ORDER BY n.event_id DESC LIMIT 21 OFFSET 20', $sql);
+        $this->assertStringNotContainsString('read_at IS NULL', $sql);
+    }
+
+    public function test_unread_filter_and_last_page(): void
+    {
+        $this->wpdb->results[] = [$this->row()];
+
+        $out = cdcf_review_inbox(7, true, 1);
+
+        $this->assertFalse($out['has_more']);
+        $this->assertStringContainsString('n.read_at IS NULL', $this->wpdb->queries[0]);
+    }
+
+    public function test_presents_a_notification(): void
+    {
+        $item = cdcf_review_present_notification($this->row(['data' => '{"from":"reject","to":"cdcf"}', 'type' => 'vote_changed']), 7);
+
+        $this->assertSame([
+            'event_id'   => 12,
+            'type'       => 'vote_changed',
+            'project'    => ['id' => 40, 'title' => 'Liturgy Helper'],
+            'actor'      => ['id' => 8, 'name' => 'Fr. A'],
+            'entry_id'   => 5,
+            'data'       => ['from' => 'reject', 'to' => 'cdcf'],
+            'created_at' => '2026-10-16 09:00:00.000000',
+            'read'       => false,
+            'to_you'     => false,
+        ], $item);
+    }
+
+    public function test_submitter_events_have_no_actor_and_former_members_are_named_as_such(): void
+    {
+        $this->assertNull(cdcf_review_present_notification($this->row(['actor_user_id' => null, 'type' => 'submitter_answered']), 7)['actor']);
+        $this->assertSame(['id' => 99, 'name' => 'Former member'], cdcf_review_present_notification($this->row(['actor_user_id' => '99']), 7)['actor']);
+        $this->assertTrue(cdcf_review_present_notification($this->row(['read_at' => '2026-10-16 10:00:00']), 7)['read']);
+    }
+
+    public function test_replies_on_a_page_resolve_their_review_authors_in_one_query(): void
+    {
+        $this->wpdb->results[] = [
+            $this->row(['id' => '14', 'type' => 'reply_posted', 'entry_id' => '5']),
+            $this->row(['id' => '13', 'type' => 'reply_posted', 'entry_id' => '6']),
+            $this->row(['id' => '12', 'type' => 'discussion_posted', 'entry_id' => '4']),
+        ];
+        // reply 5 answers a review by 7 (the caller); reply 6 a review by 9.
+        $this->wpdb->results[] = [['id' => '5', 'author_user_id' => '7'], ['id' => '6', 'author_user_id' => '9']];
+
+        $items = cdcf_review_inbox(7, false, 1)['items'];
+
+        $this->assertSame([true, false, false], array_column($items, 'to_you'));
+        $this->assertCount(2, $this->wpdb->queries, 'one inbox query plus one batched author lookup');
+        $this->assertStringContainsString('r.id IN (5,6)', $this->wpdb->queries[1]);
+    }
+
+    public function test_a_page_without_replies_makes_no_author_lookup(): void
+    {
+        $this->wpdb->results[] = [$this->row()];
+
+        cdcf_review_inbox(7, false, 1);
+
+        $this->assertCount(1, $this->wpdb->queries);
+    }
+
+    public function test_unread_total(): void
+    {
+        $this->wpdb->results[] = '4';
+
+        $this->assertSame(4, cdcf_review_unread_total(7));
+        $this->assertStringContainsString('user_id = 7 AND read_at IS NULL', $this->wpdb->queries[0]);
+    }
+
+    public function test_mark_read_is_always_scoped_to_the_caller(): void
+    {
+        cdcf_review_mark_read(7, [12, 0, -3, 13]);
+        cdcf_review_mark_read(7);
+        cdcf_review_mark_read(7, null, 40);
+
+        [$some, $all, $project] = $this->wpdb->queries;
+        foreach ([$some, $all, $project] as $sql) {
+            $this->assertStringContainsString('WHERE user_id = 7 AND read_at IS NULL', $sql);
+        }
+        $this->assertStringContainsString('AND event_id IN (12,13)', $some);
+        $this->assertStringNotContainsString('event_id IN', $all);
+        $this->assertStringContainsString('WHERE project_id = 40', $project);
+    }
+
+    public function test_mark_read_with_no_valid_ids_does_nothing(): void
+    {
+        cdcf_review_mark_read(7, [0, -1]);
+
+        $this->assertSame([], $this->wpdb->queries);
+    }
+}

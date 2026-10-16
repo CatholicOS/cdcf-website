@@ -18,10 +18,17 @@ final class ReviewReadHandlerTest extends TestCase
         8 => ['technical' => false, 'ecclesial' => false, 'board' => true],
     ];
 
+    /** @var list<array> */
+    private array $markedRead = [];
+
     protected function setUp(): void
     {
         parent::setUp();
         Monkey\setUp();
+        $this->markedRead = [];
+        Functions\when('cdcf_review_mark_read')->alias(function (int $uid, ?array $ids = null, ?int $pid = null): void {
+            $this->markedRead[] = [$uid, $ids, $pid];
+        });
         Functions\when('is_wp_error')->alias(static fn($v): bool => $v instanceof WP_Error);
         Functions\when('rest_ensure_response')->returnArg(1);
         Functions\when('cdcf_review_membership')->alias(
@@ -102,6 +109,18 @@ final class ReviewReadHandlerTest extends TestCase
             'author_user_id' => 7, 'review_slot' => 7, 'body_md' => 'Body', 'vote' => 'cdcf',
             'created_at' => '2026-10-15 10:00:00.000000', 'edited_at' => null,
         ], $o);
+    }
+
+    public function test_opening_a_workspace_marks_its_notifications_read(): void
+    {
+        $this->signIn(7);
+        Functions\when('cdcf_review_project_entries')->justReturn([]);
+        Functions\when('cdcf_review_tallies')->justReturn([]);
+        Functions\when('cdcf_review_find_review')->justReturn(null);
+
+        cdcf_rest_review_get_project($this->request(['id' => 40]));
+
+        $this->assertSame([[7, null, 40]], $this->markedRead);
     }
 
     // ─── permissions ─────────────────────────────────────────────────

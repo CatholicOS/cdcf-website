@@ -208,4 +208,24 @@ final class ReviewRepositoryTest extends TestCase
         $this->assertSame([40 => 'community'], cdcf_review_votes_by_user(7, [40, 41]));
         $this->assertStringContainsString('author_user_id = 7', $this->wpdb->queries[0]);
     }
+
+    public function test_reply_parent_author(): void
+    {
+        $this->wpdb->results[] = ['id' => '5', 'kind' => 'reply', 'parent_id' => '3', 'author_user_id' => '8'];
+        $this->wpdb->results[] = ['id' => '3', 'kind' => 'review', 'parent_id' => null, 'author_user_id' => '7'];
+
+        $this->assertSame(7, cdcf_review_reply_parent_author(5));
+        $this->assertNull(cdcf_review_reply_parent_author(6), 'unknown entry');
+    }
+
+    public function test_reply_parent_authors_in_one_query(): void
+    {
+        $this->assertSame([], cdcf_review_reply_parent_authors([]));
+        $this->assertSame([], $this->wpdb->queries, 'no query for an empty list');
+
+        $this->wpdb->results[] = [['id' => '5', 'author_user_id' => '7']];
+        $this->assertSame([5 => 7], cdcf_review_reply_parent_authors([5, 6]));
+        $this->assertStringContainsString('JOIN wp_cdcf_review_entries p ON p.id = r.parent_id', $this->wpdb->queries[0]);
+        $this->assertStringContainsString('r.id IN (5,6)', $this->wpdb->queries[0]);
+    }
 }

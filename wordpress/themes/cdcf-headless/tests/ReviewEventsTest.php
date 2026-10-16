@@ -33,7 +33,7 @@ final class ReviewEventsTest extends TestCase
 
     public function test_records_event_and_notifies_everyone_but_the_actor(): void
     {
-        Actions\expectDone('cdcf_review_event_recorded')->once()->with(1, 40, 'reply_posted', 8, 5);
+        Actions\expectDone('cdcf_review_event_recorded')->once()->with(1, 40, 'reply_posted', 8, 5, []);
 
         $id = cdcf_review_record_event(40, 'reply_posted', 8, 5);
 
@@ -84,5 +84,16 @@ final class ReviewEventsTest extends TestCase
     {
         $this->assertSame([], cdcf_review_unread_counts(7, []));
         $this->assertSame([], $this->wpdb->queries);
+    }
+
+    public function test_get_event_decodes_its_data(): void
+    {
+        $this->wpdb->results[] = ['id' => '3', 'project_id' => '40', 'type' => 'admin_override', 'actor_user_id' => null, 'entry_id' => null, 'data' => '{"backfill":true}', 'created_at' => 'x'];
+
+        $this->assertSame(
+            ['id' => 3, 'project_id' => 40, 'type' => 'admin_override', 'actor_user_id' => null, 'entry_id' => null, 'data' => ['backfill' => true], 'created_at' => 'x'],
+            cdcf_review_get_event(3)
+        );
+        $this->assertNull(cdcf_review_get_event(4));
     }
 }

@@ -470,6 +470,38 @@
       "notFound": "Not found.",
       "generic": "Something went wrong. Please try again.",
       "reload": "Reload"
+    },
+    "inbox": {
+      "bell": "Notifications",
+      "bellUnread": "Notifications, {count} unread",
+      "title": "Notifications",
+      "intro": "Activity on the submissions under review.",
+      "all": "All",
+      "unread": "Unread",
+      "empty": "No notifications.",
+      "markAllRead": "Mark all read",
+      "viewAll": "View all",
+      "loading": "Loading…",
+      "loadFailed": "Could not load notifications.",
+      "submitter": "The submitter",
+      "someone": "Someone",
+      "unreadMarker": "Unread",
+      "pagination": "Pages",
+      "event": {
+        "submission_received": "New submission: {title}",
+        "review_posted": "{actor} posted a review · {title}",
+        "review_edited": "{actor} edited their review · {title}",
+        "vote_changed": "{actor} changed their vote · {title}",
+        "reply_posted": "{actor} replied to a review · {title}",
+        "reply_posted_to_you": "{actor} replied to your review · {title}",
+        "discussion_posted": "{actor} posted in the discussion · {title}",
+        "attachment_added": "{actor} added an attachment · {title}",
+        "question_sent": "{actor} asked the submitter a question · {title}",
+        "submitter_answered": "{actor} answered · {title}",
+        "decision_recorded": "{actor} recorded the decision · {title}",
+        "admin_override": "{actor} published it in WordPress · {title}",
+        "admin_override_backfill": "Published in WordPress before review · {title}"
+      }
     }
   },
   "EditorToolbar": {

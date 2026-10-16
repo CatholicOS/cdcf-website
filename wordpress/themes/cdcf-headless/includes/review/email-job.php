@@ -18,8 +18,15 @@ class CDCF_Review_Email_Job extends \Soderlind\RedisQueue\Jobs\Abstract_Base_Job
 
     public function execute()
     {
+        $member    = $this->get_payload_value('member');
         $submitter = $this->get_payload_value('submitter');
-        if (is_array($submitter)) {
+        if (is_array($member)) {
+            // A member email: built now, so the stored job holds only ids.
+            $sent = cdcf_review_deliver_member_email(
+                (int) ($member['user_id'] ?? 0),
+                (int) ($member['event_id'] ?? 0)
+            ) !== 'failed';
+        } elseif (is_array($submitter)) {
             // A submitter email: built and sent now, so the stored job never
             // holds the address, the status link or its token.
             $sent = cdcf_review_deliver_submitter_email(

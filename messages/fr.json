@@ -470,6 +470,38 @@
       "notFound": "Introuvable.",
       "generic": "Une erreur s'est produite. Veuillez réessayer.",
       "reload": "Recharger"
+    },
+    "inbox": {
+      "bell": "Notifications",
+      "bellUnread": "Notifications, {count} non lues",
+      "title": "Notifications",
+      "intro": "Activité sur les propositions en cours d'évaluation.",
+      "all": "Toutes",
+      "unread": "Non lues",
+      "empty": "Aucune notification.",
+      "markAllRead": "Tout marquer comme lu",
+      "viewAll": "Tout voir",
+      "loading": "Chargement…",
+      "loadFailed": "Impossible de charger les notifications.",
+      "submitter": "Le proposant",
+      "someone": "Quelqu'un",
+      "unreadMarker": "Non lue",
+      "pagination": "Pages",
+      "event": {
+        "submission_received": "Nouvelle proposition : {title}",
+        "review_posted": "{actor} a publié une évaluation · {title}",
+        "review_edited": "{actor} a modifié son évaluation · {title}",
+        "vote_changed": "{actor} a changé son vote · {title}",
+        "reply_posted": "{actor} a répondu à une évaluation · {title}",
+        "reply_posted_to_you": "{actor} a répondu à votre évaluation · {title}",
+        "discussion_posted": "{actor} a écrit dans la discussion · {title}",
+        "attachment_added": "{actor} a ajouté une pièce jointe · {title}",
+        "question_sent": "{actor} a posé une question au proposant · {title}",
+        "submitter_answered": "{actor} a répondu · {title}",
+        "decision_recorded": "{actor} a enregistré la décision · {title}",
+        "admin_override": "{actor} l'a publié dans WordPress · {title}",
+        "admin_override_backfill": "Publié dans WordPress avant l'évaluation · {title}"
+      }
     }
   },
   "EditorToolbar": {

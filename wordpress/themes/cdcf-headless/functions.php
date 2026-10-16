@@ -806,9 +806,12 @@ require_once __DIR__ . '/includes/review/schema.php';
 require_once __DIR__ . '/includes/review/membership.php';
 require_once __DIR__ . '/includes/review/repository.php';
 require_once __DIR__ . '/includes/review/events.php';
+require_once __DIR__ . '/includes/review/inbox.php';
 require_once __DIR__ . '/includes/review/submitter-token.php';
 require_once __DIR__ . '/includes/review/email-strings.php';
 require_once __DIR__ . '/includes/review/mailer.php';
+require_once __DIR__ . '/includes/review/member-email-strings.php';
+require_once __DIR__ . '/includes/review/member-emails.php';
 require_once __DIR__ . '/includes/review/decision.php';
 require_once __DIR__ . '/includes/review/attachments.php';
 require_once __DIR__ . '/includes/handlers/review.php';
@@ -821,6 +824,7 @@ if (class_exists('Soderlind\\RedisQueue\\Jobs\\Abstract_Base_Job')) {
     add_filter('redis_queue_create_job', 'cdcf_review_create_email_job', 10, 3);
 }
 
+add_action('cdcf_review_event_recorded', 'cdcf_review_email_members_on_event', 10, 6);
 add_action('admin_init', 'cdcf_review_maybe_upgrade');
 add_action('rest_api_init', 'cdcf_review_maybe_upgrade', 5);
 add_action('acf/save_post', 'cdcf_review_flush_on_about_save', 20);
@@ -840,6 +844,9 @@ add_action('rest_api_init', function () {
     $args = cdcf_review_route_args();
     $routes = [
         '/review/me'                             => ['GET', 'cdcf_rest_review_me', 'cdcf_rest_review_permission_signed_in'],
+        '/review/inbox'                           => ['GET', 'cdcf_rest_review_inbox', 'cdcf_rest_review_permission_view'],
+        '/review/inbox/count'                     => ['GET', 'cdcf_rest_review_inbox_count', 'cdcf_rest_review_permission_view'],
+        '/review/inbox/read'                      => ['POST', 'cdcf_rest_review_inbox_read', 'cdcf_rest_review_permission_view'],
         '/review/projects'                       => ['GET', 'cdcf_rest_review_list_projects', 'cdcf_rest_review_permission_view'],
         '/review/projects/(?P<id>\d+)'           => ['GET', 'cdcf_rest_review_get_project', 'cdcf_rest_review_permission_view'],
         '/review/projects/(?P<id>\d+)/my-review' => ['PUT', 'cdcf_rest_review_put_my_review', 'cdcf_rest_review_permission_vote'],

@@ -190,3 +190,34 @@ function cdcf_review_votes_by_user(int $user_id, array $project_ids): array {
     }
     return $out;
 }
+
+/** The author of the review a reply answers, or null. */
+function cdcf_review_reply_parent_author(int $reply_id): ?int {
+    $reply  = cdcf_review_get_entry($reply_id);
+    $parent = $reply && !empty($reply['parent_id']) ? cdcf_review_get_entry((int) $reply['parent_id']) : null;
+    return $parent && $parent['author_user_id'] !== null ? (int) $parent['author_user_id'] : null;
+}
+
+/**
+ * The authors of the reviews the given replies answer, in one query.
+ *
+ * @param list<int> $reply_ids
+ * @return array<int, int> reply id => review author id
+ */
+function cdcf_review_reply_parent_authors(array $reply_ids): array {
+    if (!$reply_ids) {
+        return [];
+    }
+    global $wpdb;
+    $entries = cdcf_review_table('entries');
+    $rows = $wpdb->get_results(
+        "SELECT r.id, p.author_user_id FROM {$entries} r JOIN {$entries} p ON p.id = r.parent_id"
+        . ' WHERE r.id IN (' . cdcf_review_id_list($reply_ids) . ') AND p.author_user_id IS NOT NULL',
+        ARRAY_A
+    );
+    $out = [];
+    foreach (is_array($rows) ? $rows : [] as $row) {
+        $out[(int) $row['id']] = (int) $row['author_user_id'];
+    }
+    return $out;
+}

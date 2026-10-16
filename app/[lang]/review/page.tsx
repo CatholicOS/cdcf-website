@@ -62,6 +62,12 @@ export default async function ReviewListPage({
         <header className="space-y-2">
           <h1 className="cdcf-heading text-3xl">{t('title')}</h1>
           <p className="text-gray-600">{t('intro')}</p>
+          <Link
+            href="/review/inbox"
+            className="text-sm text-cdcf-navy hover:underline"
+          >
+            {t('inbox.title')}
+          </Link>
         </header>
         <nav
           className="flex gap-2 border-b border-gray-200"
