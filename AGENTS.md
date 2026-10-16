@@ -82,7 +82,7 @@ Headless CMS: Next.js 15 (App Router) frontend fetches content from WordPress vi
 - Use `clsx()` for conditional classNames
 - WordPress content rendered via `dangerouslySetInnerHTML` with Tailwind `.prose` class
 - Brand custom utilities are `cdcf-` prefixed (e.g. `cdcf-section`, `cdcf-btn-primary`, `cdcf-heading`) defined in `css/globals.css`
-- Code style is set in `.prettierrc.json` (single quotes, no semicolons, ES5 trailing commas, 80 columns). Run `npx prettier --write` only on the files you change: some older files predate the config, and reformatting them buries the real change in the diff
+- Code style is set in `.prettierrc.json` (single quotes, no semicolons, ES5 trailing commas, 80 columns). Run `npx prettier --write` on the files you change; every JS/TS file already conforms, so formatting adds no unrelated diff
 
 ## Tailwind CSS v4
 
