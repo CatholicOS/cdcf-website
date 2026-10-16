@@ -70,7 +70,7 @@ async function mount() {
 }
 
 const bell = (c: HTMLElement) =>
-  c.querySelector('button[aria-haspopup]') as HTMLButtonElement
+  c.querySelector('button[aria-expanded]') as HTMLButtonElement
 
 // The item button also holds the age, so match the sentence by substring.
 const itemButton = (c: HTMLElement, sentence: string) =>
@@ -150,6 +150,84 @@ describe('NotificationBell', () => {
     await act(async () => click(bell(c)))
     await flush()
     expect(c.textContent).toContain('Could not load notifications.')
+  })
+
+  it('closes on Escape and returns focus to the bell', async () => {
+    fetchMock.mockResolvedValueOnce(json({ unread: 0 }))
+    const c = await mount()
+    fetchMock.mockResolvedValueOnce(
+      json({ items: [], page: 1, has_more: false, unread: 0 })
+    )
+    await act(async () => click(bell(c)))
+    await flush()
+    expect(bell(c).getAttribute('aria-expanded')).toBe('true')
+    const panel = document.getElementById(
+      bell(c).getAttribute('aria-controls')!
+    )
+    expect(panel).toBeTruthy()
+    expect(bell(c).hasAttribute('aria-haspopup')).toBe(false)
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    })
+    expect(bell(c).getAttribute('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(bell(c))
+  })
+
+  it('gives unread items a screen-reader cue', async () => {
+    fetchMock.mockResolvedValueOnce(json({ unread: 1 }))
+    const c = await mount()
+    fetchMock.mockResolvedValueOnce(
+      json({
+        items: [item(), item({ event_id: 13, read: true })],
+        page: 1,
+        has_more: false,
+        unread: 1,
+      })
+    )
+    await act(async () => click(bell(c)))
+    await flush()
+    const markers = c.querySelectorAll('li .sr-only')
+    expect(markers).toHaveLength(1)
+    expect(markers[0].textContent).toBe('Unread')
+  })
+
+  it('drops a list response that arrives after the panel closed', async () => {
+    fetchMock.mockResolvedValueOnce(json({ unread: 0 }))
+    const c = await mount()
+    let resolve!: (r: Response) => void
+    fetchMock.mockReturnValueOnce(new Promise<Response>((r) => (resolve = r)))
+    await act(async () => click(bell(c)))
+    await act(async () => click(bell(c)))
+    await act(async () => {
+      resolve(json({ items: [item()], page: 1, has_more: false, unread: 5 }))
+    })
+    await flush()
+    expect(bell(c).getAttribute('aria-label')).toBe('Notifications')
+  })
+
+  it('treats a 200 non-JSON body as a failure without throwing', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('<html>', { status: 200 }))
+    const c = await mount()
+    expect(bell(c).getAttribute('aria-label')).toBe('Notifications')
+    fetchMock.mockResolvedValueOnce(new Response('<html>', { status: 200 }))
+    await act(async () => click(bell(c)))
+    await flush()
+    expect(c.textContent).toContain('Could not load notifications.')
+  })
+
+  it('navigates without waiting for the mark-read request', async () => {
+    fetchMock.mockResolvedValueOnce(json({ unread: 1 }))
+    const c = await mount()
+    fetchMock.mockResolvedValueOnce(
+      json({ items: [item()], page: 1, has_more: false, unread: 1 })
+    )
+    await act(async () => click(bell(c)))
+    await flush()
+    fetchMock.mockReturnValueOnce(new Promise(() => {}))
+    await act(async () =>
+      click(itemButton(c, 'Fr. A replied to your review · Liturgy Helper'))
+    )
+    expect(push).toHaveBeenCalledWith('/review/40#entry-5')
   })
 
   it('does not poll while the tab is hidden', async () => {

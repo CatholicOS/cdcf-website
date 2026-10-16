@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { BellIcon } from '@heroicons/react/24/outline'
 import { Link, useRouter } from '@/src/i18n/navigation'
@@ -11,6 +11,11 @@ import { InboxItemSummary } from './InboxItemSummary'
 
 export const BELL_POLL_MS = 60_000
 export const BELL_ITEMS = 10
+
+const isCount = (d: unknown): d is InboxCount =>
+  !!d && typeof (d as InboxCount).unread === 'number'
+const isPage = (d: unknown): d is InboxPage =>
+  isCount(d) && Array.isArray((d as InboxPage).items)
 
 /**
  * Header bell for council and Board members. Polls the unread count every
@@ -25,10 +30,13 @@ export function NotificationBell() {
   const [items, setItems] = useState<InboxItem[] | null>(null)
   const [failed, setFailed] = useState(false)
   const root = useRef<HTMLDivElement>(null)
+  const button = useRef<HTMLButtonElement>(null)
+  const request = useRef(0)
+  const panelId = useId()
 
   const refreshCount = useCallback(async () => {
     const result = await reviewFetch<InboxCount>('/api/review/inbox/count')
-    if (result.ok) setUnread(result.data.unread)
+    if (result.ok && isCount(result.data)) setUnread(result.data.unread)
   }, [])
 
   useEffect(() => {
@@ -58,7 +66,11 @@ export function NotificationBell() {
         setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') {
+        request.current++
+        setOpen(false)
+        button.current?.focus()
+      }
     }
     document.addEventListener('mousedown', onPointer)
     document.addEventListener('keydown', onKey)
@@ -69,11 +81,14 @@ export function NotificationBell() {
   }, [open])
 
   const toggle = async () => {
+    request.current++
     if (open) return setOpen(false)
+    const mine = request.current
     setOpen(true)
     setFailed(false)
     const result = await reviewFetch<InboxPage>('/api/review/inbox')
-    if (result.ok) {
+    if (mine !== request.current) return
+    if (result.ok && isPage(result.data)) {
       setItems(result.data.items.slice(0, BELL_ITEMS))
       setUnread(result.data.unread)
     } else {
@@ -82,15 +97,16 @@ export function NotificationBell() {
   }
 
   const follow = async (item: InboxItem) => {
+    request.current++
     setOpen(false)
+    router.push(inboxHref(item))
     if (!item.read) {
       const result = await reviewFetch<InboxCount>(
         '/api/review/inbox/read',
         jsonInit('POST', { event_ids: [item.event_id] })
       )
-      if (result.ok) setUnread(result.data.unread)
+      if (result.ok && isCount(result.data)) setUnread(result.data.unread)
     }
-    router.push(inboxHref(item))
   }
 
   const markAll = async () => {
@@ -98,7 +114,7 @@ export function NotificationBell() {
       '/api/review/inbox/read',
       jsonInit('POST', { all: true })
     )
-    if (!result.ok) return
+    if (!result.ok || !isCount(result.data)) return
     setUnread(result.data.unread)
     setItems((prev) => prev?.map((i) => ({ ...i, read: true })) ?? prev)
   }
@@ -107,8 +123,9 @@ export function NotificationBell() {
   return (
     <div ref={root} className="relative">
       <button
+        ref={button}
         type="button"
-        aria-haspopup="true"
+        aria-controls={panelId}
         aria-expanded={open}
         aria-label={unread > 0 ? t('bellUnread', { count: unread }) : t('bell')}
         onClick={() => void toggle()}
@@ -125,7 +142,10 @@ export function NotificationBell() {
         )}
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-md border border-gray-200 bg-white shadow-lg">
+        <div
+          id={panelId}
+          className="absolute right-0 top-full z-50 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-md border border-gray-200 bg-white shadow-lg"
+        >
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2">
             <span className="text-sm font-semibold text-gray-900">
               {t('title')}
@@ -162,6 +182,9 @@ export function NotificationBell() {
                           : 'mt-1.5 h-2 w-2 shrink-0 rounded-full bg-cdcf-navy'
                       }
                     />
+                    {!item.read && (
+                      <span className="sr-only">{t('unreadMarker')}</span>
+                    )}
                     <InboxItemSummary item={item} now={now} />
                   </button>
                 </li>
