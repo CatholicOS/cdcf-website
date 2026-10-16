@@ -63,8 +63,29 @@ function cdcf_submission_status_project(WP_REST_Request $request, string $bucket
     return $project;
 }
 
+/** The Projects page path in `$lang` (where community projects are listed). */
+function cdcf_review_projects_page_path(string $lang): ?string {
+    $pages = get_pages(['meta_key' => '_wp_page_template', 'meta_value' => 'templates/projects.php', 'number' => 1]);
+    if (empty($pages)) {
+        return null;
+    }
+    $id = (int) $pages[0]->ID;
+    if (function_exists('pll_get_post_translations')) {
+        $id = (int) (pll_get_post_translations($id)[$lang] ?? $id);
+    }
+    $page = get_post($id);
+    return $page && function_exists('cdcf_frontend_path_for') ? cdcf_frontend_path_for($page) : null;
+}
+
 function cdcf_submission_status_public_url(object $project): ?string {
-    $path = function_exists('cdcf_frontend_path_for') ? cdcf_frontend_path_for($project) : null;
+    if ($project->post_type === 'community_project') {
+        // Community projects have no page of their own; they are listed on Projects.
+        $path = $project->post_status === 'publish'
+            ? cdcf_review_projects_page_path(cdcf_review_post_language((int) $project->ID))
+            : null;
+    } else {
+        $path = function_exists('cdcf_frontend_path_for') ? cdcf_frontend_path_for($project) : null;
+    }
     if (!is_string($path) || $path === '') {
         return null;
     }
@@ -175,6 +196,12 @@ function cdcf_rest_submission_status_resend_link(WP_REST_Request $request) {
     $accepted = new WP_REST_Response(['accepted' => true], 202);
     $pid      = (int) $request['project_id'];
     if (is_wp_error(cdcf_review_get_reviewable_project($pid))) {
+        return $accepted;
+    }
+    // After the decision the link lives 90 days; past that, a new link
+    // would already be dead, so none is sent.
+    $expires = (int) get_post_meta($pid, CDCF_REVIEW_TOKEN_EXPIRES_META, true);
+    if ($expires > 0 && time() > $expires) {
         return $accepted;
     }
     $stored = strtolower(trim((string) get_post_meta($pid, '_submission_submitter_email', true)));

@@ -831,6 +831,8 @@ add_action('transition_post_status', 'cdcf_review_flush_on_status_change', 10, 3
 add_action('added_user_meta', 'cdcf_review_flush_on_user_meta', 10, 3);
 add_action('updated_user_meta', 'cdcf_review_flush_on_user_meta', 10, 3);
 add_action('deleted_user_meta', 'cdcf_review_flush_on_user_meta', 10, 3);
+add_action('transition_post_status', 'cdcf_review_admin_override_on_publish', 15, 3);
+add_action('admin_notices', 'cdcf_review_edit_screen_notice');
 add_action('admin_menu', 'cdcf_review_access_admin_menu', 20);
 add_filter('rest_pre_serve_request', 'cdcf_review_serve_attachment', 10, 3);
 

@@ -135,3 +135,43 @@ function cdcf_review_present_decision(int $project_id): array {
         'admin_override' => get_post_meta($project_id, '_cdcf_review_admin_override', true) === '1',
     ];
 }
+
+/**
+ * An administrator publishing a submission still under review in wp-admin
+ * decides it as accepted. The decision endpoint's own publish is skipped
+ * (cdcf_review_deciding()). No submitter email is sent.
+ */
+function cdcf_review_admin_override_on_publish($new_status, $old_status, $post): void {
+    if ($new_status !== 'publish' || $old_status === 'publish' || cdcf_review_deciding()) {
+        return;
+    }
+    $pid = (int) $post->ID;
+    if (!in_array((string) get_post_meta($pid, CDCF_REVIEW_STAGE_META, true), ['in_review', 'awaiting_submitter'], true)) {
+        return;
+    }
+    $uid      = (int) get_current_user_id();
+    $decision = $post->post_type === 'community_project' ? 'community' : 'cdcf';
+    cdcf_review_record_decision($pid, $decision, $uid ?: null, '', '', true);
+    cdcf_review_record_event($pid, 'admin_override', $uid ?: null, null, ['decision' => $decision]);
+}
+
+/** On the edit screen of a submission under review: decide it in /review. */
+function cdcf_review_edit_screen_notice(): void {
+    $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+    $post   = $GLOBALS['post'] ?? null;
+    if (!$screen || $screen->base !== 'post' || !is_object($post)) {
+        return;
+    }
+    $stage = (string) get_post_meta((int) $post->ID, CDCF_REVIEW_STAGE_META, true);
+    if (!in_array($stage, ['in_review', 'awaiting_submitter'], true)) {
+        return;
+    }
+    $frontend = defined('CDCF_FRONTEND_URL') ? (string) CDCF_FRONTEND_URL : 'http://localhost:3000';
+    $url      = rtrim($frontend, '/') . '/review/' . (int) $post->ID;
+    printf(
+        '<div class="notice notice-info"><p>%s <a href="%s">%s</a></p></div>',
+        esc_html('Under council review — the Board decides in the review workspace. Publishing here records an administrator override.'),
+        esc_url($url),
+        esc_html('Open the review')
+    );
+}
