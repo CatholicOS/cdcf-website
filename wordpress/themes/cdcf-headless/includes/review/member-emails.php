@@ -27,7 +27,15 @@ function cdcf_review_email_members_on_event($event_id, $project_id, $type, $acto
         $entry_id === null ? null : (int) $entry_id
     );
     foreach ($recipients as $uid) {
-        cdcf_review_send_member_email($uid, (int) $event_id);
+        // Sent inline when the queue is unavailable: a mailer that throws
+        // must not fail the request that recorded the event (it has already
+        // been applied) nor stop the other recipients' emails.
+        try {
+            cdcf_review_send_member_email($uid, (int) $event_id);
+        } catch (\Throwable $e) {
+            // A fixed message: exception text can carry addresses or SMTP details.
+            error_log('[cdcf-review] member email raised an error: ' . (string) $type);
+        }
     }
 }
 

@@ -153,6 +153,28 @@ final class ReviewMemberEmailsTest extends TestCase
         $this->assertStringNotContainsString('tech@example.org', implode("\n", $logs));
     }
 
+    public function test_a_throwing_mailer_never_fails_the_request_and_the_rest_still_send(): void
+    {
+        Functions\when('wp_mail')->alias(function (string $to, string $subject, string $body): bool {
+            if ($to === 'tech@example.org') {
+                throw new RuntimeException('smtp down for tech@example.org');
+            }
+            $this->mails[] = compact('to', 'subject', 'body');
+            return true;
+        });
+        $logs = [];
+        Patchwork\redefine('error_log', function (string $m) use (&$logs): bool {
+            $logs[] = $m;
+            return true;
+        });
+
+        cdcf_review_email_members_on_event(3, 40, 'decision_recorded', 8, null, ['decision' => 'cdcf']);
+
+        $this->assertSame(['eccl@example.org'], array_column($this->mails, 'to'));
+        $this->assertNotEmpty($logs);
+        $this->assertStringNotContainsString('tech@example.org', implode("\n", $logs), 'exception text is never logged');
+    }
+
     public function test_user_language(): void
     {
         $this->assertSame('it', cdcf_review_user_language(7));

@@ -71,6 +71,8 @@ final class ReviewDecisionHandlerTest extends TestCase
             $this->meta[$id][CDCF_REVIEW_STAGE_META] = 'decided';
         });
         Functions\when('cdcf_review_record_event')->alias(function (...$args): int {
+            // Note whether the decision lock was still held when the event fired.
+            $args[] = ['lock_released' => in_array("SELECT RELEASE_LOCK('cdcf_review_decide_40')", $this->lockSql, true)];
             $this->events[] = $args;
             return 1;
         });
@@ -126,6 +128,7 @@ final class ReviewDecisionHandlerTest extends TestCase
         $this->assertSame([[40, 'cdcf']], $this->applied);
         $this->assertSame([[40, 'cdcf', 9, '', 'Thank you.']], $this->recorded);
         $this->assertSame('decision_recorded', $this->events[0][1]);
+        $this->assertSame(['lock_released' => true], end($this->events[0]), 'members are notified (and maybe emailed inline) only after the lock is released');
         $this->assertSame([[40, 'decision', ['outcome' => 'cdcf', 'summary' => 'Thank you.']]], $this->emails);
         $this->assertLockReleased();
     }

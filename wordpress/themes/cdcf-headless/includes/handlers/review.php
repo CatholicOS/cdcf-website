@@ -557,10 +557,12 @@ function cdcf_rest_review_post_decision(WP_REST_Request $request) {
         }
         $uid = get_current_user_id();
         cdcf_review_record_decision($pid, $decision, $uid, $rationale, $summary);
-        cdcf_review_record_event($pid, 'decision_recorded', $uid, null, ['decision' => $decision, 'plurality' => $plurality]);
     } finally {
         cdcf_review_release_decision_lock($pid);
     }
+    // After the lock: recording the event emails members, inline when the
+    // queue is unavailable, and SMTP must not hold up another decider.
+    cdcf_review_record_event($pid, 'decision_recorded', $uid, null, ['decision' => $decision, 'plurality' => $plurality]);
 
     $email = cdcf_review_send_submitter_email($pid, 'decision', ['outcome' => $decision, 'summary' => $summary]);
     return rest_ensure_response([
