@@ -173,12 +173,15 @@ export function NotificationBell() {
         )}
       </button>
       {open && (
+        // Below sm the bell sits left of the account and menu buttons, so a
+        // panel anchored to it would run off screen: span the viewport
+        // under the 4rem header instead.
         <section
           ref={panel}
           id={panelId}
           tabIndex={-1}
           aria-label={t('title')}
-          className="absolute right-0 top-full z-50 focus:outline-none mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-md border border-gray-200 bg-white shadow-lg"
+          className="fixed inset-x-4 top-16 z-50 mt-1 rounded-md border border-gray-200 bg-white shadow-lg focus:outline-none sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:w-80"
         >
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2">
             <span className="text-sm font-semibold text-gray-900">
