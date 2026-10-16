@@ -9,6 +9,8 @@ import type { Session } from 'next-auth'
 import { getAccessToken } from '@/lib/auth-utils'
 import type {
   ReviewAttachment,
+  ReviewDecisionPayload,
+  ReviewDecisionResult,
   ReviewEntry,
   ReviewMe,
   ReviewProject,
@@ -198,6 +200,19 @@ export async function askSubmitter(
   return wpRequest<ReviewEntry & { warnings: string[] }>(
     session,
     `/cdcf/v1/review/projects/${projectId}/question`,
+    { method: 'POST', json: payload }
+  )
+}
+
+export async function decideProject(
+  session: Session | null,
+  projectId: number,
+  payload: ReviewDecisionPayload
+): Promise<ReviewDecisionResult> {
+  assertId(projectId)
+  return wpRequest<ReviewDecisionResult>(
+    session,
+    `/cdcf/v1/review/projects/${projectId}/decision`,
     { method: 'POST', json: payload }
   )
 }

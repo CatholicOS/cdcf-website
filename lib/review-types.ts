@@ -110,7 +110,42 @@ export interface ReviewProject {
   discussion: ReviewEntry[]
   questions: QuestionWithAnswers[]
   me: { can_vote: boolean; can_decide: boolean; review_id: number | null }
+  decision: ReviewDecisionRecord | null
+  decision_email: ReviewDecisionEmail | null
 }
+
+export interface ReviewDecisionRecord {
+  decision: ReviewVote
+  rationale: string
+  summary: string
+  decided_at: number
+  decided_by: { id: number; name: string } | null
+  admin_override: boolean
+}
+
+export interface ReviewDecisionEmail {
+  language: string
+  subject: string
+  body: string
+  outcomes: Record<ReviewVote, string>
+}
+
+export interface ReviewDecisionPayload {
+  decision: ReviewVote
+  rationale: string
+  submitter_summary: string
+}
+
+export interface ReviewDecisionResult {
+  id: number
+  stage: 'decided'
+  decision: ReviewVote
+  post_type: string
+  post_status: string
+  warnings: string[]
+}
+
+export const DECISION_SUMMARY_MAX = 10000
 
 export const ATTACHMENT_LIMITS = {
   markdownBytes: 512 * 1024,

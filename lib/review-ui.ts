@@ -23,6 +23,9 @@ export type ReviewErrorKey =
   | 'unsupportedType'
   | 'tooMany'
   | 'invalidInput'
+  | 'rationaleRequired'
+  | 'summaryRequired'
+  | 'decisionInProgress'
   | 'notFound'
   | 'generic'
 
@@ -35,6 +38,9 @@ const CODE_KEYS: Record<string, ReviewErrorKey> = {
   unsupported_type: 'unsupportedType',
   type_mismatch: 'unsupportedType',
   too_many_attachments: 'tooMany',
+  rationale_required: 'rationaleRequired',
+  summary_required: 'summaryRequired',
+  decision_in_progress: 'decisionInProgress',
   no_token: 'sessionExpired',
   rest_not_logged_in: 'sessionExpired',
   unauthorized: 'sessionExpired',

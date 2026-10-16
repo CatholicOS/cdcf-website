@@ -15,6 +15,7 @@ import { getAccessToken } from '@/lib/auth-utils'
 import {
   ReviewApiError,
   askSubmitter,
+  decideProject,
   fetchReviewAttachment,
   fetchReviewMe,
   fetchReviewProject,
@@ -248,5 +249,37 @@ describe('askSubmitter', () => {
     expect(init.method).toBe('POST')
     expect(JSON.parse(init.body as string)).toEqual({ body: 'Which licence?' })
     expect(out.warnings).toEqual([])
+  })
+})
+
+describe('decideProject', () => {
+  it('posts the decision with the bearer token', async () => {
+    mockedGetAccessToken.mockReturnValue('tok')
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, {
+        id: 40,
+        stage: 'decided',
+        decision: 'cdcf',
+        post_type: 'project',
+        post_status: 'publish',
+        warnings: [],
+      })
+    )
+    const payload = {
+      decision: 'cdcf' as const,
+      rationale: 'Fits.',
+      submitter_summary: 'Accepted.',
+    }
+
+    const out = await decideProject(session, 40, payload)
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe(
+      'https://wp.example.org/wp-json/cdcf/v1/review/projects/40/decision'
+    )
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body as string)).toEqual(payload)
+    expect(new Headers(init.headers).get('Authorization')).toBe('Bearer tok')
+    expect(out.stage).toBe('decided')
   })
 })
