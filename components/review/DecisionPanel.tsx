@@ -100,11 +100,34 @@ export function DecisionPanel({
       setErrorKey(result.errorKey)
       return
     }
-    setEmailFailed(result.data.warnings?.includes('email_failed') ?? false)
+    // A refresh drops this panel (the stage is now decided), so hold it on
+    // screen until the member has seen the warning and chooses to reload.
+    if (result.data.warnings?.includes('email_failed')) {
+      setEmailFailed(true)
+      return
+    }
     router.refresh()
   }
 
   const disabled = busy || !valid
+
+  if (emailFailed) {
+    return (
+      <div className="cdcf-card space-y-3">
+        <h2 className="cdcf-heading text-xl">{t('decision.panelHeading')}</h2>
+        <p role="status" className="text-sm text-amber-800">
+          {t('decision.emailFailed')}
+        </p>
+        <button
+          type="button"
+          onClick={() => router.refresh()}
+          className="cdcf-btn-primary px-4 py-2 text-sm"
+        >
+          {t('errors.reload')}
+        </button>
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={onSubmit} className="cdcf-card space-y-4">
@@ -133,11 +156,13 @@ export function DecisionPanel({
 
       <div className="space-y-1">
         <label htmlFor={`${id}-rationale`} className={labelClass}>
-          {t('decision.rationaleLabel')} (
-          {rationaleNeeded
-            ? t('decision.rationaleRequired')
-            : t('decision.rationaleOptional')}
-          )
+          {t('decision.rationaleLabel')}
+          <span className="normal-case tracking-normal">
+            {' — '}
+            {rationaleNeeded
+              ? t('decision.rationaleRequired')
+              : t('decision.rationaleOptional')}
+          </span>
         </label>
         <textarea
           id={`${id}-rationale`}
@@ -192,11 +217,6 @@ export function DecisionPanel({
             : t('decision.submit')}
       </button>
       <ComposerStatus errorKey={errorKey} failed={[]} />
-      {emailFailed && (
-        <p role="status" className="text-sm text-amber-800">
-          {t('decision.emailFailed')}
-        </p>
-      )}
     </form>
   )
 }

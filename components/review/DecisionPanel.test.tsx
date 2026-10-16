@@ -117,7 +117,7 @@ describe('DecisionPanel', () => {
       rationale: '',
       submitter_summary: 'Thanks.',
     })
-    expect(refresh).toHaveBeenCalled()
+    expect(refresh).toHaveBeenCalledTimes(1)
   })
 
   it('tells the Board member when the email could not be sent', async () => {
@@ -135,6 +135,12 @@ describe('DecisionPanel', () => {
       buttonByText(c, 'Click again to confirm — this cannot be undone')?.click()
     })
     expect(c.textContent).toContain('email to the submitter could not be sent')
+    expect(refresh).not.toHaveBeenCalled()
+    expect(c.querySelector('textarea')).toBeNull()
+    await act(async () => {
+      buttonByText(c, 'Reload')?.click()
+    })
+    expect(refresh).toHaveBeenCalledTimes(1)
   })
 
   it('shows the error and does not refresh when the server refuses', async () => {
