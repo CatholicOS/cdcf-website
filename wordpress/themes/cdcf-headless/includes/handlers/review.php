@@ -5,6 +5,9 @@
  *   GET   /cdcf/v1/review/me                      membership flags
  *   GET   /cdcf/v1/review/projects?stage=&page=   list (paged, has_more)
  *   GET   /cdcf/v1/review/projects/{id}           one project's workspace
+ *   GET   /cdcf/v1/review/inbox?unread=&page=     the caller's notifications (paged)
+ *   GET   /cdcf/v1/review/inbox/count             unread total for the bell
+ *   POST  /cdcf/v1/review/inbox/read              mark event_ids, or all, read
  *   PUT   /cdcf/v1/review/projects/{id}/my-review create/update own review + vote
  *   POST  /cdcf/v1/review/projects/{id}/entries   reply or discussion post
  *   PATCH /cdcf/v1/review/entries/{id}            edit own reply/discussion post
@@ -201,6 +204,8 @@ function cdcf_rest_review_get_project(WP_REST_Request $request) {
         return $post;
     }
     $uid = get_current_user_id();
+    // Opening the workspace is reading its activity.
+    cdcf_review_mark_read($uid, null, $pid);
 
     $rows        = cdcf_review_project_entries($pid);
     $attachments = cdcf_review_attachments_for_entries(array_column($rows, 'id'));
@@ -609,6 +614,40 @@ function cdcf_review_route_args(): array {
     ];
     return [
         '/review/me'       => [],
+        '/review/inbox' => [
+            'unread' => [
+                'required'          => false,
+                'type'              => 'boolean',
+                'default'           => false,
+                'sanitize_callback' => 'rest_sanitize_boolean',
+            ],
+            'page'   => [
+                'required'          => false,
+                'type'              => 'integer',
+                'minimum'           => 1,
+                'default'           => 1,
+                'sanitize_callback' => 'absint',
+                'validate_callback' => 'rest_validate_request_arg',
+            ],
+        ],
+        '/review/inbox/count' => [],
+        '/review/inbox/read'  => [
+            'event_ids' => [
+                'required'          => false,
+                'type'              => 'array',
+                'items'             => ['type' => 'integer'],
+                'maxItems'          => 200,
+                'default'           => [],
+                'sanitize_callback' => 'cdcf_review_sanitize_id_list',
+                'validate_callback' => 'rest_validate_request_arg',
+            ],
+            'all'       => [
+                'required'          => false,
+                'type'              => 'boolean',
+                'default'           => false,
+                'sanitize_callback' => 'rest_sanitize_boolean',
+            ],
+        ],
         '/review/projects' => [
             'stage' => [
                 'required'          => false,
@@ -828,4 +867,43 @@ function cdcf_review_serve_attachment($served, $result, $request): bool {
     }
     readfile($data[CDCF_REVIEW_FILE_MARKER]);
     return true;
+}
+
+/** @return list<int> Positive integer ids; anything else is dropped. */
+function cdcf_review_sanitize_id_list($value): array {
+    if (!is_array($value)) {
+        return [];
+    }
+    return array_values(array_filter(array_map('intval', $value), static fn(int $id) => $id > 0));
+}
+
+function cdcf_rest_review_inbox(WP_REST_Request $request) {
+    $uid  = get_current_user_id();
+    $page = max(1, (int) $request['page']);
+    $out  = cdcf_review_inbox($uid, (bool) $request['unread'], $page);
+    return rest_ensure_response([
+        'items'    => $out['items'],
+        'page'     => $page,
+        'has_more' => $out['has_more'],
+        'unread'   => cdcf_review_unread_total($uid),
+    ]);
+}
+
+function cdcf_rest_review_inbox_count(WP_REST_Request $request) {
+    unset($request);
+    return rest_ensure_response(['unread' => cdcf_review_unread_total(get_current_user_id())]);
+}
+
+function cdcf_rest_review_inbox_read(WP_REST_Request $request) {
+    $uid = get_current_user_id();
+    if ($request['all']) {
+        cdcf_review_mark_read($uid);
+    } else {
+        $ids = (array) $request['event_ids'];
+        if (!$ids) {
+            return new WP_Error('invalid_input', 'Pass event_ids or all.', ['status' => 400]);
+        }
+        cdcf_review_mark_read($uid, $ids);
+    }
+    return rest_ensure_response(['unread' => cdcf_review_unread_total($uid)]);
 }

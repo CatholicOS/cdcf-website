@@ -66,3 +66,17 @@ function cdcf_review_unread_counts(int $user_id, array $project_ids): array {
     }
     return $out;
 }
+
+/** @return array{id: int, project_id: int, type: string, actor_user_id: ?int, entry_id: ?int, data: array, created_at: string} */
+function cdcf_review_normalize_event(array $row): array {
+    $data = !empty($row['data']) ? json_decode((string) $row['data'], true) : [];
+    return [
+        'id'            => (int) $row['id'],
+        'project_id'    => (int) $row['project_id'],
+        'type'          => (string) $row['type'],
+        'actor_user_id' => $row['actor_user_id'] !== null ? (int) $row['actor_user_id'] : null,
+        'entry_id'      => $row['entry_id'] !== null ? (int) $row['entry_id'] : null,
+        'data'          => is_array($data) ? $data : [],
+        'created_at'    => (string) $row['created_at'],
+    ];
+}

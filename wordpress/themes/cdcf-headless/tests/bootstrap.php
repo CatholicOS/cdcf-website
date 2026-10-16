@@ -250,6 +250,7 @@ require_once __DIR__ . '/../includes/review/schema.php';
 require_once __DIR__ . '/../includes/review/membership.php';
 require_once __DIR__ . '/../includes/review/repository.php';
 require_once __DIR__ . '/../includes/review/events.php';
+require_once __DIR__ . '/../includes/review/inbox.php';
 require_once __DIR__ . '/../includes/review/submitter-token.php';
 require_once __DIR__ . '/../includes/review/email-strings.php';
 require_once __DIR__ . '/../includes/review/mailer.php';

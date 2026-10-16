@@ -806,6 +806,7 @@ require_once __DIR__ . '/includes/review/schema.php';
 require_once __DIR__ . '/includes/review/membership.php';
 require_once __DIR__ . '/includes/review/repository.php';
 require_once __DIR__ . '/includes/review/events.php';
+require_once __DIR__ . '/includes/review/inbox.php';
 require_once __DIR__ . '/includes/review/submitter-token.php';
 require_once __DIR__ . '/includes/review/email-strings.php';
 require_once __DIR__ . '/includes/review/mailer.php';
@@ -840,6 +841,9 @@ add_action('rest_api_init', function () {
     $args = cdcf_review_route_args();
     $routes = [
         '/review/me'                             => ['GET', 'cdcf_rest_review_me', 'cdcf_rest_review_permission_signed_in'],
+        '/review/inbox'                           => ['GET', 'cdcf_rest_review_inbox', 'cdcf_rest_review_permission_view'],
+        '/review/inbox/count'                     => ['GET', 'cdcf_rest_review_inbox_count', 'cdcf_rest_review_permission_view'],
+        '/review/inbox/read'                      => ['POST', 'cdcf_rest_review_inbox_read', 'cdcf_rest_review_permission_view'],
         '/review/projects'                       => ['GET', 'cdcf_rest_review_list_projects', 'cdcf_rest_review_permission_view'],
         '/review/projects/(?P<id>\d+)'           => ['GET', 'cdcf_rest_review_get_project', 'cdcf_rest_review_permission_view'],
         '/review/projects/(?P<id>\d+)/my-review' => ['PUT', 'cdcf_rest_review_put_my_review', 'cdcf_rest_review_permission_vote'],

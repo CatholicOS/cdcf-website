@@ -190,3 +190,10 @@ function cdcf_review_votes_by_user(int $user_id, array $project_ids): array {
     }
     return $out;
 }
+
+/** The author of the review a reply answers, or null. */
+function cdcf_review_reply_parent_author(int $reply_id): ?int {
+    $reply  = cdcf_review_get_entry($reply_id);
+    $parent = $reply && !empty($reply['parent_id']) ? cdcf_review_get_entry((int) $reply['parent_id']) : null;
+    return $parent && $parent['author_user_id'] !== null ? (int) $parent['author_user_id'] : null;
+}
