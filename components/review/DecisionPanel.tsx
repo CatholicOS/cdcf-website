@@ -63,10 +63,17 @@ export function DecisionPanel({
     summary.trim() !== '' &&
     (!rationaleNeeded || rationale.trim() !== '')
 
-  const preview = `${email.subject}\n\n${email.body}`
-    .replaceAll('{outcome}', selected ? email.outcomes[selected] : '…')
-    .replaceAll('{summary}', summary.trim() || t('decision.summaryPlaceholder'))
-    .replaceAll('{link}', t('decision.linkPlaceholder'))
+  // One pass, like the server's strtr: text substituted in is never
+  // scanned again, so a summary containing "{link}" stays verbatim.
+  const values: Record<string, string> = {
+    outcome: selected ? email.outcomes[selected] : '…',
+    summary: summary.trim() || t('decision.summaryPlaceholder'),
+    link: t('decision.linkPlaceholder'),
+  }
+  const preview = `${email.subject}\n\n${email.body}`.replace(
+    /\{(outcome|summary|link)\}/g,
+    (_, key: string) => values[key]
+  )
 
   function edited<T>(set: (v: T) => void) {
     return (v: T) => {

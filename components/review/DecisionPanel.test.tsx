@@ -97,6 +97,14 @@ describe('DecisionPanel', () => {
     expect(pre).not.toContain('{')
   })
 
+  it('keeps placeholders typed in the summary verbatim in the preview', () => {
+    const c = mount('cdcf')
+    typeInto(textareas(c)[1], 'Reply to {link} or {outcome}')
+    const pre = c.querySelector('pre')?.textContent ?? ''
+    expect(pre).toContain('Reply to {link} or {outcome}')
+    expect(pre).toContain('See [link to the status page]')
+  })
+
   it('needs a second click to confirm, then posts the decision', async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ id: 40, warnings: [] }), { status: 200 })
