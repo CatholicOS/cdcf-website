@@ -81,7 +81,7 @@ final class ReviewSchemaTest extends TestCase
             $delta[] = $sql;
             return [];
         });
-        Functions\when('get_posts')->justReturn([11, 12]);
+        Functions\when('get_posts')->alias(fn(array $a): array => $a['post_status'] === 'pending' ? [11, 12] : []);
         $meta = [];
         Functions\when('update_post_meta')->alias(function ($id, $key, $value) use (&$meta): bool {
             $meta[] = [$id, $key, $value];
@@ -134,6 +134,90 @@ final class ReviewSchemaTest extends TestCase
                 ['key' => '_cdcf_review_stage', 'compare' => 'NOT EXISTS'],
             ],
             $args['meta_query']
+        );
+    }
+
+    public function test_db_version_is_bumped_for_the_published_backfill(): void
+    {
+        $this->assertSame('2', CDCF_REVIEW_DB_VERSION);
+    }
+
+    public function test_maybe_upgrade_from_version_1_backfills_published_decisions(): void
+    {
+        Functions\when('get_option')->justReturn('1');
+        Functions\when('dbDelta')->justReturn([]);
+        Functions\when('update_post_meta')->justReturn(true);
+        $queried = [];
+        Functions\when('get_posts')->alias(function (array $a) use (&$queried): array {
+            $queried[] = $a['post_status'];
+            return [];
+        });
+        Functions\expect('update_option')->once()->with('cdcf_review_db_version', CDCF_REVIEW_DB_VERSION);
+        foreach (['entries', 'attachments', 'events', 'notifications'] as $t) {
+            $this->wpdb->results[] = "wp_cdcf_review_{$t}";
+        }
+
+        cdcf_review_maybe_upgrade();
+
+        $this->assertSame(['pending', 'publish'], $queried);
+    }
+
+    /**
+     * In-memory posts: 1 published project under review, 2 published
+     * community project awaiting the submitter, 3 pending under review,
+     * 4 published and already decided, 5 published with no review stage.
+     */
+    public function test_published_backfill_decides_only_live_undecided_submissions(): void
+    {
+        $posts = [
+            1 => ['project', 'publish', 'in_review'],
+            2 => ['community_project', 'publish', 'awaiting_submitter'],
+            3 => ['project', 'pending', 'in_review'],
+            4 => ['project', 'publish', 'decided'],
+            5 => ['project', 'publish', ''],
+        ];
+        $args = null;
+        Functions\when('get_posts')->alias(function (array $a) use (&$args, $posts): array {
+            $args = $a;
+            $stages = $a['meta_query'][0]['value'];
+            return array_keys(array_filter(
+                $posts,
+                static fn(array $p) => in_array($p[0], $a['post_type'], true) && $p[1] === $a['post_status'] && in_array($p[2], $stages, true)
+            ));
+        });
+        Functions\when('get_post_type')->alias(static fn(int $id) => $posts[$id][0]);
+        $decided = [];
+        Functions\when('cdcf_review_record_decision')->alias(function (...$a) use (&$decided): void {
+            $decided[] = $a;
+        });
+        $events = [];
+        Functions\when('cdcf_review_record_event')->alias(function (...$a) use (&$events): int {
+            $events[] = $a;
+            return 1;
+        });
+        Functions\expect('cdcf_review_send_submitter_email')->never();
+
+        $this->assertSame(2, cdcf_review_backfill_published_decisions());
+
+        $this->assertSame(['project', 'community_project'], $args['post_type']);
+        $this->assertSame('publish', $args['post_status']);
+        $this->assertSame('ids', $args['fields']);
+        $this->assertSame('', $args['lang']);
+        $this->assertSame(-1, $args['posts_per_page']);
+        $this->assertSame(
+            [['key' => '_cdcf_review_stage', 'value' => ['in_review', 'awaiting_submitter'], 'compare' => 'IN']],
+            $args['meta_query']
+        );
+        $this->assertSame(
+            [[1, 'cdcf', null, '', '', true], [2, 'community', null, '', '', true]],
+            $decided
+        );
+        $this->assertSame(
+            [
+                [1, 'admin_override', null, null, ['decision' => 'cdcf', 'backfill' => true]],
+                [2, 'admin_override', null, null, ['decision' => 'community', 'backfill' => true]],
+            ],
+            $events
         );
     }
 
