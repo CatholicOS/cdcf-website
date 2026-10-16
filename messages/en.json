@@ -434,12 +434,13 @@
     "decision": {
       "heading": "Decision",
       "panelHeading": "Record the decision",
-      "plurality": "The councils' plurality vote: {vote}.",
-      "noPlurality": "The councils have no plurality vote, so a rationale is required.",
+      "plurality": "Most council votes: {vote}.",
+      "noPlurality": "No outcome has the most council votes (none yet, or a tie), so a rationale is required.",
       "outcomeLabel": "Outcome",
       "rationaleLabel": "Rationale (for council and Board members only)",
       "rationaleOptional": "optional",
-      "rationaleRequired": "required, because the decision differs from the plurality vote",
+      "rationaleRequired": "required, because the decision differs from the most-voted outcome",
+      "rationaleRequiredNoLeader": "required, because no outcome has the most votes",
       "summaryLabel": "Summary for the submitter, in {language}",
       "summaryPlaceholder": "[your summary]",
       "linkPlaceholder": "[link to the status page]",
@@ -454,7 +455,7 @@
       "summaryHeading": "Summary sent to the submitter"
     },
     "errors": {
-      "rationaleRequired": "Explain why the decision differs from the plurality vote.",
+      "rationaleRequired": "Add a rationale: the decision differs from the most-voted outcome, or no outcome has the most votes.",
       "summaryRequired": "Write a summary for the submitter.",
       "decisionInProgress": "Another Board member is recording a decision. Reload in a moment.",
       "sessionExpired": "Your session has expired. Please sign in again.",

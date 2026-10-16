@@ -80,7 +80,8 @@ describe('DecisionPanel', () => {
 
   it('requires a rationale and selection when there is no plurality', () => {
     const c = mount(null)
-    expect(c.textContent).toContain('no plurality vote')
+    expect(c.textContent).toContain('No outcome has the most council votes')
+    expect(c.textContent).toContain('required, because no outcome has the most')
     typeInto(textareas(c)[1], 'Summary')
     expect(buttonByText(c, 'Record decision')?.disabled).toBe(true)
   })

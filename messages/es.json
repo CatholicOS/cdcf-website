@@ -434,12 +434,13 @@
     "decision": {
       "heading": "Decisión",
       "panelHeading": "Registrar la decisión",
-      "plurality": "Voto mayoritario de los consejos: {vote}.",
-      "noPlurality": "Los consejos no tienen un voto mayoritario, así que la justificación es obligatoria.",
+      "plurality": "Más votado por los consejos: {vote}.",
+      "noPlurality": "Ningún resultado es el más votado por los consejos (aún no hay votos, o hay empate), así que la justificación es obligatoria.",
       "outcomeLabel": "Resultado",
       "rationaleLabel": "Justificación (solo para miembros de los consejos y de la Junta)",
       "rationaleOptional": "opcional",
-      "rationaleRequired": "obligatoria, porque la decisión difiere del voto mayoritario",
+      "rationaleRequired": "obligatoria, porque la decisión difiere del resultado más votado",
+      "rationaleRequiredNoLeader": "obligatoria, porque ningún resultado es el más votado",
       "summaryLabel": "Resumen para quien presentó el proyecto, en {language}",
       "summaryPlaceholder": "[tu resumen]",
       "linkPlaceholder": "[enlace a la página de estado]",
@@ -454,7 +455,7 @@
       "summaryHeading": "Resumen enviado a quien presentó el proyecto"
     },
     "errors": {
-      "rationaleRequired": "Explica por qué la decisión difiere del voto mayoritario.",
+      "rationaleRequired": "Añade una justificación: la decisión difiere del resultado más votado, o ningún resultado es el más votado.",
       "summaryRequired": "Escribe un resumen para quien presentó el proyecto.",
       "decisionInProgress": "Otro miembro de la Junta está registrando una decisión. Recarga en un momento.",
       "sessionExpired": "Tu sesión ha caducado. Vuelve a iniciar sesión.",

@@ -434,12 +434,13 @@
     "decision": {
       "heading": "Décision",
       "panelHeading": "Enregistrer la décision",
-      "plurality": "Vote majoritaire des conseils : {vote}.",
-      "noPlurality": "Les conseils n'ont pas de vote majoritaire ; une justification est donc obligatoire.",
+      "plurality": "Option la plus votée par les conseils : {vote}.",
+      "noPlurality": "Aucune option n'est la plus votée par les conseils (pas encore de vote, ou égalité) ; une justification est donc obligatoire.",
       "outcomeLabel": "Issue",
       "rationaleLabel": "Justification (réservée aux membres des conseils et du Conseil d'administration)",
       "rationaleOptional": "facultative",
-      "rationaleRequired": "obligatoire, car la décision diffère du vote majoritaire",
+      "rationaleRequired": "obligatoire, car la décision diffère de l'option la plus votée",
+      "rationaleRequiredNoLeader": "obligatoire, car aucune option n'est la plus votée",
       "summaryLabel": "Résumé pour l'auteur de la proposition, en {language}",
       "summaryPlaceholder": "[votre résumé]",
       "linkPlaceholder": "[lien vers la page de suivi]",
@@ -454,7 +455,7 @@
       "summaryHeading": "Résumé envoyé à l'auteur de la proposition"
     },
     "errors": {
-      "rationaleRequired": "Expliquez pourquoi la décision diffère du vote majoritaire.",
+      "rationaleRequired": "Ajoutez une justification : la décision diffère de l'option la plus votée, ou aucune option n'est la plus votée.",
       "summaryRequired": "Rédigez un résumé pour l'auteur de la proposition.",
       "decisionInProgress": "Un autre membre du Conseil d'administration enregistre une décision. Rechargez dans un instant.",
       "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",

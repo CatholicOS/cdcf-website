@@ -434,12 +434,13 @@
     "decision": {
       "heading": "Decisione",
       "panelHeading": "Registra la decisione",
-      "plurality": "Voto di maggioranza relativa dei consigli: {vote}.",
-      "noPlurality": "I consigli non hanno una maggioranza relativa, quindi la motivazione è obbligatoria.",
+      "plurality": "Più votato dai consigli: {vote}.",
+      "noPlurality": "Nessun esito è il più votato dai consigli (nessun voto finora, o parità), quindi la motivazione è obbligatoria.",
       "outcomeLabel": "Esito",
       "rationaleLabel": "Motivazione (solo per i membri dei consigli e del Consiglio di amministrazione)",
       "rationaleOptional": "facoltativa",
-      "rationaleRequired": "obbligatoria, perché la decisione è diversa dal voto di maggioranza",
+      "rationaleRequired": "obbligatoria, perché la decisione è diversa dall'esito più votato",
+      "rationaleRequiredNoLeader": "obbligatoria, perché nessun esito è il più votato",
       "summaryLabel": "Sintesi per chi ha proposto il progetto, in {language}",
       "summaryPlaceholder": "[la tua sintesi]",
       "linkPlaceholder": "[link alla pagina di stato]",
@@ -454,7 +455,7 @@
       "summaryHeading": "Sintesi inviata a chi ha proposto il progetto"
     },
     "errors": {
-      "rationaleRequired": "Spiega perché la decisione è diversa dal voto di maggioranza.",
+      "rationaleRequired": "Aggiungi una motivazione: la decisione è diversa dall'esito più votato, oppure nessun esito è il più votato.",
       "summaryRequired": "Scrivi una sintesi per chi ha proposto il progetto.",
       "decisionInProgress": "Un altro membro del Consiglio di amministrazione sta registrando una decisione. Ricarica tra un momento.",
       "sessionExpired": "La sessione è scaduta. Accedi di nuovo.",
