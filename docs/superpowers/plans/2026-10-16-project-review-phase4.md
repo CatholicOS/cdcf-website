@@ -5,6 +5,7 @@
 **Goal:** A Board member records the outcome of a council review (publish as a CDCF project, convert to a community project, or reject). The submitter is emailed the decision, and an administrator publishing in wp-admin is recorded as an override.
 
 **Architecture:**
+
 - **WordPress:** a new `includes/review/decision.php` module applies the outcome (publish / convert / draft) under an in-progress guard and then records the decision meta. `POST /cdcf/v1/review/projects/{id}/decision` wraps it. A `transition_post_status` hook records admin overrides.
 - **Next.js:** gains a typed client call, a route handler, a Board-only decision panel with an email preview, and a decision card on decided reviews.
 
@@ -23,7 +24,8 @@
 - Format TS with `npx prettier --single-quote --no-semi --trailing-comma es5 --write <files you created>`. For existing files, change only your own lines and do not reformat unrelated code.
 - PHP tests: `cd wordpress/themes/cdcf-headless && php8.3 vendor/bin/phpunit` (fails on warnings). JS: `npx vitest run`, `npx tsc --noEmit -p .`, `npm run lint`.
 - Commit trailers on every commit:
-  ```
+
+  ```text
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
   Claude-Session: https://claude.ai/code/session_01FucMioRUfo7AdXMMAjbN4k
   ```
@@ -49,12 +51,14 @@
 ### Task 1: Decision core (`includes/review/decision.php`)
 
 **Files:**
+
 - Create: `wordpress/themes/cdcf-headless/includes/review/decision.php`
 - Modify: `wordpress/themes/cdcf-headless/functions.php` (require it after `mailer.php`, line ~811)
 - Modify: `wordpress/themes/cdcf-headless/tests/bootstrap.php` (require it after `review/mailer.php`, line ~255)
 - Test: `wordpress/themes/cdcf-headless/tests/ReviewDecisionTest.php`
 
 **Interfaces:**
+
 - Produces:
   - `const CDCF_REVIEW_DECISION_TOKEN_TTL = 90 * DAY_IN_SECONDS;`
   - `function cdcf_review_deciding(?bool $set = null): bool` — get/set the in-progress flag (static).
@@ -356,12 +360,14 @@ git commit -m "feat(review): apply and record the Board's decision"
 ### Task 2: Decision endpoint, decision email, workspace fields
 
 **Files:**
+
 - Modify: `wordpress/themes/cdcf-headless/includes/handlers/review.php` (new permission callback, handler, args; GET project fields)
 - Modify: `wordpress/themes/cdcf-headless/functions.php` (route table, line ~844)
 - Modify: `wordpress/themes/cdcf-headless/includes/review/email-strings.php` (template `decision`, outcome labels, `{outcome}` `{summary}`)
 - Test: `wordpress/themes/cdcf-headless/tests/ReviewDecisionHandlerTest.php`; extend `tests/ReviewEmailStringsTest.php` and `tests/ReviewReadHandlerTest.php`
 
 **Interfaces:**
+
 - Consumes (Task 1): `cdcf_review_apply_outcome`, `cdcf_review_record_decision`, `cdcf_review_present_decision`.
 - Produces:
   - `POST /cdcf/v1/review/projects/{id}/decision` with body `{decision: 'cdcf'|'community'|'reject', rationale: string, submitter_summary: string}`.
@@ -553,6 +559,7 @@ Expected: undefined function `cdcf_rest_review_post_decision` / `cdcf_review_out
 - [ ] **Step 3: Implement**
 
 In `email-strings.php`:
+
 - Update the header comment's placeholder list to `{title}, {link}, {question}, {outcome}, {summary}`.
 - Add the `decision` template to every language as shown below.
 - Add `cdcf_review_outcome_labels()`.
@@ -621,6 +628,7 @@ function cdcf_review_render_email(string $template, string $lang, array $vars): 
 ```
 
 In `includes/handlers/review.php`:
+
 - Add `const CDCF_REVIEW_SUMMARY_MAX = 10000;` near the top (after the guard).
 - Add `cdcf_rest_review_permission_decide()` next to the other permission callbacks: `unset($request); return cdcf_review_check_permission('decide');`.
 - Add `POST /review/projects/{id}/decision` to the docblock list at the top of the file.
@@ -750,12 +758,14 @@ git commit -am "feat(review): decision endpoint and decision email" # plus git a
 ### Task 3: Admin override, edit-screen notice, resend after expiry, community listing link
 
 **Files:**
+
 - Modify: `wordpress/themes/cdcf-headless/includes/review/decision.php` (override hook, notice)
 - Modify: `wordpress/themes/cdcf-headless/functions.php` (register the hooks next to the other review hooks, line ~834)
 - Modify: `wordpress/themes/cdcf-headless/includes/handlers/submission-status.php` (resend after expiry; public URL for community projects)
 - Test: `tests/ReviewAdminOverrideTest.php`; extend `tests/SubmissionStatusHandlerTest.php`
 
 **Interfaces:**
+
 - Consumes (Task 1): `cdcf_review_deciding`, `cdcf_review_record_decision`.
 - Produces:
   - `function cdcf_review_admin_override_on_publish($new_status, $old_status, $post): void`, hooked as `add_action('transition_post_status', 'cdcf_review_admin_override_on_publish', 15, 3);`
@@ -899,6 +909,7 @@ add_action('admin_notices', 'cdcf_review_edit_screen_notice');
 ```
 
 `submission-status.php`:
+
 - In `cdcf_rest_submission_status_resend_link()`, after the reviewable-project check:
 
 ```php
@@ -959,44 +970,46 @@ git commit -am "feat(review): admin override, edit-screen notice, expired-link a
 ### Task 4: Next.js data layer and route handler
 
 **Files:**
+
 - Modify: `lib/review-types.ts`, `lib/review-api.ts`, `lib/review-ui.ts`
 - Create: `app/api/review/projects/[id]/decision/route.ts`
 - Test: `app/api/review/projects/[id]/decision/route.test.ts` (model on `app/api/review/projects/[id]/question/route.test.ts`); extend `lib/review-api.test.ts`
 
 **Interfaces:**
+
 - Consumes (Task 2): the endpoint and the GET fields.
 - Produces:
 
 ```ts
 // lib/review-types.ts
 export interface ReviewDecisionRecord {
-  decision: ReviewVote
-  rationale: string
-  summary: string
-  decided_at: number
-  decided_by: { id: number; name: string } | null
-  admin_override: boolean
+  decision: ReviewVote;
+  rationale: string;
+  summary: string;
+  decided_at: number;
+  decided_by: { id: number; name: string } | null;
+  admin_override: boolean;
 }
 export interface ReviewDecisionEmail {
-  language: string
-  subject: string
-  body: string
-  outcomes: Record<ReviewVote, string>
+  language: string;
+  subject: string;
+  body: string;
+  outcomes: Record<ReviewVote, string>;
 }
 export interface ReviewDecisionPayload {
-  decision: ReviewVote
-  rationale: string
-  submitter_summary: string
+  decision: ReviewVote;
+  rationale: string;
+  submitter_summary: string;
 }
 export interface ReviewDecisionResult {
-  id: number
-  stage: 'decided'
-  decision: ReviewVote
-  post_type: string
-  post_status: string
-  warnings: string[]
+  id: number;
+  stage: "decided";
+  decision: ReviewVote;
+  post_type: string;
+  post_status: string;
+  warnings: string[];
 }
-export const DECISION_SUMMARY_MAX = 10000
+export const DECISION_SUMMARY_MAX = 10000;
 // ReviewProject gains:
 //   decision: ReviewDecisionRecord | null
 //   decision_email: ReviewDecisionEmail | null
@@ -1007,8 +1020,8 @@ export const DECISION_SUMMARY_MAX = 10000
 export async function decideProject(
   session: Session | null,
   projectId: number,
-  payload: ReviewDecisionPayload
-): Promise<ReviewDecisionResult>
+  payload: ReviewDecisionPayload,
+): Promise<ReviewDecisionResult>;
 ```
 
 `lib/review-ui.ts`: the `ReviewErrorKey` union gains `'rationaleRequired' | 'summaryRequired' | 'decisionInProgress'`. `CODE_KEYS` gains `rationale_required: 'rationaleRequired'`, `summary_required: 'summaryRequired'`, `decision_in_progress: 'decisionInProgress'`.
@@ -1016,6 +1029,7 @@ export async function decideProject(
 - [ ] **Step 1: Write the failing tests**
 
 Route test cases:
+
 - 401 without a session;
 - 400 `invalid_id`;
 - 400 for a `decision` outside `REVIEW_VOTES` (`invalid_field`, `decision`);
@@ -1039,47 +1053,55 @@ Run: `npx vitest run "app/api/review/projects/[id]/decision" lib/review-api.test
 Route handler:
 
 ```ts
-import { NextResponse, type NextRequest } from 'next/server'
-import { auth } from '@/lib/auth'
-import { decideProject } from '@/lib/review-api'
+import { NextResponse, type NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
+import { decideProject } from "@/lib/review-api";
 import {
   badRequest,
   parseId,
   readLimitedJsonObject,
   reviewErrorResponse,
   unauthorized,
-} from '@/lib/review-route'
-import { DECISION_SUMMARY_MAX, REVIEW_VOTES, type ReviewVote } from '@/lib/review-types'
+} from "@/lib/review-route";
+import {
+  DECISION_SUMMARY_MAX,
+  REVIEW_VOTES,
+  type ReviewVote,
+} from "@/lib/review-types";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const id = parseId((await params).id)
-  if (id === null) return badRequest('invalid_id')
-  const session = await auth()
-  if (!session?.user) return unauthorized()
+  const id = parseId((await params).id);
+  if (id === null) return badRequest("invalid_id");
+  const session = await auth();
+  if (!session?.user) return unauthorized();
   // Room for both texts at their limits, even at 4 bytes a character.
-  const read = await readLimitedJsonObject(request, 256 * 1024)
-  if (!read.ok) return badRequest(read.error)
-  const { decision, rationale, submitter_summary } = read.value
+  const read = await readLimitedJsonObject(request, 256 * 1024);
+  if (!read.ok) return badRequest(read.error);
+  const { decision, rationale, submitter_summary } = read.value;
   if (!REVIEW_VOTES.includes(decision as ReviewVote))
-    return badRequest('invalid_field', 'decision')
-  if (typeof rationale !== 'string') return badRequest('invalid_field', 'rationale')
-  if (typeof submitter_summary !== 'string')
-    return badRequest('invalid_field', 'submitter_summary')
-  if (rationale.length > 50000 || submitter_summary.length > DECISION_SUMMARY_MAX)
-    return badRequest('body_too_long')
+    return badRequest("invalid_field", "decision");
+  if (typeof rationale !== "string")
+    return badRequest("invalid_field", "rationale");
+  if (typeof submitter_summary !== "string")
+    return badRequest("invalid_field", "submitter_summary");
+  if (
+    rationale.length > 50000 ||
+    submitter_summary.length > DECISION_SUMMARY_MAX
+  )
+    return badRequest("body_too_long");
   try {
     return NextResponse.json(
       await decideProject(session, id, {
         decision: decision as ReviewVote,
         rationale,
         submitter_summary,
-      })
-    )
+      }),
+    );
   } catch (err) {
-    return reviewErrorResponse(err)
+    return reviewErrorResponse(err);
   }
 }
 ```
@@ -1101,16 +1123,19 @@ git add lib app/api/review/projects && git commit -m "feat(review): decision API
 ### Task 5: Decision panel, decision card, strings
 
 **Files:**
+
 - Create: `components/review/DecisionPanel.tsx` (client), `components/review/DecisionCard.tsx` (server-compatible, no hooks except `useTranslations`/`useFormatter`), `components/review/DecisionPanel.test.tsx`
 - Modify: `app/[lang]/review/[id]/page.tsx`, `app/[lang]/submission-status/[id]/page.tsx`, `messages/{en,it,es,fr,pt,de}.json`
 
 **Interfaces:**
+
 - Consumes (Task 4): `ReviewDecisionEmail`, `ReviewDecisionRecord`, `ReviewDecisionResult`, `REVIEW_VOTES`, the error keys, and `reviewFetch`/`jsonInit` from `lib/review-client.ts`, as `AskSubmitter.tsx` does.
 - Produces: `<DecisionPanel projectId plurality email />` and `<DecisionCard decision />`.
 
 **Behaviour:**
 
 `DecisionPanel` (shown when `project.me.can_decide && !locked && project.decision_email`):
+
 1. **Outcome:** a radio group over `REVIEW_VOTES`, labelled with `t('vote.<v>')`, default selection = `plurality ?? null`. Above it, the hint `t('decision.plurality', {vote})` or `t('decision.noPlurality')`.
 2. **Rationale:** a textarea labelled `t('decision.rationaleLabel')`. When the selected outcome differs from the plurality (or there is none), the label shows `t('decision.rationaleRequired')` and submit is disabled while the rationale is blank. Otherwise it's labelled optional.
 3. **Summary:** a textarea labelled `t('decision.summaryLabel', {language})`, where `language` is `new Intl.DisplayNames([locale], {type: 'language'}).of(email.language)` and `locale` comes from `useLocale()`. Its `maxLength` is `DECISION_SUMMARY_MAX`, and it is required.
@@ -1123,6 +1148,7 @@ git add lib app/api/review/projects && git commit -m "feat(review): decision API
    - **On success:** if `warnings` includes `email_failed`, set a flag that renders `t('decision.emailFailed')`; then `router.refresh()`.
 
 `DecisionCard` (shown when `project.decision`):
+
 - the heading `t('decision.heading')`;
 - the outcome label `t('vote.<decision>')`;
 - by whom and when: `t('decision.decidedBy', {name, date})`, or `t('decision.adminOverride', {date})` when `admin_override`. The date is `decided_at * 1000`, formatted with `format.dateTime(…, {dateStyle: 'medium'})`;
@@ -1132,17 +1158,25 @@ git add lib app/api/review/projects && git commit -m "feat(review): decision API
 Workspace page placement (after the tally section, replacing the `locked` paragraph block position):
 
 ```tsx
-{project.decision && <DecisionCard decision={project.decision} />}
-{locked && (
-  <p className="rounded-md bg-gray-100 p-3 text-sm text-gray-700">{t('locked')}</p>
-)}
-{project.me.can_decide && !locked && project.decision_email && (
-  <DecisionPanel
-    projectId={project.id}
-    plurality={project.plurality}
-    email={project.decision_email}
-  />
-)}
+{
+  project.decision && <DecisionCard decision={project.decision} />;
+}
+{
+  locked && (
+    <p className="rounded-md bg-gray-100 p-3 text-sm text-gray-700">
+      {t("locked")}
+    </p>
+  );
+}
+{
+  project.me.can_decide && !locked && project.decision_email && (
+    <DecisionPanel
+      projectId={project.id}
+      plurality={project.plurality}
+      email={project.decision_email}
+    />
+  );
+}
 ```
 
 Status page: where it links `status.public_url` with `t('viewPublic')`, use `t('viewListing')` when `status.decision?.outcome === 'community'`.
@@ -1150,6 +1184,7 @@ Status page: where it links `status.public_url` with `t('viewPublic')`, use `t('
 **Strings.** Add under `Review.decision` in each language, and the three error keys under `Review.errors`. Add `SubmissionStatus.viewListing`.
 
 en:
+
 ```json
 "decision": {
   "heading": "Decision",
@@ -1175,9 +1210,11 @@ en:
 },
 "errors": { "rationaleRequired": "Explain why the decision differs from the plurality vote.", "summaryRequired": "Write a summary for the submitter.", "decisionInProgress": "Another Board member is recording a decision. Reload in a moment." }
 ```
+
 `SubmissionStatus.viewListing`: "See it among the community projects".
 
 it:
+
 ```json
 "decision": {
   "heading": "Decisione",
@@ -1203,9 +1240,11 @@ it:
 },
 "errors": { "rationaleRequired": "Spiega perché la decisione è diversa dal voto di maggioranza.", "summaryRequired": "Scrivi una sintesi per chi ha proposto il progetto.", "decisionInProgress": "Un altro membro del Consiglio direttivo sta registrando una decisione. Ricarica tra un momento." }
 ```
+
 `viewListing`: "Vedilo tra i progetti della comunità".
 
 es:
+
 ```json
 "decision": {
   "heading": "Decisión",
@@ -1231,9 +1270,11 @@ es:
 },
 "errors": { "rationaleRequired": "Explica por qué la decisión difiere del voto mayoritario.", "summaryRequired": "Escribe un resumen para quien presentó el proyecto.", "decisionInProgress": "Otro miembro de la Junta está registrando una decisión. Recarga en un momento." }
 ```
+
 `viewListing`: "Verlo entre los proyectos comunitarios".
 
 fr:
+
 ```json
 "decision": {
   "heading": "Décision",
@@ -1259,9 +1300,11 @@ fr:
 },
 "errors": { "rationaleRequired": "Expliquez pourquoi la décision diffère du vote majoritaire.", "summaryRequired": "Rédigez un résumé pour l'auteur de la proposition.", "decisionInProgress": "Un autre membre du Conseil d'administration enregistre une décision. Rechargez dans un instant." }
 ```
+
 `viewListing`: "Le voir parmi les projets communautaires".
 
 pt:
+
 ```json
 "decision": {
   "heading": "Decisão",
@@ -1287,9 +1330,11 @@ pt:
 },
 "errors": { "rationaleRequired": "Explique porque é que a decisão difere do voto maioritário.", "summaryRequired": "Escreva um resumo para quem submeteu o projeto.", "decisionInProgress": "Outro membro da Direção está a registar uma decisão. Recarregue daqui a pouco." }
 ```
+
 `viewListing`: "Vê-lo entre os projetos da comunidade".
 
 de:
+
 ```json
 "decision": {
   "heading": "Entscheidung",
@@ -1315,6 +1360,7 @@ de:
 },
 "errors": { "rationaleRequired": "Erläutern Sie, warum die Entscheidung vom Mehrheitsvotum abweicht.", "summaryRequired": "Schreiben Sie eine Zusammenfassung für die einreichende Person.", "decisionInProgress": "Ein anderes Vorstandsmitglied hält gerade eine Entscheidung fest. Laden Sie die Seite gleich neu." }
 ```
+
 `viewListing`: "Unter den Community-Projekten ansehen".
 
 Merge the `errors` keys into the existing `Review.errors` objects; do not replace them.
@@ -1340,10 +1386,11 @@ git add components/review app messages && git commit -m "feat(review): Board dec
 ### Task 6: Documentation
 
 **Files:**
+
 - Modify: `AGENTS.md` (`CLAUDE.md` is a symlink to it)
 
 - [ ] **Step 1:** Add a row to the REST table, after `/review/projects/{id}/question`:
-  `| \`POST\` | \`/review/projects/{id}/decision\` | Board members only. \`decision\` (\`cdcf\` · \`community\` · \`reject\`), \`submitter_summary\` (required, ≤ 10,000 chars), \`rationale\` (required when the decision differs from the councils' plurality vote, or there is none). Publishes, converts to a \`community_project\`, or moves to draft; then stage \`decided\`, the submitter's link expires 90 days later, and the submitter is emailed. \`409 decision_in_progress\` while another decision is being recorded. |`
+      `| \`POST\` | \`/review/projects/{id}/decision\` | Board members only. \`decision\` (\`cdcf\` · \`community\` · \`reject\`), \`submitter_summary\` (required, ≤ 10,000 chars), \`rationale\` (required when the decision differs from the councils' plurality vote, or there is none). Publishes, converts to a \`community_project\`, or moves to draft; then stage \`decided\`, the submitter's link expires 90 days later, and the submitter is emailed. \`409 decision_in_progress\` while another decision is being recorded. |`
 - [ ] **Step 2:** In "Council review (`/review/*`)", add a paragraph after the submitter paragraph:
   > A Board member decides in the workspace. `includes/review/decision.php` applies the outcome first and records the decision only if that succeeds. A community-project conversion keeps the post id, maps the fields to the `community_project` field group, and rolls back if publishing fails. An administrator who publishes a submission still under review in wp-admin records an `admin_override` decision (no submitter email). The edit screen shows a notice pointing to the workspace.
 - [ ] **Step 3:** Run `npm run format:md` and `npm run lint:md`. If `format:md` reformats unrelated tables, revert those hunks and keep only your lines.
