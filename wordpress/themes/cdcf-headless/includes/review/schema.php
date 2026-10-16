@@ -19,7 +19,7 @@
 
 defined('ABSPATH') || exit;
 
-const CDCF_REVIEW_DB_VERSION  = '1';
+const CDCF_REVIEW_DB_VERSION  = '2';
 const CDCF_REVIEW_STAGE_META  = '_cdcf_review_stage';
 const CDCF_REVIEW_STAGES      = ['in_review', 'awaiting_submitter', 'decided'];
 const CDCF_REVIEW_VOTES       = ['cdcf', 'community', 'reject'];
@@ -95,7 +95,8 @@ function cdcf_review_schema_sql(string $charset_collate): array {
 /**
  * Create or upgrade the tables when the stored schema version differs,
  * then backfill the review stage onto submissions that predate this
- * feature. Hooked on admin_init and rest_api_init; the version option
+ * feature and decide the ones already published in wp-admin. Both
+ * backfills are idempotent. Hooked on admin_init and rest_api_init; the version option
  * is autoloaded, so the common path costs no query.
  */
 function cdcf_review_maybe_upgrade(): void {
@@ -118,6 +119,7 @@ function cdcf_review_maybe_upgrade(): void {
         }
     }
     cdcf_review_backfill_stage();
+    cdcf_review_backfill_published_decisions();
     update_option('cdcf_review_db_version', CDCF_REVIEW_DB_VERSION);
 }
 
@@ -140,6 +142,33 @@ function cdcf_review_backfill_stage(): int {
     ]);
     foreach ($ids as $id) {
         update_post_meta((int) $id, CDCF_REVIEW_STAGE_META, 'in_review');
+    }
+    return count($ids);
+}
+
+/**
+ * Version 2: before the wp-admin override hook (Phase 4), an administrator
+ * could publish a submission still under review and leave its stage at
+ * `in_review`/`awaiting_submitter`, so the Board could still reject or
+ * convert a live project. Record those as admin-override decisions, as
+ * the hook now does on publish. No email is sent.
+ */
+function cdcf_review_backfill_published_decisions(): int {
+    $ids = get_posts([
+        'post_type'      => ['project', 'community_project'],
+        'post_status'    => 'publish',
+        'posts_per_page' => -1,
+        'fields'         => 'ids',
+        'lang'           => '', // all languages; Polylang would filter to the current one
+        'meta_query'     => [
+            ['key' => CDCF_REVIEW_STAGE_META, 'value' => ['in_review', 'awaiting_submitter'], 'compare' => 'IN'],
+        ],
+    ]);
+    foreach ($ids as $id) {
+        $id       = (int) $id;
+        $decision = get_post_type($id) === 'community_project' ? 'community' : 'cdcf';
+        cdcf_review_record_decision($id, $decision, null, '', '', true);
+        cdcf_review_record_event($id, 'admin_override', null, null, ['decision' => $decision, 'backfill' => true]);
     }
     return count($ids);
 }

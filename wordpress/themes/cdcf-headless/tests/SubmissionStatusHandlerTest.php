@@ -339,4 +339,28 @@ final class SubmissionStatusHandlerTest extends TestCase
         $this->assertSame(['accepted' => true], $response->get_data());
         $this->assertSame([], $this->emails);
     }
+
+    public function test_no_link_is_sent_once_the_decided_review_has_expired(): void
+    {
+        $this->meta[40][CDCF_REVIEW_STAGE_META] = 'decided';
+        $this->meta[40][CDCF_REVIEW_TOKEN_EXPIRES_META] = time() - 1;
+        $res = cdcf_rest_submission_status_resend_link($this->request(['project_id' => 40, 'email' => 'sam@example.org'], null));
+        $this->assertSame(202, $res->get_status());
+        $this->assertSame([], $this->emails);
+    }
+
+    public function test_a_published_community_project_links_to_its_languages_projects_page(): void
+    {
+        $this->meta[40][CDCF_REVIEW_STAGE_META] = 'decided';
+        Functions\when('cdcf_review_get_reviewable_project')->justReturn(
+            (object) ['ID' => 40, 'post_title' => 'Liturgy Helper', 'post_status' => 'publish', 'post_type' => 'community_project', 'post_date' => '2026-10-01 11:00:00', 'post_date_gmt' => '2026-10-01 09:00:00']
+        );
+        Functions\when('get_pages')->justReturn([(object) ['ID' => 5]]);
+        Functions\when('pll_get_post_translations')->justReturn(['en' => 5, 'it' => 6]);
+        Functions\when('get_post')->alias(fn($id) => (object) ['ID' => $id, 'post_type' => 'page']);
+        Functions\when('cdcf_frontend_path_for')->alias(fn($p) => (is_object($p) && $p->ID === 6) ? '/it/progetti' : null);
+        $out = cdcf_rest_submission_status_get($this->request(['id' => 40]))->get_data();
+        $base = defined('CDCF_FRONTEND_URL') ? rtrim((string) CDCF_FRONTEND_URL, '/') : 'http://localhost:3000';
+        $this->assertSame($base . '/it/progetti', $out['public_url']);
+    }
 }

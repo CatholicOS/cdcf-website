@@ -48,6 +48,7 @@ final class ReviewReadHandlerTest extends TestCase
             default            => null,
         });
         Functions\when('wp_get_object_terms')->justReturn(['bible', 'mass']);
+        Functions\when('get_post_field')->justReturn('Project 40');
         Functions\when('pll_get_post_language')->justReturn('it');
         Functions\when('get_post')->alias(fn(int $id) => $this->post($id));
         Functions\when('cdcf_review_member_user_ids')->justReturn([7, 10, 11]);
@@ -373,4 +374,38 @@ final class ReviewReadHandlerTest extends TestCase
             $this->assertSame([1], $asked);
             $this->assertSame([['id' => 4, 'kind' => 'image', 'mime' => 'image/png', 'name' => 'a.png', 'size' => 70]], $out['reviews'][0]['attachments']);
         }
+
+    public function test_board_members_get_a_decision_email_preview_while_undecided(): void
+    {
+        $this->signIn(8);
+        Functions\when('cdcf_review_project_entries')->justReturn([]);
+        Functions\when('cdcf_review_tallies')->justReturn([]);
+        Functions\when('cdcf_review_find_review')->justReturn(null);
+
+        $data = cdcf_rest_review_get_project($this->request(['id' => 40]));
+
+        $this->assertNull($data['decision']);
+        $this->assertSame('it', $data['decision_email']['language']);
+        $this->assertStringContainsString('{summary}', $data['decision_email']['body']);
+        $this->assertStringContainsString('{outcome}', $data['decision_email']['body']);
+        $this->assertSame(cdcf_review_outcome_labels()['it'], $data['decision_email']['outcomes']);
+
+        $this->signIn(7);
+        $this->assertNull(cdcf_rest_review_get_project($this->request(['id' => 40]))['decision_email']);
+    }
+
+    public function test_a_decided_project_shows_the_decision_and_no_preview(): void
+    {
+        $this->signIn(8);
+        Functions\when('get_post_meta')->alias(static fn(int $id, string $key) => $key === '_cdcf_review_stage' ? 'decided' : '');
+        Functions\when('cdcf_review_present_decision')->justReturn(['decision' => 'community']);
+        Functions\when('cdcf_review_project_entries')->justReturn([]);
+        Functions\when('cdcf_review_tallies')->justReturn([]);
+        Functions\when('cdcf_review_find_review')->justReturn(null);
+
+        $data = cdcf_rest_review_get_project($this->request(['id' => 40]));
+
+        $this->assertSame('community', $data['decision']['decision']);
+        $this->assertNull($data['decision_email']);
+    }
 }

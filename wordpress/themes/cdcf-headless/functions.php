@@ -809,6 +809,7 @@ require_once __DIR__ . '/includes/review/events.php';
 require_once __DIR__ . '/includes/review/submitter-token.php';
 require_once __DIR__ . '/includes/review/email-strings.php';
 require_once __DIR__ . '/includes/review/mailer.php';
+require_once __DIR__ . '/includes/review/decision.php';
 require_once __DIR__ . '/includes/review/attachments.php';
 require_once __DIR__ . '/includes/handlers/review.php';
 require_once __DIR__ . '/includes/admin/review-access.php';
@@ -830,6 +831,8 @@ add_action('transition_post_status', 'cdcf_review_flush_on_status_change', 10, 3
 add_action('added_user_meta', 'cdcf_review_flush_on_user_meta', 10, 3);
 add_action('updated_user_meta', 'cdcf_review_flush_on_user_meta', 10, 3);
 add_action('deleted_user_meta', 'cdcf_review_flush_on_user_meta', 10, 3);
+add_action('transition_post_status', 'cdcf_review_admin_override_on_publish', 15, 3);
+add_action('admin_notices', 'cdcf_review_edit_screen_notice');
 add_action('admin_menu', 'cdcf_review_access_admin_menu', 20);
 add_filter('rest_pre_serve_request', 'cdcf_review_serve_attachment', 10, 3);
 
@@ -842,6 +845,7 @@ add_action('rest_api_init', function () {
         '/review/projects/(?P<id>\d+)/my-review' => ['PUT', 'cdcf_rest_review_put_my_review', 'cdcf_rest_review_permission_vote'],
         '/review/projects/(?P<id>\d+)/entries'   => ['POST', 'cdcf_rest_review_post_entry', 'cdcf_rest_review_permission_discuss'],
         '/review/projects/(?P<id>\d+)/question'  => ['POST', 'cdcf_rest_review_post_question', 'cdcf_rest_review_permission_discuss'],
+        '/review/projects/(?P<id>\d+)/decision'  => ['POST', 'cdcf_rest_review_post_decision', 'cdcf_rest_review_permission_decide'],
         '/review/entries/(?P<id>\d+)'            => ['PATCH', 'cdcf_rest_review_patch_entry', 'cdcf_rest_review_permission_discuss'],
         '/review/entries/(?P<id>\d+)/attachments' => ['POST', 'cdcf_rest_review_post_attachment', 'cdcf_rest_review_permission_discuss'],
         '/review/attachments/(?P<id>\d+)'         => ['GET', 'cdcf_rest_review_get_attachment', 'cdcf_rest_review_permission_view'],

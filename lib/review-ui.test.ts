@@ -59,6 +59,14 @@ describe('reviewErrorKey', () => {
     expect(reviewErrorKey(400, 'too_many_attachments')).toBe('tooMany')
   })
 
+  it('maps the decision error codes', () => {
+    expect(reviewErrorKey(400, 'rationale_required')).toBe('rationaleRequired')
+    expect(reviewErrorKey(400, 'summary_required')).toBe('summaryRequired')
+    expect(reviewErrorKey(409, 'decision_in_progress')).toBe(
+      'decisionInProgress'
+    )
+  })
+
   it('treats every expired-session signal as sessionExpired', () => {
     expect(reviewErrorKey(401, 'no_token')).toBe('sessionExpired')
     expect(reviewErrorKey(401, 'rest_not_logged_in')).toBe('sessionExpired')

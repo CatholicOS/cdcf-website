@@ -118,7 +118,9 @@ async function StatusBody({ status }: { status: SubmissionStatus }) {
               href={status.public_url}
               className="text-sm font-medium text-cdcf-navy hover:underline"
             >
-              {t('viewPublic')}
+              {status.decision?.outcome === 'community'
+                ? t('viewListing')
+                : t('viewPublic')}
             </a>
           )}
         </section>

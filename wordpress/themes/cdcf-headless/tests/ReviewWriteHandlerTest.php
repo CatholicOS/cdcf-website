@@ -356,6 +356,6 @@ final class ReviewWriteHandlerTest extends TestCase
                 }
             }
         }
-        $this->assertSame(3, $checked);
+        $this->assertSame(4, $checked);
     }
 }
