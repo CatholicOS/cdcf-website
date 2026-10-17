@@ -251,8 +251,9 @@ Records can be left behind in two ways:
 
 - **Retries.** redis-queue retries a failed job as a new job and leaves the
   old record set to `queued`. The plugin deletes that old record on
-  `redis_queue_job_retried` (`includes/retry-cleanup.php`), so this only
-  affects records from before that change.
+  `redis_queue_job_retried` (`includes/retry-cleanup.php`) once the new job
+  is enqueued, so this only affects records from before that change and
+  retries whose enqueue failed.
 - **"Reset stuck jobs".** A job leaves Redis as soon as it is picked up, so a
   `processing` record whose request died stays out of Redis. Resetting it
   to `queued` does not put it back. Re-run the translation from the post's

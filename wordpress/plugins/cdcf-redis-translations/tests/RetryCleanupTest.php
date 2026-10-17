@@ -37,6 +37,50 @@ final class RetryCleanupTest extends TestCase
             ->andReturn(1);
         $GLOBALS['wpdb'] = $wpdb;
 
+        $job = new stdClass();
+        cdcf_remember_enqueued_job('job_new', $job);
+        cdcf_delete_superseded_job_record('job_abc', $job);
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_keeps_the_record_when_the_replacement_was_not_enqueued(): void
+    {
+        $wpdb         = Mockery::mock();
+        $wpdb->prefix = 'wp_';
+        $wpdb->shouldNotReceive('delete');
+        $GLOBALS['wpdb'] = $wpdb;
+
+        // An earlier, unrelated job was enqueued; the retry's enqueue failed.
+        cdcf_remember_enqueued_job('job_other', new stdClass());
+        cdcf_delete_superseded_job_record('job_abc', new stdClass());
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_a_successful_enqueue_is_used_once(): void
+    {
+        $wpdb         = Mockery::mock();
+        $wpdb->prefix = 'wp_';
+        $wpdb->shouldReceive('delete')->once()->andReturn(1);
+        $GLOBALS['wpdb'] = $wpdb;
+
+        $job = new stdClass();
+        cdcf_remember_enqueued_job('job_new', $job);
+        cdcf_delete_superseded_job_record('job_abc', $job);
+        // A second retry of the same job whose enqueue failed.
+        cdcf_delete_superseded_job_record('job_new', $job);
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_keeps_the_record_without_the_job(): void
+    {
+        $wpdb         = Mockery::mock();
+        $wpdb->prefix = 'wp_';
+        $wpdb->shouldNotReceive('delete');
+        $GLOBALS['wpdb'] = $wpdb;
+
         cdcf_delete_superseded_job_record('job_abc');
 
         $this->addToAssertionCount(1);
