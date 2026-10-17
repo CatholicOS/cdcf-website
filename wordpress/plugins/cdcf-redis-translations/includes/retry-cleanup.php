@@ -41,6 +41,7 @@ function cdcf_last_enqueued_job($job = null): ?object {
  * @param object $job    The job enqueued.
  */
 function cdcf_remember_enqueued_job($job_id, $job): void {
+    unset($job_id); // unused — the action passes it before the job
     if (is_object($job)) {
         cdcf_last_enqueued_job($job);
     }
