@@ -18,6 +18,10 @@ add_action('plugins_loaded', function () {
 
     require_once __DIR__ . '/includes/class-translation-job.php';
     require_once __DIR__ . '/includes/functions.php';
+    require_once __DIR__ . '/includes/retry-cleanup.php';
+
+    add_action('redis_queue_job_enqueued', 'cdcf_remember_enqueued_job', 10, 2);
+    add_action('redis_queue_job_retried', 'cdcf_delete_superseded_job_record', 10, 2);
 }, 20);
 
 // REST endpoint to trigger queue processing (for cron via curl).

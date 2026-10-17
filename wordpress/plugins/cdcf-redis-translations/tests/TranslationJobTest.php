@@ -170,4 +170,37 @@ final class TranslationJobTest extends TestCase
 
         $this->assertSame([200, 100, 'it'], $calls);
     }
+
+    /**
+     * redis-queue re-enqueues a retry as a new job whose own attempt
+     * count starts again at zero; the payload has to carry the count.
+     */
+    public function test_the_attempt_count_carries_over_into_the_retried_job(): void
+    {
+        $payload = ['post_id' => 200, 'source_id' => 100, 'target_lang' => 'it'];
+        $error   = new \RuntimeException('OpenAI timed out');
+
+        $first = new CDCF_Translation_Job($payload);
+        $this->assertTrue($first->should_retry($error, 1));
+
+        // The queue stores get_payload() for the retry and rebuilds the job from it.
+        $retry = new CDCF_Translation_Job($first->get_payload());
+        $this->assertFalse($retry->should_retry($error, 1));
+    }
+
+    public function test_the_retry_delay_follows_the_carried_attempt_count(): void
+    {
+        $job = new CDCF_Translation_Job(['post_id' => 200, '_cdcf_attempt' => 1]);
+        $job->should_retry(new \RuntimeException('again'), 1);
+
+        $this->assertSame(120, $job->get_retry_delay(1));
+    }
+
+    public function test_a_first_failure_retries_after_the_first_backoff(): void
+    {
+        $job = new CDCF_Translation_Job(['post_id' => 200]);
+        $job->should_retry(new \RuntimeException('once'), 1);
+
+        $this->assertSame(30, $job->get_retry_delay(1));
+    }
 }

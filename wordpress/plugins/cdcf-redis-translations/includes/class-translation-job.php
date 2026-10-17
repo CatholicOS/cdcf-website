@@ -12,6 +12,22 @@ class CDCF_Translation_Job extends Abstract_Base_Job {
         return 'cdcf_translation';
     }
 
+    /**
+     * redis-queue retries a job as a new one whose own attempt count
+     * starts again at zero, so that count never reaches the limit and a
+     * job that keeps failing retries forever. Count the attempts in the
+     * payload instead, which the retried job carries over.
+     */
+    public function should_retry($exception, $attempt) {
+        $attempt = max((int) $attempt, (int) ($this->payload['_cdcf_attempt'] ?? 0) + 1);
+        $this->payload['_cdcf_attempt'] = $attempt;
+        return parent::should_retry($exception, $attempt);
+    }
+
+    public function get_retry_delay($attempt) {
+        return parent::get_retry_delay(max((int) $attempt, (int) ($this->payload['_cdcf_attempt'] ?? 0)));
+    }
+
     public function execute() {
         $post_id     = $this->get_payload_value('post_id');
         $source_id   = $this->get_payload_value('source_id');

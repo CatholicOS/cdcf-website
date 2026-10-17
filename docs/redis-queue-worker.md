@@ -234,3 +234,27 @@ The OpenAI API key may not be configured in WordPress:
 
 - Check `Settings > CDCF` in wp-admin for the API key
 - Check the WordPress debug log for OpenAI API errors
+
+### The dashboard lists old jobs as "queued"
+
+The Redis Queue dashboard lists the job records in MySQL; the worker
+processes only what is in Redis. Check Redis first:
+
+```bash
+redis-cli -n 0 ZCARD redis_queue:queue:default
+redis-cli -n 0 ZCARD redis_queue:delayed
+```
+
+If both are `0`, the "queued" records will never run, and **Purge → Older
+Than N** removes them (it deletes records only, never Redis entries).
+Records can be left behind in two ways:
+
+- **Retries.** redis-queue retries a failed job as a new job and leaves the
+  old record set to `queued`. The plugin deletes that old record on
+  `redis_queue_job_retried` (`includes/retry-cleanup.php`) once the new job
+  is enqueued, so this only affects records from before that change and
+  retries whose enqueue failed.
+- **"Reset stuck jobs".** A job leaves Redis as soon as it is picked up, so a
+  `processing` record whose request died stays out of Redis. Resetting it
+  to `queued` does not put it back. Re-run the translation from the post's
+  AI Translation meta box instead.
