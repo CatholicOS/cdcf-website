@@ -16,8 +16,12 @@ function cdcf_enqueue_translation(int $post_id, int $source_id, string $target_l
                 'source_id'   => $source_id,
                 'target_lang' => $target_lang,
             ]);
-            redis_queue()->queue_manager->enqueue($job);
-            return 'redis';
+            // enqueue() returns false, without throwing, when Redis is
+            // unreachable or the job record cannot be stored.
+            if (redis_queue()->queue_manager->enqueue($job) !== false) {
+                return 'redis';
+            }
+            error_log('cdcf_enqueue_translation: Redis enqueue returned false, falling back to WP Cron');
         } catch (\Throwable $e) {
             error_log('cdcf_enqueue_translation: Redis enqueue failed, falling back to WP Cron – ' . $e->getMessage());
         }

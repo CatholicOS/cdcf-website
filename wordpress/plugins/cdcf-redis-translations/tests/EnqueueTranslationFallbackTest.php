@@ -118,6 +118,34 @@ final class EnqueueTranslationFallbackTest extends TestCase
         $this->assertSame('wp-cron', $result);
     }
 
+    /**
+     * redis-queue's enqueue() returns false, without throwing, when it is
+     * not connected to Redis or cannot store the job record.
+     */
+    public function test_enqueue_returning_false_falls_back_to_wp_schedule_single_event(): void
+    {
+        $queueManager = Mockery::mock();
+        $queueManager->shouldReceive('enqueue')->once()->andReturn(false);
+
+        $queue = Mockery::mock();
+        $queue->queue_manager = $queueManager;
+
+        Functions\when('redis_queue')->justReturn($queue);
+        Functions\when('error_log')->justReturn(true);
+
+        Functions\expect('wp_schedule_single_event')
+            ->once()
+            ->with(
+                Mockery::type('integer'),
+                'cdcf_async_translate',
+                [42, 7, 'it']
+            );
+
+        $result = cdcf_enqueue_translation(42, 7, 'it');
+
+        $this->assertSame('wp-cron', $result);
+    }
+
     public function test_redis_up_passes_documented_payload_shape(): void
     {
         $capturedPayload = null;
