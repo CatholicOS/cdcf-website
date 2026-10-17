@@ -279,4 +279,20 @@ final class ReviewMailerTest extends TestCase
         $this->expectException(RuntimeException::class);
         $job->execute();
     }
+
+    public function test_a_job_that_keeps_failing_stops_retrying_after_three_attempts(): void
+    {
+        $error = new \RuntimeException('wp_mail failed');
+        $job   = new CDCF_Review_Email_Job(['member' => ['user_id' => 7, 'event_id' => 3]]);
+
+        // Each retry is a new job built from the stored payload, whose own
+        // attempt count is 1 again.
+        $this->assertTrue($job->should_retry($error, 1));
+        $this->assertSame(60, $job->get_retry_delay(1));
+        $job = new CDCF_Review_Email_Job($job->get_payload());
+        $this->assertTrue($job->should_retry($error, 1));
+        $this->assertSame(300, $job->get_retry_delay(1));
+        $job = new CDCF_Review_Email_Job($job->get_payload());
+        $this->assertFalse($job->should_retry($error, 1));
+    }
 }
