@@ -31,6 +31,7 @@ final class ReviewReadHandlerTest extends TestCase
         });
         Functions\when('is_wp_error')->alias(static fn($v): bool => $v instanceof WP_Error);
         Functions\when('rest_ensure_response')->returnArg(1);
+        Functions\when('cdcf_review_catch_up_notifications')->justReturn(null);
         Functions\when('cdcf_review_membership')->alias(
             fn(int $uid): array => $this->members[$uid] ?? ['technical' => false, 'ecclesial' => false, 'board' => false]
         );
@@ -189,7 +190,14 @@ final class ReviewReadHandlerTest extends TestCase
         });
         Functions\when('cdcf_review_tallies')->justReturn([40 => ['cdcf' => 1, 'community' => 1, 'reject' => 0]]);
         Functions\when('cdcf_review_votes_by_user')->justReturn([40 => 'cdcf']);
-        Functions\when('cdcf_review_unread_counts')->justReturn([42 => 2]);
+        $calls = [];
+        Functions\when('cdcf_review_catch_up_notifications')->alias(static function (int $uid) use (&$calls): void {
+            $calls[] = "catch_up:{$uid}";
+        });
+        Functions\when('cdcf_review_unread_counts')->alias(static function (int $uid) use (&$calls): array {
+            $calls[] = "unread:{$uid}";
+            return [42 => 2];
+        });
         // User 99 voted and has since left the council: only 10 and 11 are pending.
         Functions\when('cdcf_review_voter_ids')->justReturn([40 => [7, 99]]);
 
@@ -210,6 +218,8 @@ final class ReviewReadHandlerTest extends TestCase
         $this->assertSame(3, $out['projects'][1]['voters_pending']);
         $this->assertNull($out['projects'][1]['my_vote']);
         $this->assertSame(2, $out['projects'][1]['unread']);
+        // A member who joined late is caught up before the badges are counted.
+        $this->assertSame(['catch_up:7', 'unread:7'], $calls);
     }
 
     public function test_list_without_stage_omits_meta_value(): void

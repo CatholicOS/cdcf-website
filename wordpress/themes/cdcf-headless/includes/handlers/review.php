@@ -170,6 +170,7 @@ function cdcf_rest_review_list_projects(WP_REST_Request $request) {
     $posts    = array_slice($posts, 0, CDCF_REVIEW_LIST_PAGE_SIZE);
     $ids      = array_map(static fn($p): int => (int) $p->ID, $posts);
     $uid   = get_current_user_id();
+    cdcf_review_catch_up_notifications($uid);
 
     $tallies = cdcf_review_tallies($ids);
     $mine    = cdcf_review_votes_by_user($uid, $ids);
@@ -881,6 +882,7 @@ function cdcf_review_sanitize_id_list($value): array {
 
 function cdcf_rest_review_inbox(WP_REST_Request $request) {
     $uid  = get_current_user_id();
+    cdcf_review_catch_up_notifications($uid);
     $page = max(1, (int) $request['page']);
     $out  = cdcf_review_inbox($uid, (bool) $request['unread'], $page);
     return rest_ensure_response([
@@ -893,7 +895,9 @@ function cdcf_rest_review_inbox(WP_REST_Request $request) {
 
 function cdcf_rest_review_inbox_count(WP_REST_Request $request) {
     unset($request);
-    return rest_ensure_response(['unread' => cdcf_review_unread_total(get_current_user_id())]);
+    $uid = get_current_user_id();
+    cdcf_review_catch_up_notifications($uid);
+    return rest_ensure_response(['unread' => cdcf_review_unread_total($uid)]);
 }
 
 function cdcf_rest_review_inbox_read(WP_REST_Request $request) {

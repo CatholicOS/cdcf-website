@@ -9,12 +9,17 @@ use PHPUnit\Framework\TestCase;
 final class ReviewInboxHandlerTest extends TestCase
 {
     private array $marked = [];
+    private array $caughtUp = [];
 
     protected function setUp(): void
     {
         parent::setUp();
         Monkey\setUp();
         $this->marked = [];
+        $this->caughtUp = [];
+        Functions\when('cdcf_review_catch_up_notifications')->alias(function (int $uid): void {
+            $this->caughtUp[] = $uid;
+        });
         Functions\when('rest_ensure_response')->returnArg(1);
         Functions\when('get_current_user_id')->justReturn(7);
         Functions\when('cdcf_review_unread_total')->justReturn(3);
@@ -49,11 +54,13 @@ final class ReviewInboxHandlerTest extends TestCase
         $this->assertSame(2, $out['page']);
         $this->assertFalse($out['has_more']);
         $this->assertSame(3, $out['unread']);
+        $this->assertSame([7], $this->caughtUp);
     }
 
     public function test_count(): void
     {
         $this->assertSame(['unread' => 3], cdcf_rest_review_inbox_count($this->request([])));
+        $this->assertSame([7], $this->caughtUp);
     }
 
     public function test_read_some_or_all(): void

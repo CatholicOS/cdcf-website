@@ -327,7 +327,12 @@ worked out when the job runs.
 Members see every event in the header bell (`components/review/NotificationBell.tsx`,
 which polls `/api/review/inbox/count` every 55 seconds while the tab is visible, just inside
 the 60-second bearer-token cache, and again on navigation) and on
-`/[lang]/review/inbox`. Email goes out only for key events
+`/[lang]/review/inbox`. Notifications are written for the members of the
+moment, so someone who joins later (a new council seat, or a bio linked to an
+account created afterwards) is caught up on their first bell, inbox or list
+request after the roster changes: `cdcf_review_catch_up_notifications()` adds
+the events of projects still under review that they lack, without email.
+Email goes out only for key events
 (`includes/review/member-emails.php`, listening on `cdcf_review_event_recorded`): a new
 submission, a submitter's answer, a decision and an administrator override to every
 member except the one who acted, and a reply to the author of the review it answers.
