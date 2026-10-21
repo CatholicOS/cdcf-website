@@ -804,6 +804,7 @@ add_action('rest_api_init', function () {
 // See docs/superpowers/specs/2026-10-15-project-review-design.md.
 require_once __DIR__ . '/includes/review/schema.php';
 require_once __DIR__ . '/includes/review/membership.php';
+require_once __DIR__ . '/includes/review/referral.php';
 require_once __DIR__ . '/includes/review/repository.php';
 require_once __DIR__ . '/includes/review/events.php';
 require_once __DIR__ . '/includes/review/inbox.php';

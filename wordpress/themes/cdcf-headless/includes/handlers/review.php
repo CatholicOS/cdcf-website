@@ -259,8 +259,8 @@ function cdcf_rest_review_get_project(WP_REST_Request $request) {
         'submitted_at'   => cdcf_review_submitted_at($post),
         'fields'         => cdcf_review_submission_fields($pid),
         'submitter'      => [
-            'name'  => (string) get_post_meta($pid, '_submission_submitter_name', true),
-            'email' => $can_decide ? (string) get_post_meta($pid, '_submission_submitter_email', true) : null,
+            'name'  => cdcf_review_submitter_name($pid),
+            'email' => $can_decide ? cdcf_review_submitter_email($pid) : null,
         ],
         'tally'          => $tally,
         'plurality'      => cdcf_review_plurality($tally),

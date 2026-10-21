@@ -65,7 +65,7 @@ function cdcf_review_enqueue_email(array $payload): bool {
  * @return 'queued'|'sent'|'failed'|'no_email'
  */
 function cdcf_review_send_submitter_email(int $project_id, string $template, array $vars = []): string {
-    if (!is_email((string) get_post_meta($project_id, '_submission_submitter_email', true))) {
+    if (!is_email(cdcf_review_submitter_email($project_id))) {
         return 'no_email';
     }
     $job = ['submitter' => ['project_id' => $project_id, 'template' => $template, 'vars' => $vars]];
@@ -83,7 +83,7 @@ function cdcf_review_send_submitter_email(int $project_id, string $template, arr
  * @return 'sent'|'failed'|'no_email'
  */
 function cdcf_review_deliver_submitter_email(int $project_id, string $template, array $vars = []): string {
-    $to = (string) get_post_meta($project_id, '_submission_submitter_email', true);
+    $to = cdcf_review_submitter_email($project_id);
     if (!is_email($to)) {
         return 'no_email';
     }

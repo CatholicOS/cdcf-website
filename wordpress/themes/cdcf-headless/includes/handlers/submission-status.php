@@ -204,7 +204,7 @@ function cdcf_rest_submission_status_resend_link(WP_REST_Request $request) {
     if ($expires > 0 && time() > $expires) {
         return $accepted;
     }
-    $stored = strtolower(trim((string) get_post_meta($pid, '_submission_submitter_email', true)));
+    $stored = strtolower(trim(cdcf_review_submitter_email($pid)));
     $given  = strtolower(trim((string) $request['email']));
     // Only matching requests are counted, capping mail to the submitter;
     // a caller without the address cannot exhaust the budget.
