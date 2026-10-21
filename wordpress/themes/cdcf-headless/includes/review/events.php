@@ -50,7 +50,7 @@ function cdcf_review_record_event(
  * page, a bio linked to a new account — would otherwise start with an
  * empty bell. Runs once per membership generation per user (one user-meta
  * read otherwise). INSERT IGNORE keeps existing rows and their read state;
- * no email is sent. Decided projects are left out: nothing to act on.
+ * no email is sent. Decided and trashed projects are left out: nothing to act on.
  */
 function cdcf_review_catch_up_notifications(int $user_id): void {
     $gen = (int) get_option('cdcf_review_membership_gen', 0);
@@ -68,12 +68,15 @@ function cdcf_review_catch_up_notifications(int $user_id): void {
             "INSERT IGNORE INTO {$notifications} (event_id, user_id)"
             . " SELECT e.id, %d FROM {$events} e"
             . ' WHERE (e.actor_user_id IS NULL OR e.actor_user_id <> %d)'
-            . " AND e.project_id IN (SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value IN (%s, %s))",
+            // A trashed project keeps its stage but is gone from the review list.
+            . " AND e.project_id IN (SELECT pm.post_id FROM {$wpdb->postmeta} pm JOIN {$wpdb->posts} p ON p.ID = pm.post_id"
+            . ' WHERE pm.meta_key = %s AND pm.meta_value IN (%s, %s) AND p.post_status <> %s)',
             $user_id,
             $user_id,
             CDCF_REVIEW_STAGE_META,
             'in_review',
-            'awaiting_submitter'
+            'awaiting_submitter',
+            'trash'
         )
     );
     // On failure leave the marker alone so the next request retries.

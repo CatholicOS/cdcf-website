@@ -94,9 +94,11 @@ final class ReviewEventsTest extends TestCase
         $this->assertStringStartsWith('INSERT IGNORE INTO wp_cdcf_review_notifications (event_id, user_id) SELECT e.id, 12 FROM wp_cdcf_review_events e', $sql);
         // Never notified of their own actions.
         $this->assertStringContainsString('(e.actor_user_id IS NULL OR e.actor_user_id <> 12)', $sql);
-        // Only projects still under review; decided ones are left out.
+        // Only projects still under review and not trashed; decided ones are left out.
         $this->assertStringContainsString(
-            "SELECT post_id FROM wp_postmeta WHERE meta_key = '_cdcf_review_stage' AND meta_value IN ('in_review', 'awaiting_submitter')",
+            "SELECT pm.post_id FROM wp_postmeta pm JOIN wp_posts p ON p.ID = pm.post_id"
+            . " WHERE pm.meta_key = '_cdcf_review_stage' AND pm.meta_value IN ('in_review', 'awaiting_submitter')"
+            . " AND p.post_status <> 'trash'",
             $sql
         );
         $this->assertSame([[12, 'cdcf_review_notified_gen', '5']], $updates);
