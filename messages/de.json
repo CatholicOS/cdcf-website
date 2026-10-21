@@ -357,7 +357,6 @@
     "referralBadge": "Community-Empfehlung",
     "unread": "{count} neu",
     "submittedOn": "Eingereicht am {date}",
-    "referralTitle": "Status der Empfehlung",
     "referredOn": "Empfohlen am {date}",
     "locked": "Über diese Prüfung wurde entschieden. Bewertungen und Diskussion sind jetzt schreibgeschützt.",
     "edited": "bearbeitet",
@@ -538,9 +537,11 @@
     "linkInvalid": "Verwenden Sie einen Link, der mit https://, http:// oder mailto: beginnt."
   },
   "SubmissionStatus": {
-    "answersClosed": "Über die Einreichung wurde entschieden; diese Frage kann nicht mehr beantwortet werden.",
+    "answersClosed": "Über die Prüfung wurde entschieden; diese Frage kann nicht mehr beantwortet werden.",
     "title": "Status der Einreichung",
     "submittedOn": "Eingereicht am {date}",
+    "referralTitle": "Status der Empfehlung",
+    "referredOn": "Empfohlen am {date}",
     "progress": "Fortschritt",
     "steps": {
       "received": "Eingegangen",
@@ -563,14 +564,14 @@
     "viewPublic": "Zur Projektseite",
     "viewListing": "Unter den Community-Projekten ansehen",
     "linkInvalid": "Dieser Link ist nicht mehr gültig. Nur der neueste Link, den wir Ihnen geschickt haben, funktioniert.",
-    "resendIntro": "Gib die E-Mail-Adresse ein, die du beim Einreichen oder Empfehlen des Projekts verwendet hast, und wir senden dir einen neuen Link.",
+    "resendIntro": "Geben Sie die E-Mail-Adresse ein, die Sie beim Einreichen oder Empfehlen des Projekts verwendet haben, und wir senden Ihnen einen neuen Link.",
     "resendEmail": "E-Mail-Adresse",
     "resendSubmit": "Neuen Link senden",
     "resendSending": "Wird gesendet…",
     "resendDone": "Wenn die Adresse übereinstimmt, ist ein neuer Link unterwegs.",
     "errors": {
       "alreadyAnswered": "Diese Frage wurde bereits beantwortet.",
-      "closed": "Über die Einreichung wurde entschieden; Antworten sind nicht mehr möglich.",
+      "closed": "Über die Prüfung wurde entschieden; Antworten sind nicht mehr möglich.",
       "rejected": "Diese Antwort konnte nicht angenommen werden. Bitte formulieren Sie sie um und versuchen Sie es erneut.",
       "tooLong": "Die Antwort ist zu lang (höchstens 10.000 Zeichen).",
       "empty": "Bitte schreiben Sie eine Antwort.",

@@ -282,7 +282,7 @@ function cdcf_review_backfill_referrals(): ?int {
         'fields'         => 'ids',
         'lang'           => '', // all languages; Polylang would filter to the current one
         'meta_query'     => [
-            ['key' => '_referral_submitter_email', 'compare' => 'EXISTS'],
+            ['key' => '_referral_submitter_email', 'value' => '', 'compare' => '!='],
         ],
     ]));
     if (!$ids) {

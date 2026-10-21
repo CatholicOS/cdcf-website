@@ -357,7 +357,6 @@
     "referralBadge": "Recomendación de la comunidad",
     "unread": "{count} nuevos",
     "submittedOn": "Presentado el {date}",
-    "referralTitle": "Estado de la recomendación",
     "referredOn": "Recomendado el {date}",
     "locked": "Esta revisión ya se ha decidido. Las revisiones y la discusión son ahora de solo lectura.",
     "edited": "editado",
@@ -541,6 +540,8 @@
     "answersClosed": "La revisión ya tiene una decisión, así que ya no se puede responder a esta pregunta.",
     "title": "Estado de la propuesta",
     "submittedOn": "Enviado el {date}",
+    "referralTitle": "Estado de la recomendación",
+    "referredOn": "Recomendado el {date}",
     "progress": "Progreso",
     "steps": {
       "received": "Recibido",

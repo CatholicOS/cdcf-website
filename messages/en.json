@@ -357,8 +357,7 @@
     "referralBadge": "Community referral",
     "unread": "{count} new",
     "submittedOn": "Submitted {date}",
-    "referralTitle": "Referral status",
-    "referredOn": "Referred on {date}",
+    "referredOn": "Referred {date}",
     "locked": "This review has been decided. Reviews and discussion are now read-only.",
     "edited": "edited",
     "cancel": "Cancel",
@@ -541,6 +540,8 @@
     "answersClosed": "The review has been decided, so this question can no longer be answered.",
     "title": "Submission status",
     "submittedOn": "Submitted on {date}",
+    "referralTitle": "Referral status",
+    "referredOn": "Referred on {date}",
     "progress": "Progress",
     "steps": {
       "received": "Received",

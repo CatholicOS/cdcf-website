@@ -154,6 +154,18 @@ final class ReviewDecisionHandlerTest extends TestCase
         $this->assertSame(200, $this->decide(['decision' => 'cdcf', 'rationale' => 'Clear case.'])->get_status());
     }
 
+    public function test_cdcf_decision_is_rejected_for_any_community_project(): void
+    {
+        Functions\when('get_post')->justReturn((object) ['ID' => 40, 'post_type' => 'community_project', 'post_status' => 'pending']);
+        $this->referral = false;
+        $this->tally = ['cdcf' => 2, 'community' => 0, 'reject' => 0];
+        $res = $this->decide(['decision' => 'cdcf']);
+        $this->assertSame('invalid_decision', $res->get_error_code());
+        $this->assertSame(400, $res->get_error_data()['status']);
+        $this->assertSame('A community project can be accepted or rejected.', $res->get_error_message());
+        $this->assertSame([], $this->applied);
+    }
+
     public function test_referral_decision_cannot_be_cdcf(): void
     {
         $this->referral = true;

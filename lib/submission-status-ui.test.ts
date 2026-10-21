@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   answerErrorKey,
@@ -58,5 +60,20 @@ describe('statusHeadingKeys', () => {
     const expected = { title: 'title', submittedOn: 'submittedOn' }
     expect(statusHeadingKeys('submission')).toEqual(expected)
     expect(statusHeadingKeys(undefined)).toEqual(expected)
+  })
+})
+
+describe('statusHeadingKeys translations', () => {
+  const dir = join(process.cwd(), 'messages')
+  const files = readdirSync(dir).filter((f) => f.endsWith('.json'))
+
+  it.each(files)('%s defines every heading key under SubmissionStatus', (f) => {
+    const messages = JSON.parse(readFileSync(join(dir, f), 'utf8'))
+    const ns = messages.SubmissionStatus
+    for (const kind of ['referral', 'submission'] as const) {
+      for (const key of Object.values(statusHeadingKeys(kind))) {
+        expect(ns[key], `${f}: SubmissionStatus.${key}`).toBeTypeOf('string')
+      }
+    }
   })
 })

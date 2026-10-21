@@ -32,7 +32,7 @@ export function SubmissionCard({ project }: { project: ReviewProject }) {
         </p>
         <h1 className="cdcf-heading text-3xl">{project.title}</h1>
         <p className="text-xs text-gray-500">
-          {t('submittedOn', {
+          {t(project.kind === 'referral' ? 'referredOn' : 'submittedOn', {
             date: format.dateTime(parseWpGmt(project.submitted_at), {
               dateStyle: 'long',
             }),

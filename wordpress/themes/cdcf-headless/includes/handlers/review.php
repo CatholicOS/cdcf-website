@@ -552,8 +552,14 @@ function cdcf_rest_review_post_decision(WP_REST_Request $request) {
     if (mb_strlen($summary) > CDCF_REVIEW_SUMMARY_MAX || mb_strlen($rationale) > CDCF_REVIEW_BODY_MAX) {
         return new WP_Error('body_too_long', 'This text is too long.', ['status' => 400]);
     }
-    if ($decision === 'cdcf' && cdcf_review_is_referral($pid)) {
-        return new WP_Error('invalid_decision', 'A referral can be accepted or rejected.', ['status' => 400]);
+    if ($decision === 'cdcf') {
+        if (cdcf_review_is_referral($pid)) {
+            return new WP_Error('invalid_decision', 'A referral can be accepted or rejected.', ['status' => 400]);
+        }
+        // Never record an already-community project as a CDCF one.
+        if ($post->post_type === 'community_project') {
+            return new WP_Error('invalid_decision', 'A community project can be accepted or rejected.', ['status' => 400]);
+        }
     }
     $tally     = cdcf_review_tallies([$pid])[$pid] ?? cdcf_review_empty_tally();
     $plurality = cdcf_review_plurality($tally);

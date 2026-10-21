@@ -337,7 +337,7 @@ final class ReviewSchemaTest extends TestCase
         $this->assertSame('community_project', $log['args']['post_type']);
         $this->assertSame('pending', $log['args']['post_status']);
         $this->assertSame('', $log['args']['lang']);
-        $this->assertSame([['key' => '_referral_submitter_email', 'compare' => 'EXISTS']], $log['args']['meta_query']);
+        $this->assertSame([['key' => '_referral_submitter_email', 'value' => '', 'compare' => '!=']], $log['args']['meta_query']);
         $this->assertSame([[21, '_cdcf_review_stage', 'in_review']], $log['stage']);
         $this->assertSame([
             [21, 'submission_received', null, null, ['migrated' => true]],

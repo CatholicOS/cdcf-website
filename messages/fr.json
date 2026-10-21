@@ -357,7 +357,6 @@
     "referralBadge": "Recommandation de la communauté",
     "unread": "{count} nouveaux",
     "submittedOn": "Soumis le {date}",
-    "referralTitle": "Statut de la recommandation",
     "referredOn": "Recommandé le {date}",
     "locked": "Cette évaluation a été tranchée. Les évaluations et la discussion sont désormais en lecture seule.",
     "edited": "modifié",
@@ -541,6 +540,8 @@
     "answersClosed": "L'examen est terminé : il n'est plus possible de répondre à cette question.",
     "title": "Suivi de la proposition",
     "submittedOn": "Proposé le {date}",
+    "referralTitle": "Statut de la recommandation",
+    "referredOn": "Recommandé le {date}",
     "progress": "Avancement",
     "steps": {
       "received": "Reçu",
