@@ -13,6 +13,7 @@ export type SubmissionStatus = {
   submitted_at: string
   language: string
   stage: SubmissionStage
+  kind: 'referral' | 'submission'
   questions: SubmissionQuestion[]
   decision: {
     outcome: 'cdcf' | 'community' | 'reject'

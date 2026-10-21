@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { answerErrorKey, timelineSteps } from './submission-status-ui'
+import {
+  answerErrorKey,
+  statusHeadingKeys,
+  timelineSteps,
+} from './submission-status-ui'
 
 describe('timelineSteps', () => {
   it('shows review in progress after receipt', () => {
@@ -39,5 +43,20 @@ describe('answerErrorKey', () => {
     expect(answerErrorKey('rate_limited')).toBe('rateLimited')
     expect(answerErrorKey('something_else')).toBe('generic')
     expect(answerErrorKey(undefined)).toBe('generic')
+  })
+})
+
+describe('statusHeadingKeys', () => {
+  it('uses referral wording for referrals', () => {
+    expect(statusHeadingKeys('referral')).toEqual({
+      title: 'referralTitle',
+      submittedOn: 'referredOn',
+    })
+  })
+
+  it('uses submission wording otherwise', () => {
+    const expected = { title: 'title', submittedOn: 'submittedOn' }
+    expect(statusHeadingKeys('submission')).toEqual(expected)
+    expect(statusHeadingKeys(undefined)).toEqual(expected)
   })
 })

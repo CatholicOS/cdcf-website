@@ -6,7 +6,7 @@ import { clientIpFromHeaders } from '@/lib/ip-rate-limit'
 import { parseWpGmt } from '@/lib/review-ui'
 import { loadSubmissionStatus } from '@/lib/submission-status-load'
 import type { SubmissionStatus } from '@/lib/submission-status-types'
-import { timelineSteps } from '@/lib/submission-status-ui'
+import { statusHeadingKeys, timelineSteps } from '@/lib/submission-status-ui'
 import { statusCookieName } from '@/lib/submission-token'
 import { AnswerForm } from '@/components/submission-status/AnswerForm'
 import { ResendLinkForm } from '@/components/submission-status/ResendLinkForm'
@@ -37,7 +37,9 @@ export default async function SubmissionStatusPage({
   return (
     <main className="cdcf-section">
       <div className="mx-auto max-w-2xl space-y-8">
-        <h1 className="cdcf-heading text-3xl">{t('title')}</h1>
+        <h1 className="cdcf-heading text-3xl">
+          {t(statusHeadingKeys(status?.kind).title)}
+        </h1>
         {status ? (
           <StatusBody status={status} />
         ) : (
@@ -55,12 +57,13 @@ async function StatusBody({ status }: { status: SubmissionStatus }) {
   const t = await getTranslations('SubmissionStatus')
   const format = await getFormatter()
   const open = status.stage !== 'decided'
+  const heading = statusHeadingKeys(status.kind)
   return (
     <>
       <section className="cdcf-card space-y-4">
         <h2 className="cdcf-heading text-2xl">{status.title}</h2>
         <p className="text-sm text-gray-600">
-          {t('submittedOn', {
+          {t(heading.submittedOn, {
             date: format.dateTime(parseWpGmt(status.submitted_at), {
               dateStyle: 'long',
             }),

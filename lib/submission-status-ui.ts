@@ -42,3 +42,12 @@ const ANSWER_ERRORS: Record<string, AnswerErrorKey> = {
 export function answerErrorKey(code: string | undefined): AnswerErrorKey {
   return (code && ANSWER_ERRORS[code]) || 'generic'
 }
+
+export function statusHeadingKeys(kind: SubmissionStatus['kind'] | undefined): {
+  title: 'title' | 'referralTitle'
+  submittedOn: 'submittedOn' | 'referredOn'
+} {
+  return kind === 'referral'
+    ? { title: 'referralTitle', submittedOn: 'referredOn' }
+    : { title: 'title', submittedOn: 'submittedOn' }
+}

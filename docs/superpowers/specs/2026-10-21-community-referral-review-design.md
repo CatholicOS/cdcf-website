@@ -1,6 +1,6 @@
 # Council review of community project referrals
 
-**Status:** design, awaiting review.
+**Status:** implemented.
 
 ## Problem
 
