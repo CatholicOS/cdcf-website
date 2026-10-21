@@ -24,6 +24,10 @@ defined('ABSPATH') || exit;
 
 const CDCF_REVIEW_SUMMARY_MAX = 10000;
 
+// A referral is a community project already; the councils can only say
+// whether it belongs on the community list.
+const CDCF_REVIEW_REFERRAL_VOTES = ['community', 'reject'];
+
 /** @return true|WP_Error */
 function cdcf_review_check_permission(string $permission) {
     if (!is_user_logged_in()) {
@@ -94,7 +98,11 @@ function cdcf_review_submission_fields(int $project_id): array {
     }
     $repo_urls = json_decode((string) get_post_meta($project_id, '_submission_repo_urls', true), true);
     if (!is_array($repo_urls) || !$repo_urls) {
+        // A community referral keeps its repository in project_github_url.
         $single    = (string) get_field('project_repo_url', $project_id);
+        if ($single === '') {
+            $single = (string) get_field('project_github_url', $project_id);
+        }
         $repo_urls = $single !== '' ? [$single] : [];
     }
     $tags = wp_get_object_terms($project_id, 'project_tag', ['fields' => 'names']);
@@ -189,6 +197,7 @@ function cdcf_rest_review_list_projects(WP_REST_Request $request) {
             'language'       => cdcf_review_post_language($pid),
             'submitted_at'   => cdcf_review_submitted_at($post),
             'stage'          => (string) get_post_meta($pid, CDCF_REVIEW_STAGE_META, true),
+            'kind'           => cdcf_review_kind($pid),
             'tally'          => $tally,
             'voters_pending' => cdcf_review_pending_count($voters, $voted[$pid] ?? []),
             'my_vote'        => $mine[$pid] ?? null,
@@ -255,6 +264,7 @@ function cdcf_rest_review_get_project(WP_REST_Request $request) {
         'post_type'      => (string) $post->post_type,
         'post_status'    => (string) $post->post_status,
         'stage'          => $stage,
+        'kind'           => cdcf_review_kind($pid),
         'language'       => cdcf_review_post_language($pid),
         'submitted_at'   => cdcf_review_submitted_at($post),
         'fields'         => cdcf_review_submission_fields($pid),
@@ -315,9 +325,9 @@ function cdcf_review_pending_count(array $voters, array $voted): int {
 }
 
 /** @return true|WP_Error */
-function cdcf_review_validate_body(string $body) {
+function cdcf_review_validate_body(string $body, bool $allow_empty = false) {
     // trim() misses NBSP, ideographic spaces and zero-width characters.
-    if (preg_replace('/[\s\p{Z}\x{200B}-\x{200D}\x{2060}\x{FEFF}]+/u', '', $body) === '') {
+    if (!$allow_empty && preg_replace('/[\s\p{Z}\x{200B}-\x{200D}\x{2060}\x{FEFF}]+/u', '', $body) === '') {
         return new WP_Error('empty_body', 'Write something before posting.', ['status' => 400]);
     }
     if (mb_strlen($body) > CDCF_REVIEW_BODY_MAX) {
@@ -341,11 +351,11 @@ function cdcf_review_entry_response(int $id, int $status) {
 }
 
 /** @return true|WP_Error First error among the reviewable/open/body checks. */
-function cdcf_review_guard_write(int $project_id, string $body) {
+function cdcf_review_guard_write(int $project_id, string $body, bool $allow_empty = false) {
     foreach ([
         cdcf_review_get_reviewable_project($project_id),
         cdcf_review_assert_open($project_id),
-        cdcf_review_validate_body($body),
+        cdcf_review_validate_body($body, $allow_empty),
     ] as $result) {
         if (is_wp_error($result)) {
             return $result;
@@ -357,13 +367,19 @@ function cdcf_review_guard_write(int $project_id, string $body) {
 function cdcf_rest_review_put_my_review(WP_REST_Request $request) {
     $pid  = (int) $request['id'];
     $body = (string) $request['body_md'];
-    $ok   = cdcf_review_guard_write($pid, $body);
+    // A referral's vote is the review; its comment is optional.
+    $referral = cdcf_review_is_referral($pid);
+    $ok       = cdcf_review_guard_write($pid, $body, $referral);
     if (is_wp_error($ok)) {
         return $ok;
     }
     $vote = (string) $request['vote'];
-    if (!in_array($vote, CDCF_REVIEW_VOTES, true)) {
-        return new WP_Error('invalid_vote', 'Vote must be cdcf, community or reject.', ['status' => 400]);
+    if (!in_array($vote, $referral ? CDCF_REVIEW_REFERRAL_VOTES : CDCF_REVIEW_VOTES, true)) {
+        return new WP_Error(
+            'invalid_vote',
+            $referral ? 'Vote must be community or reject.' : 'Vote must be cdcf, community or reject.',
+            ['status' => 400]
+        );
     }
     $uid      = get_current_user_id();
     $existing = cdcf_review_find_review($pid, $uid);
@@ -535,6 +551,9 @@ function cdcf_rest_review_post_decision(WP_REST_Request $request) {
     }
     if (mb_strlen($summary) > CDCF_REVIEW_SUMMARY_MAX || mb_strlen($rationale) > CDCF_REVIEW_BODY_MAX) {
         return new WP_Error('body_too_long', 'This text is too long.', ['status' => 400]);
+    }
+    if ($decision === 'cdcf' && cdcf_review_is_referral($pid)) {
+        return new WP_Error('invalid_decision', 'A referral can be accepted or rejected.', ['status' => 400]);
     }
     $tally     = cdcf_review_tallies([$pid])[$pid] ?? cdcf_review_empty_tally();
     $plurality = cdcf_review_plurality($tally);
