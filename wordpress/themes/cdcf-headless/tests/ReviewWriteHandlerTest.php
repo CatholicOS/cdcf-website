@@ -235,6 +235,17 @@ final class ReviewWriteHandlerTest extends TestCase
         $this->assertSame('', $inserted['body_md']);
     }
 
+    public function test_referral_review_body_keeps_the_length_limit(): void
+    {
+        $this->referral = true;
+
+        $res = cdcf_rest_review_put_my_review($this->request([
+            'id' => 40, 'vote' => 'community', 'body_md' => str_repeat('a', CDCF_REVIEW_BODY_MAX + 1),
+        ]));
+
+        $this->assertSame('body_too_long', $res->get_error_code());
+    }
+
     public function test_submission_review_still_requires_a_body(): void
     {
         $res = cdcf_rest_review_put_my_review($this->request(['id' => 40, 'vote' => 'cdcf', 'body_md' => '']));

@@ -28,7 +28,7 @@ export function ReviewCard({
         badge={
           review.vote && (
             <span className="rounded bg-cdcf-navy px-1.5 py-0.5 text-xs font-medium text-white">
-              {t(voteLabelKey(kind, review.vote) as 'vote.cdcf')}
+              {t(voteLabelKey(kind, review.vote))}
             </span>
           )
         }

@@ -19,7 +19,7 @@ export function DecisionCard({
     <section className="cdcf-card space-y-3">
       <h2 className="cdcf-heading text-xl">{t('decision.heading')}</h2>
       <p className="text-lg font-semibold">
-        {t(voteLabelKey(kind, decision.decision) as 'vote.cdcf')}
+        {t(voteLabelKey(kind, decision.decision))}
       </p>
       <p className="text-sm text-gray-600">
         {decision.admin_override || !decision.decided_by

@@ -144,7 +144,7 @@ export function DecisionPanel({
       <p className="text-sm text-gray-700">
         {plurality
           ? t('decision.plurality', {
-              vote: t(voteLabelKey(kind, plurality) as 'vote.cdcf'),
+              vote: t(voteLabelKey(kind, plurality)),
             })
           : t('decision.noPlurality')}
       </p>
@@ -160,7 +160,7 @@ export function DecisionPanel({
               checked={selected === v}
               onChange={() => edited(setSelected)(v)}
             />
-            {t(voteLabelKey(kind, v) as 'vote.cdcf')}
+            {t(voteLabelKey(kind, v))}
           </label>
         ))}
       </fieldset>

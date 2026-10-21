@@ -52,9 +52,7 @@ export function ProjectCard({
         {project.my_vote ? (
           <p className="text-xs text-gray-700">
             {t('yourVote', {
-              vote: t(
-                voteLabelKey(project.kind, project.my_vote) as 'vote.cdcf'
-              ),
+              vote: t(voteLabelKey(project.kind, project.my_vote)),
             })}
           </p>
         ) : canVote && project.stage !== 'decided' ? (

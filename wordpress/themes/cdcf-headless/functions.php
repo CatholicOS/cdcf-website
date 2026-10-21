@@ -3146,7 +3146,7 @@ function cdcf_render_pending_community_projects_widget(): void {
     ]);
 
     if (empty($posts)) {
-        echo '<p>No pending referrals.</p>';
+        echo '<p>No referrals under council review.</p>';
         return;
     }
 
@@ -3180,8 +3180,12 @@ function cdcf_render_pending_community_projects_widget(): void {
 
     $total = wp_count_posts('community_project')->pending ?? 0;
     if ($total > 10) {
-        $url = admin_url('edit.php?post_type=community_project&post_status=pending');
-        printf('<p><a href="%s">View all %d pending referrals &rarr;</a></p>', $url, $total);
+        $frontend = defined('CDCF_FRONTEND_URL') ? (string) CDCF_FRONTEND_URL : 'http://localhost:3000';
+        printf(
+            '<p><a href="%s" target="_blank" rel="noopener">See all %d in the review workspace &rarr;</a></p>',
+            esc_url(rtrim($frontend, '/') . '/review'),
+            (int) $total
+        );
     }
 }
 

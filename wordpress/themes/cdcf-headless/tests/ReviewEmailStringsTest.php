@@ -32,7 +32,29 @@ final class ReviewEmailStringsTest extends TestCase
                 $this->assertDoesNotMatchRegularExpression('/your (project|submission)/i', $text, $template);
             }
         }
-        $this->assertArrayHasKey('referral_decision', cdcf_review_email_strings()['en']);
+    }
+
+    public function test_no_referral_template_in_any_language_says_your_project(): void
+    {
+        // "Your project" / "your submission" in each language, in both registers.
+        $denylist = [
+            'it' => '/\\b(tuo|suo|vostro) progetto|\\b(tua|sua|vostra) proposta/iu',
+            'es' => '/\\b(tu|su) (proyecto|propuesta)/iu',
+            'fr' => '/\\b(votre|ton) (projet|proposition)/iu',
+            'pt' => '/\\b(o )?(teu|seu) projeto|\\b(a )?(tua|sua) (proposta|submissão)/iu',
+            'de' => '/\\b(Ihr|dein) (Projekt|Vorschlag)|\\b(Ihre|deine) Einreichung/u',
+        ];
+        $strings = cdcf_review_email_strings();
+        foreach ($denylist as $lang => $pattern) {
+            foreach ($strings[$lang] as $template => $raw) {
+                if (!str_starts_with($template, 'referral_')) {
+                    continue;
+                }
+                foreach ([$raw['subject'], $raw['body']] as $text) {
+                    $this->assertDoesNotMatchRegularExpression($pattern, $text, "{$lang}/{$template}");
+                }
+            }
+        }
     }
 
     public function test_render_fills_placeholders(): void

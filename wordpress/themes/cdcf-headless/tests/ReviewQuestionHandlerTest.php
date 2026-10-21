@@ -112,6 +112,7 @@ final class ReviewQuestionHandlerTest extends TestCase
 
         $this->assertNotInstanceOf(WP_Error::class, $result);
         $this->assertCount(1, $this->inserted);
+        $this->assertSame([40, 'question'], array_slice($this->emails[0], 0, 2));
     }
 
     public function test_an_entry_that_cannot_be_read_back_returns_the_error(): void

@@ -48,7 +48,7 @@ export function TallyBar({
             />
             {s.key === 'pending'
               ? t('tally.pending', { count: s.count })
-              : `${t(voteLabelKey(kind, s.key) as 'vote.cdcf')}: ${s.count}`}
+              : `${t(voteLabelKey(kind, s.key))}: ${s.count}`}
           </li>
         ))}
       </ul>

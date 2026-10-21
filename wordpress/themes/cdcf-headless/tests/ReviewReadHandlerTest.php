@@ -451,6 +451,22 @@ final class ReviewReadHandlerTest extends TestCase
         $this->assertNull(cdcf_rest_review_get_project($this->request(['id' => 40]))['decision_email']);
     }
 
+    public function test_a_referral_decision_preview_uses_the_referral_template(): void
+    {
+        $this->signIn(8);
+        $this->kind = 'referral';
+        Functions\when('cdcf_review_project_entries')->justReturn([]);
+        Functions\when('cdcf_review_tallies')->justReturn([]);
+        Functions\when('cdcf_review_find_review')->justReturn(null);
+
+        $data = cdcf_rest_review_get_project($this->request(['id' => 40]));
+
+        $expected = cdcf_review_render_email('referral_decision', 'it', [
+            'title' => 'Project 40', 'link' => '{link}', 'outcome' => '{outcome}', 'summary' => '{summary}',
+        ]);
+        $this->assertSame($expected['subject'], $data['decision_email']['subject']);
+    }
+
     public function test_a_decided_project_shows_the_decision_and_no_preview(): void
     {
         $this->signIn(8);

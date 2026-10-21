@@ -40,6 +40,14 @@ describe('MyReviewComposer', () => {
     expect(buttonByText(c, 'Post review')?.disabled).toBe(false)
   })
 
+  it('asks for a vote when a referral is saved without one', () => {
+    const c = mount('referral')
+    act(() => {
+      buttonByText(c, 'Post review')?.click()
+    })
+    expect(c.textContent).toContain('Choose a vote first.')
+  })
+
   it('keeps saving disabled for a submission with an empty body', () => {
     const c = mount('submission')
     choose(c, 'cdcf')

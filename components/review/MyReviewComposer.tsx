@@ -41,7 +41,7 @@ export function MyReviewComposer({
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-gray-200 bg-gray-50 p-4">
         <p className="text-sm text-gray-700">
           {t('yourVote', {
-            vote: t(voteLabelKey(kind, existing.vote) as 'vote.cdcf'),
+            vote: t(voteLabelKey(kind, existing.vote)),
           })}
         </p>
         <button
@@ -109,7 +109,7 @@ export function MyReviewComposer({
                 onChange={() => setVote(v)}
                 className="sr-only"
               />
-              {t(voteLabelKey(kind, v) as 'vote.cdcf')}
+              {t(voteLabelKey(kind, v))}
             </label>
           ))}
         </div>

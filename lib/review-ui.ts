@@ -81,9 +81,14 @@ export function votesFor(kind: ReviewKind): readonly ReviewVote[] {
   return kind === 'referral' ? ['community', 'reject'] : REVIEW_VOTES
 }
 
+export type VoteLabelKey =
+  `vote.${ReviewVote}` | `referralVote.${Exclude<ReviewVote, 'cdcf'>}`
+
 /** The Review message key that labels a vote. */
-export function voteLabelKey(kind: ReviewKind, vote: ReviewVote): string {
-  return kind === 'referral' ? `referralVote.${vote}` : `vote.${vote}`
+export function voteLabelKey(kind: ReviewKind, vote: ReviewVote): VoteLabelKey {
+  return kind === 'referral' && vote !== 'cdcf'
+    ? `referralVote.${vote}`
+    : `vote.${vote}`
 }
 
 export function tallySegments(

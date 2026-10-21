@@ -76,9 +76,7 @@ export default async function ReviewProjectPage({
           {project.plurality && (
             <p className="text-sm text-gray-700">
               {t('plurality', {
-                vote: t(
-                  voteLabelKey(project.kind, project.plurality) as 'vote.cdcf'
-                ),
+                vote: t(voteLabelKey(project.kind, project.plurality)),
               })}
             </p>
           )}
