@@ -598,7 +598,7 @@ function cdcf_rest_review_post_decision(WP_REST_Request $request) {
 /** @return array{language: string, subject: string, body: string, outcomes: array<string, string>} */
 function cdcf_review_decision_email_preview(int $project_id): array {
     $lang = cdcf_review_post_language($project_id);
-    $mail = cdcf_review_render_email('decision', $lang, [
+    $mail = cdcf_review_render_email(cdcf_review_submitter_template($project_id, 'decision'), $lang, [
         'title'   => (string) get_post_field('post_title', $project_id),
         'link'    => '{link}',
         'outcome' => '{outcome}',

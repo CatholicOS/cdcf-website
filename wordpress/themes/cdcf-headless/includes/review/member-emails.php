@@ -76,7 +76,10 @@ function cdcf_review_deliver_member_email(int $user_id, int $event_id): string {
     }
     $lang  = cdcf_review_user_language($user_id);
     $actor = $event['actor_user_id'] !== null ? get_userdata($event['actor_user_id']) : null;
-    $mail  = cdcf_review_render_member_email($event['type'], $lang, [
+    $type  = $event['type'] === 'submission_received' && cdcf_review_is_referral($event['project_id'])
+        ? 'referral_received'
+        : $event['type'];
+    $mail  = cdcf_review_render_member_email($type, $lang, [
         // Raw title: get_the_title() would HTML-escape it for a text email.
         'title'   => (string) get_post_field('post_title', $event['project_id']),
         'actor'   => $actor ? (string) $actor->display_name : cdcf_review_member_email_someone($lang),

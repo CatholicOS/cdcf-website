@@ -29,6 +29,7 @@ final class ReviewReadHandlerTest extends TestCase
         $this->markedRead = [];
         $this->kind = 'submission';
         Functions\when('cdcf_review_kind')->alias(fn(int $id): string => $this->kind);
+        Functions\when('cdcf_review_is_referral')->alias(fn(int $id): bool => $this->kind === 'referral');
         Functions\when('cdcf_review_mark_read')->alias(function (int $uid, ?array $ids = null, ?int $pid = null): void {
             $this->markedRead[] = [$uid, $ids, $pid];
         });

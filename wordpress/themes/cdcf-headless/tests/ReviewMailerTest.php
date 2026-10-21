@@ -8,6 +8,7 @@ final class ReviewMailerTest extends TestCase
 {
     private array $mails = [];
     private array $logs = [];
+    private bool $referral = false;
 
     protected function setUp(): void
     {
@@ -19,6 +20,8 @@ final class ReviewMailerTest extends TestCase
             $this->logs[] = $msg;
             return true;
         });
+        $this->referral = false;
+        Functions\when('cdcf_review_is_referral')->alias(fn(int $id) => $this->referral);
         Functions\when('wp_mail')->alias(function (string $to, string $subject, string $body): bool {
             $this->mails[] = compact('to', 'subject', 'body');
             return true;
@@ -176,6 +179,18 @@ final class ReviewMailerTest extends TestCase
         $this->assertNotSame($old, $new);
         $this->assertTrue(cdcf_review_token_matches(42, $new), 'the emailed link works once sent');
         $this->assertFalse(cdcf_review_token_matches(42, $old));
+    }
+
+    public function test_referral_email_uses_the_referral_template(): void
+    {
+        $this->noQueue();
+        $this->submission();
+        $this->referral = true;
+
+        $this->assertSame('sent', cdcf_review_send_submitter_email(42, 'confirmation'));
+        $expected = cdcf_review_render_email('referral_confirmation', 'de', ['title' => 'Liturgy Helper', 'link' => 'x']);
+        $this->assertSame($expected['subject'], $this->mails[0]['subject']);
+        $this->assertSame('referral_question', cdcf_review_submitter_template(42, 'question'));
     }
 
     public function test_a_failed_inline_email_keeps_the_submitters_working_link(): void

@@ -75,6 +75,11 @@ function cdcf_review_send_submitter_email(int $project_id, string $template, arr
     return cdcf_review_deliver_submitter_email($project_id, $template, $vars);
 }
 
+/** A referral gets its own wording: the referrer never "submitted" the project. */
+function cdcf_review_submitter_template(int $project_id, string $template): string {
+    return cdcf_review_is_referral($project_id) ? 'referral_' . $template : $template;
+}
+
 /**
  * Build and send a submitter email now. The new link replaces the old one
  * only once the email has been sent, so a failed email leaves the working
@@ -89,7 +94,7 @@ function cdcf_review_deliver_submitter_email(int $project_id, string $template, 
     }
     $lang  = cdcf_review_post_language($project_id);
     $token = cdcf_review_new_token();
-    $mail  = cdcf_review_render_email($template, $lang, $vars + [
+    $mail  = cdcf_review_render_email(cdcf_review_submitter_template($project_id, $template), $lang, $vars + [
         // Raw title: get_the_title() would HTML-escape it for a text email.
         'title' => (string) get_post_field('post_title', $project_id),
         'link'  => cdcf_review_status_url($project_id, $lang, $token['token']),

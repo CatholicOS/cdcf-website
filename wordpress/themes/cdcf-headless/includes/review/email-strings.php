@@ -27,6 +27,22 @@ function cdcf_review_email_strings(): array {
                 'subject' => 'Decision on your project: {title}',
                 'body'    => "The review of \"{title}\" is complete.\n\nDecision: {outcome}\n\n{summary}\n\nYou can see the decision on your submission's status page:\n\n{link}\n\nThis link replaces any earlier one and works for 90 days." . $sig,
             ],
+            'referral_confirmation' => [
+                'subject' => 'We received your referral: {title}',
+                'body'    => "Thank you for referring \"{title}\" to the Catholic Digital Commons Foundation.\n\nOur review committee will look at the project you referred and may write to you with questions. You can follow the review, and answer any questions, on this page:\n\n{link}\n\nKeep this link private: anyone who has it can see the status of your referral. Each email we send contains a new link, and only the most recent one works." . $sig,
+            ],
+            'referral_question' => [
+                'subject' => 'A question about the project you referred: {title}',
+                'body'    => "The review committee has a question about \"{title}\":\n\n{question}\n\nPlease answer on your referral's status page:\n\n{link}\n\nThis link replaces any earlier one; only the most recent link works." . $sig,
+            ],
+            'referral_link' => [
+                'subject' => 'Your link to follow the project you referred: {title}',
+                'body'    => "Here is a new link to the status page for \"{title}\":\n\n{link}\n\nIt replaces any earlier link. If you did not ask for it, you can ignore this email." . $sig,
+            ],
+            'referral_decision' => [
+                'subject' => 'Decision on the project you referred: {title}',
+                'body'    => "The review of \"{title}\" is complete.\n\nDecision: {outcome}\n\n{summary}\n\nYou can see the decision on your referral's status page:\n\n{link}\n\nThis link replaces any earlier one and works for 90 days." . $sig,
+            ],
         ],
         'it' => [
             'confirmation' => [
@@ -44,6 +60,22 @@ function cdcf_review_email_strings(): array {
             'decision' => [
                 'subject' => 'Decisione sul tuo progetto: {title}',
                 'body'    => "La revisione di \"{title}\" è conclusa.\n\nDecisione: {outcome}\n\n{summary}\n\nPuoi vedere la decisione nella pagina di stato della tua proposta:\n\n{link}\n\nQuesto link sostituisce quelli precedenti e resta valido per 90 giorni." . $sig,
+            ],
+            'referral_confirmation' => [
+                'subject' => 'Abbiamo ricevuto la tua segnalazione: {title}',
+                'body'    => "Grazie per aver segnalato \"{title}\" alla Catholic Digital Commons Foundation.\n\nIl nostro comitato di revisione esaminerà il progetto che hai segnalato e potrebbe scriverti per farti delle domande. Puoi seguire la revisione, e rispondere alle domande, da questa pagina:\n\n{link}\n\nTieni questo link riservato: chiunque lo abbia può vedere lo stato della tua segnalazione. Ogni email che inviamo contiene un nuovo link, e funziona solo il più recente." . $sig,
+            ],
+            'referral_question' => [
+                'subject' => 'Una domanda sul progetto che hai segnalato: {title}',
+                'body'    => "Il comitato di revisione ha una domanda su \"{title}\":\n\n{question}\n\nRispondi dalla pagina di stato della tua segnalazione:\n\n{link}\n\nQuesto link sostituisce quelli precedenti; funziona solo il più recente." . $sig,
+            ],
+            'referral_link' => [
+                'subject' => 'Il tuo link per seguire il progetto che hai segnalato: {title}',
+                'body'    => "Ecco un nuovo link alla pagina di stato di \"{title}\":\n\n{link}\n\nSostituisce i link precedenti. Se non l'hai richiesto, puoi ignorare questa email." . $sig,
+            ],
+            'referral_decision' => [
+                'subject' => 'Decisione sul progetto che hai segnalato: {title}',
+                'body'    => "La revisione di \"{title}\" è conclusa.\n\nDecisione: {outcome}\n\n{summary}\n\nPuoi vedere la decisione nella pagina di stato della tua segnalazione:\n\n{link}\n\nQuesto link sostituisce quelli precedenti e resta valido per 90 giorni." . $sig,
             ],
         ],
         'es' => [
@@ -63,6 +95,22 @@ function cdcf_review_email_strings(): array {
                 'subject' => 'Decisión sobre tu proyecto: {title}',
                 'body'    => "La revisión de \"{title}\" ha concluido.\n\nDecisión: {outcome}\n\n{summary}\n\nPuedes ver la decisión en la página de estado de tu propuesta:\n\n{link}\n\nEste enlace sustituye a los anteriores y es válido durante 90 días." . $sig,
             ],
+            'referral_confirmation' => [
+                'subject' => 'Hemos recibido tu recomendación: {title}',
+                'body'    => "Gracias por recomendar \"{title}\" a la Catholic Digital Commons Foundation.\n\nNuestro comité de revisión examinará el proyecto que recomendaste y puede escribirte con preguntas. Puedes seguir la revisión, y responder a las preguntas, en esta página:\n\n{link}\n\nMantén este enlace en privado: cualquiera que lo tenga puede ver el estado de tu recomendación. Cada correo que enviamos contiene un enlace nuevo y solo funciona el más reciente." . $sig,
+            ],
+            'referral_question' => [
+                'subject' => 'Una pregunta sobre el proyecto que recomendaste: {title}',
+                'body'    => "El comité de revisión tiene una pregunta sobre \"{title}\":\n\n{question}\n\nResponde en la página de estado de tu recomendación:\n\n{link}\n\nEste enlace sustituye a los anteriores; solo funciona el más reciente." . $sig,
+            ],
+            'referral_link' => [
+                'subject' => 'Tu enlace para seguir el proyecto que recomendaste: {title}',
+                'body'    => "Aquí tienes un nuevo enlace a la página de estado de \"{title}\":\n\n{link}\n\nSustituye a los enlaces anteriores. Si no lo has pedido, puedes ignorar este correo." . $sig,
+            ],
+            'referral_decision' => [
+                'subject' => 'Decisión sobre el proyecto que recomendaste: {title}',
+                'body'    => "La revisión de \"{title}\" ha concluido.\n\nDecisión: {outcome}\n\n{summary}\n\nPuedes ver la decisión en la página de estado de tu recomendación:\n\n{link}\n\nEste enlace sustituye a los anteriores y es válido durante 90 días." . $sig,
+            ],
         ],
         'fr' => [
             'confirmation' => [
@@ -80,6 +128,22 @@ function cdcf_review_email_strings(): array {
             'decision' => [
                 'subject' => 'Décision concernant votre projet : {title}',
                 'body'    => "L'examen de « {title} » est terminé.\n\nDécision : {outcome}\n\n{summary}\n\nVous pouvez consulter la décision sur la page de suivi de votre proposition :\n\n{link}\n\nCe lien remplace les précédents et reste valable 90 jours." . $sig,
+            ],
+            'referral_confirmation' => [
+                'subject' => 'Nous avons reçu votre recommandation : {title}',
+                'body'    => "Merci d'avoir recommandé « {title} » à la Catholic Digital Commons Foundation.\n\nNotre comité d'examen va étudier le projet que vous avez recommandé et pourra vous écrire pour vous poser des questions. Vous pouvez suivre l'examen, et répondre aux questions, sur cette page :\n\n{link}\n\nGardez ce lien confidentiel : toute personne qui le possède peut voir l'état de votre recommandation. Chaque e-mail que nous envoyons contient un nouveau lien, et seul le plus récent fonctionne." . $sig,
+            ],
+            'referral_question' => [
+                'subject' => 'Une question sur le projet que vous avez recommandé : {title}',
+                'body'    => "Le comité d'examen a une question sur « {title} » :\n\n{question}\n\nVeuillez répondre sur la page de suivi de votre recommandation :\n\n{link}\n\nCe lien remplace les précédents ; seul le plus récent fonctionne." . $sig,
+            ],
+            'referral_link' => [
+                'subject' => 'Votre lien pour suivre le projet que vous avez recommandé : {title}',
+                'body'    => "Voici un nouveau lien vers la page de suivi de « {title} » :\n\n{link}\n\nIl remplace les liens précédents. Si vous ne l'avez pas demandé, vous pouvez ignorer cet e-mail." . $sig,
+            ],
+            'referral_decision' => [
+                'subject' => 'Décision concernant le projet que vous avez recommandé : {title}',
+                'body'    => "L'examen de « {title} » est terminé.\n\nDécision : {outcome}\n\n{summary}\n\nVous pouvez consulter la décision sur la page de suivi de votre recommandation :\n\n{link}\n\nCe lien remplace les précédents et reste valable 90 jours." . $sig,
             ],
         ],
         'pt' => [
@@ -99,6 +163,22 @@ function cdcf_review_email_strings(): array {
                 'subject' => 'Decisão sobre o seu projeto: {title}',
                 'body'    => "A avaliação de \"{title}\" está concluída.\n\nDecisão: {outcome}\n\n{summary}\n\nPode ver a decisão na página de estado da sua proposta:\n\n{link}\n\nEste link substitui os anteriores e é válido durante 90 dias." . $sig,
             ],
+            'referral_confirmation' => [
+                'subject' => 'Recebemos a sua recomendação: {title}',
+                'body'    => "Obrigado por recomendar \"{title}\" à Catholic Digital Commons Foundation.\n\nO nosso comité de revisão vai analisar o projeto que recomendou e poderá escrever-lhe com perguntas. Pode acompanhar a revisão, e responder às perguntas, nesta página:\n\n{link}\n\nMantenha este link privado: qualquer pessoa que o tenha pode ver o estado da sua recomendação. Cada email que enviamos contém um novo link, e só o mais recente funciona." . $sig,
+            ],
+            'referral_question' => [
+                'subject' => 'Uma pergunta sobre o projeto que recomendou: {title}',
+                'body'    => "O comité de revisão tem uma pergunta sobre \"{title}\":\n\n{question}\n\nResponda na página de estado da sua recomendação:\n\n{link}\n\nEste link substitui os anteriores; só o mais recente funciona." . $sig,
+            ],
+            'referral_link' => [
+                'subject' => 'O seu link para acompanhar o projeto que recomendou: {title}',
+                'body'    => "Aqui está um novo link para a página de estado de \"{title}\":\n\n{link}\n\nSubstitui os links anteriores. Se não o pediu, pode ignorar este email." . $sig,
+            ],
+            'referral_decision' => [
+                'subject' => 'Decisão sobre o projeto que recomendou: {title}',
+                'body'    => "A avaliação de \"{title}\" está concluída.\n\nDecisão: {outcome}\n\n{summary}\n\nPode ver a decisão na página de estado da sua recomendação:\n\n{link}\n\nEste link substitui os anteriores e é válido durante 90 dias." . $sig,
+            ],
         ],
         'de' => [
             'confirmation' => [
@@ -116,6 +196,22 @@ function cdcf_review_email_strings(): array {
             'decision' => [
                 'subject' => 'Entscheidung zu Ihrem Projekt: {title}',
                 'body'    => "Die Prüfung von „{title}“ ist abgeschlossen.\n\nEntscheidung: {outcome}\n\n{summary}\n\nDie Entscheidung finden Sie auf der Statusseite Ihres Vorschlags:\n\n{link}\n\nDieser Link ersetzt alle früheren und ist 90 Tage gültig." . $sig,
+            ],
+            'referral_confirmation' => [
+                'subject' => 'Wir haben Ihre Empfehlung erhalten: {title}',
+                'body'    => "Vielen Dank, dass Sie „{title}“ der Catholic Digital Commons Foundation empfohlen haben.\n\nUnser Prüfungsausschuss wird das von Ihnen empfohlene Projekt begutachten und sich möglicherweise mit Fragen an Sie wenden. Auf dieser Seite können Sie die Prüfung verfolgen und Fragen beantworten:\n\n{link}\n\nBehandeln Sie diesen Link vertraulich: Wer ihn hat, kann den Status Ihrer Empfehlung sehen. Jede E-Mail von uns enthält einen neuen Link, und nur der neueste funktioniert." . $sig,
+            ],
+            'referral_question' => [
+                'subject' => 'Eine Frage zu dem von Ihnen empfohlenen Projekt: {title}',
+                'body'    => "Der Prüfungsausschuss hat eine Frage zu „{title}“:\n\n{question}\n\nBitte antworten Sie auf der Statusseite Ihrer Empfehlung:\n\n{link}\n\nDieser Link ersetzt alle früheren; nur der neueste funktioniert." . $sig,
+            ],
+            'referral_link' => [
+                'subject' => 'Ihr Link zur Verfolgung des von Ihnen empfohlenen Projekts: {title}',
+                'body'    => "Hier ist ein neuer Link zur Statusseite von „{title}“:\n\n{link}\n\nEr ersetzt alle früheren Links. Wenn Sie ihn nicht angefordert haben, können Sie diese E-Mail ignorieren." . $sig,
+            ],
+            'referral_decision' => [
+                'subject' => 'Entscheidung zu dem von Ihnen empfohlenen Projekt: {title}',
+                'body'    => "Die Prüfung von „{title}“ ist abgeschlossen.\n\nEntscheidung: {outcome}\n\n{summary}\n\nDie Entscheidung finden Sie auf der Statusseite Ihrer Empfehlung:\n\n{link}\n\nDieser Link ersetzt alle früheren und ist 90 Tage gültig." . $sig,
             ],
         ],
     ];
