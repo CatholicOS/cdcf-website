@@ -19,7 +19,7 @@
 
 defined('ABSPATH') || exit;
 
-const CDCF_REVIEW_DB_VERSION  = '3';
+const CDCF_REVIEW_DB_VERSION  = '4';
 const CDCF_REVIEW_STAGE_META  = '_cdcf_review_stage';
 const CDCF_REVIEW_STAGES      = ['in_review', 'awaiting_submitter', 'decided'];
 const CDCF_REVIEW_VOTES       = ['cdcf', 'community', 'reject'];
@@ -97,7 +97,8 @@ function cdcf_review_schema_sql(string $charset_collate): array {
  * Create or upgrade the tables when the stored schema version differs,
  * then backfill the review stage onto submissions that predate this
  * feature, decide the ones already published in wp-admin, and announce
- * the pending ones to members and submitters. Every backfill is
+ * the pending ones to members and submitters (version 4 does the same for
+ * pending community referrals). Every backfill is
  * idempotent. Hooked on admin_init and rest_api_init; the version option
  * is autoloaded, so the common path costs no query.
  */
@@ -123,6 +124,7 @@ function cdcf_review_maybe_upgrade(): void {
     cdcf_review_backfill_stage();
     cdcf_review_backfill_published_decisions();
     cdcf_review_backfill_submission_received();
+    cdcf_review_backfill_referrals();
     update_option('cdcf_review_db_version', CDCF_REVIEW_DB_VERSION);
 }
 
@@ -229,6 +231,68 @@ function cdcf_review_backfill_submission_received(): int {
             cdcf_review_record_event($id, 'submission_received', null, null, ['migrated' => true]);
             // A submitter who already had a status email (a committee
             // question) has a working link; a confirmation would only replace it.
+            if ((string) get_post_meta($id, CDCF_REVIEW_TOKEN_HASH_META, true) === '') {
+                cdcf_review_send_submitter_email($id, 'confirmation');
+            }
+            $count++;
+        }
+        return $count;
+    } finally {
+        $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock));
+    }
+}
+
+/**
+ * Version 4: community referrals now enter council review when created.
+ * Bring the ones already pending into review: set `in_review` where there
+ * is no stage (never touching `decided`), record `submission_received`
+ * (bell and member emails) and send the referrer a confirmation, unless a
+ * status link already exists.
+ *
+ * Emails cannot be recalled, so the work runs under a MySQL named lock and
+ * skips referrals that already have the event (including new ones from the
+ * create handler): racing requests send each email once.
+ */
+function cdcf_review_backfill_referrals(): int {
+    $ids = array_map('intval', get_posts([
+        'post_type'      => 'community_project',
+        'post_status'    => 'pending',
+        'posts_per_page' => -1,
+        'fields'         => 'ids',
+        'lang'           => '', // all languages; Polylang would filter to the current one
+        'meta_query'     => [
+            ['key' => '_referral_submitter_email', 'compare' => 'EXISTS'],
+        ],
+    ]));
+    if (!$ids) {
+        return 0;
+    }
+    global $wpdb;
+    $lock = 'cdcf_review_referral_backfill';
+    if ((string) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', $lock)) !== '1') {
+        return 0; // Another request holds the lock and is doing this work.
+    }
+    try {
+        $events    = cdcf_review_table('events');
+        $announced = [];
+        $rows      = $wpdb->get_results(
+            "SELECT DISTINCT project_id FROM {$events} WHERE type = 'submission_received'"
+            . ' AND project_id IN (' . cdcf_review_id_list($ids) . ')',
+            ARRAY_A
+        );
+        foreach (is_array($rows) ? $rows : [] as $row) {
+            $announced[(int) $row['project_id']] = true;
+        }
+        $count = 0;
+        foreach ($ids as $id) {
+            $stage = (string) get_post_meta($id, CDCF_REVIEW_STAGE_META, true);
+            if (isset($announced[$id]) || $stage === 'decided') {
+                continue;
+            }
+            if ($stage === '') {
+                update_post_meta($id, CDCF_REVIEW_STAGE_META, 'in_review');
+            }
+            cdcf_review_record_event($id, 'submission_received', null, null, ['migrated' => true]);
             if ((string) get_post_meta($id, CDCF_REVIEW_TOKEN_HASH_META, true) === '') {
                 cdcf_review_send_submitter_email($id, 'confirmation');
             }
