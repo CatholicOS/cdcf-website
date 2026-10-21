@@ -103,6 +103,17 @@ final class ReviewQuestionHandlerTest extends TestCase
         $this->assertSame([], $this->emails);
     }
 
+    public function test_a_referral_with_only_the_referrer_address_can_be_asked(): void
+    {
+        $this->meta[40]['_submission_submitter_email'] = '';
+        $this->meta[40]['_referral_submitter_email'] = 'rae@example.org';
+
+        $result = $this->ask('Q?');
+
+        $this->assertNotInstanceOf(WP_Error::class, $result);
+        $this->assertCount(1, $this->inserted);
+    }
+
     public function test_an_entry_that_cannot_be_read_back_returns_the_error(): void
     {
         $missing = new WP_Error('entry_missing', 'The entry was saved but could not be read back.', ['status' => 500]);

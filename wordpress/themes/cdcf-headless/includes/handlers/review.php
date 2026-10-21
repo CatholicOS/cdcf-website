@@ -476,7 +476,7 @@ function cdcf_rest_review_post_question(WP_REST_Request $request) {
     if (is_wp_error($ok)) {
         return $ok;
     }
-    if (!is_email((string) get_post_meta($pid, '_submission_submitter_email', true))) {
+    if (!is_email(cdcf_review_submitter_email($pid))) {
         return new WP_Error('no_submitter_email', 'This submission has no submitter email to send the question to.', ['status' => 409]);
     }
     $uid = get_current_user_id();
