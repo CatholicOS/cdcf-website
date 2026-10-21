@@ -38,6 +38,7 @@ const json = (body: unknown, status = 200) =>
 const item = (over: Partial<InboxItem> = {}): InboxItem => ({
   event_id: 12,
   type: 'reply_posted',
+  kind: 'submission',
   project: { id: 40, title: 'Liturgy Helper' },
   actor: { id: 8, name: 'Fr. A' },
   entry_id: 5,

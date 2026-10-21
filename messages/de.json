@@ -338,6 +338,10 @@
       "community": "Als Community-Projekt annehmen",
       "reject": "Ablehnen"
     },
+    "referralVote": {
+      "community": "Annehmen",
+      "reject": "Ablehnen"
+    },
     "council": {
       "technical": "Technischer Rat",
       "ecclesial": "Kirchlicher Rat",
@@ -350,8 +354,10 @@
     "plurality": "Meiste Stimmen: {vote}",
     "yourVote": "Ihre Stimme: {vote}",
     "awaitingYourVote": "Wartet auf Ihre Stimme",
+    "referralBadge": "Community-Empfehlung",
     "unread": "{count} neu",
     "submittedOn": "Eingereicht am {date}",
+    "referredOn": "Empfohlen am {date}",
     "locked": "Über diese Prüfung wurde entschieden. Bewertungen und Diskussion sind jetzt schreibgeschützt.",
     "edited": "bearbeitet",
     "cancel": "Abbrechen",
@@ -364,6 +370,7 @@
       "repositories": "Repositorys",
       "tags": "Schlagwörter",
       "submitter": "Eingereicht von",
+      "referrer": "Empfohlen von",
       "language": "Sprache",
       "category": "Kategorie"
     },
@@ -490,6 +497,7 @@
       "pagination": "Seiten",
       "event": {
         "submission_received": "Neue Einreichung: {title}",
+        "referral_received": "Neue Community-Empfehlung: {title}",
         "review_posted": "{actor} hat eine Bewertung veröffentlicht · {title}",
         "review_edited": "{actor} hat die eigene Bewertung bearbeitet · {title}",
         "vote_changed": "{actor} hat die eigene Stimme geändert · {title}",
@@ -529,9 +537,12 @@
     "linkInvalid": "Verwenden Sie einen Link, der mit https://, http:// oder mailto: beginnt."
   },
   "SubmissionStatus": {
-    "answersClosed": "Über die Einreichung wurde entschieden; diese Frage kann nicht mehr beantwortet werden.",
+    "answersClosed": "Über die Prüfung wurde entschieden; diese Frage kann nicht mehr beantwortet werden.",
     "title": "Status der Einreichung",
     "submittedOn": "Eingereicht am {date}",
+    "referralTitle": "Status der Empfehlung",
+    "reviewTitle": "Status der Prüfung",
+    "referredOn": "Empfohlen am {date}",
     "progress": "Fortschritt",
     "steps": {
       "received": "Eingegangen",
@@ -554,14 +565,14 @@
     "viewPublic": "Zur Projektseite",
     "viewListing": "Unter den Community-Projekten ansehen",
     "linkInvalid": "Dieser Link ist nicht mehr gültig. Nur der neueste Link, den wir Ihnen geschickt haben, funktioniert.",
-    "resendIntro": "Geben Sie die E-Mail-Adresse ein, mit der Sie das Projekt eingereicht haben, und wir senden einen neuen Link an diese Adresse.",
+    "resendIntro": "Geben Sie die E-Mail-Adresse ein, die Sie beim Einreichen oder Empfehlen des Projekts verwendet haben, und wir senden Ihnen einen neuen Link.",
     "resendEmail": "E-Mail-Adresse",
     "resendSubmit": "Neuen Link senden",
     "resendSending": "Wird gesendet…",
-    "resendDone": "Wenn die Adresse zur Einreichung passt, ist ein neuer Link unterwegs.",
+    "resendDone": "Wenn die Adresse übereinstimmt, ist ein neuer Link unterwegs.",
     "errors": {
       "alreadyAnswered": "Diese Frage wurde bereits beantwortet.",
-      "closed": "Über die Einreichung wurde entschieden; Antworten sind nicht mehr möglich.",
+      "closed": "Über die Prüfung wurde entschieden; Antworten sind nicht mehr möglich.",
       "rejected": "Diese Antwort konnte nicht angenommen werden. Bitte formulieren Sie sie um und versuchen Sie es erneut.",
       "tooLong": "Die Antwort ist zu lang (höchstens 10.000 Zeichen).",
       "empty": "Bitte schreiben Sie eine Antwort.",

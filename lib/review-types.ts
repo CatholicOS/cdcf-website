@@ -11,6 +11,9 @@ export const REVIEW_VOTES: readonly ReviewVote[] = [
   'reject',
 ]
 
+/** A public project submission, or a community referral of someone else's. */
+export type ReviewKind = 'submission' | 'referral'
+
 export type ReviewStage = 'in_review' | 'awaiting_submitter' | 'decided'
 export const REVIEW_STAGES: readonly ReviewStage[] = [
   'in_review',
@@ -40,6 +43,7 @@ export interface ReviewProjectSummary {
   language: string
   submitted_at: string
   stage: ReviewStage
+  kind: ReviewKind
   tally: ReviewTally
   voters_pending: number
   my_vote: ReviewVote | null
@@ -94,6 +98,7 @@ export interface ReviewProject {
   post_type: string
   post_status: string
   stage: ReviewStage
+  kind: ReviewKind
   language: string
   submitted_at: string
   fields: {
@@ -175,6 +180,7 @@ export type ReviewEventType =
 export interface InboxItem {
   event_id: number
   type: ReviewEventType
+  kind: ReviewKind
   project: { id: number; title: string }
   /** null for the submitter's own actions and migrated records */
   actor: { id: number; name: string } | null

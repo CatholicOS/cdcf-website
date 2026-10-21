@@ -17,6 +17,7 @@ final class ReviewDecisionHandlerTest extends TestCase
     /** @var list<string> */
     private array $lockSql = [];
     private string $emailResult = 'queued';
+    private bool $referral = false;
     /** @var mixed */
     private $applyResult = true;
 
@@ -29,6 +30,8 @@ final class ReviewDecisionHandlerTest extends TestCase
         $this->tally = ['cdcf' => 0, 'community' => 0, 'reject' => 0];
         $this->emailResult = 'queued';
         $this->applyResult = true;
+        $this->referral = false;
+        Functions\when('cdcf_review_is_referral')->alias(fn(int $id): bool => $this->referral);
         $this->decideOnLock = false;
         $this->lockResult = '1';
         $this->lockSql = [];
@@ -149,6 +152,36 @@ final class ReviewDecisionHandlerTest extends TestCase
         $this->tally = ['cdcf' => 0, 'community' => 0, 'reject' => 0];
         $this->assertSame('rationale_required', $this->decide(['decision' => 'cdcf'])->get_error_code());
         $this->assertSame(200, $this->decide(['decision' => 'cdcf', 'rationale' => 'Clear case.'])->get_status());
+    }
+
+    public function test_cdcf_decision_is_rejected_for_any_community_project(): void
+    {
+        Functions\when('get_post')->justReturn((object) ['ID' => 40, 'post_type' => 'community_project', 'post_status' => 'pending']);
+        $this->referral = false;
+        $this->tally = ['cdcf' => 2, 'community' => 0, 'reject' => 0];
+        $res = $this->decide(['decision' => 'cdcf']);
+        $this->assertSame('invalid_decision', $res->get_error_code());
+        $this->assertSame(400, $res->get_error_data()['status']);
+        $this->assertSame('A community project can be accepted or rejected.', $res->get_error_message());
+        $this->assertSame([], $this->applied);
+    }
+
+    public function test_referral_decision_cannot_be_cdcf(): void
+    {
+        $this->referral = true;
+        $this->tally = ['cdcf' => 0, 'community' => 2, 'reject' => 0];
+        $res = $this->decide(['decision' => 'cdcf', 'rationale' => 'x']);
+        $this->assertSame('invalid_decision', $res->get_error_code());
+        $this->assertSame(400, $res->get_error_data()['status']);
+        $this->assertSame('A referral can be accepted or rejected.', $res->get_error_message());
+        $this->assertSame([], $this->applied);
+    }
+
+    public function test_referral_tie_requires_a_rationale(): void
+    {
+        $this->referral = true;
+        $this->tally = ['cdcf' => 0, 'community' => 1, 'reject' => 1];
+        $this->assertSame('rationale_required', $this->decide(['decision' => 'community'])->get_error_code());
     }
 
     public function test_a_summary_is_required(): void

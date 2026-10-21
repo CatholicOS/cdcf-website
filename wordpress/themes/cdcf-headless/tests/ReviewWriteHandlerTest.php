@@ -13,12 +13,15 @@ final class ReviewWriteHandlerTest extends TestCase
 {
     /** @var list<array{0: int, 1: string, 2: ?int, 3: ?int, 4: array}> */
     private array $events = [];
+    private bool $referral = false;
 
     protected function setUp(): void
     {
         parent::setUp();
         Monkey\setUp();
         $this->events = [];
+        $this->referral = false;
+        Functions\when('cdcf_review_is_referral')->alias(fn(int $id): bool => $this->referral);
         Functions\when('is_wp_error')->alias(static fn($v): bool => $v instanceof WP_Error);
         Functions\when('is_user_logged_in')->justReturn(true);
         Functions\when('get_current_user_id')->justReturn(7);
@@ -202,6 +205,66 @@ final class ReviewWriteHandlerTest extends TestCase
         $res = cdcf_rest_review_put_my_review($this->request(['id' => 40, 'vote' => 'cdcf', 'body_md' => '']));
 
         $this->assertSame(400, $res->get_error_data()['status']);
+    }
+
+    public function test_referral_rejects_a_cdcf_vote(): void
+    {
+        $this->referral = true;
+        Functions\expect('cdcf_review_insert_entry')->never();
+
+        $res = cdcf_rest_review_put_my_review($this->request(['id' => 40, 'vote' => 'cdcf', 'body_md' => 'x']));
+
+        $this->assertSame('invalid_vote', $res->get_error_code());
+        $this->assertSame(400, $res->get_error_data()['status']);
+        $this->assertSame('Vote must be community or reject.', $res->get_error_message());
+    }
+
+    public function test_referral_review_may_have_an_empty_body(): void
+    {
+        $this->referral = true;
+        Functions\when('cdcf_review_find_review')->justReturn(null);
+        $inserted = null;
+        Functions\when('cdcf_review_insert_entry')->alias(function (array $row) use (&$inserted): int {
+            $inserted = $row;
+            return 5;
+        });
+
+        $res = cdcf_rest_review_put_my_review($this->request(['id' => 40, 'vote' => 'community', 'body_md' => '']));
+
+        $this->assertSame(201, $res->get_status());
+        $this->assertSame('', $inserted['body_md']);
+    }
+
+    public function test_referral_review_body_keeps_the_length_limit(): void
+    {
+        $this->referral = true;
+
+        $res = cdcf_rest_review_put_my_review($this->request([
+            'id' => 40, 'vote' => 'community', 'body_md' => str_repeat('a', CDCF_REVIEW_BODY_MAX + 1),
+        ]));
+
+        $this->assertSame('body_too_long', $res->get_error_code());
+    }
+
+    public function test_submission_review_still_requires_a_body(): void
+    {
+        $res = cdcf_rest_review_put_my_review($this->request(['id' => 40, 'vote' => 'cdcf', 'body_md' => '']));
+
+        $this->assertSame('empty_body', $res->get_error_code());
+    }
+
+    public function test_clearing_a_referral_review_body_keeps_the_vote(): void
+    {
+        $this->referral = true;
+        Functions\when('cdcf_review_find_review')->justReturn($this->entry(['vote' => 'community']));
+        Functions\when('cdcf_review_update_entry')->justReturn(true);
+
+        $res = cdcf_rest_review_put_my_review($this->request([
+            'id' => 40, 'vote' => 'community', 'body_md' => '', 'version' => '2026-10-15 10:00:00.000000',
+        ]));
+
+        $this->assertSame(200, $res->get_status());
+        $this->assertSame([[40, 'review_edited', 7, 1, []]], $this->events);
     }
 
     // ─── POST entries ────────────────────────────────────────────────

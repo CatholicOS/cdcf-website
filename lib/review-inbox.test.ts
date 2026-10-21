@@ -11,6 +11,7 @@ import type { InboxItem } from './review-types'
 const item = (over: Partial<InboxItem> = {}): InboxItem => ({
   event_id: 12,
   type: 'discussion_posted',
+  kind: 'submission',
   project: { id: 40, title: 'Liturgy Helper' },
   actor: { id: 8, name: 'Fr. A' },
   entry_id: 5,
@@ -29,6 +30,16 @@ describe('inboxHref', () => {
 })
 
 describe('inboxMessageKey', () => {
+  it('words a received referral as a referral', () => {
+    const base = { type: 'submission_received' } as const
+    expect(inboxMessageKey(item({ ...base, kind: 'referral' }))).toBe(
+      'referral_received'
+    )
+    expect(inboxMessageKey(item({ ...base, kind: 'submission' }))).toBe(
+      'submission_received'
+    )
+  })
+
   it('uses the event type', () => {
     expect(inboxMessageKey(item())).toBe('discussion_posted')
   })

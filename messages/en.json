@@ -338,6 +338,10 @@
       "community": "Accept as community project",
       "reject": "Reject"
     },
+    "referralVote": {
+      "community": "Accept",
+      "reject": "Reject"
+    },
     "council": {
       "technical": "Technical Council",
       "ecclesial": "Ecclesial Council",
@@ -350,8 +354,10 @@
     "plurality": "Most votes: {vote}",
     "yourVote": "Your vote: {vote}",
     "awaitingYourVote": "Awaiting your vote",
+    "referralBadge": "Community referral",
     "unread": "{count} new",
     "submittedOn": "Submitted {date}",
+    "referredOn": "Referred {date}",
     "locked": "This review has been decided. Reviews and discussion are now read-only.",
     "edited": "edited",
     "cancel": "Cancel",
@@ -364,6 +370,7 @@
       "repositories": "Repositories",
       "tags": "Tags",
       "submitter": "Submitted by",
+      "referrer": "Referred by",
       "language": "Language",
       "category": "Category"
     },
@@ -490,6 +497,7 @@
       "pagination": "Pages",
       "event": {
         "submission_received": "New submission: {title}",
+        "referral_received": "New community referral: {title}",
         "review_posted": "{actor} posted a review · {title}",
         "review_edited": "{actor} edited their review · {title}",
         "vote_changed": "{actor} changed their vote · {title}",
@@ -532,6 +540,9 @@
     "answersClosed": "The review has been decided, so this question can no longer be answered.",
     "title": "Submission status",
     "submittedOn": "Submitted on {date}",
+    "referralTitle": "Referral status",
+    "reviewTitle": "Review status",
+    "referredOn": "Referred on {date}",
     "progress": "Progress",
     "steps": {
       "received": "Received",
@@ -554,11 +565,11 @@
     "viewPublic": "View the project page",
     "viewListing": "See it among the community projects",
     "linkInvalid": "This link is not valid any more. Only the most recent link we emailed you works.",
-    "resendIntro": "Enter the email address you used when you submitted the project, and we will send a new link to it.",
+    "resendIntro": "Enter the email address you used when you submitted or referred the project, and we will send a new link to it.",
     "resendEmail": "Email address",
     "resendSubmit": "Email me a new link",
     "resendSending": "Sending…",
-    "resendDone": "If that address matches the submission, a new link is on its way.",
+    "resendDone": "If that address matches, a new link is on its way.",
     "errors": {
       "alreadyAnswered": "This question has already been answered.",
       "closed": "The review has been decided, so answers are closed.",

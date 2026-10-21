@@ -8,7 +8,7 @@ import {
   fetchReviewProject,
 } from '@/lib/review-api'
 import type { ReviewMe, ReviewProject } from '@/lib/review-types'
-import { buildAttachmentIndex } from '@/lib/review-ui'
+import { buildAttachmentIndex, voteLabelKey } from '@/lib/review-ui'
 import { Link } from '@/src/i18n/navigation'
 import { AskSubmitter } from '@/components/review/AskSubmitter'
 import { AttachmentPanel } from '@/components/review/AttachmentPanel'
@@ -68,15 +68,23 @@ export default async function ReviewProjectPage({
 
         <section className="cdcf-card space-y-2">
           <h2 className="cdcf-heading text-xl">{t('tally.heading')}</h2>
-          <TallyBar tally={project.tally} pending={project.voters_pending} />
+          <TallyBar
+            tally={project.tally}
+            pending={project.voters_pending}
+            kind={project.kind}
+          />
           {project.plurality && (
             <p className="text-sm text-gray-700">
-              {t('plurality', { vote: t(`vote.${project.plurality}`) })}
+              {t('plurality', {
+                vote: t(voteLabelKey(project.kind, project.plurality)),
+              })}
             </p>
           )}
         </section>
 
-        {project.decision && <DecisionCard decision={project.decision} />}
+        {project.decision && (
+          <DecisionCard decision={project.decision} kind={project.kind} />
+        )}
         {locked && (
           <p className="rounded-md bg-gray-100 p-3 text-sm text-gray-700">
             {t('locked')}
@@ -86,6 +94,7 @@ export default async function ReviewProjectPage({
         {project.me.can_decide && !locked && project.decision_email && (
           <DecisionPanel
             projectId={project.id}
+            kind={project.kind}
             plurality={project.plurality}
             email={project.decision_email}
           />
@@ -94,6 +103,7 @@ export default async function ReviewProjectPage({
         {project.me.can_vote && !locked && (
           <MyReviewComposer
             projectId={project.id}
+            kind={project.kind}
             existing={
               myReview?.vote
                 ? {
@@ -116,6 +126,7 @@ export default async function ReviewProjectPage({
                 <ReviewCard
                   key={review.id}
                   review={review}
+                  kind={project.kind}
                   projectId={project.id}
                   currentUserId={me.user_id}
                   locked={locked}

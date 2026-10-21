@@ -60,6 +60,22 @@ final class ReviewDecisionTest extends TestCase
         $this->assertSame('project', $this->posts[40]['post_type']);
     }
 
+    public function test_accepting_a_referral_publishes_it_in_place(): void
+    {
+        $this->posts[40] = ['post_type' => 'community_project', 'post_status' => 'pending'];
+        $converted = false;
+        Functions\when('set_post_type')->alias(function () use (&$converted): int {
+            $converted = true;
+            return 1;
+        });
+
+        $this->assertTrue(cdcf_review_apply_outcome(40, 'community'));
+        $this->assertFalse($converted);
+        $this->assertSame('community_project', $this->posts[40]['post_type']);
+        $this->assertSame('publish', $this->posts[40]['post_status']);
+        $this->assertArrayNotHasKey('_cdcf_converted_from_submission', $this->meta[40] ?? []);
+    }
+
     public function test_reject_moves_the_project_to_draft_not_trash(): void
     {
         $this->posts[40] = ['post_type' => 'project', 'post_status' => 'pending'];

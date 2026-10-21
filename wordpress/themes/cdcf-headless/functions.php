@@ -804,6 +804,7 @@ add_action('rest_api_init', function () {
 // See docs/superpowers/specs/2026-10-15-project-review-design.md.
 require_once __DIR__ . '/includes/review/schema.php';
 require_once __DIR__ . '/includes/review/membership.php';
+require_once __DIR__ . '/includes/review/referral.php';
 require_once __DIR__ . '/includes/review/repository.php';
 require_once __DIR__ . '/includes/review/events.php';
 require_once __DIR__ . '/includes/review/inbox.php';
@@ -3130,7 +3131,7 @@ add_action('wp_dashboard_setup', function () {
 
     wp_add_dashboard_widget(
         'cdcf_pending_community_projects',
-        sprintf('Pending Community Project Referrals (%d)', $count),
+        sprintf('Community Project Referrals Under Council Review (%d)', $count),
         'cdcf_render_pending_community_projects_widget'
     );
 });
@@ -3145,9 +3146,11 @@ function cdcf_render_pending_community_projects_widget(): void {
     ]);
 
     if (empty($posts)) {
-        echo '<p>No pending referrals.</p>';
+        echo '<p>No referrals under council review.</p>';
         return;
     }
+
+    echo '<p>These referrals are under council review. Publishing one here closes its review.</p>';
 
     echo '<table class="widefat striped"><thead><tr>'
        . '<th>Project</th><th>Submitted by</th><th>Date</th><th></th>'
@@ -3157,7 +3160,7 @@ function cdcf_render_pending_community_projects_widget(): void {
         $name  = esc_html(get_post_meta($post->ID, '_referral_submitter_name', true));
         $email = esc_html(get_post_meta($post->ID, '_referral_submitter_email', true));
         $date  = get_the_date('M j, Y', $post);
-        $edit  = get_edit_post_link($post->ID);
+        $review = esc_url(cdcf_review_workspace_url($post->ID, 'en'));
         $title = esc_html($post->post_title);
 
         $submitter = $name;
@@ -3169,7 +3172,7 @@ function cdcf_render_pending_community_projects_widget(): void {
            . "<td><strong>{$title}</strong></td>"
            . "<td>{$submitter}</td>"
            . "<td>{$date}</td>"
-           . "<td><a href=\"{$edit}\" class=\"button button-small\">Review</a></td>"
+           . "<td><a href=\"{$review}\" class=\"button button-small\" target=\"_blank\" rel=\"noopener\">Open review</a></td>"
            . "</tr>";
     }
 
@@ -3177,8 +3180,12 @@ function cdcf_render_pending_community_projects_widget(): void {
 
     $total = wp_count_posts('community_project')->pending ?? 0;
     if ($total > 10) {
-        $url = admin_url('edit.php?post_type=community_project&post_status=pending');
-        printf('<p><a href="%s">View all %d pending referrals &rarr;</a></p>', $url, $total);
+        $frontend = defined('CDCF_FRONTEND_URL') ? (string) CDCF_FRONTEND_URL : 'http://localhost:3000';
+        printf(
+            '<p><a href="%s" target="_blank" rel="noopener">See all %d in the review workspace &rarr;</a></p>',
+            esc_url(rtrim($frontend, '/') . '/review'),
+            (int) $total
+        );
     }
 }
 

@@ -62,6 +62,7 @@ function cdcf_review_present_notification(array $row, int $user_id, array $reply
         'read'       => ($row['read_at'] ?? null) !== null,
         'to_you'     => $event['type'] === 'reply_posted' && $event['entry_id'] !== null
             && ($reply_authors[$event['entry_id']] ?? null) === $user_id,
+        'kind'       => cdcf_review_kind($event['project_id']),
     ];
 }
 

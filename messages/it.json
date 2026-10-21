@@ -338,6 +338,10 @@
       "community": "Accetta come progetto della comunità",
       "reject": "Rifiuta"
     },
+    "referralVote": {
+      "community": "Accetta",
+      "reject": "Rifiuta"
+    },
     "council": {
       "technical": "Consiglio tecnico",
       "ecclesial": "Consiglio ecclesiale",
@@ -350,8 +354,10 @@
     "plurality": "Più votato: {vote}",
     "yourVote": "Il tuo voto: {vote}",
     "awaitingYourVote": "In attesa del tuo voto",
+    "referralBadge": "Segnalazione della comunità",
     "unread": "{count} nuovi",
     "submittedOn": "Proposto il {date}",
+    "referredOn": "Segnalato il {date}",
     "locked": "Questa revisione è stata decisa. Revisioni e discussione sono ora in sola lettura.",
     "edited": "modificato",
     "cancel": "Annulla",
@@ -364,6 +370,7 @@
       "repositories": "Repository",
       "tags": "Tag",
       "submitter": "Proposto da",
+      "referrer": "Segnalato da",
       "language": "Lingua",
       "category": "Categoria"
     },
@@ -490,6 +497,7 @@
       "pagination": "Pagine",
       "event": {
         "submission_received": "Nuova proposta: {title}",
+        "referral_received": "Nuova segnalazione della comunità: {title}",
         "review_posted": "{actor} ha pubblicato una revisione · {title}",
         "review_edited": "{actor} ha modificato la sua revisione · {title}",
         "vote_changed": "{actor} ha cambiato il suo voto · {title}",
@@ -532,6 +540,9 @@
     "answersClosed": "La revisione è stata decisa, quindi non è più possibile rispondere a questa domanda.",
     "title": "Stato della proposta",
     "submittedOn": "Proposto il {date}",
+    "referralTitle": "Stato della segnalazione",
+    "reviewTitle": "Stato della revisione",
+    "referredOn": "Segnalato il {date}",
     "progress": "Avanzamento",
     "steps": {
       "received": "Ricevuto",
@@ -554,11 +565,11 @@
     "viewPublic": "Vai alla pagina del progetto",
     "viewListing": "Vedilo tra i progetti della comunità",
     "linkInvalid": "Questo link non è più valido. Funziona solo il link più recente che ti abbiamo inviato.",
-    "resendIntro": "Inserisci l'indirizzo email che hai usato per proporre il progetto e ti invieremo un nuovo link.",
+    "resendIntro": "Inserisci l'indirizzo email che hai usato quando hai presentato o segnalato il progetto, e ti invieremo un nuovo link.",
     "resendEmail": "Indirizzo email",
     "resendSubmit": "Inviami un nuovo link",
     "resendSending": "Invio in corso…",
-    "resendDone": "Se l'indirizzo corrisponde alla proposta, ti stiamo inviando un nuovo link.",
+    "resendDone": "Se l'indirizzo corrisponde, un nuovo link è in arrivo.",
     "errors": {
       "alreadyAnswered": "Questa domanda ha già una risposta.",
       "closed": "La revisione è stata decisa, quindi non si accettano più risposte.",

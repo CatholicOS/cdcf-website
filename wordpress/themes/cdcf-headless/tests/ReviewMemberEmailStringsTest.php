@@ -13,7 +13,7 @@ final class ReviewMemberEmailStringsTest extends TestCase
         $all = cdcf_review_member_email_strings();
         $this->assertSame(['en', 'it', 'es', 'fr', 'pt', 'de'], array_keys($all));
         foreach ($all as $lang => $templates) {
-            $this->assertSame(self::TYPES, array_keys($templates), $lang);
+            $this->assertSame(array_merge(self::TYPES, ['referral_received']), array_keys($templates), $lang);
             foreach ($templates as $type => $t) {
                 $this->assertStringContainsString('{title}', $t['subject'], "$lang $type subject");
                 $this->assertStringContainsString('{link}', $t['body'], "$lang $type body");
@@ -24,6 +24,16 @@ final class ReviewMemberEmailStringsTest extends TestCase
                     $this->assertStringContainsString('{outcome}', $t['body'], "$lang $type outcome");
                 }
             }
+        }
+    }
+
+    public function test_every_language_has_the_referral_received_template(): void
+    {
+        foreach (cdcf_review_member_email_strings() as $lang => $templates) {
+            $this->assertArrayHasKey('referral_received', $templates, $lang);
+            $this->assertStringContainsString('{title}', $templates['referral_received']['subject'], $lang);
+            $this->assertStringContainsString('{title}', $templates['referral_received']['body'], $lang);
+            $this->assertStringContainsString('{link}', $templates['referral_received']['body'], $lang);
         }
     }
 

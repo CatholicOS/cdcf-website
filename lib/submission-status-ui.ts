@@ -42,3 +42,14 @@ const ANSWER_ERRORS: Record<string, AnswerErrorKey> = {
 export function answerErrorKey(code: string | undefined): AnswerErrorKey {
   return (code && ANSWER_ERRORS[code]) || 'generic'
 }
+
+export function statusHeadingKeys(kind: SubmissionStatus['kind'] | undefined): {
+  title: 'title' | 'referralTitle' | 'reviewTitle'
+  submittedOn: 'submittedOn' | 'referredOn'
+} {
+  if (kind === 'referral') {
+    return { title: 'referralTitle', submittedOn: 'referredOn' }
+  }
+  // No status loaded (an invalid link): the visitor may be a referrer.
+  return { title: kind ? 'title' : 'reviewTitle', submittedOn: 'submittedOn' }
+}

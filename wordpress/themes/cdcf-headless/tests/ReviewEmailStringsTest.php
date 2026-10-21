@@ -7,12 +7,51 @@ final class ReviewEmailStringsTest extends TestCase
     public function test_every_language_has_every_template_with_its_placeholders(): void
     {
         foreach (['en', 'it', 'es', 'fr', 'pt', 'de'] as $lang) {
-            foreach (['confirmation' => ['{title}', '{link}'], 'question' => ['{title}', '{link}', '{question}'], 'link' => ['{title}', '{link}']] as $template => $needs) {
+            foreach ([
+                'confirmation' => ['{title}', '{link}'], 'question' => ['{title}', '{link}', '{question}'], 'link' => ['{title}', '{link}'],
+                'referral_confirmation' => ['{title}', '{link}'], 'referral_question' => ['{title}', '{link}', '{question}'],
+                'referral_link' => ['{title}', '{link}'], 'referral_decision' => ['{title}', '{link}', '{outcome}', '{summary}'],
+            ] as $template => $needs) {
                 $raw = cdcf_review_email_strings()[$lang][$template];
                 $this->assertNotSame('', $raw['subject'], "$lang/$template subject");
                 $this->assertStringContainsString('{title}', $raw['subject'], "$lang/$template subject");
                 foreach ($needs as $placeholder) {
                     $this->assertStringContainsString($placeholder, $raw['body'], "$lang/$template body $placeholder");
+                }
+            }
+        }
+    }
+
+    public function test_referral_templates_never_say_your_project(): void
+    {
+        foreach (cdcf_review_email_strings()['en'] as $template => $raw) {
+            if (!str_starts_with($template, 'referral_')) {
+                continue;
+            }
+            foreach ([$raw['subject'], $raw['body']] as $text) {
+                $this->assertDoesNotMatchRegularExpression('/your (project|submission)/i', $text, $template);
+            }
+        }
+    }
+
+    public function test_no_referral_template_in_any_language_says_your_project(): void
+    {
+        // "Your project" / "your submission" in each language, in both registers.
+        $denylist = [
+            'it' => '/\\b(tuo|suo|vostro) progetto|\\b(tua|sua|vostra) proposta/iu',
+            'es' => '/\\b(tu|su) (proyecto|propuesta)/iu',
+            'fr' => '/\\b(votre|ton) (projet|proposition)/iu',
+            'pt' => '/\\b(o )?(teu|seu) projeto|\\b(a )?(tua|sua) (proposta|submissão)/iu',
+            'de' => '/\\b(Ihr|dein) (Projekt|Vorschlag)|\\b(Ihre|deine) Einreichung/u',
+        ];
+        $strings = cdcf_review_email_strings();
+        foreach ($denylist as $lang => $pattern) {
+            foreach ($strings[$lang] as $template => $raw) {
+                if (!str_starts_with($template, 'referral_')) {
+                    continue;
+                }
+                foreach ([$raw['subject'], $raw['body']] as $text) {
+                    $this->assertDoesNotMatchRegularExpression($pattern, $text, "{$lang}/{$template}");
                 }
             }
         }

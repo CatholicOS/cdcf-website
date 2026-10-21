@@ -1,15 +1,18 @@
 import { useTranslations } from 'next-intl'
-import type { ReviewWithReplies } from '@/lib/review-types'
+import type { ReviewKind, ReviewWithReplies } from '@/lib/review-types'
+import { voteLabelKey } from '@/lib/review-ui'
 import { EntryCard } from './EntryCard'
 import { EntryComposer } from './EntryComposer'
 
 export function ReviewCard({
   review,
+  kind,
   projectId,
   currentUserId,
   locked,
 }: {
   review: ReviewWithReplies
+  kind: ReviewKind
   projectId: number
   currentUserId: number
   locked: boolean
@@ -25,7 +28,7 @@ export function ReviewCard({
         badge={
           review.vote && (
             <span className="rounded bg-cdcf-navy px-1.5 py-0.5 text-xs font-medium text-white">
-              {t(`vote.${review.vote}`)}
+              {t(voteLabelKey(kind, review.vote))}
             </span>
           )
         }

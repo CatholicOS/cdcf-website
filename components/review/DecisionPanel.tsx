@@ -6,13 +6,13 @@ import { useLocale, useTranslations } from 'next-intl'
 import { jsonInit, reviewFetch } from '@/lib/review-client'
 import {
   DECISION_SUMMARY_MAX,
-  REVIEW_VOTES,
   type ReviewDecisionEmail,
   type ReviewDecisionPayload,
   type ReviewDecisionResult,
+  type ReviewKind,
   type ReviewVote,
 } from '@/lib/review-types'
-import type { ReviewErrorKey } from '@/lib/review-ui'
+import { voteLabelKey, votesFor, type ReviewErrorKey } from '@/lib/review-ui'
 import { useRouter } from '@/src/i18n/navigation'
 import { ComposerStatus } from './ComposerStatus'
 
@@ -38,10 +38,12 @@ function languageName(locale: string, code: string): string {
  */
 export function DecisionPanel({
   projectId,
+  kind,
   plurality,
   email,
 }: {
   projectId: number
+  kind: ReviewKind
   plurality: ReviewVote | null
   email: ReviewDecisionEmail
 }) {
@@ -141,13 +143,15 @@ export function DecisionPanel({
       <h2 className="cdcf-heading text-xl">{t('decision.panelHeading')}</h2>
       <p className="text-sm text-gray-700">
         {plurality
-          ? t('decision.plurality', { vote: t(`vote.${plurality}`) })
+          ? t('decision.plurality', {
+              vote: t(voteLabelKey(kind, plurality)),
+            })
           : t('decision.noPlurality')}
       </p>
 
       <fieldset className="space-y-1" disabled={busy}>
         <legend className={labelClass}>{t('decision.outcomeLabel')}</legend>
-        {REVIEW_VOTES.map((v) => (
+        {votesFor(kind).map((v) => (
           <label key={v} className="flex items-center gap-2 text-sm">
             <input
               type="radio"
@@ -156,7 +160,7 @@ export function DecisionPanel({
               checked={selected === v}
               onChange={() => edited(setSelected)(v)}
             />
-            {t(`vote.${v}`)}
+            {t(voteLabelKey(kind, v))}
           </label>
         ))}
       </fieldset>

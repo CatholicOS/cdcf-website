@@ -37,7 +37,7 @@ describe('ResendLinkForm', () => {
       email: 'sam@example.org',
     })
     expect(r.container.querySelector('[role="status"]')?.textContent).toContain(
-      'If that address matches the submission'
+      'If that address matches, a new link is on its way.'
     )
     r.unmount()
   })

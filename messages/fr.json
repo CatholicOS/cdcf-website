@@ -338,6 +338,10 @@
       "community": "Accepter comme projet communautaire",
       "reject": "Refuser"
     },
+    "referralVote": {
+      "community": "Accepter",
+      "reject": "Refuser"
+    },
     "council": {
       "technical": "Conseil technique",
       "ecclesial": "Conseil ecclésial",
@@ -350,8 +354,10 @@
     "plurality": "Le plus de voix : {vote}",
     "yourVote": "Votre vote : {vote}",
     "awaitingYourVote": "En attente de votre vote",
+    "referralBadge": "Recommandation de la communauté",
     "unread": "{count} nouveaux",
     "submittedOn": "Soumis le {date}",
+    "referredOn": "Recommandé le {date}",
     "locked": "Cette évaluation a été tranchée. Les évaluations et la discussion sont désormais en lecture seule.",
     "edited": "modifié",
     "cancel": "Annuler",
@@ -364,6 +370,7 @@
       "repositories": "Dépôts",
       "tags": "Étiquettes",
       "submitter": "Soumis par",
+      "referrer": "Recommandé par",
       "language": "Langue",
       "category": "Catégorie"
     },
@@ -490,6 +497,7 @@
       "pagination": "Pages",
       "event": {
         "submission_received": "Nouvelle proposition : {title}",
+        "referral_received": "Nouvelle recommandation de la communauté : {title}",
         "review_posted": "{actor} a publié une évaluation · {title}",
         "review_edited": "{actor} a modifié son évaluation · {title}",
         "vote_changed": "{actor} a changé son vote · {title}",
@@ -532,6 +540,9 @@
     "answersClosed": "L'examen est terminé : il n'est plus possible de répondre à cette question.",
     "title": "Suivi de la proposition",
     "submittedOn": "Proposé le {date}",
+    "referralTitle": "Statut de la recommandation",
+    "reviewTitle": "Suivi de l'examen",
+    "referredOn": "Recommandé le {date}",
     "progress": "Avancement",
     "steps": {
       "received": "Reçu",
@@ -554,11 +565,11 @@
     "viewPublic": "Voir la page du projet",
     "viewListing": "Le voir parmi les projets communautaires",
     "linkInvalid": "Ce lien n'est plus valide. Seul le lien le plus récent que nous vous avons envoyé fonctionne.",
-    "resendIntro": "Saisissez l'adresse e-mail utilisée pour proposer le projet, et nous y enverrons un nouveau lien.",
+    "resendIntro": "Saisissez l'adresse e-mail que vous avez utilisée lors de la soumission ou de la recommandation du projet, et nous vous enverrons un nouveau lien.",
     "resendEmail": "Adresse e-mail",
     "resendSubmit": "M'envoyer un nouveau lien",
     "resendSending": "Envoi…",
-    "resendDone": "Si l'adresse correspond à la proposition, un nouveau lien est en route.",
+    "resendDone": "Si cette adresse correspond, un nouveau lien est en route.",
     "errors": {
       "alreadyAnswered": "Cette question a déjà reçu une réponse.",
       "closed": "L'examen est terminé : les réponses sont closes.",

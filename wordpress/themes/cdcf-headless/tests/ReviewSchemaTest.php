@@ -90,6 +90,7 @@ final class ReviewSchemaTest extends TestCase
         });
         Functions\expect('update_option')->once()->with('cdcf_review_db_version', CDCF_REVIEW_DB_VERSION);
         Functions\expect('cdcf_review_backfill_submission_received')->once()->andReturn(0);
+        Functions\expect('cdcf_review_backfill_referrals')->once()->andReturn(0);
         foreach (['entries', 'attachments', 'events', 'notifications'] as $t) {
             $this->wpdb->results[] = "wp_cdcf_review_{$t}";
         }
@@ -139,9 +140,9 @@ final class ReviewSchemaTest extends TestCase
         );
     }
 
-    public function test_db_version_is_bumped_for_the_inbox_index(): void
+    public function test_db_version_is_bumped_for_referrals(): void
     {
-        $this->assertSame('3', CDCF_REVIEW_DB_VERSION);
+        $this->assertSame('4', CDCF_REVIEW_DB_VERSION);
     }
 
     public function test_maybe_upgrade_from_version_1_backfills_published_decisions(): void
@@ -156,6 +157,7 @@ final class ReviewSchemaTest extends TestCase
         });
         Functions\expect('update_option')->once()->with('cdcf_review_db_version', CDCF_REVIEW_DB_VERSION);
         Functions\expect('cdcf_review_backfill_submission_received')->once()->andReturn(0);
+        Functions\expect('cdcf_review_backfill_referrals')->once()->andReturn(0);
         foreach (['entries', 'attachments', 'events', 'notifications'] as $t) {
             $this->wpdb->results[] = "wp_cdcf_review_{$t}";
         }
@@ -284,7 +286,9 @@ final class ReviewSchemaTest extends TestCase
         Functions\expect('cdcf_review_send_submitter_email')->never();
         $this->wpdb->results = ['0'];
 
-        $this->assertSame(0, cdcf_review_backfill_submission_received());
+        $this->assertNull(cdcf_review_backfill_submission_received());
+        $this->assertCount(1, $this->wpdb->queries);
+        $this->assertStringContainsString('GET_LOCK', $this->wpdb->queries[0]);
     }
 
     public function test_received_backfill_with_nothing_pending_takes_no_lock(): void
@@ -293,5 +297,152 @@ final class ReviewSchemaTest extends TestCase
 
         $this->assertSame(0, cdcf_review_backfill_submission_received());
         $this->assertSame([], $this->wpdb->queries);
+    }
+
+    // ─── Version 4: pending community referrals ────────────────────────
+
+    /** Scripts the stage meta (id => stage) and records writes, events and emails. */
+    private function referralHarness(array $stages, &$log): void
+    {
+        $log = ['args' => null, 'stage' => [], 'events' => [], 'emails' => []];
+        Functions\when('get_posts')->alias(function (array $a) use (&$log, $stages): array {
+            $log['args'] = $a;
+            return array_keys($stages);
+        });
+        Functions\when('get_post_meta')->alias(
+            static fn(int $id, string $key) => $key === CDCF_REVIEW_STAGE_META ? ($stages[$id] ?? '') : ''
+        );
+        Functions\when('update_post_meta')->alias(function ($id, $key, $value) use (&$log): bool {
+            $log['stage'][] = [$id, $key, $value];
+            return true;
+        });
+        Functions\when('cdcf_review_record_event')->alias(function (...$a) use (&$log): int {
+            $log['events'][] = $a;
+            return 1;
+        });
+        Functions\when('cdcf_review_send_submitter_email')->alias(function (...$a) use (&$log): string {
+            $log['emails'][] = $a;
+            return 'queued';
+        });
+    }
+
+    public function test_referral_backfill_puts_pending_referrals_in_review_and_announces_them(): void
+    {
+        $this->referralHarness([21 => '', 22 => 'in_review', 23 => 'decided'], $log);
+        // GET_LOCK, nothing announced yet, RELEASE_LOCK.
+        $this->wpdb->results = ['1', [], '1'];
+
+        $this->assertSame(2, cdcf_review_backfill_referrals());
+
+        $this->assertSame('community_project', $log['args']['post_type']);
+        $this->assertSame('pending', $log['args']['post_status']);
+        $this->assertSame('', $log['args']['lang']);
+        $this->assertSame([['key' => '_referral_submitter_email', 'value' => '', 'compare' => '!=']], $log['args']['meta_query']);
+        $this->assertSame([[21, '_cdcf_review_stage', 'in_review']], $log['stage']);
+        $this->assertSame([
+            [21, 'submission_received', null, null, ['migrated' => true]],
+            [22, 'submission_received', null, null, ['migrated' => true]],
+        ], $log['events']);
+        $this->assertSame([[21, 'confirmation'], [22, 'confirmation']], $log['emails']);
+        $this->assertStringContainsString("SELECT GET_LOCK('cdcf_review_referral_backfill', 0)", $this->wpdb->queries[0]);
+        $this->assertStringContainsString("type = 'submission_received' AND project_id IN (21,22)", $this->wpdb->queries[1]);
+        $this->assertStringContainsString("SELECT RELEASE_LOCK('cdcf_review_referral_backfill')", $this->wpdb->queries[2]);
+    }
+
+    public function test_referral_backfill_skips_referrals_already_announced(): void
+    {
+        $this->referralHarness([31 => 'in_review', 32 => 'in_review'], $log);
+        $this->wpdb->results = ['1', [['project_id' => '31']], '1'];
+
+        $this->assertSame(1, cdcf_review_backfill_referrals());
+
+        $this->assertSame([[32, 'submission_received', null, null, ['migrated' => true]]], $log['events']);
+        $this->assertSame([[32, 'confirmation']], $log['emails']);
+        $this->assertSame([], $log['stage']);
+    }
+
+    public function test_referral_backfill_without_a_valid_email_still_announces(): void
+    {
+        $this->referralHarness([41 => ''], $log);
+        Functions\when('cdcf_review_send_submitter_email')->alias(function (...$a) use (&$log): string {
+            $log['emails'][] = $a;
+            return 'no_email';
+        });
+        $this->wpdb->results = ['1', [], '1'];
+
+        $this->assertSame(1, cdcf_review_backfill_referrals());
+
+        $this->assertCount(1, $log['events']);
+        $this->assertCount(1, $log['emails']);
+    }
+
+    public function test_referral_backfill_leaves_the_work_to_the_request_holding_the_lock(): void
+    {
+        $this->referralHarness([51 => ''], $log);
+        $this->wpdb->results = ['0'];
+
+        $this->assertNull(cdcf_review_backfill_referrals());
+        $this->assertCount(1, $this->wpdb->queries);
+        $this->assertStringContainsString('GET_LOCK', $this->wpdb->queries[0]);
+
+        $this->assertSame([], $log['stage']);
+        $this->assertSame([], $log['events']);
+        $this->assertSame([], $log['emails']);
+    }
+
+    public function test_referral_backfill_with_nothing_pending_takes_no_lock(): void
+    {
+        Functions\when('get_posts')->justReturn([]);
+
+        $this->assertSame(0, cdcf_review_backfill_referrals());
+        $this->assertSame([], $this->wpdb->queries);
+    }
+
+    public function test_maybe_upgrade_runs_the_referral_backfill_before_storing_the_version(): void
+    {
+        Functions\when('get_option')->justReturn('3');
+        Functions\when('dbDelta')->justReturn([]);
+        Functions\when('update_post_meta')->justReturn(true);
+        Functions\when('get_posts')->justReturn([]);
+        $order = [];
+        Functions\when('cdcf_review_backfill_submission_received')->alias(function () use (&$order): int {
+            $order[] = 'received';
+            return 0;
+        });
+        Functions\when('cdcf_review_backfill_referrals')->alias(function () use (&$order): int {
+            $order[] = 'referrals';
+            return 0;
+        });
+        Functions\when('update_option')->alias(function () use (&$order): bool {
+            $order[] = 'version';
+            return true;
+        });
+        foreach (['entries', 'attachments', 'events', 'notifications'] as $t) {
+            $this->wpdb->results[] = "wp_cdcf_review_{$t}";
+        }
+
+        cdcf_review_maybe_upgrade();
+
+        $this->assertSame(['received', 'referrals', 'version'], $order);
+    }
+
+    public function test_maybe_upgrade_keeps_the_version_when_a_backfill_lost_the_lock(): void
+    {
+        foreach ([[null, 0], [0, null]] as [$received, $referrals]) {
+            Functions\when('get_option')->justReturn('3');
+            Functions\when('dbDelta')->justReturn([]);
+            Functions\when('update_post_meta')->justReturn(true);
+            Functions\when('get_posts')->justReturn([]);
+            Functions\when('cdcf_review_backfill_submission_received')->justReturn($received);
+            Functions\when('cdcf_review_backfill_referrals')->justReturn($referrals);
+            Functions\expect('update_option')->never();
+            $this->wpdb->results = [];
+            foreach (['entries', 'attachments', 'events', 'notifications'] as $t) {
+                $this->wpdb->results[] = "wp_cdcf_review_{$t}";
+            }
+
+            cdcf_review_maybe_upgrade();
+        }
+        $this->addToAssertionCount(1);
     }
 }

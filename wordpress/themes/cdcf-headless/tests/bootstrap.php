@@ -248,6 +248,7 @@ require_once __DIR__ . '/../includes/handlers/author-team-member.php';
 require_once __DIR__ . '/../includes/handlers/my-team-member.php';
 require_once __DIR__ . '/../includes/review/schema.php';
 require_once __DIR__ . '/../includes/review/membership.php';
+require_once __DIR__ . '/../includes/review/referral.php';
 require_once __DIR__ . '/../includes/review/repository.php';
 require_once __DIR__ . '/../includes/review/events.php';
 require_once __DIR__ . '/../includes/review/inbox.php';

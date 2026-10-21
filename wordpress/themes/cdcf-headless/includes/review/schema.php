@@ -19,7 +19,7 @@
 
 defined('ABSPATH') || exit;
 
-const CDCF_REVIEW_DB_VERSION  = '3';
+const CDCF_REVIEW_DB_VERSION  = '4';
 const CDCF_REVIEW_STAGE_META  = '_cdcf_review_stage';
 const CDCF_REVIEW_STAGES      = ['in_review', 'awaiting_submitter', 'decided'];
 const CDCF_REVIEW_VOTES       = ['cdcf', 'community', 'reject'];
@@ -97,7 +97,8 @@ function cdcf_review_schema_sql(string $charset_collate): array {
  * Create or upgrade the tables when the stored schema version differs,
  * then backfill the review stage onto submissions that predate this
  * feature, decide the ones already published in wp-admin, and announce
- * the pending ones to members and submitters. Every backfill is
+ * the pending ones to members and submitters (version 4 does the same for
+ * pending community referrals). Every backfill is
  * idempotent. Hooked on admin_init and rest_api_init; the version option
  * is autoloaded, so the common path costs no query.
  */
@@ -122,7 +123,14 @@ function cdcf_review_maybe_upgrade(): void {
     }
     cdcf_review_backfill_stage();
     cdcf_review_backfill_published_decisions();
-    cdcf_review_backfill_submission_received();
+    // null: another request holds the lock and may still be announcing.
+    // Leave the version unset so the next request retries; the announced
+    // guard keeps the retry from sending anything twice.
+    $received  = cdcf_review_backfill_submission_received();
+    $referrals = cdcf_review_backfill_referrals();
+    if ($received === null || $referrals === null) {
+        return;
+    }
     update_option('cdcf_review_db_version', CDCF_REVIEW_DB_VERSION);
 }
 
@@ -191,7 +199,7 @@ function cdcf_review_now(): string {
  * lock and skips projects already announced: two first requests racing
  * through the upgrade send each email once.
  */
-function cdcf_review_backfill_submission_received(): int {
+function cdcf_review_backfill_submission_received(): ?int {
     $ids = array_map('intval', get_posts([
         'post_type'      => 'project',
         'post_status'    => 'pending',
@@ -205,21 +213,36 @@ function cdcf_review_backfill_submission_received(): int {
     if (!$ids) {
         return 0;
     }
+    return cdcf_review_announce_migrated($ids, 'cdcf_review_received_backfill');
+}
+
+/**
+ * Shared by the email backfills: under a MySQL named lock, record
+ * `submission_received` and send the confirmation for each id not yet
+ * announced. `$prepare` runs under the lock first and returns the ids to
+ * consider. Returns the number announced, or null when another request
+ * holds the lock (the caller must not treat its migration as complete).
+ */
+function cdcf_review_announce_migrated(array $ids, string $lock, ?callable $prepare = null): ?int {
     global $wpdb;
-    $lock = 'cdcf_review_received_backfill';
     if ((string) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)', $lock)) !== '1') {
-        return 0; // Another request holds the lock and is doing this work.
+        return null;
     }
     try {
-        $events    = cdcf_review_table('events');
+        if ($prepare !== null) {
+            $ids = $prepare($ids);
+        }
         $announced = [];
-        $rows      = $wpdb->get_results(
-            "SELECT DISTINCT project_id FROM {$events} WHERE type = 'submission_received'"
-            . ' AND project_id IN (' . cdcf_review_id_list($ids) . ')',
-            ARRAY_A
-        );
-        foreach (is_array($rows) ? $rows : [] as $row) {
-            $announced[(int) $row['project_id']] = true;
+        if ($ids) {
+            $events = cdcf_review_table('events');
+            $rows   = $wpdb->get_results(
+                "SELECT DISTINCT project_id FROM {$events} WHERE type = 'submission_received'"
+                . ' AND project_id IN (' . cdcf_review_id_list($ids) . ')',
+                ARRAY_A
+            );
+            foreach (is_array($rows) ? $rows : [] as $row) {
+                $announced[(int) $row['project_id']] = true;
+            }
         }
         $count = 0;
         foreach ($ids as $id) {
@@ -238,4 +261,47 @@ function cdcf_review_backfill_submission_received(): int {
     } finally {
         $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock));
     }
+}
+
+/**
+ * Version 4: community referrals now enter council review when created.
+ * Bring the ones already pending into review: set `in_review` where there
+ * is no stage (never touching `decided`), record `submission_received`
+ * (bell and member emails) and send the referrer a confirmation, unless a
+ * status link already exists.
+ *
+ * Emails cannot be recalled, so the work runs under a MySQL named lock and
+ * skips referrals that already have the event (including new ones from the
+ * create handler): racing requests send each email once.
+ */
+function cdcf_review_backfill_referrals(): ?int {
+    $ids = array_map('intval', get_posts([
+        'post_type'      => 'community_project',
+        'post_status'    => 'pending',
+        'posts_per_page' => -1,
+        'fields'         => 'ids',
+        'lang'           => '', // all languages; Polylang would filter to the current one
+        'meta_query'     => [
+            ['key' => '_referral_submitter_email', 'value' => '', 'compare' => '!='],
+        ],
+    ]));
+    if (!$ids) {
+        return 0;
+    }
+    // A referral created during the deploy, between the handler's meta write
+    // and its event, could be announced by both; accepted, as in v3.
+    return cdcf_review_announce_migrated($ids, 'cdcf_review_referral_backfill', static function (array $ids): array {
+        $keep = [];
+        foreach ($ids as $id) {
+            $stage = (string) get_post_meta($id, CDCF_REVIEW_STAGE_META, true);
+            if ($stage === 'decided') {
+                continue;
+            }
+            if ($stage === '') {
+                update_post_meta($id, CDCF_REVIEW_STAGE_META, 'in_review');
+            }
+            $keep[] = $id;
+        }
+        return $keep;
+    });
 }

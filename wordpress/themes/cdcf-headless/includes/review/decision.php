@@ -34,12 +34,14 @@ function cdcf_review_deciding(?bool $set = null): bool {
 function cdcf_review_apply_outcome(int $project_id, string $decision) {
     cdcf_review_deciding(true);
     try {
-        if ($decision === 'community') {
+        // A referral is already a community_project: accepting it publishes
+        // it in place, with nothing to convert.
+        if ($decision === 'community' && get_post_type($project_id) !== 'community_project') {
             return cdcf_review_convert_to_community($project_id);
         }
         $result = wp_update_post([
             'ID'          => $project_id,
-            'post_status' => $decision === 'cdcf' ? 'publish' : 'draft',
+            'post_status' => in_array($decision, ['cdcf', 'community'], true) ? 'publish' : 'draft',
         ], true);
         if (is_wp_error($result) || !$result) {
             return new WP_Error('outcome_failed', 'The decision could not be applied to the project.', ['status' => 500]);

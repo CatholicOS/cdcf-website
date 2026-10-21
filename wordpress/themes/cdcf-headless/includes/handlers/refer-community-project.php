@@ -123,19 +123,25 @@ function cdcf_rest_refer_community_project(WP_REST_Request $request) {
     update_post_meta($post_id, '_referral_submitter_name', $request['submitter_name']);
     update_post_meta($post_id, '_referral_submitter_email', $request['submitter_email']);
 
+    // Hand the referral to the councils (see includes/review/), then
+    // confirm to the referrer (their address was verified by code above).
+    update_post_meta($post_id, CDCF_REVIEW_STAGE_META, 'in_review');
+    cdcf_review_record_event((int) $post_id, 'submission_received', null);
+    cdcf_review_send_submitter_email((int) $post_id, 'confirmation');
+
     // Send admin notification email.
     $admin_email = get_option('admin_email');
-    $edit_link   = admin_url("post.php?post={$post_id}&action=edit");
+    $review_link = cdcf_review_workspace_url((int) $post_id, 'en');
     $subject     = sprintf('[CDCF] New Community Project Referral: %s', $request['project_name']);
     $body        = sprintf(
-        "A new community project referral has been submitted for review.\n\n" .
+        "A new community project referral has been submitted and is now under council review.\n\n" .
         "Project Name: %s\n" .
         "Category: %s\n" .
         "Project URL: %s\n" .
         "GitHub URL: %s\n" .
         "Description:\n%s\n\n" .
         "Submitted by: %s (%s)\n\n" .
-        "Review and approve it here:\n%s",
+        "Follow the review here:\n%s",
         $request['project_name'],
         $request['category'] ?: '(not provided)',
         $request['project_url'] ?: '(not provided)',
@@ -143,7 +149,7 @@ function cdcf_rest_refer_community_project(WP_REST_Request $request) {
         $request['description'],
         $request['submitter_name'],
         $request['submitter_email'],
-        $edit_link
+        $review_link
     );
 
     wp_mail($admin_email, $subject, $body);

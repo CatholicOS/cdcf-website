@@ -57,6 +57,7 @@ final class SubmissionStatusHandlerTest extends TestCase
             return 1;
         });
         Functions\when('cdcf_review_post_language')->justReturn('it');
+        Functions\when('cdcf_review_kind')->justReturn('submission');
         Functions\when('cdcf_frontend_path_for')->justReturn(null);
         Functions\when('cdcf_is_spam_content')->justReturn(false);
         Functions\when('cdcf_review_send_submitter_email')->alias(function (int $id, string $t): string {
@@ -362,5 +363,21 @@ final class SubmissionStatusHandlerTest extends TestCase
         $out = cdcf_rest_submission_status_get($this->request(['id' => 40]))->get_data();
         $base = defined('CDCF_FRONTEND_URL') ? rtrim((string) CDCF_FRONTEND_URL, '/') : 'http://localhost:3000';
         $this->assertSame($base . '/it/progetti', $out['public_url']);
+    }
+
+    public function test_status_reports_the_kind_for_a_submission(): void
+    {
+        $out = cdcf_rest_submission_status_get($this->request(['id' => 40]))->get_data();
+
+        $this->assertSame('submission', $out['kind']);
+    }
+
+    public function test_status_reports_the_kind_for_a_referral(): void
+    {
+        Functions\when('cdcf_review_kind')->justReturn('referral');
+
+        $out = cdcf_rest_submission_status_get($this->request(['id' => 40]))->get_data();
+
+        $this->assertSame('referral', $out['kind']);
     }
 }

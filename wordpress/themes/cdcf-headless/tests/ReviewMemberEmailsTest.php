@@ -45,6 +45,7 @@ final class ReviewMemberEmailsTest extends TestCase
             return true;
         });
         Functions\when('cdcf_review_enqueue_email')->justReturn(false);
+        Functions\when('cdcf_review_is_referral')->justReturn(false);
     }
 
     private function base(): string
@@ -90,6 +91,18 @@ final class ReviewMemberEmailsTest extends TestCase
         $this->assertStringContainsString($this->base() . '/it/review/40', $this->mails[0]['body']);
         $this->assertSame('Decision recorded: Liturgy Helper', $this->mails[1]['subject']);
         $this->assertStringContainsString($this->base() . '/review/40', $this->mails[1]['body']);
+    }
+
+    public function test_submission_received_on_a_referral_uses_the_referral_wording(): void
+    {
+        Functions\when('cdcf_review_is_referral')->justReturn(true);
+        $this->event['type'] = 'submission_received';
+        $this->event['actor_user_id'] = null;
+
+        $this->assertSame([7, 8, 9], cdcf_review_member_email_recipients('submission_received', null, null));
+        $this->assertSame('sent', cdcf_review_deliver_member_email(8, 3));
+        $this->assertSame('New community project referral to review: Liturgy Helper', $this->mails[0]['subject']);
+        $this->assertStringContainsString('has been referred for council review', $this->mails[0]['body']);
     }
 
     public function test_backfilled_overrides_are_never_emailed(): void

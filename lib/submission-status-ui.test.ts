@@ -1,5 +1,11 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { answerErrorKey, timelineSteps } from './submission-status-ui'
+import {
+  answerErrorKey,
+  statusHeadingKeys,
+  timelineSteps,
+} from './submission-status-ui'
 
 describe('timelineSteps', () => {
   it('shows review in progress after receipt', () => {
@@ -39,5 +45,41 @@ describe('answerErrorKey', () => {
     expect(answerErrorKey('rate_limited')).toBe('rateLimited')
     expect(answerErrorKey('something_else')).toBe('generic')
     expect(answerErrorKey(undefined)).toBe('generic')
+  })
+})
+
+describe('statusHeadingKeys', () => {
+  it('uses referral wording for referrals', () => {
+    expect(statusHeadingKeys('referral')).toEqual({
+      title: 'referralTitle',
+      submittedOn: 'referredOn',
+    })
+  })
+
+  it('uses submission wording for submissions', () => {
+    expect(statusHeadingKeys('submission')).toEqual({
+      title: 'title',
+      submittedOn: 'submittedOn',
+    })
+  })
+
+  it('uses a neutral title when the kind is unknown', () => {
+    // An invalid link loads no status, so the visitor may be a referrer.
+    expect(statusHeadingKeys(undefined).title).toBe('reviewTitle')
+  })
+})
+
+describe('statusHeadingKeys translations', () => {
+  const dir = join(process.cwd(), 'messages')
+  const files = readdirSync(dir).filter((f) => f.endsWith('.json'))
+
+  it.each(files)('%s defines every heading key under SubmissionStatus', (f) => {
+    const messages = JSON.parse(readFileSync(join(dir, f), 'utf8'))
+    const ns = messages.SubmissionStatus
+    for (const kind of ['referral', 'submission', undefined] as const) {
+      for (const key of Object.values(statusHeadingKeys(kind))) {
+        expect(ns[key], `${f}: SubmissionStatus.${key}`).toBeTypeOf('string')
+      }
+    }
   })
 })

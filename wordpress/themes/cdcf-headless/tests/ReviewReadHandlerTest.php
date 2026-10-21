@@ -20,12 +20,16 @@ final class ReviewReadHandlerTest extends TestCase
 
     /** @var list<array> */
     private array $markedRead = [];
+    private string $kind = 'submission';
 
     protected function setUp(): void
     {
         parent::setUp();
         Monkey\setUp();
         $this->markedRead = [];
+        $this->kind = 'submission';
+        Functions\when('cdcf_review_kind')->alias(fn(int $id): string => $this->kind);
+        Functions\when('cdcf_review_is_referral')->alias(fn(int $id): bool => $this->kind === 'referral');
         Functions\when('cdcf_review_mark_read')->alias(function (int $uid, ?array $ids = null, ?int $pid = null): void {
             $this->markedRead[] = [$uid, $ids, $pid];
         });
@@ -208,7 +212,7 @@ final class ReviewReadHandlerTest extends TestCase
         $this->assertSame(
             [
                 'id' => 40, 'title' => 'Project 40', 'category' => 'liturgy', 'language' => 'it',
-                'submitted_at' => '2026-10-01 09:00:00', 'stage' => 'in_review',
+                'submitted_at' => '2026-10-01 09:00:00', 'stage' => 'in_review', 'kind' => 'submission',
                 'tally' => ['cdcf' => 1, 'community' => 1, 'reject' => 0],
                 'voters_pending' => 2, 'my_vote' => 'cdcf', 'unread' => 0,
             ],
@@ -306,6 +310,7 @@ final class ReviewReadHandlerTest extends TestCase
         $out = cdcf_rest_review_get_project($this->request(['id' => 40]));
 
         $this->assertSame('Project 40', $out['title']);
+        $this->assertSame('submission', $out['kind']);
         $this->assertSame('it', $out['language']);
         $this->assertSame(
             ['url' => 'https://example.org', 'category' => 'liturgy',
@@ -352,6 +357,29 @@ final class ReviewReadHandlerTest extends TestCase
         Functions\when('get_field')->alias(static fn(string $f) => $f === 'project_repo_url' ? 'https://github.com/x/y' : '');
 
         $this->assertSame(['https://github.com/x/y'], cdcf_review_submission_fields(40)['repo_urls']);
+    }
+
+    public function test_referral_repo_urls_fall_back_to_project_github_url(): void
+    {
+        Functions\when('get_post_meta')->justReturn('');
+        Functions\when('get_field')->alias(static fn(string $f) => $f === 'project_github_url' ? 'https://github.com/r/ef' : '');
+
+        $this->assertSame(['https://github.com/r/ef'], cdcf_review_submission_fields(40)['repo_urls']);
+    }
+
+    public function test_list_and_detail_carry_the_referral_kind(): void
+    {
+        $this->signIn(7);
+        $this->kind = 'referral';
+        Functions\when('get_posts')->justReturn([$this->post(40)]);
+        Functions\when('cdcf_review_tallies')->justReturn([]);
+        Functions\when('cdcf_review_votes_by_user')->justReturn([]);
+        Functions\when('cdcf_review_unread_counts')->justReturn([]);
+        Functions\when('cdcf_review_project_entries')->justReturn([]);
+        Functions\when('cdcf_review_find_review')->justReturn(null);
+
+        $this->assertSame('referral', cdcf_rest_review_list_projects($this->request(['stage' => '']))['projects'][0]['kind']);
+        $this->assertSame('referral', cdcf_rest_review_get_project($this->request(['id' => 40]))['kind']);
     }
 
     public function test_list_pages_through_results_and_signals_more(): void
@@ -421,6 +449,22 @@ final class ReviewReadHandlerTest extends TestCase
 
         $this->signIn(7);
         $this->assertNull(cdcf_rest_review_get_project($this->request(['id' => 40]))['decision_email']);
+    }
+
+    public function test_a_referral_decision_preview_uses_the_referral_template(): void
+    {
+        $this->signIn(8);
+        $this->kind = 'referral';
+        Functions\when('cdcf_review_project_entries')->justReturn([]);
+        Functions\when('cdcf_review_tallies')->justReturn([]);
+        Functions\when('cdcf_review_find_review')->justReturn(null);
+
+        $data = cdcf_rest_review_get_project($this->request(['id' => 40]));
+
+        $expected = cdcf_review_render_email('referral_decision', 'it', [
+            'title' => 'Project 40', 'link' => '{link}', 'outcome' => '{outcome}', 'summary' => '{summary}',
+        ]);
+        $this->assertSame($expected['subject'], $data['decision_email']['subject']);
     }
 
     public function test_a_decided_project_shows_the_decision_and_no_preview(): void

@@ -65,7 +65,7 @@ function cdcf_review_enqueue_email(array $payload): bool {
  * @return 'queued'|'sent'|'failed'|'no_email'
  */
 function cdcf_review_send_submitter_email(int $project_id, string $template, array $vars = []): string {
-    if (!is_email((string) get_post_meta($project_id, '_submission_submitter_email', true))) {
+    if (!is_email(cdcf_review_submitter_email($project_id))) {
         return 'no_email';
     }
     $job = ['submitter' => ['project_id' => $project_id, 'template' => $template, 'vars' => $vars]];
@@ -73,6 +73,11 @@ function cdcf_review_send_submitter_email(int $project_id, string $template, arr
         return 'queued';
     }
     return cdcf_review_deliver_submitter_email($project_id, $template, $vars);
+}
+
+/** A referral gets its own wording: the referrer never "submitted" the project. */
+function cdcf_review_submitter_template(int $project_id, string $template): string {
+    return cdcf_review_is_referral($project_id) ? 'referral_' . $template : $template;
 }
 
 /**
@@ -83,13 +88,13 @@ function cdcf_review_send_submitter_email(int $project_id, string $template, arr
  * @return 'sent'|'failed'|'no_email'
  */
 function cdcf_review_deliver_submitter_email(int $project_id, string $template, array $vars = []): string {
-    $to = (string) get_post_meta($project_id, '_submission_submitter_email', true);
+    $to = cdcf_review_submitter_email($project_id);
     if (!is_email($to)) {
         return 'no_email';
     }
     $lang  = cdcf_review_post_language($project_id);
     $token = cdcf_review_new_token();
-    $mail  = cdcf_review_render_email($template, $lang, $vars + [
+    $mail  = cdcf_review_render_email(cdcf_review_submitter_template($project_id, $template), $lang, $vars + [
         // Raw title: get_the_title() would HTML-escape it for a text email.
         'title' => (string) get_post_field('post_title', $project_id),
         'link'  => cdcf_review_status_url($project_id, $lang, $token['token']),

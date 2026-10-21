@@ -12,7 +12,11 @@ import {
   renderDom,
   typeInto,
 } from '@/components/testing/renderDom'
-import type { ReviewDecisionEmail, ReviewVote } from '@/lib/review-types'
+import type {
+  ReviewDecisionEmail,
+  ReviewKind,
+  ReviewVote,
+} from '@/lib/review-types'
 
 const email: ReviewDecisionEmail = {
   language: 'it',
@@ -37,9 +41,17 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-function mount(plurality: ReviewVote | null = 'cdcf') {
+function mount(
+  plurality: ReviewVote | null = 'cdcf',
+  kind: ReviewKind = 'submission'
+) {
   const r = renderDom(
-    <DecisionPanel projectId={40} plurality={plurality} email={email} />
+    <DecisionPanel
+      projectId={40}
+      kind={kind}
+      plurality={plurality}
+      email={email}
+    />
   )
   unmount = r.unmount
   return r.container
@@ -58,6 +70,17 @@ function radio(c: HTMLElement, value: string) {
 }
 
 describe('DecisionPanel', () => {
+  it('offers only Accept and Reject for a referral', () => {
+    const c = mount('community', 'referral')
+    const radios = [...c.querySelectorAll('input[type="radio"]')]
+    expect(radios.map((r) => (r as HTMLInputElement).value)).toEqual([
+      'community',
+      'reject',
+    ])
+    const labels = radios.map((r) => r.parentElement?.textContent?.trim())
+    expect(labels).toEqual(['Accept', 'Reject'])
+  })
+
   it('preselects the plurality and enables submit once a summary is typed', () => {
     const c = mount('cdcf')
     expect((radio(c, 'cdcf') as HTMLInputElement).checked).toBe(true)
