@@ -56,10 +56,16 @@ describe('statusHeadingKeys', () => {
     })
   })
 
-  it('uses submission wording otherwise', () => {
-    const expected = { title: 'title', submittedOn: 'submittedOn' }
-    expect(statusHeadingKeys('submission')).toEqual(expected)
-    expect(statusHeadingKeys(undefined)).toEqual(expected)
+  it('uses submission wording for submissions', () => {
+    expect(statusHeadingKeys('submission')).toEqual({
+      title: 'title',
+      submittedOn: 'submittedOn',
+    })
+  })
+
+  it('uses a neutral title when the kind is unknown', () => {
+    // An invalid link loads no status, so the visitor may be a referrer.
+    expect(statusHeadingKeys(undefined).title).toBe('reviewTitle')
   })
 })
 
@@ -70,7 +76,7 @@ describe('statusHeadingKeys translations', () => {
   it.each(files)('%s defines every heading key under SubmissionStatus', (f) => {
     const messages = JSON.parse(readFileSync(join(dir, f), 'utf8'))
     const ns = messages.SubmissionStatus
-    for (const kind of ['referral', 'submission'] as const) {
+    for (const kind of ['referral', 'submission', undefined] as const) {
       for (const key of Object.values(statusHeadingKeys(kind))) {
         expect(ns[key], `${f}: SubmissionStatus.${key}`).toBeTypeOf('string')
       }

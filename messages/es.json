@@ -541,6 +541,7 @@
     "title": "Estado de la propuesta",
     "submittedOn": "Enviado el {date}",
     "referralTitle": "Estado de la recomendación",
+    "reviewTitle": "Estado de la revisión",
     "referredOn": "Recomendado el {date}",
     "progress": "Progreso",
     "steps": {

@@ -541,6 +541,7 @@
     "title": "Status der Einreichung",
     "submittedOn": "Eingereicht am {date}",
     "referralTitle": "Status der Empfehlung",
+    "reviewTitle": "Status der Prüfung",
     "referredOn": "Empfohlen am {date}",
     "progress": "Fortschritt",
     "steps": {

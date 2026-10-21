@@ -541,6 +541,7 @@
     "title": "Submission status",
     "submittedOn": "Submitted on {date}",
     "referralTitle": "Referral status",
+    "reviewTitle": "Review status",
     "referredOn": "Referred on {date}",
     "progress": "Progress",
     "steps": {

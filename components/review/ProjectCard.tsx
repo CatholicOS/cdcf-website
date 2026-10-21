@@ -16,7 +16,7 @@ export function ProjectCard({
   const meta = [
     project.category,
     project.language.toUpperCase(),
-    t('submittedOn', {
+    t(project.kind === 'referral' ? 'referredOn' : 'submittedOn', {
       date: format.dateTime(parseWpGmt(project.submitted_at), {
         dateStyle: 'medium',
       }),

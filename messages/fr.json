@@ -541,6 +541,7 @@
     "title": "Suivi de la proposition",
     "submittedOn": "Proposé le {date}",
     "referralTitle": "Statut de la recommandation",
+    "reviewTitle": "Suivi de l'examen",
     "referredOn": "Recommandé le {date}",
     "progress": "Avancement",
     "steps": {

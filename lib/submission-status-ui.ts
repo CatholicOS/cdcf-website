@@ -44,10 +44,12 @@ export function answerErrorKey(code: string | undefined): AnswerErrorKey {
 }
 
 export function statusHeadingKeys(kind: SubmissionStatus['kind'] | undefined): {
-  title: 'title' | 'referralTitle'
+  title: 'title' | 'referralTitle' | 'reviewTitle'
   submittedOn: 'submittedOn' | 'referredOn'
 } {
-  return kind === 'referral'
-    ? { title: 'referralTitle', submittedOn: 'referredOn' }
-    : { title: 'title', submittedOn: 'submittedOn' }
+  if (kind === 'referral') {
+    return { title: 'referralTitle', submittedOn: 'referredOn' }
+  }
+  // No status loaded (an invalid link): the visitor may be a referrer.
+  return { title: kind ? 'title' : 'reviewTitle', submittedOn: 'submittedOn' }
 }
