@@ -69,6 +69,86 @@ final class ReviewEventsTest extends TestCase
         $this->assertSame(0, cdcf_review_record_event(40, 'review_posted', 7, 3));
     }
 
+    /** @param array<int, string> $meta user id => stored cdcf_review_notified_gen */
+    private function stubCatchUp(array $meta, bool $member = true, array &$updates = []): void
+    {
+        Functions\when('get_option')->alias(static fn(string $k, $d = false) => $k === 'cdcf_review_membership_gen' ? 5 : $d);
+        Functions\when('get_user_meta')->alias(static fn(int $uid, string $k) => $meta[$uid] ?? '');
+        Functions\when('cdcf_review_can')->justReturn($member);
+        Functions\when('update_user_meta')->alias(static function (int $uid, string $k, string $v) use (&$updates): bool {
+            $updates[] = [$uid, $k, $v];
+            return true;
+        });
+    }
+
+    public function test_catch_up_backfills_open_project_events_for_a_new_member(): void
+    {
+        $updates = [];
+        $this->stubCatchUp([], true, $updates);
+
+        cdcf_review_catch_up_notifications(12);
+
+        $this->assertCount(1, $this->wpdb->queries);
+        $sql = $this->wpdb->queries[0];
+        // INSERT IGNORE: rows the member already has, and their read state, are kept.
+        $this->assertStringStartsWith('INSERT IGNORE INTO wp_cdcf_review_notifications (event_id, user_id) SELECT e.id, 12 FROM wp_cdcf_review_events e', $sql);
+        // Never notified of their own actions.
+        $this->assertStringContainsString('(e.actor_user_id IS NULL OR e.actor_user_id <> 12)', $sql);
+        // Only projects still under review; decided ones are left out.
+        $this->assertStringContainsString(
+            "SELECT post_id FROM wp_postmeta WHERE meta_key = '_cdcf_review_stage' AND meta_value IN ('in_review', 'awaiting_submitter')",
+            $sql
+        );
+        $this->assertSame([[12, 'cdcf_review_notified_gen', '5']], $updates);
+        $this->assertSame([], $this->wpdb->inserts, 'no event is recorded, so no email goes out');
+    }
+
+    public function test_catch_up_runs_once_per_membership_generation(): void
+    {
+        $updates = [];
+        $this->stubCatchUp([12 => '5'], true, $updates);
+
+        cdcf_review_catch_up_notifications(12);
+
+        $this->assertSame([], $this->wpdb->queries);
+        $this->assertSame([], $updates);
+    }
+
+    public function test_catch_up_reruns_after_a_roster_change(): void
+    {
+        $updates = [];
+        $this->stubCatchUp([12 => '4'], true, $updates);
+
+        cdcf_review_catch_up_notifications(12);
+
+        $this->assertCount(1, $this->wpdb->queries);
+        $this->assertSame([[12, 'cdcf_review_notified_gen', '5']], $updates);
+    }
+
+    public function test_catch_up_skips_non_members_and_anonymous_users(): void
+    {
+        $updates = [];
+        $this->stubCatchUp([], false, $updates);
+
+        cdcf_review_catch_up_notifications(12);
+        cdcf_review_catch_up_notifications(0);
+
+        $this->assertSame([], $this->wpdb->queries);
+        $this->assertSame([], $updates);
+    }
+
+    public function test_failed_catch_up_is_retried_on_the_next_request(): void
+    {
+        $updates = [];
+        $this->stubCatchUp([], true, $updates);
+        $this->wpdb->results[] = false;
+
+        cdcf_review_catch_up_notifications(12);
+
+        $this->assertCount(1, $this->wpdb->queries);
+        $this->assertSame([], $updates);
+    }
+
     public function test_unread_counts_per_project(): void
     {
         $this->wpdb->results[] = [['project_id' => '40', 'n' => '3']];
