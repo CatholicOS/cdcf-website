@@ -338,6 +338,10 @@
       "community": "Accepter comme projet communautaire",
       "reject": "Refuser"
     },
+    "referralVote": {
+      "community": "Accepter",
+      "reject": "Refuser"
+    },
     "council": {
       "technical": "Conseil technique",
       "ecclesial": "Conseil ecclésial",
@@ -350,6 +354,7 @@
     "plurality": "Le plus de voix : {vote}",
     "yourVote": "Votre vote : {vote}",
     "awaitingYourVote": "En attente de votre vote",
+    "referralBadge": "Recommandation de la communauté",
     "unread": "{count} nouveaux",
     "submittedOn": "Soumis le {date}",
     "locked": "Cette évaluation a été tranchée. Les évaluations et la discussion sont désormais en lecture seule.",
@@ -364,6 +369,7 @@
       "repositories": "Dépôts",
       "tags": "Étiquettes",
       "submitter": "Soumis par",
+      "referrer": "Recommandé par",
       "language": "Langue",
       "category": "Catégorie"
     },
@@ -490,6 +496,7 @@
       "pagination": "Pages",
       "event": {
         "submission_received": "Nouvelle proposition : {title}",
+        "referral_received": "Nouvelle recommandation de la communauté : {title}",
         "review_posted": "{actor} a publié une évaluation · {title}",
         "review_edited": "{actor} a modifié son évaluation · {title}",
         "vote_changed": "{actor} a changé son vote · {title}",

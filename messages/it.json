@@ -338,6 +338,10 @@
       "community": "Accetta come progetto della comunità",
       "reject": "Rifiuta"
     },
+    "referralVote": {
+      "community": "Accetta",
+      "reject": "Rifiuta"
+    },
     "council": {
       "technical": "Consiglio tecnico",
       "ecclesial": "Consiglio ecclesiale",
@@ -350,6 +354,7 @@
     "plurality": "Più votato: {vote}",
     "yourVote": "Il tuo voto: {vote}",
     "awaitingYourVote": "In attesa del tuo voto",
+    "referralBadge": "Segnalazione della comunità",
     "unread": "{count} nuovi",
     "submittedOn": "Proposto il {date}",
     "locked": "Questa revisione è stata decisa. Revisioni e discussione sono ora in sola lettura.",
@@ -364,6 +369,7 @@
       "repositories": "Repository",
       "tags": "Tag",
       "submitter": "Proposto da",
+      "referrer": "Segnalato da",
       "language": "Lingua",
       "category": "Categoria"
     },
@@ -490,6 +496,7 @@
       "pagination": "Pagine",
       "event": {
         "submission_received": "Nuova proposta: {title}",
+        "referral_received": "Nuova segnalazione della comunità: {title}",
         "review_posted": "{actor} ha pubblicato una revisione · {title}",
         "review_edited": "{actor} ha modificato la sua revisione · {title}",
         "vote_changed": "{actor} ha cambiato il suo voto · {title}",

@@ -26,7 +26,9 @@ export function SubmissionCard({ project }: { project: ReviewProject }) {
     <section className="cdcf-card space-y-4">
       <div className="space-y-1">
         <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-          {t('submission.heading')}
+          {project.kind === 'referral'
+            ? t('referralBadge')
+            : t('submission.heading')}
         </p>
         <h1 className="cdcf-heading text-3xl">{project.title}</h1>
         <p className="text-xs text-gray-500">
@@ -91,7 +93,11 @@ export function SubmissionCard({ project }: { project: ReviewProject }) {
         )}
         <div>
           <dt className="text-xs uppercase tracking-wide text-gray-500">
-            {t('submission.submitter')}
+            {t(
+              project.kind === 'referral'
+                ? 'submission.referrer'
+                : 'submission.submitter'
+            )}
           </dt>
           <dd>
             {submitter.name}

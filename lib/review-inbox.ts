@@ -13,6 +13,8 @@ export function inboxHref(item: InboxItem): string {
 
 /** The message key under Review.inbox.event. */
 export function inboxMessageKey(item: InboxItem): string {
+  if (item.type === 'submission_received' && item.kind === 'referral')
+    return 'referral_received'
   if (item.type === 'reply_posted' && item.to_you) return 'reply_posted_to_you'
   if (item.type === 'admin_override' && item.data.backfill === true)
     return 'admin_override_backfill'

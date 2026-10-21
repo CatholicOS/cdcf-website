@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { useTranslations } from 'next-intl'
-import type { ReviewTally } from '@/lib/review-types'
-import { tallySegments } from '@/lib/review-ui'
+import type { ReviewKind, ReviewTally } from '@/lib/review-types'
+import { tallySegments, voteLabelKey } from '@/lib/review-ui'
 
 const COLORS = {
   cdcf: 'bg-emerald-600',
@@ -13,12 +13,14 @@ const COLORS = {
 export function TallyBar({
   tally,
   pending,
+  kind,
 }: {
   tally: ReviewTally
   pending: number
+  kind: ReviewKind
 }) {
   const t = useTranslations('Review')
-  const segments = tallySegments(tally, pending)
+  const segments = tallySegments(tally, pending, kind)
   return (
     <div>
       <div
@@ -46,7 +48,7 @@ export function TallyBar({
             />
             {s.key === 'pending'
               ? t('tally.pending', { count: s.count })
-              : `${t(`vote.${s.key}`)}: ${s.count}`}
+              : `${t(voteLabelKey(kind, s.key) as 'vote.cdcf')}: ${s.count}`}
           </li>
         ))}
       </ul>

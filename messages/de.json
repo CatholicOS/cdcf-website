@@ -338,6 +338,10 @@
       "community": "Als Community-Projekt annehmen",
       "reject": "Ablehnen"
     },
+    "referralVote": {
+      "community": "Annehmen",
+      "reject": "Ablehnen"
+    },
     "council": {
       "technical": "Technischer Rat",
       "ecclesial": "Kirchlicher Rat",
@@ -350,6 +354,7 @@
     "plurality": "Meiste Stimmen: {vote}",
     "yourVote": "Ihre Stimme: {vote}",
     "awaitingYourVote": "Wartet auf Ihre Stimme",
+    "referralBadge": "Community-Empfehlung",
     "unread": "{count} neu",
     "submittedOn": "Eingereicht am {date}",
     "locked": "Über diese Prüfung wurde entschieden. Bewertungen und Diskussion sind jetzt schreibgeschützt.",
@@ -364,6 +369,7 @@
       "repositories": "Repositorys",
       "tags": "Schlagwörter",
       "submitter": "Eingereicht von",
+      "referrer": "Empfohlen von",
       "language": "Sprache",
       "category": "Kategorie"
     },
@@ -490,6 +496,7 @@
       "pagination": "Seiten",
       "event": {
         "submission_received": "Neue Einreichung: {title}",
+        "referral_received": "Neue Community-Empfehlung: {title}",
         "review_posted": "{actor} hat eine Bewertung veröffentlicht · {title}",
         "review_edited": "{actor} hat die eigene Bewertung bearbeitet · {title}",
         "vote_changed": "{actor} hat die eigene Stimme geändert · {title}",

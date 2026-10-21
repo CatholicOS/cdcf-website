@@ -5,11 +5,12 @@ import clsx from 'clsx'
 import { useTranslations } from 'next-intl'
 import { jsonInit, reviewFetch } from '@/lib/review-client'
 import {
-  REVIEW_VOTES,
   type PendingAttachment,
   type ReviewEntry,
+  type ReviewKind,
   type ReviewVote,
 } from '@/lib/review-types'
+import { votesFor, voteLabelKey } from '@/lib/review-ui'
 import { AttachControl } from './AttachControl'
 import { ComposerStatus } from './ComposerStatus'
 import { ReviewEditor } from './ReviewEditor'
@@ -18,9 +19,11 @@ import { useEntrySubmit } from './useEntrySubmit'
 
 export function MyReviewComposer({
   projectId,
+  kind,
   existing,
 }: {
   projectId: number
+  kind: ReviewKind
   existing: { vote: ReviewVote; body_md: string; version: string } | null
 }) {
   const t = useTranslations('Review')
@@ -30,12 +33,16 @@ export function MyReviewComposer({
   const [pending, setPending] = useState<PendingAttachment[]>([])
   const [voteMissing, setVoteMissing] = useState(false)
   const { busy, errorKey, failed, submit } = useEntrySubmit()
+  // A referral vote stands on its own; a submission needs a written review.
+  const needsBody = kind !== 'referral' && !body.trim()
 
   if (!editing && existing) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-gray-200 bg-gray-50 p-4">
         <p className="text-sm text-gray-700">
-          {t('yourVote', { vote: t(`vote.${existing.vote}`) })}
+          {t('yourVote', {
+            vote: t(voteLabelKey(kind, existing.vote) as 'vote.cdcf'),
+          })}
         </p>
         <button
           type="button"
@@ -84,7 +91,7 @@ export function MyReviewComposer({
           {t('myReview.voteLabel')}
         </legend>
         <div className="flex flex-wrap gap-2">
-          {REVIEW_VOTES.map((v) => (
+          {votesFor(kind).map((v) => (
             <label
               key={v}
               className={clsx(
@@ -102,7 +109,7 @@ export function MyReviewComposer({
                 onChange={() => setVote(v)}
                 className="sr-only"
               />
-              {t(`vote.${v}`)}
+              {t(voteLabelKey(kind, v) as 'vote.cdcf')}
             </label>
           ))}
         </div>
@@ -128,10 +135,10 @@ export function MyReviewComposer({
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          disabled={busy || !body.trim()}
+          disabled={busy || needsBody}
           className={clsx(
             'cdcf-btn-primary px-4 py-2 text-sm',
-            (busy || !body.trim()) && 'cursor-not-allowed opacity-60'
+            (busy || needsBody) && 'cursor-not-allowed opacity-60'
           )}
         >
           {busy

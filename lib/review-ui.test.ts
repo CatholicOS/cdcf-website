@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { REVIEW_VOTES } from './review-types'
 import type {
   ReviewAttachment,
   ReviewEntry,
@@ -15,6 +16,8 @@ import {
   reviewErrorKey,
   safeHttpUrl,
   tallySegments,
+  voteLabelKey,
+  votesFor,
   withAttachmentParam,
 } from './review-ui'
 
@@ -115,6 +118,27 @@ describe('tallySegments', () => {
         (s) => s.percent === 0
       )
     ).toBe(true)
+  })
+})
+
+describe('referral votes', () => {
+  it('offers accept and reject only for a referral', () => {
+    expect(votesFor('referral')).toEqual(['community', 'reject'])
+    expect(votesFor('submission')).toEqual(REVIEW_VOTES)
+  })
+
+  it('uses the referral wording for a referral', () => {
+    expect(voteLabelKey('referral', 'community')).toBe('referralVote.community')
+    expect(voteLabelKey('submission', 'community')).toBe('vote.community')
+  })
+
+  it('leaves the CDCF segment out of a referral tally', () => {
+    const tally = { cdcf: 0, community: 1, reject: 1 }
+    expect(tallySegments(tally, 2, 'referral').map((s) => s.key)).toEqual([
+      'community',
+      'reject',
+      'pending',
+    ])
   })
 })
 

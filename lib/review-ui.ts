@@ -3,10 +3,12 @@
  */
 import {
   ATTACHMENT_LIMITS,
+  REVIEW_VOTES,
   IMAGE_EXTENSIONS,
   type PendingAttachment,
   type ReviewAttachment,
   type ReviewEntry,
+  type ReviewKind,
   type ReviewProject,
   type ReviewTally,
   type ReviewVote,
@@ -74,12 +76,25 @@ export interface TallySegment {
   percent: number
 }
 
+/** A referral is accepted or rejected; it is never adopted by CDCF. */
+export function votesFor(kind: ReviewKind): readonly ReviewVote[] {
+  return kind === 'referral' ? ['community', 'reject'] : REVIEW_VOTES
+}
+
+/** The Review message key that labels a vote. */
+export function voteLabelKey(kind: ReviewKind, vote: ReviewVote): string {
+  return kind === 'referral' ? `referralVote.${vote}` : `vote.${vote}`
+}
+
 export function tallySegments(
   tally: ReviewTally,
-  pending: number
+  pending: number,
+  kind: ReviewKind = 'submission'
 ): TallySegment[] {
   const counts: Array<[TallySegment['key'], number]> = [
-    ['cdcf', tally.cdcf],
+    ...(kind === 'referral'
+      ? []
+      : [['cdcf', tally.cdcf] as [TallySegment['key'], number]]),
     ['community', tally.community],
     ['reject', tally.reject],
     ['pending', pending],
