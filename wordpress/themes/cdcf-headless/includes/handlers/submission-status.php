@@ -135,6 +135,7 @@ function cdcf_rest_submission_status_get(WP_REST_Request $request) {
             'decided_at' => (int) get_post_meta($pid, '_cdcf_review_decided_at', true),
         ] : null,
         'public_url'   => cdcf_submission_status_public_url($project),
+        'kind'         => cdcf_review_kind($pid),
     ]);
 }
 

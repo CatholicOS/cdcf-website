@@ -20,6 +20,7 @@ final class ReviewInboxTest extends TestCase
         $this->wpdb = new FakeWpdb();
         $GLOBALS['wpdb'] = $this->wpdb;
         Functions\when('get_post_field')->alias(static fn(string $f, int $id) => $id === 40 ? 'Liturgy Helper' : '');
+        Functions\when('cdcf_review_kind')->justReturn('submission');
         Functions\when('get_userdata')->alias(static function (int $uid) {
             if ($uid !== 8) {
                 return false;
@@ -84,7 +85,17 @@ final class ReviewInboxTest extends TestCase
             'created_at' => '2026-10-16 09:00:00.000000',
             'read'       => false,
             'to_you'     => false,
+            'kind'       => 'submission',
         ], $item);
+    }
+
+    public function test_a_referral_notification_carries_the_referral_kind(): void
+    {
+        Functions\when('cdcf_review_kind')->justReturn('referral');
+
+        $item = cdcf_review_present_notification($this->row(), 7);
+
+        $this->assertSame('referral', $item['kind']);
     }
 
     public function test_submitter_events_have_no_actor_and_former_members_are_named_as_such(): void
