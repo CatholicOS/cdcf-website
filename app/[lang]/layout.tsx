@@ -101,6 +101,9 @@ export default async function LangLayout({
   return (
     <html
       lang={lang}
+      // Lets Next.js switch the CSS smooth scrolling off while it resets the
+      // scroll position on navigation (Next.js 16 no longer does by default).
+      data-scroll-behavior="smooth"
       className={`${inter.variable} ${merriweather.variable} ${playfairDisplay.variable}`}
       suppressHydrationWarning
     >
