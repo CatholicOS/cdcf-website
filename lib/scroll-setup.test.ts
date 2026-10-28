@@ -16,10 +16,16 @@ describe('page scroll setup', () => {
     expect(htmlRule?.[0]).not.toMatch(/scroll-padding-top/)
   })
 
-  it('offsets anchor targets for the header with scroll-margin instead', () => {
-    expect(read('css/globals.css')).toMatch(
-      /@layer base\s*\{[^}]*\[id\]\s*\{\s*scroll-margin-top:/
+  it('offsets anchor targets and focusable elements with scroll-margin instead', () => {
+    // scroll-padding-top on html also kept keyboard focus clear of the
+    // sticky header; the replacement must cover focusable elements too.
+    const rule = read('css/globals.css').match(
+      /@layer base\s*\{\s*([^{]+)\{\s*scroll-margin-top:/
     )
+    expect(rule).not.toBeNull()
+    for (const target of ['[id]', 'a', 'button', 'input', '[tabindex]']) {
+      expect(rule?.[1]).toContain(target)
+    }
   })
 
   it('lets Next.js switch smooth scrolling off during navigation', () => {

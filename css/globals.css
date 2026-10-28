@@ -7,14 +7,15 @@ html {
 }
 
 /*
- * Offset anchor targets for the sticky header. This must not be a
- * scroll-padding-top on html: after each navigation Next.js checks whether
- * the page's top lies below that padding, and with padding deeper than the
- * header it scrolled every section into view, leaving pages part way down.
- * In the base layer so utilities such as scroll-mt-16 still win.
+ * Offset anchor targets, and elements that take keyboard focus, for the
+ * sticky header. This must not be a scroll-padding-top on html: after each
+ * navigation Next.js checks whether the page's top lies below that padding,
+ * and with padding deeper than the header it scrolled every section into
+ * view, leaving pages part way down. In the base layer so utilities such as
+ * scroll-mt-16 still win.
  */
 @layer base {
-  [id] {
+  :is(a, button, input, select, textarea, summary, [tabindex], [id]) {
     scroll-margin-top: 5rem;
   }
 }
