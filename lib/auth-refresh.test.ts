@@ -132,6 +132,24 @@ describe('refreshAccessToken', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
+  it('keeps the session, flagged, when our client credentials are rejected', async () => {
+    // invalid_client is a configuration problem on our side, not a dead
+    // refresh token: signing every visitor out would not fix it.
+    respond(401, { error: 'invalid_client' })
+
+    expect((await refreshAccessToken(expired))?.error).toBe(
+      'RefreshAccessTokenError'
+    )
+  })
+
+  it('keeps the session, flagged, when Zitadel rate-limits the refresh', async () => {
+    respond(429, { error: 'too_many_requests' })
+
+    expect((await refreshAccessToken(expired))?.error).toBe(
+      'RefreshAccessTokenError'
+    )
+  })
+
   it('keeps the session, flagged, when Zitadel answers with a server error', async () => {
     respond(503, { error: 'unavailable' })
 
