@@ -1,7 +1,9 @@
 import createMiddleware from 'next-intl/middleware'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
+import { NextRequest, NextResponse } from 'next/server'
+import { handlers } from './lib/auth'
 import { normalizeRedirectLocation } from './lib/normalize-redirect'
+import { refreshSessionCookies } from './lib/session-refresh'
 import { routing } from './src/i18n/routing'
 
 // Hosts that ARE allowed to be indexed by search engines. Anything else
@@ -38,11 +40,76 @@ const intlProxy = createMiddleware(routing)
 const INTL_EXCLUDE =
   /^\/(?:(?:api|_next|wp-admin|wp-login|wp-json|graphql|wp-content)(?:\/|$)|favicon\.ico$|logo\.svg$|.*\..*)/
 
-export function proxy(request: NextRequest) {
+// Auth.js's own routes manage the session cookie themselves, and asset
+// requests (anything with a dot) render nothing that reads the session.
+const SKIP_SESSION_RENEWAL = /^\/api\/auth(?:\/|$)|\./
+
+const sessionDeps = {
+  readToken: async (
+    headers: Headers,
+    cookie: { name: string; secure: boolean }
+  ) => {
+    try {
+      return await getToken({
+        req: { headers },
+        secret: process.env.AUTH_SECRET ?? '',
+        secureCookie: cookie.secure,
+        cookieName: cookie.name,
+      })
+    } catch {
+      return null
+    }
+  },
+  fetchSession: (headers: Headers, url: string) =>
+    handlers.GET(
+      new NextRequest(new URL('/api/auth/session', url), { headers })
+    ),
+}
+
+/** Renew an expiring session; see lib/session-refresh.ts. */
+async function renewSession(request: NextRequest) {
+  if (SKIP_SESSION_RENEWAL.test(request.nextUrl.pathname)) {
+    return null
+  }
+  try {
+    return await refreshSessionCookies(request, {
+      readToken: sessionDeps.readToken,
+      fetchSession: (headers) => sessionDeps.fetchSession(headers, request.url),
+    })
+  } catch (err) {
+    // Never fail the page over this: auth() still refreshes on its own.
+    console.error('[auth] session renewal failed:', err)
+    return null
+  }
+}
+
+export async function proxy(incoming: NextRequest) {
+  // A renewed session reaches the page through the rewritten Cookie
+  // header, and the browser through the Set-Cookie headers added below.
+  const renewed = await renewSession(incoming)
+  let request = incoming
+  if (renewed) {
+    const headers = new Headers(incoming.headers)
+    headers.set('cookie', renewed.cookieHeader)
+    // URL and headers only: next-intl reads nothing else, and copying the
+    // incoming request would take the body of a POST (Server Actions,
+    // forms) away from the route it is meant for. Next forwards the
+    // original body itself.
+    request = new NextRequest(incoming.url, {
+      method: incoming.method,
+      headers,
+    })
+  }
+
   // Run next-intl only for routes it owns; pass-through otherwise.
   const response = INTL_EXCLUDE.test(request.nextUrl.pathname)
-    ? NextResponse.next()
+    ? NextResponse.next(
+        renewed ? { request: { headers: request.headers } } : undefined
+      )
     : intlProxy(request)
+  for (const cookie of renewed?.setCookies ?? []) {
+    response.headers.append('set-cookie', cookie)
+  }
 
   // Fix Location header when next-intl produces a locale redirect. The
   // 307 target leaks the Next standalone bind address/port (0.0.0.0:3000)

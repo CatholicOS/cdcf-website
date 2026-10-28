@@ -1,6 +1,6 @@
 import NextAuth, { type DefaultSession } from 'next-auth'
 import Zitadel from 'next-auth/providers/zitadel'
-import { refreshAccessToken } from '@/lib/auth-refresh'
+import { needsRefresh, refreshAccessToken } from '@/lib/auth-refresh'
 
 // Plesk Passenger surfaces the bind address (0.0.0.0:3000) to Next.js
 // standalone instead of the public hostname, so Auth.js's redirect_uri
@@ -121,9 +121,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.locale = profile.locale
         }
       }
-      // Still valid → return as-is.
-      const expiresMs = (token.expiresAt ?? 0) * 1000
-      if (Date.now() < expiresMs) {
+      // Still valid, outside the renewal margin → return as-is.
+      if (!needsRefresh(token)) {
         return token
       }
       // Expired → attempt refresh. A rejected refresh token ends the
