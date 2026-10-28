@@ -1,6 +1,6 @@
 import NextAuth, { type DefaultSession } from 'next-auth'
-import type { JWT } from 'next-auth/jwt'
 import Zitadel from 'next-auth/providers/zitadel'
+import { refreshAccessToken } from '@/lib/auth-refresh'
 
 // Plesk Passenger surfaces the bind address (0.0.0.0:3000) to Next.js
 // standalone instead of the public hostname, so Auth.js's redirect_uri
@@ -79,59 +79,6 @@ function extractRoles(claim: unknown): string[] {
   return Object.keys(claim as Record<string, unknown>)
 }
 
-// Hard cap on the refresh-token round-trip. Without this the JWT
-// callback can stall an entire page render if Zitadel is unreachable.
-const REFRESH_TIMEOUT_MS = 5000
-
-async function refreshAccessToken(token: JWT): Promise<JWT> {
-  const issuer = process.env.AUTH_ZITADEL_ISSUER
-  if (!issuer || !token.refreshToken) {
-    return { ...token, error: 'RefreshAccessTokenError' }
-  }
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS)
-  try {
-    const response = await fetch(`${issuer}/oauth/v2/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: process.env.AUTH_ZITADEL_ID ?? '',
-        client_secret: process.env.AUTH_ZITADEL_SECRET ?? '',
-        grant_type: 'refresh_token',
-        refresh_token: token.refreshToken,
-      }),
-      signal: controller.signal,
-    })
-    const tokens = (await response.json()) as {
-      access_token?: string
-      refresh_token?: string
-      expires_in?: number
-      error_description?: string
-    }
-    if (!response.ok || !tokens.access_token) {
-      throw new Error(tokens.error_description ?? 'Token refresh failed')
-    }
-    const expiresIn = Number(tokens.expires_in)
-    return {
-      ...token,
-      accessToken: tokens.access_token,
-      expiresAt: Number.isFinite(expiresIn)
-        ? Math.floor(Date.now() / 1000 + expiresIn)
-        : token.expiresAt,
-      refreshToken: tokens.refresh_token ?? token.refreshToken,
-      error: undefined,
-    }
-  } catch (err) {
-    // AbortError surfaces here exactly like other fetch errors so the
-    // RefreshAccessTokenError fall-through covers both timeout and
-    // network failures uniformly.
-    console.error('[auth] refresh failed:', err)
-    return { ...token, error: 'RefreshAccessTokenError' }
-  } finally {
-    clearTimeout(timer)
-  }
-}
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Zitadel({
@@ -179,9 +126,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (Date.now() < expiresMs) {
         return token
       }
-      // Expired → attempt refresh. If refresh fails we still return the
-      // (now stale) token plus an error flag; downstream code can decide
-      // whether to force a re-login.
+      // Expired → attempt refresh. A rejected refresh token ends the
+      // session (null); a transient failure keeps it with an error flag
+      // so the next request retries. See refreshAccessToken.
       return refreshAccessToken(token)
     },
     async session({ session, token }) {
