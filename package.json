@@ -49,7 +49,7 @@
     "eslint-config-next": "^16.4.3",
     "happy-dom": "21.0.4",
     "markdownlint-cli2": "^0.24.0",
-    "postcss": "^8.5.31",
+    "postcss": "^8.5.32",
     "prettier": "^3.9.10",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
