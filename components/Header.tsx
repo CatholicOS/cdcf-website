@@ -26,6 +26,11 @@ interface NavLink {
   children?: NavChild[]
 }
 
+/**
+ * The desktop dropdown under a top-level menu item: a centred multi-column
+ * panel when any item has its own sub-items (Governance), otherwise a plain
+ * list, optionally split into labelled groups.
+ */
 function DesktopDropdown({
   items,
   onClose,
@@ -98,6 +103,10 @@ function DesktopDropdown({
   )
 }
 
+/**
+ * The site header: logo, the main menu (dropdowns on desktop, an accordion on
+ * mobile), the language switcher and the sign-in button.
+ */
 export default function Header() {
   const t = useTranslations('nav')
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -108,6 +117,7 @@ export default function Header() {
   )
   const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  /** Open the desktop dropdown for `href`, cancelling any pending close. */
   function openDropdown(href: string) {
     if (closeTimeout.current) {
       clearTimeout(closeTimeout.current)
@@ -116,31 +126,29 @@ export default function Header() {
     setDesktopDropdown(href)
   }
 
+  /**
+   * Close the desktop dropdown after a short delay, so the pointer can cross
+   * the gap between the menu item and its panel without it closing.
+   */
   function scheduleClose() {
     closeTimeout.current = setTimeout(() => setDesktopDropdown(null), 150)
   }
 
   const navLinks: NavLink[] = [
+    // Community before Projects ("community over code"), About near the end.
     {
-      href: '/about',
-      label: t('about'),
+      href: '/community',
+      label: t('community'),
       children: [
-        { href: '/about#board-of-directors', label: t('boardOfDirectors') },
         {
-          href: '/about#ecclesial-advisory-council',
-          label: t('ecclesialAdvisoryCouncil'),
+          href: '/community#online-communities',
+          label: t('onlineCommunities'),
         },
+        { href: '/community#local-groups', label: t('localGroups') },
         {
-          href: '/about#technical-advisory-council',
-          label: t('technicalAdvisoryCouncil'),
+          href: '/community#academic-collaborations',
+          label: t('academicCollaborations'),
         },
-        {
-          href: '/about/certificate-of-formation',
-          label: t('certificateOfFormation'),
-        },
-        { href: '/about/bylaws', label: t('bylaws') },
-        { href: '/about/manifesto', label: t('manifesto') },
-        { href: '/about/logo-symbolism', label: t('logoSymbolism') },
       ],
     },
     {
@@ -216,26 +224,33 @@ export default function Header() {
       ],
     },
     {
-      href: '/community',
-      label: t('community'),
-      children: [
-        {
-          href: '/community#online-communities',
-          label: t('onlineCommunities'),
-        },
-        { href: '/community#local-groups', label: t('localGroups') },
-        {
-          href: '/community#academic-collaborations',
-          label: t('academicCollaborations'),
-        },
-      ],
-    },
-    {
       href: '/blog',
       label: t('news'),
       children: [
         { href: '/blog', label: t('latestArticles') },
         { href: '/blog/authors', label: t('ourAuthors') },
+      ],
+    },
+    {
+      href: '/about',
+      label: t('about'),
+      children: [
+        { href: '/about#board-of-directors', label: t('boardOfDirectors') },
+        {
+          href: '/about#ecclesial-advisory-council',
+          label: t('ecclesialAdvisoryCouncil'),
+        },
+        {
+          href: '/about#technical-advisory-council',
+          label: t('technicalAdvisoryCouncil'),
+        },
+        {
+          href: '/about/certificate-of-formation',
+          label: t('certificateOfFormation'),
+        },
+        { href: '/about/bylaws', label: t('bylaws') },
+        { href: '/about/manifesto', label: t('manifesto') },
+        { href: '/about/logo-symbolism', label: t('logoSymbolism') },
       ],
     },
     { href: '/contact', label: t('contact') },
