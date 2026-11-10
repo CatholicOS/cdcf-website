@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import clsx from 'clsx'
 import type { WPTeamMember } from '@/lib/wordpress/types'
-import { slugify } from '@/lib/slugify'
+import { allocateMemberAnchors } from '@/lib/member-anchors'
 
 interface GovernanceSectionProps {
   members: WPTeamMember[]
@@ -9,7 +9,19 @@ interface GovernanceSectionProps {
   description?: string
   columns?: number
   id?: string
+  /**
+   * Anchor id per member, from allocateMemberAnchors(). Pass it when a page
+   * renders several sections, so ids stay unique across all of them; when
+   * omitted, ids are unique within this section only.
+   */
+  anchors?: string[]
 }
+
+/**
+ * A grid of bio cards (Board, councils, liaisons, project leads). Each card
+ * has a shareable anchor id, its name links to it, and the card a link lands
+ * on is highlighted with :target.
+ */
 
 export default function GovernanceSection({
   members,
@@ -17,7 +29,9 @@ export default function GovernanceSection({
   description,
   columns = 3,
   id,
+  anchors,
 }: GovernanceSectionProps) {
+  const cardIds = anchors ?? allocateMemberAnchors(members)
   const gridCols =
     {
       2: 'sm:grid-cols-2',
@@ -63,10 +77,10 @@ export default function GovernanceSection({
             // A stable, shareable anchor per bio (e.g. /about#tom-ciszek).
             // :target highlights the card a shared link lands on; the -m-4
             // p-4 pair gives the highlight room without shifting the grid.
-            const anchor = slugify(member.title) || `member-${i + 1}`
+            const anchor = cardIds[i]
             return (
               <div
-                key={i}
+                key={anchor}
                 id={anchor}
                 className="-m-4 flex flex-col items-center rounded-xl p-4 text-center transition-shadow duration-500 target:bg-white target:shadow-lg target:ring-2 target:ring-cdcf-gold/60"
               >

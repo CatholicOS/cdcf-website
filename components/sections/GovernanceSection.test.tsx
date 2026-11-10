@@ -1,12 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
-vi.mock('next/image', () => ({
-  default: ({ src, alt }: { src: string; alt: string }) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} />
-  ),
-}))
+import { afterEach, describe, expect, it } from 'vitest'
 
 import GovernanceSection from './GovernanceSection'
 import { renderDom } from '@/components/testing/renderDom'
@@ -15,6 +8,7 @@ import type { WPTeamMember } from '@/lib/wordpress/types'
 let unmount = () => {}
 afterEach(() => unmount())
 
+/** A team member with only a name, for anchor tests. */
 function member(title: string): WPTeamMember {
   return {
     title,
@@ -47,6 +41,20 @@ describe('GovernanceSection bio anchors', () => {
     const link = r.container.querySelector('h3 a')
     expect(link?.getAttribute('href')).toBe('#tom-ciszek')
     expect(link?.textContent).toContain('Tom Ciszek')
+  })
+
+  it('uses the anchors it is given', () => {
+    const r = renderDom(
+      <GovernanceSection
+        members={[member('Tom Ciszek')]}
+        anchors={['tom-ciszek-2']}
+      />
+    )
+    unmount = r.unmount
+    expect(r.container.querySelector('#tom-ciszek-2')).not.toBeNull()
+    expect(r.container.querySelector('h3 a')?.getAttribute('href')).toBe(
+      '#tom-ciszek-2'
+    )
   })
 
   it('falls back to a positional id when the name has no usable characters', () => {

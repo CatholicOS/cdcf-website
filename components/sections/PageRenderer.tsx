@@ -16,6 +16,7 @@ import CommunitySection from './CommunitySection'
 import LocalGroupsSection from './LocalGroupsSection'
 import AcademicCollaborationsSection from './AcademicCollaborationsSection'
 import GovernanceSection from './GovernanceSection'
+import { allocateMemberAnchors } from '@/lib/member-anchors'
 import CommunityProjectsSection from './CommunityProjectsSection'
 import CallToAction from './CallToAction'
 import TextSection from './TextSection'
@@ -85,8 +86,24 @@ async function renderHome(_page: WPPage, sponsors: WPSponsor[]) {
   )
 }
 
+/** About page body: intro text, then the Board and both advisory councils. */
 function renderAbout(page: WPPage, t: (key: string) => string) {
   const about = page.aboutFields
+  // One registry for the page's three bio sections, filled in render order,
+  // so a person on both the Board and a council gets two distinct anchors.
+  const usedAnchors = new Set<string>()
+  const boardAnchors = allocateMemberAnchors(
+    about?.teamMembers?.nodes ?? [],
+    usedAnchors
+  )
+  const ecclesialAnchors = allocateMemberAnchors(
+    about?.ecclesialCouncil?.nodes ?? [],
+    usedAnchors
+  )
+  const technicalAnchors = allocateMemberAnchors(
+    about?.technicalCouncil?.nodes ?? [],
+    usedAnchors
+  )
   return (
     <>
       {page.content && <TextSection heading="" body={page.content} />}
@@ -96,6 +113,7 @@ function renderAbout(page: WPPage, t: (key: string) => string) {
           id="board-of-directors"
           title={t('boardOfDirectors')}
           members={about.teamMembers.nodes}
+          anchors={boardAnchors}
           columns={Number(about.governanceColumns?.[0]) || 3}
         />
       )}
@@ -106,6 +124,7 @@ function renderAbout(page: WPPage, t: (key: string) => string) {
             id="ecclesial-advisory-council"
             title={t('ecclesialAdvisoryCouncil')}
             members={about.ecclesialCouncil.nodes}
+            anchors={ecclesialAnchors}
             columns={Number(about.governanceColumns?.[0]) || 3}
           />
         )}
@@ -116,6 +135,7 @@ function renderAbout(page: WPPage, t: (key: string) => string) {
             id="technical-advisory-council"
             title={t('technicalAdvisoryCouncil')}
             members={about.technicalCouncil.nodes}
+            anchors={technicalAnchors}
             columns={Number(about.governanceColumns?.[0]) || 3}
           />
         )}
