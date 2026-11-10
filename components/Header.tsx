@@ -121,26 +121,20 @@ export default function Header() {
   }
 
   const navLinks: NavLink[] = [
+    // Community before Projects ("community over code"), About near the end.
     {
-      href: '/about',
-      label: t('about'),
+      href: '/community',
+      label: t('community'),
       children: [
-        { href: '/about#board-of-directors', label: t('boardOfDirectors') },
         {
-          href: '/about#ecclesial-advisory-council',
-          label: t('ecclesialAdvisoryCouncil'),
+          href: '/community#online-communities',
+          label: t('onlineCommunities'),
         },
+        { href: '/community#local-groups', label: t('localGroups') },
         {
-          href: '/about#technical-advisory-council',
-          label: t('technicalAdvisoryCouncil'),
+          href: '/community#academic-collaborations',
+          label: t('academicCollaborations'),
         },
-        {
-          href: '/about/certificate-of-formation',
-          label: t('certificateOfFormation'),
-        },
-        { href: '/about/bylaws', label: t('bylaws') },
-        { href: '/about/manifesto', label: t('manifesto') },
-        { href: '/about/logo-symbolism', label: t('logoSymbolism') },
       ],
     },
     {
@@ -216,26 +210,33 @@ export default function Header() {
       ],
     },
     {
-      href: '/community',
-      label: t('community'),
-      children: [
-        {
-          href: '/community#online-communities',
-          label: t('onlineCommunities'),
-        },
-        { href: '/community#local-groups', label: t('localGroups') },
-        {
-          href: '/community#academic-collaborations',
-          label: t('academicCollaborations'),
-        },
-      ],
-    },
-    {
       href: '/blog',
       label: t('news'),
       children: [
         { href: '/blog', label: t('latestArticles') },
         { href: '/blog/authors', label: t('ourAuthors') },
+      ],
+    },
+    {
+      href: '/about',
+      label: t('about'),
+      children: [
+        { href: '/about#board-of-directors', label: t('boardOfDirectors') },
+        {
+          href: '/about#ecclesial-advisory-council',
+          label: t('ecclesialAdvisoryCouncil'),
+        },
+        {
+          href: '/about#technical-advisory-council',
+          label: t('technicalAdvisoryCouncil'),
+        },
+        {
+          href: '/about/certificate-of-formation',
+          label: t('certificateOfFormation'),
+        },
+        { href: '/about/bylaws', label: t('bylaws') },
+        { href: '/about/manifesto', label: t('manifesto') },
+        { href: '/about/logo-symbolism', label: t('logoSymbolism') },
       ],
     },
     { href: '/contact', label: t('contact') },
