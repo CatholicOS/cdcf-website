@@ -1,4 +1,5 @@
 import type { WPAuthor, WPTeamMember } from './wordpress/types'
+import { slugify } from './slugify'
 
 /**
  * A public, derived author slug (from the display-name chain). Branded so it's
@@ -112,16 +113,6 @@ export function authorDisplayName(author: WPAuthor): string {
   return (
     author.nickname?.trim() || author.name?.trim() || fullName || author.slug
   )
-}
-
-function slugify(value: string): string {
-  return value
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '') // strip diacritics
-    .replace(/['’]/g, '') // drop straight/smart apostrophes (D'Orazio → dorazio)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
 }
 
 /**
