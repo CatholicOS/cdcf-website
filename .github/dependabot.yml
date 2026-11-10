@@ -21,6 +21,16 @@ updates:
         patterns:
           - "vitest"
           - "@vitest/*"
+      # react-dom refuses to run against any react but its own exact
+      # version ("Incompatible React versions"), so a solo bump breaks
+      # every component test: #379 moved react to 19.3.1 and left
+      # react-dom on 19.3.0 until #381.
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
 
   - package-ecosystem: "github-actions"
     directory: "/"
