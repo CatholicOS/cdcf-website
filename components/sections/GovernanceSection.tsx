@@ -31,7 +31,12 @@ export default function GovernanceSection({
   id,
   anchors,
 }: GovernanceSectionProps) {
-  const cardIds = anchors ?? allocateMemberAnchors(members)
+  // A misaligned anchors array would leave cards with no id and a #undefined
+  // link; fall back to ids unique within this section instead.
+  const cardIds =
+    anchors && anchors.length === members.length
+      ? anchors
+      : allocateMemberAnchors(members)
   const gridCols =
     {
       2: 'sm:grid-cols-2',

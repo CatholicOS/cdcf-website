@@ -57,6 +57,20 @@ describe('GovernanceSection bio anchors', () => {
     )
   })
 
+  it('ignores an anchors array that does not match the members', () => {
+    const r = renderDom(
+      <GovernanceSection
+        members={[member('Tom Ciszek'), member('Ann Lee')]}
+        anchors={['tom-ciszek-2']}
+      />
+    )
+    unmount = r.unmount
+    const hrefs = [...r.container.querySelectorAll('h3 a')].map((a) =>
+      a.getAttribute('href')
+    )
+    expect(hrefs).toEqual(['#tom-ciszek', '#ann-lee'])
+  })
+
   it('falls back to a positional id when the name has no usable characters', () => {
     const r = renderDom(<GovernanceSection members={[member('—')]} />)
     unmount = r.unmount
