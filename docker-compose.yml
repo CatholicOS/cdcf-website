@@ -215,6 +215,9 @@ services:
         # Verifies the visitor address the frontend forwards on public
         # requests; empty means none is trusted (see includes/client-ip.php).
         define('CDCF_CLIENT_IP_SECRET', '${CDCF_CLIENT_IP_SECRET:-}');
+        # Signs the donation mail requests from Next.js; empty refuses them
+        # (see includes/handlers/donation-acknowledgment.php).
+        define('CDCF_DONATION_MAIL_SECRET', '${CDCF_DONATION_MAIL_SECRET:-}');
     volumes:
       - wordpress_data:/var/www/html
       - ./wordpress/themes/cdcf-headless:/var/www/html/wp-content/themes/cdcf-headless
@@ -305,6 +308,9 @@ services:
       - WP_REST_URL=http://wordpress/wp-json
       - WP_PREVIEW_SECRET=${WP_PREVIEW_SECRET}
       - CDCF_CLIENT_IP_SECRET=${CDCF_CLIENT_IP_SECRET:-}
+      - CDCF_DONATION_MAIL_SECRET=${CDCF_DONATION_MAIL_SECRET:-}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
     profiles:
       - production
 

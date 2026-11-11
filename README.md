@@ -45,14 +45,20 @@ cp .env.local.example .env.local
 
 Edit `.env.local`:
 
-| Variable              | Description                                                                                          |
-| --------------------- | ---------------------------------------------------------------------------------------------------- |
-| `WP_GRAPHQL_URL`      | WordPress GraphQL endpoint (e.g. `http://localhost/graphql` or `http://wordpress/graphql` in Docker) |
-| `WP_PREVIEW_SECRET`   | Shared secret for Next.js draft mode preview                                                         |
-| `WP_DB_ROOT_PASSWORD` | MariaDB root password                                                                                |
-| `WP_DB_NAME`          | WordPress database name (default: `wordpress`)                                                       |
-| `WP_DB_USER`          | WordPress database user (default: `wordpress`)                                                       |
-| `WP_DB_PASSWORD`      | WordPress database password                                                                          |
+| Variable                    | Description                                                                                          |
+| --------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `WP_GRAPHQL_URL`            | WordPress GraphQL endpoint (e.g. `http://localhost/graphql` or `http://wordpress/graphql` in Docker) |
+| `WP_PREVIEW_SECRET`         | Shared secret for Next.js draft mode preview                                                         |
+| `WP_DB_ROOT_PASSWORD`       | MariaDB root password                                                                                |
+| `WP_DB_NAME`                | WordPress database name (default: `wordpress`)                                                       |
+| `WP_DB_USER`                | WordPress database user (default: `wordpress`)                                                       |
+| `WP_DB_PASSWORD`            | WordPress database password                                                                          |
+| `STRIPE_SECRET_KEY`         | Stripe secret key for donations (`sk_test_…` outside production)                                     |
+| `STRIPE_WEBHOOK_SECRET`     | Signing secret of the donation webhook endpoint, or of `stripe listen` locally                       |
+| `CDCF_DONATION_MAIL_SECRET` | Signs requests to the WordPress donation mail endpoints; must match the WordPress constant           |
+| `NEXT_PUBLIC_SITE_URL`      | Public base URL, used for Checkout and Customer Portal return URLs                                   |
+
+Donations also need WordPress constants in `wp-config.php` (`CDCF_DONATION_MAIL_SECRET`, `CDCF_FOUNDATION_EIN`, `CDCF_FOUNDATION_ADDRESS`, `CDCF_DONATION_TEST_INBOX`); see [`docs/donations.md`](docs/donations.md).
 
 ### Local Identity Provider (Zitadel)
 
