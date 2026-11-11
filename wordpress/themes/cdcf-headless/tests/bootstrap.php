@@ -59,10 +59,12 @@ if (!class_exists('WP_REST_Request')) {
         private array $headers = [];
         private string $body = '';
 
+        /** Set the raw request body (as WordPress reads it from php://input). */
         public function set_body(string $body): void {
             $this->body = $body;
         }
 
+        /** The raw request body. */
         public function get_body(): string {
             return $this->body;
         }

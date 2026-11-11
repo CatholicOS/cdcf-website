@@ -14,16 +14,20 @@ Checkout, capped at $200 per contribution. Design:
    That redirect only changes what the page shows; nothing is fulfilled on
    it.
 3. Stripe calls `POST /api/donate/webhook`. A one-time gift is thanked on
-   `checkout.session.completed`; a monthly gift only on `invoice.paid`, which
+   `checkout.session.completed` once it is paid, or, for a delayed payment
+   method that completes checkout unpaid, on
+   `checkout.session.async_payment_succeeded`; a monthly gift only on
+   `invoice.paid`, which
    covers the first charge and every renewal, so the first one is not thanked
-   twice. Only invoices of subscriptions this form created
-   (`frequency=monthly` in their metadata) count.
+   twice. Only sessions and subscriptions this form created (`frequency`
+   metadata of `once` or `monthly`) count.
 4. The webhook hands the acknowledgment to WordPress
    (`POST /cdcf/v1/donation-acknowledgment`), which sends it with `wp_mail`,
    once per Stripe event. A failure to send is a non-2xx, so Stripe retries
    for up to three days.
 5. A monthly donor can ask for a link to manage their gift with the form
-   under the donation form, which posts to `POST /api/donate/portal`. It always answers `{ "success": true }`, before
+   under the donation form, which posts to `POST /api/donate/portal`. It
+   always answers `{ "success": true }`, before
    looking the address up, so neither the answer nor its timing shows who has
    donated.
 
@@ -145,7 +149,8 @@ settings.
 1. **Webhook endpoints.** Register
    `https://catholicdigitalcommons.org/api/donate/webhook` in live mode and
    the staging URL in test mode, each subscribed to
-   `checkout.session.completed` and `invoice.paid` only. Put each signing
+   `checkout.session.completed`, `checkout.session.async_payment_succeeded`
+   and `invoice.paid` only. Put each signing
    secret in the matching environment's `STRIPE_WEBHOOK_SECRET`.
 2. **Content.** Create the `donate` page in each language with the `Donate`
    template, fill its five fields (appeal, preset amounts, tax disclaimer,

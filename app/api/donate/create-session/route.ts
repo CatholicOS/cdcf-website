@@ -1,5 +1,5 @@
 // app/api/donate/create-session/route.ts
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 
 import { clientIp, createIpRateLimiter } from '@/lib/ip-rate-limit'
@@ -17,8 +17,19 @@ export const runtime = 'nodejs'
 // Card testing is the main abuse vector on a public donation form, and
 // it shows up as a burst of session creations. Same limiter as the other
 // public form routes.
-/** A same-site path: leading slash, then lowercase slug segments only. */
-const SAFE_RETURN_PATH = /^\/(?:[a-z0-9-]+\/)*[a-z0-9-]+$/
+/**
+ * A same-site path: a leading slash, then lowercase slug segments only, and
+ * at most 200 characters. Checked per segment, so no regex has to match the
+ * whole path with a nested quantifier.
+ */
+function isSafeReturnPath(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > 200) return false
+  if (!value.startsWith('/')) return false
+  return value
+    .slice(1)
+    .split('/')
+    .every((segment) => /^[a-z0-9-]+$/.test(segment))
+}
 
 const isRateLimited = createIpRateLimiter(10, 60 * 60 * 1000)
 
@@ -95,11 +106,9 @@ export async function POST(request: NextRequest) {
   // the exact path. Only a plain same-site path is accepted.
   const fallbackPath =
     locale === defaultLocale ? '/donate' : `/${locale}/donate`
-  const donatePath =
-    typeof body.returnPath === 'string' &&
-    SAFE_RETURN_PATH.test(body.returnPath)
-      ? body.returnPath
-      : fallbackPath
+  const donatePath = isSafeReturnPath(body.returnPath)
+    ? body.returnPath
+    : fallbackPath
 
   // Metadata must be set on the subscription too: session metadata does
   // NOT propagate, so renewals would otherwise arrive undesignated.

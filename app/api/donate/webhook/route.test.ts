@@ -15,6 +15,7 @@ vi.mock('@/lib/donate/wp-mailer', () => ({
 
 import { POST } from './route'
 
+/** A POST to the webhook with the given body and Stripe-Signature header. */
 function req(body = '{}', signature: string | null = 't=1,v1=x') {
   const headers = new Headers({ 'content-type': 'application/json' })
   if (signature) headers.set('stripe-signature', signature)
@@ -127,6 +128,29 @@ describe('POST /api/donate/webhook', () => {
       'cdcf/v1/donation-acknowledgment',
       expect.objectContaining({ event_id: 'evt_b', amount_cents: 1000 })
     )
+  })
+
+  it('ignores a paid checkout this form did not create', async () => {
+    // A Payment Link or any other Checkout on the account has no
+    // frequency=once metadata and is not a donation.
+    constructEvent.mockReturnValue({
+      id: 'evt_x',
+      type: 'checkout.session.completed',
+      data: {
+        object: {
+          mode: 'payment',
+          payment_status: 'paid',
+          amount_total: 9900,
+          customer_details: { email: 'buyer@example.org' },
+          metadata: {},
+        },
+      },
+    })
+
+    const res = await POST(req())
+
+    expect(res.status).toBe(200)
+    expect(postToWordPress).not.toHaveBeenCalled()
   })
 
   it('does not acknowledge a subscription checkout, which invoice.paid covers', async () => {

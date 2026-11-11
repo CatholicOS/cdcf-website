@@ -17,12 +17,14 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/** Render the manage-gift form on a French page. */
 function mount() {
   const r = renderDom(<ManageGivingForm locale="fr" />)
   unmount = r.unmount
   return r.container
 }
 
+/** Type into the React-controlled email input the way a browser would. */
 function typeEmail(input: HTMLInputElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(
     HTMLInputElement.prototype,
@@ -34,6 +36,7 @@ function typeEmail(input: HTMLInputElement, value: string) {
   })
 }
 
+/** Submit the form and let its request settle. */
 async function submit(c: HTMLElement) {
   await act(async () => {
     c.querySelector('form')!.dispatchEvent(

@@ -11,6 +11,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class DonationPortalLinkHandlerTest extends TestCase
 {
+    /** Reset Brain Monkey and stub the WordPress functions every test needs. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -20,6 +21,7 @@ final class DonationPortalLinkHandlerTest extends TestCase
         // expect()->never() below, so that assertion would never fire.
     }
 
+    /** Tear Brain Monkey and Mockery down after each test. */
     protected function tearDown(): void
     {
         Monkey\tearDown();
@@ -27,6 +29,7 @@ final class DonationPortalLinkHandlerTest extends TestCase
         parent::tearDown();
     }
 
+    /** A REST request carrying the default fields, with any overrides applied. */
     private function request(array $overrides = []): WP_REST_Request
     {
         $params = array_merge([
@@ -42,6 +45,7 @@ final class DonationPortalLinkHandlerTest extends TestCase
         return $req;
     }
 
+    /** Mails the portal link to the donor. */
     public function test_mails_the_portal_link_to_the_donor(): void
     {
         $captured = '';
@@ -61,6 +65,7 @@ final class DonationPortalLinkHandlerTest extends TestCase
         );
     }
 
+    /** Localizes the message. */
     public function test_localizes_the_message(): void
     {
         $captured = '';
@@ -76,6 +81,7 @@ final class DonationPortalLinkHandlerTest extends TestCase
         $this->assertStringContainsString('monatliche Spende', $captured);
     }
 
+    /** Sends nothing when no portal url was resolved. */
     public function test_sends_nothing_when_no_portal_url_was_resolved(): void
     {
         // The caller found no Stripe customer for this address. Sending
@@ -88,6 +94,7 @@ final class DonationPortalLinkHandlerTest extends TestCase
         $this->assertSame(['success' => true], $res);
     }
 
+    /** Returns 500 when mail fails. */
     public function test_returns_500_when_mail_fails(): void
     {
         Functions\when('wp_mail')->justReturn(false);

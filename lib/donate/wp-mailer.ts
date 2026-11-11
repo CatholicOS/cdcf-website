@@ -2,6 +2,9 @@ import 'server-only'
 
 import { createHmac } from 'node:crypto'
 
+/** How long a WordPress mail request may take before it counts as failed. */
+const WORDPRESS_TIMEOUT_MS = 10_000
+
 /**
  * Both donation emails are sent by WordPress via wp_mail, matching every
  * other transactional email in this repository. Returns false rather
@@ -42,15 +45,22 @@ export async function postToWordPress(
       },
       body: payload,
       cache: 'no-store',
+      // Stripe gives up on a webhook after about 20 seconds; abort first so
+      // a stalled WordPress becomes a clean failure Stripe will retry.
+      signal: AbortSignal.timeout(WORDPRESS_TIMEOUT_MS),
     })
 
     if (!response.ok) {
-      console.error(`WordPress ${path} returned ${response.status}`)
+      console.error(
+        'WordPress request returned an error:',
+        path,
+        response.status
+      )
       return false
     }
     return true
   } catch (error) {
-    console.error(`WordPress ${path} request failed:`, error)
+    console.error('WordPress request failed:', path, error)
     return false
   }
 }

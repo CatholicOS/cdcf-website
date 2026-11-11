@@ -46,6 +46,13 @@ export default function DonationForm({
   const belowMin =
     Number.isFinite(amountCents) && amountCents < MIN_DONATION_CENTS
 
+  /** Set the amount and drop any message about the previous one. */
+  function changeAmount(value: string) {
+    setDollars(value)
+    setError('')
+  }
+
+  /** Validate locally, then ask the server for a Checkout URL and go there. */
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     setError('')
@@ -111,7 +118,7 @@ export default function DonationForm({
           <button
             key={preset}
             type="button"
-            onClick={() => setDollars(String(preset))}
+            onClick={() => changeAmount(String(preset))}
             className={clsx(
               'rounded-md border px-4 py-2 text-sm',
               dollars === String(preset)
@@ -134,7 +141,7 @@ export default function DonationForm({
           min={MIN_DONATION_CENTS / 100}
           step={1}
           value={dollars}
-          onChange={(e) => setDollars(e.target.value)}
+          onChange={(e) => changeAmount(e.target.value)}
           className="w-full rounded-md border border-gray-300 px-3 py-2"
         />
       </label>

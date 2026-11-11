@@ -51,6 +51,21 @@ describe('postToWordPress', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('gives up on a stalled WordPress request instead of hanging the webhook', async () => {
+    fetchMock.mockResolvedValue(new Response('{}', { status: 200 }))
+    await postToWordPress('cdcf/v1/x', {})
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal)
+
+    fetchMock.mockReset()
+    fetchMock.mockRejectedValue(
+      new DOMException(
+        'The operation was aborted due to timeout',
+        'TimeoutError'
+      )
+    )
+    await expect(postToWordPress('cdcf/v1/x', {})).resolves.toBe(false)
+  })
+
   it('reports a non-2xx response as a failure', async () => {
     fetchMock.mockResolvedValue(new Response('', { status: 500 }))
 

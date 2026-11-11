@@ -16,6 +16,7 @@ final class DonationMailAuthTest extends TestCase
 {
     private const SECRET = 'test-donation-mail-secret';
 
+    /** Reset Brain Monkey and stub the WordPress functions every test needs. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -23,6 +24,7 @@ final class DonationMailAuthTest extends TestCase
         putenv('CDCF_DONATION_MAIL_SECRET=' . self::SECRET);
     }
 
+    /** Tear Brain Monkey and Mockery down after each test. */
     protected function tearDown(): void
     {
         putenv('CDCF_DONATION_MAIL_SECRET');
@@ -31,6 +33,7 @@ final class DonationMailAuthTest extends TestCase
         parent::tearDown();
     }
 
+    /** A request whose body is signed with the test secret (or the given signature). */
     private function signed(string $body, ?string $signature = null): WP_REST_Request
     {
         $req = new WP_REST_Request();
@@ -42,6 +45,7 @@ final class DonationMailAuthTest extends TestCase
         return $req;
     }
 
+    /** Accepts an editor with a valid signature. */
     public function test_accepts_an_editor_with_a_valid_signature(): void
     {
         Functions\when('current_user_can')->justReturn(true);
@@ -49,6 +53,7 @@ final class DonationMailAuthTest extends TestCase
         $this->assertTrue(cdcf_donation_permission_check($this->signed('{"a":1}')));
     }
 
+    /** Rejects a valid signature without edit posts. */
     public function test_rejects_a_valid_signature_without_edit_posts(): void
     {
         Functions\when('current_user_can')->justReturn(false);
@@ -56,6 +61,7 @@ final class DonationMailAuthTest extends TestCase
         $this->assertFalse(cdcf_donation_permission_check($this->signed('{"a":1}')));
     }
 
+    /** Rejects an editor without a signature. */
     public function test_rejects_an_editor_without_a_signature(): void
     {
         Functions\when('current_user_can')->justReturn(true);
@@ -65,6 +71,7 @@ final class DonationMailAuthTest extends TestCase
         $this->assertFalse(cdcf_donation_permission_check($req));
     }
 
+    /** Rejects a signature over a different body. */
     public function test_rejects_a_signature_over_a_different_body(): void
     {
         Functions\when('current_user_can')->justReturn(true);
@@ -73,6 +80,7 @@ final class DonationMailAuthTest extends TestCase
         $this->assertFalse(cdcf_donation_permission_check($this->signed('{"a":2}', $sig)));
     }
 
+    /** Fails closed when no secret is configured. */
     public function test_fails_closed_when_no_secret_is_configured(): void
     {
         Functions\when('current_user_can')->justReturn(true);
@@ -82,6 +90,7 @@ final class DonationMailAuthTest extends TestCase
         $this->assertFalse(cdcf_donation_permission_check($req));
     }
 
+    /** Portal url must be a stripe billing link. */
     public function test_portal_url_must_be_a_stripe_billing_link(): void
     {
         $this->assertTrue(cdcf_donation_is_portal_url('https://billing.stripe.com/p/session/xyz'));
@@ -91,6 +100,7 @@ final class DonationMailAuthTest extends TestCase
         $this->assertFalse(cdcf_donation_is_portal_url('https://billing.stripe.com.evil.example/x'));
     }
 
+    /** Acknowledgment refuses a foreign portal link. */
     public function test_acknowledgment_refuses_a_foreign_portal_link(): void
     {
         Functions\expect('wp_mail')->never();
@@ -110,6 +120,7 @@ final class DonationMailAuthTest extends TestCase
         $this->assertSame('invalid_portal_url', $res->get_error_code());
     }
 
+    /** Portal link mailer refuses a foreign link. */
     public function test_portal_link_mailer_refuses_a_foreign_link(): void
     {
         Functions\expect('wp_mail')->never();

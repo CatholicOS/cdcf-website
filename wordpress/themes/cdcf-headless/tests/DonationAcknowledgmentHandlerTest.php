@@ -11,6 +11,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class DonationAcknowledgmentHandlerTest extends TestCase
 {
+    /** Reset Brain Monkey and stub the WordPress functions every test needs. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -27,6 +28,7 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         );
     }
 
+    /** Tear Brain Monkey and Mockery down after each test. */
     protected function tearDown(): void
     {
         Monkey\tearDown();
@@ -34,6 +36,7 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         parent::tearDown();
     }
 
+    /** A REST request carrying the default fields, with any overrides applied. */
     private function request(array $overrides = []): WP_REST_Request
     {
         $params = array_merge([
@@ -57,6 +60,7 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         return $req;
     }
 
+    /** Sends one email on the happy path. */
     public function test_sends_one_email_on_the_happy_path(): void
     {
         Functions\expect('wp_mail')
@@ -73,6 +77,7 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         $this->assertSame(['success' => true], $res);
     }
 
+    /** Body carries the English substantiation sentence. */
     public function test_body_carries_the_english_substantiation_sentence(): void
     {
         $captured = '';
@@ -92,6 +97,7 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         );
     }
 
+    /** Body is localized around the English sentence. */
     public function test_body_is_localized_around_the_english_sentence(): void
     {
         $captured = '';
@@ -107,6 +113,7 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         $this->assertStringContainsString('Grazie', $captured);
     }
 
+    /** Falls back to English for an unknown locale. */
     public function test_falls_back_to_english_for_an_unknown_locale(): void
     {
         $captured = '';
@@ -122,6 +129,7 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         $this->assertStringContainsString('Thank you', $captured);
     }
 
+    /** Dates the gift as an ISO day in every language. */
     public function test_dates_the_gift_as_an_iso_day_in_every_language(): void
     {
         $captured = '';
@@ -141,6 +149,7 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         $this->assertStringNotContainsString('August', $captured);
     }
 
+    /** Formats the amount as dollars not cents. */
     public function test_formats_the_amount_as_dollars_not_cents(): void
     {
         $captured = '';
@@ -156,6 +165,7 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         $this->assertStringContainsString('$123.45', $captured);
     }
 
+    /** Omits the designation line for an undesignated gift. */
     public function test_omits_the_designation_line_for_an_undesignated_gift(): void
     {
         $captured = '';
@@ -171,6 +181,7 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         $this->assertStringNotContainsString('Designated', $captured);
     }
 
+    /** Includes the portal link for a recurring gift. */
     public function test_includes_the_portal_link_for_a_recurring_gift(): void
     {
         $captured = '';
@@ -192,6 +203,7 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         );
     }
 
+    /** Second delivery of the same event sends nothing. */
     public function test_second_delivery_of_the_same_event_sends_nothing(): void
     {
         Functions\when('get_transient')->justReturn(1);
@@ -202,6 +214,7 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         $this->assertSame(['success' => true, 'duplicate' => true], $res);
     }
 
+    /** Test mode redirects mail to the configured inbox. */
     public function test_test_mode_redirects_mail_to_the_configured_inbox(): void
     {
         if (!defined('CDCF_DONATION_TEST_INBOX')) {
@@ -218,6 +231,7 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         $this->assertSame(['success' => true], $res);
     }
 
+    /** Returns 500 and clears the guard when mail fails. */
     public function test_returns_500_and_clears_the_guard_when_mail_fails(): void
     {
         Functions\when('wp_mail')->justReturn(false);

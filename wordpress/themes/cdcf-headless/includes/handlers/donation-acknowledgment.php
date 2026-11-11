@@ -162,7 +162,7 @@ function cdcf_rest_donation_acknowledgment(WP_REST_Request $request) {
     }
 
     $event_id  = (string) $request['event_id'];
-    $guard_key = 'cdcf_stripe_evt_' . md5($event_id);
+    $guard_key = 'cdcf_stripe_evt_' . hash('sha256', $event_id);
 
     // Stripe retries for up to three days. Without this, one transient
     // outage becomes a stack of duplicate thank-yous.

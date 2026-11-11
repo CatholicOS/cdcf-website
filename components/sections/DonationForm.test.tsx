@@ -31,6 +31,7 @@ function typeInto(input: HTMLInputElement, value: string) {
   })
 }
 
+/** Render the form in Italian with the given designation list. */
 function mount(
   projects = [
     {
@@ -81,6 +82,32 @@ describe('DonationForm', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('clears a stale error as soon as the donor changes the amount', async () => {
+    const c = mount()
+    typeInto(c.querySelector('input')!, '3')
+    await act(async () => {
+      c.querySelector('form')!.dispatchEvent(
+        new Event('submit', { bubbles: true, cancelable: true })
+      )
+    })
+    expect(c.textContent).toContain('The minimum gift is $5.')
+
+    typeInto(c.querySelector('input')!, '30')
+    expect(c.textContent).not.toContain('The minimum gift is $5.')
+
+    typeInto(c.querySelector('input')!, '3')
+    await act(async () => {
+      c.querySelector('form')!.dispatchEvent(
+        new Event('submit', { bubbles: true, cancelable: true })
+      )
+    })
+    const preset = [...c.querySelectorAll('button')].find(
+      (b) => b.textContent === '$25'
+    )!
+    act(() => preset.click())
+    expect(c.textContent).not.toContain('The minimum gift is $5.')
+  })
+
   it('posts cents, frequency, designation and locale to create-session', async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ error: 'x' }), { status: 502 })
@@ -122,6 +149,7 @@ describe('DonationForm', () => {
 })
 
 describe('DonationStatus', () => {
+  /** Render the status switch around a stand-in for the form. */
   function status() {
     const r = renderDom(
       <DonationStatus

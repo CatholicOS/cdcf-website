@@ -1,4 +1,4 @@
-import { after, NextRequest, NextResponse } from 'next/server'
+import { after, type NextRequest, NextResponse } from 'next/server'
 
 import { postToWordPress } from '@/lib/donate/wp-mailer'
 import { clientIp, createIpRateLimiter } from '@/lib/ip-rate-limit'

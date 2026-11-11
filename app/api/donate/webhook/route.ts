@@ -1,5 +1,5 @@
 // app/api/donate/webhook/route.ts
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 
 import {
@@ -67,6 +67,12 @@ export async function POST(request: NextRequest) {
     amountCents = session.amount_total ?? 0
     metadata = (session.metadata ?? {}) as Record<string, string>
     customerId = typeof session.customer === 'string' ? session.customer : null
+
+    // Same guard as for invoices: only sessions this form created carry
+    // frequency=once; a Payment Link or other Checkout is not a donation.
+    if (metadata.frequency !== 'once') {
+      return NextResponse.json({ received: true })
+    }
   } else {
     const invoice = event.data.object as Stripe.Invoice
     email = invoice.customer_email ?? ''

@@ -19,6 +19,7 @@ export default function ManageGivingForm({ locale }: ManageGivingFormProps) {
     'idle'
   )
 
+  /** Ask the portal endpoint for a link; the answer is the same for everyone. */
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     setState('sending')

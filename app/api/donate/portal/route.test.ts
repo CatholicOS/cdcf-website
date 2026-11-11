@@ -25,6 +25,7 @@ vi.mock('@/lib/donate/wp-mailer', () => ({
 import { POST } from './route'
 
 let n = 0
+/** A POST to the route under test, from its own client address. */
 function req(body: unknown) {
   n += 1
   return new Request('http://localhost/api/donate/portal', {

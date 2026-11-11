@@ -18,6 +18,7 @@ vi.mock('@/lib/wordpress/api', () => ({
 import { POST } from './route'
 
 let n = 0
+/** A POST to the route under test, from its own client address. */
 function req(body: unknown) {
   n += 1
   return new Request('http://localhost/api/donate/create-session', {
@@ -105,6 +106,8 @@ describe('POST /api/donate/create-session', () => {
     '/it/dona?x=1',
     'dona',
     '/a\\b',
+    // Over 200 characters: never a real page, and a bound on the check.
+    '/' + 'a/'.repeat(150) + 'a',
   ])(
     'ignores an unsafe return path %s and uses the default',
     async (returnPath) => {
