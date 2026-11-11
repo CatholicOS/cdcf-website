@@ -317,59 +317,11 @@ require_once __DIR__ . '/includes/admin/polylang-default-seed.php';
 add_action('admin_init', 'cdcf_seed_polylang_default_language');
 
 // ─── Register ACF fields as REST-writable post meta ─────────────────
-//
-// ACF Free exposes fields for reading via show_in_rest but doesn't
-// register them with register_post_meta(), so WordPress rejects
-// writes through the REST API. This hook bridges that gap.
 
-add_action('acf/init', function () {
-    if (!function_exists('acf_get_field_groups') || !function_exists('acf_get_fields')) {
-        return;
-    }
+require_once __DIR__ . '/includes/acf-rest-meta.php';
 
-    foreach (acf_get_field_groups() as $group) {
-        // Determine which post types this group applies to.
-        $post_types = [];
-        foreach ($group['location'] ?? [] as $rules) {
-            foreach ($rules as $rule) {
-                if ($rule['param'] === 'post_type' && $rule['operator'] === '==') {
-                    $post_types[] = $rule['value'];
-                }
-                if ($rule['param'] === 'page_template' && $rule['operator'] === '==') {
-                    $post_types[] = 'page';
-                }
-            }
-        }
-        $post_types = array_unique($post_types);
-        if (empty($post_types)) {
-            continue;
-        }
-
-        // Only register simple scalar field types. Complex types
-        // (relationship, image) store serialized arrays that can't
-        // be represented as string meta and break page saves.
-        $skip_types = ['relationship', 'image', 'file', 'gallery', 'repeater', 'flexible_content', 'group'];
-
-        foreach (acf_get_fields($group['key']) as $field) {
-            if (empty($field['show_in_rest'])) {
-                continue;
-            }
-            if (in_array($field['type'], $skip_types, true)) {
-                continue;
-            }
-            foreach ($post_types as $pt) {
-                register_post_meta($pt, $field['name'], [
-                    'type'          => 'string',
-                    'single'        => true,
-                    'show_in_rest'  => true,
-                    'auth_callback' => function () {
-                        return current_user_can('edit_posts');
-                    },
-                ]);
-            }
-        }
-    }
-}, 20); // priority 20 so it runs after field groups are registered
+// Priority 20 so it runs after the field groups are registered.
+add_action('acf/init', 'cdcf_register_acf_rest_meta', 20);
 
 // ─── REST endpoint for ACF relationship fields ──────────────────────
 //
@@ -1241,6 +1193,7 @@ add_action('acf/init', function () {
             [['param' => 'page_template', 'operator' => '==', 'value' => 'templates/community.php']],
             [['param' => 'page_template', 'operator' => '==', 'value' => 'templates/blog.php']],
             [['param' => 'page_template', 'operator' => '==', 'value' => 'templates/contact.php']],
+            [['param' => 'page_template', 'operator' => '==', 'value' => 'templates/donate.php']],
         ],
         'show_in_graphql' => true,
         'graphql_field_name' => 'hero',
