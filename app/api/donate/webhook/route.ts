@@ -8,7 +8,8 @@ import {
 } from '@/lib/donate/acknowledgment'
 import {
   buildCancellationPayload,
-  classifyCancellation,
+  classifySubscriptionEvent,
+  type SubscriptionNoticeKind,
 } from '@/lib/donate/cancellation'
 import type { DonationFrequency } from '@/lib/donate/validation'
 import { postToWordPress } from '@/lib/donate/wp-mailer'
@@ -42,10 +43,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature.' }, { status: 400 })
   }
 
-  if (
-    event.type === 'customer.subscription.updated' ||
-    event.type === 'customer.subscription.deleted'
-  ) {
+  if (event.type.startsWith('customer.subscription.')) {
     return handleSubscriptionEvent(event)
   }
 
@@ -156,10 +154,10 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * A monthly gift was cancelled (or ended after failed payments): hand the
- * donor confirmation and the Foundation notice to WordPress. Other
- * subscription updates (a new card, a renewal, a reactivation) are
- * acknowledged and ignored.
+ * A monthly gift started, was cancelled, was reactivated, paused, resumed,
+ * or ended after failed payments: hand the notice (and, for a cancellation,
+ * the donor's confirmation) to WordPress. Routine updates (a renewal, a new
+ * card) are acknowledged and ignored.
  */
 async function handleSubscriptionEvent(event: Stripe.Event) {
   const subscription = event.data.object as Stripe.Subscription
@@ -168,7 +166,7 @@ async function handleSubscriptionEvent(event: Stripe.Event) {
     event.data as { previous_attributes?: Record<string, unknown> }
   ).previous_attributes
 
-  const kind = classifyCancellation(
+  const kind = classifySubscriptionEvent(
     event.type,
     {
       cancelAt: subscription.cancel_at ?? null,
@@ -218,10 +216,7 @@ async function handleSubscriptionEvent(event: Stripe.Event) {
     projectTitle: metadata.project_title ?? '',
     projectTitleEn: metadata.project_title_en ?? '',
     startedAt: subscription.start_date,
-    endsAt:
-      kind === 'scheduled'
-        ? (subscription.cancel_at ?? event.created)
-        : (subscription.ended_at ?? subscription.canceled_at ?? event.created),
+    endsAt: endsAt(kind, subscription, event.created),
     occurredAt: event.created,
     feedback: subscription.cancellation_details?.feedback ?? null,
     comment: subscription.cancellation_details?.comment ?? null,
@@ -235,4 +230,20 @@ async function handleSubscriptionEvent(event: Stripe.Event) {
     )
   }
   return NextResponse.json({ received: true })
+}
+
+/**
+ * The gift's last day for a cancellation: `cancel_at` when scheduled, when
+ * it ended otherwise. For the other notices, when the event happened.
+ */
+function endsAt(
+  kind: SubscriptionNoticeKind,
+  subscription: Stripe.Subscription,
+  occurredAt: number
+): number {
+  if (kind === 'scheduled') return subscription.cancel_at ?? occurredAt
+  if (kind === 'immediate' || kind === 'payment_failed') {
+    return subscription.ended_at ?? subscription.canceled_at ?? occurredAt
+  }
+  return occurredAt
 }

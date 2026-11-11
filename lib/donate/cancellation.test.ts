@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildCancellationPayload,
-  classifyCancellation,
+  classifySubscriptionEvent,
   type SubscriptionFacts,
 } from './cancellation'
 
@@ -18,10 +18,10 @@ function sub(overrides: Partial<SubscriptionFacts> = {}): SubscriptionFacts {
   }
 }
 
-describe('classifyCancellation', () => {
+describe('classifySubscriptionEvent', () => {
   it('is a scheduled cancellation when the portal sets cancel_at', () => {
     expect(
-      classifyCancellation(
+      classifySubscriptionEvent(
         'customer.subscription.updated',
         sub({ cancelAt: 1_800_000_000 }),
         { cancel_at: null }
@@ -31,7 +31,7 @@ describe('classifyCancellation', () => {
 
   it('also recognises a classic cancel_at_period_end flip', () => {
     expect(
-      classifyCancellation(
+      classifySubscriptionEvent(
         'customer.subscription.updated',
         sub({ cancelAt: 1_800_000_000, cancelAtPeriodEnd: true }),
         { cancel_at_period_end: false }
@@ -39,24 +39,59 @@ describe('classifyCancellation', () => {
     ).toBe('scheduled')
   })
 
-  it('ignores a reactivation, which clears cancel_at', () => {
+  it('is a reactivation when the donor withdraws a scheduled cancellation', () => {
     expect(
-      classifyCancellation(
+      classifySubscriptionEvent(
         'customer.subscription.updated',
         sub({ cancelAt: null }),
         { cancel_at: 1_800_000_000 }
       )
-    ).toBeNull()
+    ).toBe('reactivated')
+  })
+
+  it('also recognises a classic cancel_at_period_end reactivation', () => {
+    expect(
+      classifySubscriptionEvent('customer.subscription.updated', sub(), {
+        cancel_at_period_end: true,
+      })
+    ).toBe('reactivated')
+  })
+
+  it('is a new monthly gift when the subscription is created', () => {
+    expect(
+      classifySubscriptionEvent(
+        'customer.subscription.created',
+        sub(),
+        undefined
+      )
+    ).toBe('started')
+  })
+
+  it('reports a pause and a resumption', () => {
+    expect(
+      classifySubscriptionEvent(
+        'customer.subscription.paused',
+        sub(),
+        undefined
+      )
+    ).toBe('paused')
+    expect(
+      classifySubscriptionEvent(
+        'customer.subscription.resumed',
+        sub(),
+        undefined
+      )
+    ).toBe('resumed')
   })
 
   it('ignores any other update (a new card, a renewal)', () => {
     expect(
-      classifyCancellation('customer.subscription.updated', sub(), {
+      classifySubscriptionEvent('customer.subscription.updated', sub(), {
         default_payment_method: 'pm_old',
       })
     ).toBeNull()
     expect(
-      classifyCancellation(
+      classifySubscriptionEvent(
         'customer.subscription.updated',
         sub({ cancelAt: 1_800_000_000 }),
         { current_period_end: 1 }
@@ -66,7 +101,7 @@ describe('classifyCancellation', () => {
 
   it('says nothing when a scheduled cancellation takes effect: both emails went out when it was scheduled', () => {
     expect(
-      classifyCancellation(
+      classifySubscriptionEvent(
         'customer.subscription.deleted',
         sub({
           cancelAt: 1_800_000_000,
@@ -79,7 +114,7 @@ describe('classifyCancellation', () => {
 
   it('is an immediate cancellation when it is deleted with nothing scheduled', () => {
     expect(
-      classifyCancellation(
+      classifySubscriptionEvent(
         'customer.subscription.deleted',
         sub({ cancellationReason: 'cancellation_requested' }),
         undefined
@@ -89,7 +124,7 @@ describe('classifyCancellation', () => {
 
   it('is a payment failure when retries ran out', () => {
     expect(
-      classifyCancellation(
+      classifySubscriptionEvent(
         'customer.subscription.deleted',
         sub({ cancellationReason: 'payment_failed' }),
         undefined
@@ -99,7 +134,7 @@ describe('classifyCancellation', () => {
 
   it('ignores subscriptions this form did not create', () => {
     expect(
-      classifyCancellation(
+      classifySubscriptionEvent(
         'customer.subscription.deleted',
         sub({ frequency: undefined }),
         undefined
@@ -108,7 +143,9 @@ describe('classifyCancellation', () => {
   })
 
   it('ignores other event types', () => {
-    expect(classifyCancellation('invoice.paid', sub(), undefined)).toBeNull()
+    expect(
+      classifySubscriptionEvent('invoice.paid', sub(), undefined)
+    ).toBeNull()
   })
 })
 
