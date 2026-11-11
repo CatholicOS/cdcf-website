@@ -1193,6 +1193,7 @@ add_action('acf/init', function () {
             [['param' => 'page_template', 'operator' => '==', 'value' => 'templates/community.php']],
             [['param' => 'page_template', 'operator' => '==', 'value' => 'templates/blog.php']],
             [['param' => 'page_template', 'operator' => '==', 'value' => 'templates/contact.php']],
+            [['param' => 'page_template', 'operator' => '==', 'value' => 'templates/donate.php']],
         ],
         'show_in_graphql' => true,
         'graphql_field_name' => 'hero',
