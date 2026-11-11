@@ -112,6 +112,103 @@ final class AcfRestMetaTest extends TestCase
         );
     }
 
+    /** Each bridged field is registered as string meta for its post type. */
+    public function test_registers_each_bridged_field_as_rest_meta(): void
+    {
+        $this->stubGroups();
+        Functions\when('add_action')->justReturn(true);
+        $registered = [];
+        Functions\when('register_post_meta')->alias(
+            function ($pt, $name, $args) use (&$registered) {
+                $registered[] = [$pt, $name, $args['type'], $args['single'], $args['show_in_rest']];
+                return true;
+            }
+        );
+
+        cdcf_register_acf_rest_meta();
+
+        $this->assertSame(
+            [
+                ['page', 'donate_appeal_body', 'string', true, true],
+                ['project', 'project_url', 'string', true, true],
+            ],
+            $registered
+        );
+    }
+
+    /** Writing bridged meta over REST needs edit_posts. */
+    public function test_registered_meta_requires_edit_posts(): void
+    {
+        $this->stubGroups();
+        Functions\when('add_action')->justReturn(true);
+        $callbacks = [];
+        Functions\when('register_post_meta')->alias(
+            function ($pt, $name, $args) use (&$callbacks) {
+                $callbacks[] = $args['auth_callback'];
+                return true;
+            }
+        );
+        Functions\expect('current_user_can')
+            ->once()
+            ->with('edit_posts')
+            ->andReturn(false);
+
+        cdcf_register_acf_rest_meta();
+
+        $this->assertFalse($callbacks[0]());
+    }
+
+    /** The hook for each post type writes that type's field links. */
+    public function test_hooks_the_link_writer_after_each_rest_insert(): void
+    {
+        $this->stubGroups();
+        Functions\when('register_post_meta')->justReturn(true);
+        $hooks = [];
+        Functions\when('add_action')->alias(
+            function ($hook, $callback, $priority, $args) use (&$hooks) {
+                $hooks[$hook] = [$callback, $priority, $args];
+                return true;
+            }
+        );
+        $written = [];
+        Functions\when('update_post_meta')->alias(
+            function ($id, $key, $value) use (&$written) {
+                $written[] = [$id, $key, $value];
+                return true;
+            }
+        );
+
+        cdcf_register_acf_rest_meta();
+
+        $this->assertSame(['rest_after_insert_page', 'rest_after_insert_project'], array_keys($hooks));
+        $this->assertSame([10, 2], array_slice($hooks['rest_after_insert_page'], 1));
+
+        ($hooks['rest_after_insert_page'][0])(
+            $this->post(1664),
+            $this->request(['donate_appeal_body' => '<p>Hi</p>', 'project_url' => 'x'])
+        );
+
+        // Only the page's own fields: project_url belongs to another type.
+        $this->assertSame(
+            [[1664, '_donate_appeal_body', 'field_donate_appeal_body']],
+            $written
+        );
+    }
+
+    /** A group with no post type or page template location is skipped. */
+    public function test_skips_a_group_with_no_post_location(): void
+    {
+        Functions\when('acf_get_field_groups')->justReturn([
+            [
+                'key'      => 'group_user',
+                'location' => [[['param' => 'user_form', 'operator' => '==', 'value' => 'all']]],
+            ],
+        ]);
+        Functions\expect('acf_get_fields')->never();
+
+        $this->assertSame([], cdcf_acf_rest_meta_fields());
+    }
+
     /** A request without meta (a title-only update, say) writes nothing. */
     public function test_writes_nothing_when_the_request_sets_no_meta(): void
     {
