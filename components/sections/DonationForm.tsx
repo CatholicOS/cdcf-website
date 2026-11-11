@@ -1,7 +1,7 @@
 // components/sections/DonationForm.tsx
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import clsx from 'clsx'
 
@@ -38,6 +38,25 @@ export default function DonationForm({
   const [projectSlug, setProjectSlug] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string>('')
+  const formRef = useRef<HTMLFormElement>(null)
+
+  // A project page's "Support this project" link names the project in
+  // ?project=. Read in the browser, like ?status=, so the page stays cached;
+  // anything not in the designation list is ignored (general fund).
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get('project')
+    if (!wanted || !projects.some((project) => project.slug === wanted)) {
+      return
+    }
+    setProjectSlug(wanted)
+    const reduceMotion = window.matchMedia?.(
+      '(prefers-reduced-motion: reduce)'
+    ).matches
+    formRef.current?.scrollIntoView({
+      behavior: reduceMotion ? 'auto' : 'smooth',
+      block: 'start',
+    })
+  }, [projects])
 
   const parsed = Number(dollars)
   const amountCents = Number.isInteger(parsed) ? parsed * 100 : Number.NaN
@@ -94,7 +113,11 @@ export default function DonationForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-lg space-y-6">
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      className="mx-auto max-w-lg scroll-mt-24 space-y-6"
+    >
       <div className="flex gap-2">
         {(['once', 'monthly'] as const).map((option) => (
           <button

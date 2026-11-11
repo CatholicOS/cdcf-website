@@ -86,6 +86,47 @@ describe('DonationForm', () => {
     vi.stubGlobal('fetch', fetchMock)
   })
 
+  describe('arriving from a project page', () => {
+    let scrolled: number
+    beforeEach(() => {
+      scrolled = 0
+      vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
+        () => {
+          scrolled++
+        }
+      )
+      vi.stubGlobal('matchMedia', () => ({ matches: false }))
+    })
+    afterEach(() => {
+      window.history.replaceState(null, '', '/')
+      vi.restoreAllMocks()
+    })
+
+    it('preselects the project named in ?project= and brings the form into view', () => {
+      window.history.replaceState(null, '', '/it/dona?project=bibleget')
+      const c = mount()
+
+      expect(q<HTMLSelectElement>(c, 'select').value).toBe('bibleget')
+      expect(scrolled).toBe(1)
+    })
+
+    it('ignores a project that does not accept donations', () => {
+      window.history.replaceState(null, '', '/it/dona?project=unknown')
+      const c = mount()
+
+      expect(q<HTMLSelectElement>(c, 'select').value).toBe('')
+      expect(scrolled).toBe(0)
+    })
+
+    it('leaves a plain visit on the general fund, unscrolled', () => {
+      window.history.replaceState(null, '', '/it/dona')
+      const c = mount()
+
+      expect(q<HTMLSelectElement>(c, 'select').value).toBe('')
+      expect(scrolled).toBe(0)
+    })
+  })
+
   it('swaps the button for the above-cap panel over $200', () => {
     const c = mount()
     typeInto(q<HTMLInputElement>(c, 'input'), '250')
