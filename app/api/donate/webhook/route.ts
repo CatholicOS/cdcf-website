@@ -37,13 +37,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature.' }, { status: 400 })
   }
 
+  const isCheckoutEvent =
+    event.type === 'checkout.session.completed' ||
+    event.type === 'checkout.session.async_payment_succeeded'
+
   let mode: 'payment' | 'subscription' | null = null
-  if (event.type === 'checkout.session.completed') {
-    mode = (event.data.object as Stripe.Checkout.Session).mode as
-      'payment' | 'subscription'
+  let paymentStatus: string | null = null
+  if (isCheckoutEvent) {
+    const session = event.data.object as Stripe.Checkout.Session
+    mode = session.mode as 'payment' | 'subscription'
+    paymentStatus = session.payment_status
   }
 
-  if (!shouldAcknowledge(event.type, mode)) {
+  if (!shouldAcknowledge(event.type, mode, paymentStatus)) {
     return NextResponse.json({ received: true })
   }
 
@@ -53,7 +59,7 @@ export async function POST(request: NextRequest) {
   let metadata: Record<string, string> = {}
   let customerId: string | null = null
 
-  if (event.type === 'checkout.session.completed') {
+  if (isCheckoutEvent) {
     const session = event.data.object as Stripe.Checkout.Session
     email = session.customer_details?.email ?? ''
     donorName = session.customer_details?.name ?? ''

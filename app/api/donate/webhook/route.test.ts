@@ -75,6 +75,7 @@ describe('POST /api/donate/webhook', () => {
       data: {
         object: {
           mode: 'payment',
+          payment_status: 'paid',
           amount_total: 5000,
           customer: null,
           customer_details: { email: 'd@example.org', name: 'Dana' },
@@ -96,6 +97,35 @@ describe('POST /api/donate/webhook', () => {
         locale: 'fr',
         portal_url: '',
       })
+    )
+  })
+
+  it('thanks a delayed one-time gift only when its payment succeeds', async () => {
+    const session = {
+      mode: 'payment',
+      amount_total: 1000,
+      customer_details: { email: 'late@example.org' },
+      metadata: { frequency: 'once' },
+    }
+    constructEvent.mockReturnValueOnce({
+      id: 'evt_a',
+      type: 'checkout.session.completed',
+      data: { object: { ...session, payment_status: 'unpaid' } },
+    })
+    await POST(req())
+    expect(postToWordPress).not.toHaveBeenCalled()
+
+    constructEvent.mockReturnValueOnce({
+      id: 'evt_b',
+      type: 'checkout.session.async_payment_succeeded',
+      livemode: true,
+      created: 5,
+      data: { object: { ...session, payment_status: 'paid' } },
+    })
+    await POST(req())
+    expect(postToWordPress).toHaveBeenCalledWith(
+      'cdcf/v1/donation-acknowledgment',
+      expect.objectContaining({ event_id: 'evt_b', amount_cents: 1000 })
     )
   })
 
@@ -180,6 +210,7 @@ describe('POST /api/donate/webhook', () => {
       data: {
         object: {
           mode: 'payment',
+          payment_status: 'paid',
           amount_total: 500,
           customer_details: { email: 'd@example.org' },
           metadata: { frequency: 'once' },

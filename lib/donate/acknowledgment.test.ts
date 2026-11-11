@@ -4,10 +4,38 @@ import { describe, expect, it } from 'vitest'
 import { buildAcknowledgmentPayload, shouldAcknowledge } from './acknowledgment'
 
 describe('shouldAcknowledge', () => {
+  it('waits when a one-time gift completes checkout but has not cleared', () => {
+    // A delayed method (e.g. bank debit) completes checkout as 'unpaid'; the
+    // money may never arrive, so no substantiating thank-you yet.
+    expect(
+      shouldAcknowledge('checkout.session.completed', 'payment', 'unpaid')
+    ).toBe(false)
+  })
+
+  it('acknowledges a delayed one-time gift once its payment succeeds', () => {
+    expect(
+      shouldAcknowledge(
+        'checkout.session.async_payment_succeeded',
+        'payment',
+        'paid'
+      )
+    ).toBe(true)
+  })
+
+  it('never acknowledges a subscription on its async checkout event', () => {
+    expect(
+      shouldAcknowledge(
+        'checkout.session.async_payment_succeeded',
+        'subscription',
+        'paid'
+      )
+    ).toBe(false)
+  })
+
   it('acknowledges a one-time gift on checkout.session.completed', () => {
-    expect(shouldAcknowledge('checkout.session.completed', 'payment')).toBe(
-      true
-    )
+    expect(
+      shouldAcknowledge('checkout.session.completed', 'payment', 'paid')
+    ).toBe(true)
   })
 
   it('does NOT acknowledge a subscription on checkout.session.completed', () => {

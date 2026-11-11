@@ -38,12 +38,21 @@ export interface AcknowledgmentPayload {
  * Subscription mode fires BOTH checkout.session.completed and invoice.paid
  * for the first payment. Acknowledging on invoice.paid alone covers the
  * first charge and every renewal through one code path, with no duplicate.
+ *
+ * A one-time gift is thanked once its money has cleared: on
+ * checkout.session.completed when the session is already `paid` (cards and
+ * wallets), otherwise on checkout.session.async_payment_succeeded (delayed
+ * methods such as bank debits, which complete checkout as `unpaid`).
  */
 export function shouldAcknowledge(
   eventType: string,
-  checkoutMode: 'payment' | 'subscription' | null
+  checkoutMode: 'payment' | 'subscription' | null,
+  paymentStatus: string | null = null
 ): boolean {
   if (eventType === 'checkout.session.completed') {
+    return checkoutMode === 'payment' && paymentStatus === 'paid'
+  }
+  if (eventType === 'checkout.session.async_payment_succeeded') {
     return checkoutMode === 'payment'
   }
   return eventType === 'invoice.paid'
