@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const constructEvent = vi.fn()
 const createPortal = vi.fn()
+const retrieveCustomer = vi.fn()
 vi.mock('@/lib/stripe', () => ({
   getStripe: () => ({
     webhooks: { constructEvent },
     billingPortal: { sessions: { create: createPortal } },
+    customers: { retrieve: retrieveCustomer },
   }),
 }))
 const postToWordPress = vi.fn()
@@ -46,6 +48,7 @@ describe('POST /api/donate/webhook', () => {
     vi.restoreAllMocks()
     constructEvent.mockReset()
     createPortal.mockReset()
+    retrieveCustomer.mockReset()
     postToWordPress.mockReset()
   })
 
@@ -245,5 +248,184 @@ describe('POST /api/donate/webhook', () => {
     const res = await POST(req())
 
     expect(res.status).toBe(500)
+  })
+
+  describe('cancellations', () => {
+    /** A monthly donation subscription as Stripe sends it, with overrides. */
+    function subscription(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'sub_1',
+        customer: 'cus_1',
+        start_date: 1_700_000_000,
+        cancel_at: null,
+        cancel_at_period_end: false,
+        ended_at: null,
+        cancellation_details: { reason: null, feedback: null, comment: null },
+        items: { data: [{ quantity: 1, price: { unit_amount: 2500 } }] },
+        metadata: { ...subscriptionMeta, project_title_en: 'BibleGet' },
+        ...overrides,
+      }
+    }
+
+    /** A subscription event of `type` carrying `object`. */
+    function subscriptionEvent(
+      type: string,
+      object: Record<string, unknown>,
+      previous?: Record<string, unknown>
+    ) {
+      return {
+        id: 'evt_c',
+        type,
+        livemode: true,
+        created: 1_750_000_000,
+        data: {
+          object,
+          ...(previous ? { previous_attributes: previous } : {}),
+        },
+      }
+    }
+
+    beforeEach(() => {
+      retrieveCustomer.mockResolvedValue({
+        email: 'd@example.org',
+        name: 'Dana',
+      })
+    })
+
+    it('sends a scheduled cancellation, with the reason, when the donor cancels in the portal', async () => {
+      constructEvent.mockReturnValue(
+        subscriptionEvent(
+          'customer.subscription.updated',
+          subscription({
+            cancel_at: 1_760_000_000,
+            cancellation_details: {
+              reason: 'cancellation_requested',
+              feedback: 'too_expensive',
+              comment: 'Tight month',
+            },
+          }),
+          { cancel_at: null }
+        )
+      )
+
+      const res = await POST(req())
+
+      expect(res.status).toBe(200)
+      expect(retrieveCustomer).toHaveBeenCalledWith('cus_1')
+      expect(postToWordPress).toHaveBeenCalledWith(
+        'cdcf/v1/donation-cancellation',
+        {
+          event_id: 'evt_c',
+          livemode: true,
+          kind: 'scheduled',
+          subscription_id: 'sub_1',
+          email: 'd@example.org',
+          donor_name: 'Dana',
+          locale: 'it',
+          amount_cents: 2500,
+          project_title: 'BibleGet',
+          project_title_en: 'BibleGet',
+          started_at: 1_700_000_000,
+          ends_at: 1_760_000_000,
+          occurred_at: 1_750_000_000,
+          feedback: 'too_expensive',
+          comment: 'Tight month',
+        }
+      )
+    })
+
+    it('sends nothing when the donor reactivates', async () => {
+      constructEvent.mockReturnValue(
+        subscriptionEvent('customer.subscription.updated', subscription(), {
+          cancel_at: 1_760_000_000,
+        })
+      )
+
+      const res = await POST(req())
+
+      expect(res.status).toBe(200)
+      expect(postToWordPress).not.toHaveBeenCalled()
+      expect(retrieveCustomer).not.toHaveBeenCalled()
+    })
+
+    it('reports a gift ended by failed payments, dated when it ended', async () => {
+      constructEvent.mockReturnValue(
+        subscriptionEvent(
+          'customer.subscription.deleted',
+          subscription({
+            ended_at: 1_755_000_000,
+            cancellation_details: {
+              reason: 'payment_failed',
+              feedback: null,
+              comment: null,
+            },
+          })
+        )
+      )
+
+      await POST(req())
+
+      expect(postToWordPress).toHaveBeenCalledWith(
+        'cdcf/v1/donation-cancellation',
+        expect.objectContaining({
+          kind: 'payment_failed',
+          ends_at: 1_755_000_000,
+          feedback: '',
+        })
+      )
+    })
+
+    it('still notifies the Foundation when the customer has no email', async () => {
+      retrieveCustomer.mockResolvedValue({ id: 'cus_1', deleted: true })
+      constructEvent.mockReturnValue(
+        subscriptionEvent(
+          'customer.subscription.deleted',
+          subscription({
+            ended_at: 1_755_000_000,
+            cancellation_details: {
+              reason: 'cancellation_requested',
+              feedback: null,
+              comment: null,
+            },
+          })
+        )
+      )
+
+      await POST(req())
+
+      expect(postToWordPress).toHaveBeenCalledWith(
+        'cdcf/v1/donation-cancellation',
+        expect.objectContaining({ kind: 'immediate', email: '' })
+      )
+    })
+
+    it('ignores subscriptions this form did not create', async () => {
+      constructEvent.mockReturnValue(
+        subscriptionEvent(
+          'customer.subscription.deleted',
+          subscription({ metadata: {} })
+        )
+      )
+
+      const res = await POST(req())
+
+      expect(res.status).toBe(200)
+      expect(postToWordPress).not.toHaveBeenCalled()
+    })
+
+    it('returns 500 when WordPress could not send, so Stripe retries', async () => {
+      postToWordPress.mockResolvedValue(false)
+      constructEvent.mockReturnValue(
+        subscriptionEvent(
+          'customer.subscription.updated',
+          subscription({ cancel_at: 1_760_000_000 }),
+          { cancel_at: null }
+        )
+      )
+
+      const res = await POST(req())
+
+      expect(res.status).toBe(500)
+    })
   })
 })
