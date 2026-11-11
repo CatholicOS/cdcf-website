@@ -22,7 +22,11 @@ export async function postToWordPress(
   path: string,
   body: unknown
 ): Promise<boolean> {
-  const base = process.env.WP_REST_URL
+  // Same fallback as lib/bio-api.ts and lib/review-api.ts: deploys that
+  // configure only the GraphQL endpoint derive the REST base from it.
+  const base =
+    process.env.WP_REST_URL ??
+    process.env.WP_GRAPHQL_URL?.replace(/\/graphql\/?$/, '/wp-json')
   const user = process.env.WP_APP_USERNAME
   const pass = process.env.WP_APP_PASSWORD
   const secret = process.env.CDCF_DONATION_MAIL_SECRET
