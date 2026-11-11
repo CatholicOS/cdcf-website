@@ -7,6 +7,10 @@ interface HeroBannerProps {
   hero: HeroFields
 }
 
+/**
+ * The hero at the top of a page: tagline, subtitle, optional logo and up to
+ * two buttons, on a gradient, a solid colour or a darkened image.
+ */
 export default function HeroBanner({ hero }: HeroBannerProps) {
   const bgStyle = hero.heroBgStyle?.[0] || 'gradient'
   const alignment = hero.heroAlignment?.[0] || 'center'

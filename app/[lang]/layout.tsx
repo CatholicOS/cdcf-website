@@ -84,6 +84,10 @@ export const viewport: Viewport = {
   themeColor: '#213463',
 }
 
+/**
+ * The shell of every page in a language: fonts, session and messages, and
+ * the header and footer with their links mapped to this language's URLs.
+ */
 export default async function LangLayout({
   children,
   params,

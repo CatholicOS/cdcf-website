@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useCallback, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 interface DonationStatusProps {
@@ -27,10 +27,9 @@ export default function DonationStatus({
   children,
 }: DonationStatusProps) {
   const status = useSearchParams().get('status')
-  const messageRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const message = messageRef.current
+  // A callback ref runs when a message element mounts, which is exactly
+  // when there is something to bring into view: no effect needed.
+  const bringIntoView = useCallback((message: HTMLDivElement | null) => {
     if (!message) return
     const reduceMotion = window.matchMedia?.(
       '(prefers-reduced-motion: reduce)'
@@ -40,20 +39,18 @@ export default function DonationStatus({
       block: 'start',
     })
     message.focus({ preventScroll: true })
-  }, [status])
+  }, [])
 
   // scroll-mt clears the sticky header; tabIndex lets the message take
   // focus without joining the tab order.
-  const messageProps = {
-    ref: messageRef,
-    tabIndex: -1,
-    'data-donation-status': '',
-    className: 'scroll-mt-24 outline-none',
-  }
-
   if (status === 'success') {
     return (
-      <div {...messageProps}>
+      <div
+        ref={bringIntoView}
+        tabIndex={-1}
+        data-donation-status=""
+        className="scroll-mt-24 outline-none"
+      >
         <div
           className="prose mx-auto"
           dangerouslySetInnerHTML={{ __html: thankYouHtml }}
@@ -65,7 +62,12 @@ export default function DonationStatus({
   return (
     <>
       {status === 'cancelled' && (
-        <div {...messageProps}>
+        <div
+          ref={bringIntoView}
+          tabIndex={-1}
+          data-donation-status=""
+          className="scroll-mt-24 outline-none"
+        >
           <p className="mx-auto mb-6 max-w-lg text-sm text-gray-700">
             {cancelledText}
           </p>

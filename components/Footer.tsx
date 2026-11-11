@@ -5,6 +5,10 @@ import { useTranslations } from 'next-intl'
 import { useLocalizedHref } from './LocalizedPaths'
 import Logo from './Logo'
 
+/**
+ * The site footer: brand, social links and the link columns. Site links go
+ * through `localize` so they reach each page's real URL in this language.
+ */
 export default function Footer() {
   const t = useTranslations('footer')
   const localize = useLocalizedHref()
