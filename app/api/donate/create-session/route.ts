@@ -91,7 +91,11 @@ export async function POST(request: NextRequest) {
   // Metadata must be set on the subscription too: session metadata does
   // NOT propagate, so renewals would otherwise arrive undesignated.
   const metadata: Record<string, string> = {
-    project_slug: designation.slug ?? '',
+    // The English slug and title are what Dashboard reports group by and
+    // what still identifies the project after a rename; the local title is
+    // only for the donor's acknowledgment email.
+    project_slug: project?.canonicalSlug ?? '',
+    project_title_en: project?.canonicalTitle ?? '',
     project_title: project?.title ?? '',
     locale,
     frequency,

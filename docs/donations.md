@@ -27,6 +27,15 @@ Checkout, capped at $200 per contribution. Design:
    looking the address up, so neither the answer nor its timing shows who has
    donated.
 
+## Reporting
+
+Each gift's metadata carries `project_slug` (the English post's slug, empty
+for the general fund), `project_title_en` (its English title at the time of
+the gift) and `project_title` (the title in the donor's language, used only
+for the email), plus `frequency` and `locale`. Group Dashboard reports by
+`project_slug`: Polylang gives each language its own slug, so the English
+one is the only key that is the same for every gift to a project.
+
 ## Configuration
 
 ### Next.js (`.env.local` locally; the Plesk panel for each Node.js app)
@@ -137,7 +146,9 @@ settings.
 2. **Content.** Create the `donate` page in each language with the `Donate`
    template, fill its five fields (appeal, preset amounts, tax disclaimer,
    above-cap text, thank-you text), and tick "Accepts Donations" on the
-   projects that should appear in the picker.
+   **English** post of each project that should appear in the picker. The
+   flag is read from the English post for every language (a project with no
+   English translation uses its own flag).
 3. **Deploy** with `gh workflow run deploy.yml -f environment=production`,
    then confirm the WordPress steps ran rather than being skipped:
 

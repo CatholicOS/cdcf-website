@@ -630,20 +630,32 @@ export async function getSponsors(locale: string): Promise<WPSponsor[]> {
 
 /** A project offered in the donation designation picker. */
 export interface DonatableProject {
+  /** This language's slug: what the picker submits and is validated against. */
   slug: string
+  /** This language's title, shown in the picker and the acknowledgment. */
   title: string
+  /** The English post's slug: the stable key Stripe reports are grouped by. */
+  canonicalSlug: string
+  /** The English post's title, recorded so a gift still reads after a rename. */
+  canonicalTitle: string
 }
 
-interface DonatableProjectNode {
+interface DonatableProjectFields {
   slug: string | null
   title: string | null
   projectFields: { projectAcceptsDonations: boolean | null } | null
 }
 
+interface DonatableProjectNode extends DonatableProjectFields {
+  translation?: DonatableProjectFields | null
+}
+
 /**
  * The curated designation list. A project appears only when an editor has
  * ticked "Accepts Donations" on it, so dormant projects never become
- * fundraising destinations by default.
+ * fundraising destinations by default. The flag and the reporting slug are
+ * read from the English post (falling back to this language's post when it
+ * has no English translation), so ticking it once covers every language.
  */
 export async function getDonatableProjects(
   locale: string
@@ -653,12 +665,20 @@ export async function getDonatableProjects(
       projects: { nodes: DonatableProjectNode[] }
     }>(GET_DONATABLE_PROJECTS, { language: langCode(locale) })
 
-    return data.projects.nodes
-      .filter((node) => node.projectFields?.projectAcceptsDonations === true)
-      .filter((node): node is DonatableProjectNode & { slug: string } =>
-        Boolean(node.slug)
-      )
-      .map((node) => ({ slug: node.slug, title: node.title ?? node.slug }))
+    return data.projects.nodes.flatMap((node) => {
+      const source = node.translation ?? node
+      if (source.projectFields?.projectAcceptsDonations !== true) return []
+      if (!node.slug) return []
+      const title = node.title ?? node.slug
+      return [
+        {
+          slug: node.slug,
+          title,
+          canonicalSlug: source.slug || node.slug,
+          canonicalTitle: source.title || title,
+        },
+      ]
+    })
   } catch (error) {
     console.error('Failed to fetch donatable projects:', error)
     return []

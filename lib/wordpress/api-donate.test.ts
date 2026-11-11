@@ -13,6 +13,55 @@ afterEach(() => {
 })
 
 describe('getDonatableProjects', () => {
+  it('reports the English slug and title, so one project is one bucket in Stripe', async () => {
+    mockedQuery.mockResolvedValue({
+      projects: {
+        nodes: [
+          {
+            slug: 'familygraph-2',
+            title: 'FamilyGraph (IT)',
+            projectFields: { projectAcceptsDonations: false },
+            translation: {
+              slug: 'familygraph',
+              title: 'FamilyGraph',
+              projectFields: { projectAcceptsDonations: true },
+            },
+          },
+        ],
+      },
+    })
+
+    await expect(getDonatableProjects('it')).resolves.toEqual([
+      {
+        slug: 'familygraph-2',
+        title: 'FamilyGraph (IT)',
+        canonicalSlug: 'familygraph',
+        canonicalTitle: 'FamilyGraph',
+      },
+    ])
+  })
+
+  it('takes the donation flag from the English post, not the translation', async () => {
+    mockedQuery.mockResolvedValue({
+      projects: {
+        nodes: [
+          {
+            slug: 'progetto',
+            title: 'Progetto',
+            projectFields: { projectAcceptsDonations: true },
+            translation: {
+              slug: 'project',
+              title: 'Project',
+              projectFields: { projectAcceptsDonations: false },
+            },
+          },
+        ],
+      },
+    })
+
+    await expect(getDonatableProjects('it')).resolves.toEqual([])
+  })
+
   it('returns only projects flagged as accepting donations', async () => {
     mockedQuery.mockResolvedValue({
       projects: {
@@ -37,7 +86,12 @@ describe('getDonatableProjects', () => {
     })
 
     await expect(getDonatableProjects('it')).resolves.toEqual([
-      { slug: 'bibleget', title: 'BibleGet' },
+      {
+        slug: 'bibleget',
+        title: 'BibleGet',
+        canonicalSlug: 'bibleget',
+        canonicalTitle: 'BibleGet',
+      },
     ])
   })
 

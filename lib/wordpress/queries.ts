@@ -636,6 +636,16 @@ export const GET_DONATABLE_PROJECTS = `
         projectFields {
           projectAcceptsDonations
         }
+        # The English post is the source of truth for the donation flag and
+        # the reporting slug: Polylang gives each language its own slug and
+        # its own copy of the ACF field.
+        translation(language: EN) {
+          slug
+          title
+          projectFields {
+            projectAcceptsDonations
+          }
+        }
       }
     }
   }

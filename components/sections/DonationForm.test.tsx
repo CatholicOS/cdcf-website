@@ -31,7 +31,16 @@ function typeInto(input: HTMLInputElement, value: string) {
   })
 }
 
-function mount(projects = [{ slug: 'bibleget', title: 'BibleGet' }]) {
+function mount(
+  projects = [
+    {
+      slug: 'bibleget',
+      title: 'BibleGet',
+      canonicalSlug: 'bibleget',
+      canonicalTitle: 'BibleGet',
+    },
+  ]
+) {
   const r = renderDom(
     <DonationForm
       locale="it"
