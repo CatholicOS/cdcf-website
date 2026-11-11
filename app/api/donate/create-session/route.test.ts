@@ -107,7 +107,7 @@ describe('POST /api/donate/create-session', () => {
     'dona',
     '/a\\b',
     // Over 200 characters: never a real page, and a bound on the check.
-    '/' + 'a/'.repeat(150) + 'a',
+    `/${'a/'.repeat(150)}a`,
   ])(
     'ignores an unsafe return path %s and uses the default',
     async (returnPath) => {

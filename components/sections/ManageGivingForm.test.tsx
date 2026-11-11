@@ -5,6 +5,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ManageGivingForm from './ManageGivingForm'
 import { renderDom } from '@/components/testing/renderDom'
 
+/** The first element matching `selector`; fails the test when there is none. */
+function q<T extends Element = HTMLElement>(
+  root: ParentNode,
+  selector: string
+): T {
+  const el = root.querySelector<T>(selector)
+  if (!el) throw new Error(`No element matches ${selector}`)
+  return el
+}
+
+/** The native value setter React listens through, for simulated typing. */
+const nativeValueSetter = (() => {
+  const setter = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    'value'
+  )?.set
+  if (!setter) throw new Error('HTMLInputElement has no value setter')
+  return setter
+})()
+
 let unmount = () => {}
 const fetchMock = vi.fn()
 
@@ -26,12 +46,8 @@ function mount() {
 
 /** Type into the React-controlled email input the way a browser would. */
 function typeEmail(input: HTMLInputElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(
-    HTMLInputElement.prototype,
-    'value'
-  )!.set!
   act(() => {
-    setter.call(input, value)
+    nativeValueSetter.call(input, value)
     input.dispatchEvent(new Event('input', { bubbles: true }))
   })
 }
@@ -39,7 +55,7 @@ function typeEmail(input: HTMLInputElement, value: string) {
 /** Submit the form and let its request settle. */
 async function submit(c: HTMLElement) {
   await act(async () => {
-    c.querySelector('form')!.dispatchEvent(
+    q<HTMLFormElement>(c, 'form').dispatchEvent(
       new Event('submit', { bubbles: true, cancelable: true })
     )
   })
@@ -51,7 +67,7 @@ describe('ManageGivingForm', () => {
       new Response('{"success":true}', { status: 200 })
     )
     const c = mount()
-    typeEmail(c.querySelector('input[type=email]')!, 'donor@example.org')
+    typeEmail(q<HTMLInputElement>(c, 'input[type=email]'), 'donor@example.org')
     await submit(c)
 
     const [url, init] = fetchMock.mock.calls[0]
@@ -67,7 +83,7 @@ describe('ManageGivingForm', () => {
       new Response('{"success":true}', { status: 200 })
     )
     const c = mount()
-    typeEmail(c.querySelector('input[type=email]')!, 'anyone@example.org')
+    typeEmail(q<HTMLInputElement>(c, 'input[type=email]'), 'anyone@example.org')
     await submit(c)
 
     expect(c.textContent).toContain(
@@ -79,7 +95,7 @@ describe('ManageGivingForm', () => {
   it('reports a rate limit or outage instead of pretending it worked', async () => {
     fetchMock.mockResolvedValue(new Response('{}', { status: 429 }))
     const c = mount()
-    typeEmail(c.querySelector('input[type=email]')!, 'x@example.org')
+    typeEmail(q<HTMLInputElement>(c, 'input[type=email]'), 'x@example.org')
     await submit(c)
 
     expect(c.textContent).toContain('Please try again later.')

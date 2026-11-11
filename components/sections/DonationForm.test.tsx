@@ -12,6 +12,35 @@ import DonationStatus from './DonationStatus'
 import { parsePresets } from './DonationSection'
 import { renderDom } from '@/components/testing/renderDom'
 
+/** The first element matching `selector`; fails the test when there is none. */
+function q<T extends Element = HTMLElement>(
+  root: ParentNode,
+  selector: string
+): T {
+  const el = root.querySelector<T>(selector)
+  if (!el) throw new Error(`No element matches ${selector}`)
+  return el
+}
+
+/** The button whose text is exactly `text`; fails the test when there is none. */
+function buttonNamed(root: ParentNode, text: string): HTMLButtonElement {
+  const button = [...root.querySelectorAll('button')].find(
+    (b) => b.textContent === text
+  )
+  if (!button) throw new Error(`No button named ${text}`)
+  return button
+}
+
+/** The native value setter React listens through, for simulated typing. */
+const nativeValueSetter = (() => {
+  const setter = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    'value'
+  )?.set
+  if (!setter) throw new Error('HTMLInputElement has no value setter')
+  return setter
+})()
+
 let unmount = () => {}
 afterEach(() => {
   unmount()
@@ -21,12 +50,8 @@ afterEach(() => {
 
 /** Type into a React-controlled input the way a browser would. */
 function typeInto(input: HTMLInputElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(
-    HTMLInputElement.prototype,
-    'value'
-  )!.set!
   act(() => {
-    setter.call(input, value)
+    nativeValueSetter.call(input, value)
     input.dispatchEvent(new Event('input', { bubbles: true }))
   })
 }
@@ -63,7 +88,7 @@ describe('DonationForm', () => {
 
   it('swaps the button for the above-cap panel over $200', () => {
     const c = mount()
-    typeInto(c.querySelector('input')!, '250')
+    typeInto(q<HTMLInputElement>(c, 'input'), '250')
 
     expect(c.textContent).toContain('Call the office')
     expect(c.querySelector('button[type=submit]')).toBeNull()
@@ -71,9 +96,9 @@ describe('DonationForm', () => {
 
   it('refuses an amount below the floor without calling the server', async () => {
     const c = mount()
-    typeInto(c.querySelector('input')!, '3')
+    typeInto(q<HTMLInputElement>(c, 'input'), '3')
     await act(async () => {
-      c.querySelector('form')!.dispatchEvent(
+      q<HTMLFormElement>(c, 'form').dispatchEvent(
         new Event('submit', { bubbles: true, cancelable: true })
       )
     })
@@ -84,26 +109,24 @@ describe('DonationForm', () => {
 
   it('clears a stale error as soon as the donor changes the amount', async () => {
     const c = mount()
-    typeInto(c.querySelector('input')!, '3')
+    typeInto(q<HTMLInputElement>(c, 'input'), '3')
     await act(async () => {
-      c.querySelector('form')!.dispatchEvent(
+      q<HTMLFormElement>(c, 'form').dispatchEvent(
         new Event('submit', { bubbles: true, cancelable: true })
       )
     })
     expect(c.textContent).toContain('The minimum gift is $5.')
 
-    typeInto(c.querySelector('input')!, '30')
+    typeInto(q<HTMLInputElement>(c, 'input'), '30')
     expect(c.textContent).not.toContain('The minimum gift is $5.')
 
-    typeInto(c.querySelector('input')!, '3')
+    typeInto(q<HTMLInputElement>(c, 'input'), '3')
     await act(async () => {
-      c.querySelector('form')!.dispatchEvent(
+      q<HTMLFormElement>(c, 'form').dispatchEvent(
         new Event('submit', { bubbles: true, cancelable: true })
       )
     })
-    const preset = [...c.querySelectorAll('button')].find(
-      (b) => b.textContent === '$25'
-    )!
+    const preset = buttonNamed(c, '$25')
     act(() => preset.click())
     expect(c.textContent).not.toContain('The minimum gift is $5.')
   })
@@ -113,18 +136,16 @@ describe('DonationForm', () => {
       new Response(JSON.stringify({ error: 'x' }), { status: 502 })
     )
     const c = mount()
-    typeInto(c.querySelector('input')!, '50')
-    const monthly = [...c.querySelectorAll('button')].find(
-      (b) => b.textContent === 'Monthly'
-    )!
+    typeInto(q<HTMLInputElement>(c, 'input'), '50')
+    const monthly = buttonNamed(c, 'Monthly')
     act(() => monthly.click())
-    const select = c.querySelector('select')!
+    const select = q<HTMLSelectElement>(c, 'select')
     act(() => {
       select.value = 'bibleget'
       select.dispatchEvent(new Event('change', { bubbles: true }))
     })
     await act(async () => {
-      c.querySelector('form')!.dispatchEvent(
+      q<HTMLFormElement>(c, 'form').dispatchEvent(
         new Event('submit', { bubbles: true, cancelable: true })
       )
     })
