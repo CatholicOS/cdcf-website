@@ -580,5 +580,19 @@
       "rateLimited": "Demasiados intentos. Inténtalo más tarde.",
       "generic": "Algo ha salido mal. Inténtalo de nuevo."
     }
+  },
+  "donate": {
+    "amountLabel": "Importe (USD)",
+    "frequencyOnce": "Único",
+    "frequencyMonthly": "Mensual",
+    "designationLabel": "Apoyar (opcional)",
+    "designationGeneral": "Donde más se necesite",
+    "submit": "Donar ahora",
+    "submitting": "Redirigiendo…",
+    "belowMinimum": "El donativo mínimo es de 5 $.",
+    "aboveMaximum": "Los donativos superiores a 200 $ se gestionan directamente con nuestras oficinas administrativas.",
+    "invalidAmount": "Introduzca un importe en dólares enteros.",
+    "failed": "No se ha podido iniciar el pago. Inténtelo de nuevo.",
+    "cancelled": "Su donativo se ha cancelado. No se ha cobrado nada."
   }
 }

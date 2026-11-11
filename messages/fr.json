@@ -580,5 +580,19 @@
       "rateLimited": "Trop de tentatives. Veuillez réessayer plus tard.",
       "generic": "Une erreur s'est produite. Veuillez réessayer."
     }
+  },
+  "donate": {
+    "amountLabel": "Montant (USD)",
+    "frequencyOnce": "Ponctuel",
+    "frequencyMonthly": "Mensuel",
+    "designationLabel": "Soutenir (facultatif)",
+    "designationGeneral": "Là où le besoin est le plus grand",
+    "submit": "Faire un don",
+    "submitting": "Redirection…",
+    "belowMinimum": "Le don minimum est de 5 $.",
+    "aboveMaximum": "Les dons supérieurs à 200 $ sont organisés directement avec nos bureaux administratifs.",
+    "invalidAmount": "Veuillez saisir un montant en dollars entiers.",
+    "failed": "Le paiement n'a pas pu être lancé. Veuillez réessayer.",
+    "cancelled": "Votre don a été annulé. Rien n'a été débité."
   }
 }

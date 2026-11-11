@@ -9,6 +9,7 @@ import {
   getProjects,
   getSponsors,
   getChildPages,
+  getDonatableProjects,
 } from '@/lib/wordpress/api'
 import { canonicalAbsoluteUrl, canonicalRedirectPath } from '@/lib/canonical'
 import { activePreviewId } from '@/lib/wordpress/preview'
@@ -92,20 +93,27 @@ export default async function CatchAllPage({ params }: PageProps) {
   const isLogoSymbolism = slug?.at(-1) === 'logo-symbolism'
 
   // Fetch additional data based on template
-  const [posts, projects, sponsors, fishExplanation, childPages] =
-    await Promise.all([
-      template === 'Blog' || template === 'Home'
-        ? getPosts(lang, page.blogFields?.maxPosts || 6)
-        : Promise.resolve([]),
-      template === 'Projects' ? getProjects(lang) : Promise.resolve([]),
-      template === 'Home' ? getSponsors(lang) : Promise.resolve([]),
-      isLogoSymbolism
-        ? getPostBySlug('symbolism-of-24', lang)
-        : Promise.resolve(null),
-      template === 'Governance TOC'
-        ? getChildPages(page.databaseId, lang)
-        : Promise.resolve([]),
-    ])
+  const [
+    posts,
+    projects,
+    sponsors,
+    fishExplanation,
+    childPages,
+    donatableProjects,
+  ] = await Promise.all([
+    template === 'Blog' || template === 'Home'
+      ? getPosts(lang, page.blogFields?.maxPosts || 6)
+      : Promise.resolve([]),
+    template === 'Projects' ? getProjects(lang) : Promise.resolve([]),
+    template === 'Home' ? getSponsors(lang) : Promise.resolve([]),
+    isLogoSymbolism
+      ? getPostBySlug('symbolism-of-24', lang)
+      : Promise.resolve(null),
+    template === 'Governance TOC'
+      ? getChildPages(page.databaseId, lang)
+      : Promise.resolve([]),
+    template === 'Donate' ? getDonatableProjects(lang) : Promise.resolve([]),
+  ])
 
   return (
     <PageRenderer
@@ -117,6 +125,8 @@ export default async function CatchAllPage({ params }: PageProps) {
       fishExplanationHtml={fishExplanation?.content ?? undefined}
       childPages={childPages}
       parentPath={pageSlug}
+      donatableProjects={donatableProjects}
+      locale={lang}
     />
   )
 }

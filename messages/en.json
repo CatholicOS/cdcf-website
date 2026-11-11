@@ -580,5 +580,19 @@
       "rateLimited": "Too many attempts. Please try again later.",
       "generic": "Something went wrong. Please try again."
     }
+  },
+  "donate": {
+    "amountLabel": "Amount (USD)",
+    "frequencyOnce": "One-time",
+    "frequencyMonthly": "Monthly",
+    "designationLabel": "Support (optional)",
+    "designationGeneral": "Where it's needed most",
+    "submit": "Donate now",
+    "submitting": "Redirecting…",
+    "belowMinimum": "The minimum gift is $5.",
+    "aboveMaximum": "Gifts above $200 are arranged directly with our administrative offices.",
+    "invalidAmount": "Please enter a whole dollar amount.",
+    "failed": "We could not start the checkout. Please try again.",
+    "cancelled": "Your donation was cancelled. Nothing has been charged."
   }
 }

@@ -580,5 +580,19 @@
       "rateLimited": "Zu viele Versuche. Bitte versuchen Sie es später erneut.",
       "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut."
     }
+  },
+  "donate": {
+    "amountLabel": "Betrag (USD)",
+    "frequencyOnce": "Einmalig",
+    "frequencyMonthly": "Monatlich",
+    "designationLabel": "Unterstützen (optional)",
+    "designationGeneral": "Wo es am nötigsten ist",
+    "submit": "Jetzt spenden",
+    "submitting": "Weiterleitung…",
+    "belowMinimum": "Die Mindestspende beträgt 5 $.",
+    "aboveMaximum": "Spenden über 200 $ werden direkt mit unserer Verwaltung abgestimmt.",
+    "invalidAmount": "Bitte geben Sie einen ganzen Dollarbetrag ein.",
+    "failed": "Die Zahlung konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
+    "cancelled": "Ihre Spende wurde abgebrochen. Es wurde nichts abgebucht."
   }
 }

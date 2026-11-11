@@ -580,5 +580,19 @@
       "rateLimited": "Troppi tentativi. Riprova più tardi.",
       "generic": "Qualcosa è andato storto. Riprova."
     }
+  },
+  "donate": {
+    "amountLabel": "Importo (USD)",
+    "frequencyOnce": "Una tantum",
+    "frequencyMonthly": "Mensile",
+    "designationLabel": "Sostieni (facoltativo)",
+    "designationGeneral": "Dove c'è più bisogno",
+    "submit": "Dona ora",
+    "submitting": "Reindirizzamento…",
+    "belowMinimum": "Il dono minimo è di 5 $.",
+    "aboveMaximum": "I doni superiori a 200 $ si concordano direttamente con i nostri uffici amministrativi.",
+    "invalidAmount": "Inserisci un importo in dollari interi.",
+    "failed": "Non è stato possibile avviare il pagamento. Riprova.",
+    "cancelled": "La tua donazione è stata annullata. Non è stato addebitato nulla."
   }
 }

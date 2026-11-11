@@ -5,7 +5,7 @@ import type {
   WPProject,
   WPSponsor,
 } from '@/lib/wordpress/types'
-import type { WPChildPage } from '@/lib/wordpress/api'
+import type { DonatableProject, WPChildPage } from '@/lib/wordpress/api'
 import { getStats } from '@/lib/stats'
 import HeroBanner from './HeroBanner'
 import StatsBar from './StatsBar'
@@ -21,6 +21,7 @@ import CommunityProjectsSection from './CommunityProjectsSection'
 import CallToAction from './CallToAction'
 import TextSection from './TextSection'
 import GovernanceTOC from './GovernanceTOC'
+import DonationSection from './DonationSection'
 
 interface PageRendererProps {
   page: WPPage
@@ -31,6 +32,10 @@ interface PageRendererProps {
   fishExplanationHtml?: string
   childPages?: WPChildPage[]
   parentPath?: string
+  /** Projects offered in the Donate page's designation picker. */
+  donatableProjects?: DonatableProject[]
+  /** next-intl locale, passed to the donation form for Checkout's language. */
+  locale?: string
 }
 
 export default async function PageRenderer({
@@ -42,6 +47,8 @@ export default async function PageRenderer({
   fishExplanationHtml,
   childPages = [],
   parentPath = '/',
+  donatableProjects = [],
+  locale = 'en',
 }: PageRendererProps) {
   const template = page.template?.templateName || 'Default'
   const t = await getTranslations('about')
@@ -64,6 +71,13 @@ export default async function PageRenderer({
         renderCommunity(page, await getTranslations('community'))}
       {template === 'Blog' && renderBlog(posts)}
       {template === 'Contact' && renderContact(page)}
+      {template === 'Donate' && (
+        <DonationSection
+          page={page}
+          locale={locale}
+          projects={donatableProjects}
+        />
+      )}
       {template === 'Governance TOC' &&
         renderGovernanceTOC(page, childPages, parentPath)}
       {template === 'Default' &&
