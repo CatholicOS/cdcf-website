@@ -2776,12 +2776,12 @@ Create `docs/donations.md` covering:
 1. **Stripe Dashboard setup** — the checklist below. Do it in test mode first, then repeat it in live mode, because the two modes keep separate settings.
 
    - [ ] **Nonprofit rate.** Apply for the [nonprofit fee discount](https://support.stripe.com/questions/fee-discount-for-nonprofit-organizations) with the EIN or the IRS determination letter. Stripe does not apply it automatically.
-   - [ ] **Wallets.** Verify `catholicdigitalcommons.org` (and the staging host, in test mode) under Settings → Payment method domains, so Apple Pay and Google Pay appear in Checkout.
+   - [ ] **Wallets.** Nothing to register: Settings → Payment method domains applies only to Elements on our own pages. Hosted Checkout runs on Stripe's domain, so Apple Pay and Google Pay appear there without it; just confirm they are enabled under Settings → Payment methods.
    - [ ] **Payment methods.** Leave them to Stripe (the session sets no `payment_method_types`), with Link on.
    - [ ] **Adaptive Pricing off.** Settings → Payments. The global constraint is USD only: it keeps the $200 cap and the acknowledgment amount unambiguous.
    - [ ] **Radar Lite.** The included plan. It covers card-testing prevention, which is the threat this form faces; custom rules need Radar Plus, so the per-IP limit lives in `create-session` instead (Task 7). Upgrade only if monitoring (step 7) shows card testing getting through.
    - [ ] **Billing mode.** Settings → Billing → Subscriptions and emails → Default billing mode: Flexible. The API calls set it explicitly; this covers anything created from the Dashboard.
-   - [ ] **Failed renewals.** Billing → Revenue recovery: Smart Retries on, failed-payment and card-update emails on, and **cancel the subscription** once all retries fail, so a lapsed donor does not sit in `past_due`.
+   - [ ] **Failed renewals.** Billing → Revenue recovery: Smart Retries on; under Settings → Billing → Subscriptions and emails, turn on the emails for failed card payments and expiring cards; and **cancel the subscription** once all retries fail, so a lapsed donor does not sit in `past_due`.
    - [ ] **Customer Portal.** Settings → Billing → Customer portal: allow cancellation (at the end of the period) and payment-method updates; turn plan switching **off**, because subscriptions use inline `price_data` and there is no catalogue to switch to. Set the business name, privacy policy and terms links.
    - [ ] **Stripe's own receipts.** Settings → Customer emails → Successful payments: **off**. The Foundation's acknowledgment (Task 5) is the receipt; with both on, every donor gets two emails for one gift.
    - [ ] **Branding.** Settings → Branding: logo, icon and colours, so the hosted Checkout and Portal pages look like the site.
