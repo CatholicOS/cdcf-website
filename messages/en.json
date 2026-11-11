@@ -137,6 +137,7 @@
     "codeExpired": "Code has expired. Please request a new one.",
     "tooManyAttempts": "Too many incorrect attempts. Please request a new code.",
     "backToProjects": "Back to Projects",
+    "supportProject": "Support this project",
     "repositories": "Repositories",
     "website": "Website",
     "license": "License",
