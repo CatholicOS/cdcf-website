@@ -1037,6 +1037,31 @@ add_action('rest_api_init', function () {
     ]);
 });
 
+// POST /wp-json/cdcf/v1/donation-acknowledgment (edit_posts — called by the
+// Next.js Stripe webhook). Handler body in includes/handlers/donation-acknowledgment.php.
+require_once __DIR__ . '/includes/handlers/donation-acknowledgment.php';
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/donation-acknowledgment', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_donation_acknowledgment',
+        'permission_callback' => 'cdcf_donation_permission_check',
+        'args' => [
+            'event_id'      => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
+            'livemode'      => ['required' => true,  'type' => 'boolean'],
+            'email'         => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_email'],
+            'donor_name'    => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'amount_cents'  => ['required' => true,  'type' => 'integer', 'sanitize_callback' => 'absint'],
+            'currency'      => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => 'usd'],
+            'frequency'     => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
+            'locale'        => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => 'en'],
+            'project_title' => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'occurred_at'   => ['required' => true,  'type' => 'integer', 'sanitize_callback' => 'absint'],
+            'portal_url'    => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'esc_url_raw', 'default' => ''],
+        ],
+    ]);
+});
+
 // cdcf_rest_submit_project_send_code() lives in includes/handlers/submit-project-send-code.php
 
 // cdcf_rest_submit_project() lives in includes/handlers/submit-project.php

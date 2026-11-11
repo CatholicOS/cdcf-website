@@ -261,6 +261,7 @@ require_once __DIR__ . '/../includes/review/decision.php';
 require_once __DIR__ . '/../includes/review/attachments.php';
 require_once __DIR__ . '/../includes/handlers/review.php';
 require_once __DIR__ . '/../includes/handlers/submission-status.php';
+require_once __DIR__ . '/../includes/handlers/donation-acknowledgment.php';
 require_once __DIR__ . '/../includes/admin/review-access.php';
 require_once __DIR__ . '/../includes/admin/limited-user-provisioning.php';
 require_once __DIR__ . '/../includes/admin/author-profile-guard.php';
