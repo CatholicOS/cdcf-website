@@ -30,6 +30,22 @@ Checkout, capped at $200 per contribution. Design:
    always answers `{ "success": true }`, before
    looking the address up, so neither the answer nor its timing shows who has
    donated.
+6. When a monthly gift is cancelled, the webhook hands it to WordPress
+   (`POST /cdcf/v1/donation-cancellation`), which mails up to two people:
+   - **the donor**, in their language, confirming that the gift will not
+     renew (or has stopped) and thanking them. Not sent when the gift ended
+     because its payments failed: Stripe already emails the donor about
+     those.
+   - **the Foundation** (`CDCF_DONATION_NOTIFY_INBOX`), in English: who, how
+     much, for what, since when, the last day, and the reason and comment the
+     donor chose in the portal, with a link to the subscription.
+
+   A portal cancellation arrives as `customer.subscription.updated` with
+   `cancel_at` newly set (flexible billing mode leaves
+   `cancel_at_period_end` false). A cancellation made at once, or the end of
+   a gift whose retries ran out, arrives as `customer.subscription.deleted`.
+   When a scheduled cancellation later takes effect nothing more is sent, and
+   a donor who reactivates before the end date gets no email.
 
 ## Reporting
 
@@ -79,6 +95,10 @@ define('CDCF_FOUNDATION_ADDRESS', '000 Example St, City, ST 00000, USA');
 // would mail the real donor; with it, test-mode mail is redirected here.
 // Unset: test-mode acknowledgments are not sent at all.
 define('CDCF_DONATION_TEST_INBOX', 'qa@example.org');
+
+// Who hears when a monthly gift is cancelled, and why. Unset: the site's
+// admin email. In test mode the notice goes to the test inbox instead.
+define('CDCF_DONATION_NOTIFY_INBOX', 'info@example.org');
 ```
 
 The local Docker stack defines `CDCF_DONATION_MAIL_SECRET` from `.env`.
@@ -143,6 +163,12 @@ settings.
       expire quickly, and with customer login on, an expired one lets the
       donor confirm their email and continue instead of hitting a dead page.
       Without it the links still work, but only until they expire.
+      Under **Cancellations**, keep **Cancellation reason** on and replace
+      the default reasons, which are written for software subscriptions ("I
+      need more features"), with reasons that fit a gift, for example "My
+      financial situation changed", "I'd rather give one-time gifts", "I'm
+      supporting the Foundation another way" and "Other". The reason reaches
+      the Foundation in the cancellation notice.
 - [ ] **Stripe's own receipts off.** Settings → Customer emails → Successful
       payments. The Foundation's acknowledgment is the receipt; with both on,
       every donor gets two emails for one gift. Refund emails may stay on.
@@ -156,8 +182,9 @@ settings.
 1. **Webhook endpoints.** Register
    `https://catholicdigitalcommons.org/api/donate/webhook` in live mode and
    the staging URL in test mode, each subscribed to
-   `checkout.session.completed`, `checkout.session.async_payment_succeeded`
-   and `invoice.paid` only. Put each signing
+   `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+   `invoice.paid`, `customer.subscription.updated` and
+   `customer.subscription.deleted` only. Put each signing
    secret in the matching environment's `STRIPE_WEBHOOK_SECRET`.
 2. **Content.** Create the `donate` page in each language with the `Donate`
    template, fill its five fields (appeal, preset amounts, tax disclaimer,
