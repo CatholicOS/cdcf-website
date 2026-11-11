@@ -54,8 +54,12 @@ variables, on both the production and the staging app.
 | `CDCF_DONATION_MAIL_SECRET` | Signs the requests to the two WordPress donation endpoints. Must equal the WordPress value. `openssl rand -hex 32`.                                                                                                                                   |
 | `NEXT_PUBLIC_SITE_URL`      | Base of the success, cancel and portal return URLs (`http://localhost:3000` locally). Not set in Plesk: the deploy workflow passes it to `npm run build` from the GitHub Actions environment's `vars.NEXT_PUBLIC_SITE_URL`, and the build inlines it. |
 
-`WP_REST_URL`, `WP_APP_USERNAME` and `WP_APP_PASSWORD` are reused for the
-WordPress calls. That account needs `edit_posts`.
+The WordPress calls also need `WP_APP_USERNAME` and `WP_APP_PASSWORD` (a
+secret) on **both** the production and the staging app; that account needs
+`edit_posts`. Give staging its own application password on the same user,
+so either can be revoked alone. The REST base is `WP_REST_URL`, or, when it
+is unset (as on Plesk), `WP_GRAPHQL_URL` with `/graphql` replaced by
+`/wp-json`.
 
 Staging and production share one WordPress backend, so **both frontends use
 the same `CDCF_DONATION_MAIL_SECRET`**.

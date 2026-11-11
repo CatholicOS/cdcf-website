@@ -44,6 +44,28 @@ describe('postToWordPress', () => {
     expect(init.body).toBe('{"a":1}')
   })
 
+  it('derives the REST base from WP_GRAPHQL_URL when WP_REST_URL is unset, like the other WordPress callers', async () => {
+    vi.stubEnv('WP_REST_URL', undefined)
+    vi.stubEnv('WP_GRAPHQL_URL', 'https://cms.example.org/graphql')
+    fetchMock.mockResolvedValue(new Response('{}', { status: 200 }))
+
+    await expect(
+      postToWordPress('cdcf/v1/donation-acknowledgment', { a: 1 })
+    ).resolves.toBe(true)
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'https://cms.example.org/wp-json/cdcf/v1/donation-acknowledgment'
+    )
+  })
+
+  it('sends nothing when neither WordPress URL is set', async () => {
+    vi.stubEnv('WP_REST_URL', undefined)
+    vi.stubEnv('WP_GRAPHQL_URL', undefined)
+
+    await expect(postToWordPress('cdcf/v1/x', {})).resolves.toBe(false)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('sends nothing without a signing secret, since WordPress would refuse it', async () => {
     vi.stubEnv('CDCF_DONATION_MAIL_SECRET', '')
 
