@@ -57,6 +57,17 @@ if (!class_exists('WP_REST_Request')) {
         private array $files = [];
         private string $route = '';
         private array $headers = [];
+        private string $body = '';
+
+        /** Set the raw request body (as WordPress reads it from php://input). */
+        public function set_body(string $body): void {
+            $this->body = $body;
+        }
+
+        /** The raw request body. */
+        public function get_body(): string {
+            return $this->body;
+        }
 
         public function set_header(string $name, string $value): void {
             $this->headers[strtolower(str_replace('-', '_', $name))] = $value;
@@ -261,6 +272,8 @@ require_once __DIR__ . '/../includes/review/decision.php';
 require_once __DIR__ . '/../includes/review/attachments.php';
 require_once __DIR__ . '/../includes/handlers/review.php';
 require_once __DIR__ . '/../includes/handlers/submission-status.php';
+require_once __DIR__ . '/../includes/handlers/donation-acknowledgment.php';
+require_once __DIR__ . '/../includes/handlers/donation-portal-link.php';
 require_once __DIR__ . '/../includes/admin/review-access.php';
 require_once __DIR__ . '/../includes/admin/limited-user-provisioning.php';
 require_once __DIR__ . '/../includes/admin/author-profile-guard.php';

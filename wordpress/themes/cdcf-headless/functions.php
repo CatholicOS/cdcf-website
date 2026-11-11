@@ -1037,6 +1037,44 @@ add_action('rest_api_init', function () {
     ]);
 });
 
+// POST /wp-json/cdcf/v1/donation-acknowledgment and /donation-portal-link
+// (edit_posts — called server-to-server by Next.js). Handler bodies live in
+// includes/handlers/donation-*.php.
+require_once __DIR__ . '/includes/handlers/donation-acknowledgment.php';
+require_once __DIR__ . '/includes/handlers/donation-portal-link.php';
+
+add_action('rest_api_init', function () {
+    register_rest_route('cdcf/v1', '/donation-acknowledgment', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_donation_acknowledgment',
+        'permission_callback' => 'cdcf_donation_permission_check',
+        'args' => [
+            'event_id'      => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
+            'livemode'      => ['required' => true,  'type' => 'boolean'],
+            'email'         => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_email'],
+            'donor_name'    => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'amount_cents'  => ['required' => true,  'type' => 'integer', 'sanitize_callback' => 'absint'],
+            'currency'      => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => 'usd'],
+            'frequency'     => ['required' => true,  'type' => 'string',  'sanitize_callback' => 'sanitize_text_field'],
+            'locale'        => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => 'en'],
+            'project_title' => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
+            'occurred_at'   => ['required' => true,  'type' => 'integer', 'sanitize_callback' => 'absint'],
+            'portal_url'    => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'esc_url_raw', 'default' => ''],
+        ],
+    ]);
+
+    register_rest_route('cdcf/v1', '/donation-portal-link', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_donation_portal_link',
+        'permission_callback' => 'cdcf_donation_permission_check',
+        'args' => [
+            'email'      => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
+            'locale'     => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => 'en'],
+            'portal_url' => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => ''],
+        ],
+    ]);
+});
+
 // cdcf_rest_submit_project_send_code() lives in includes/handlers/submit-project-send-code.php
 
 // cdcf_rest_submit_project() lives in includes/handlers/submit-project.php
@@ -1355,6 +1393,16 @@ add_action('acf/init', function () {
                 'type'  => 'relationship',
                 'post_type' => ['team_member'],
                 'return_format' => 'object',
+                'show_in_graphql' => true,
+                'show_in_rest' => true,
+            ],
+            [
+                'key'           => 'field_project_accepts_donations',
+                'label'         => 'Accepts Donations',
+                'name'          => 'project_accepts_donations',
+                'type'          => 'true_false',
+                'instructions'  => 'Show this project in the donation page designation picker. Designation is a stated donor preference, not a restricted fund.',
+                'default_value' => 0,
                 'show_in_graphql' => true,
                 'show_in_rest' => true,
             ],
@@ -2000,6 +2048,68 @@ add_action('acf/init', function () {
         'graphql_types' => ['Page'],
         'menu_order' => 10,
     ]);
+
+    // ── Donate Page Specific Fields ──
+
+    acf_add_local_field_group([
+        'key'   => 'group_donate_page',
+        'title' => 'Donate Page Content',
+        'fields' => [
+            [
+                'key'   => 'field_donate_appeal_body',
+                'label' => 'Appeal Body',
+                'name'  => 'donate_appeal_body',
+                'type'  => 'wysiwyg',
+                'instructions' => 'The main appeal copy shown above the donation form.',
+                'show_in_graphql' => true,
+                'show_in_rest' => true,
+            ],
+            [
+                'key'   => 'field_donate_preset_amounts',
+                'label' => 'Preset Amounts (USD)',
+                'name'  => 'donate_preset_amounts',
+                'type'  => 'text',
+                'instructions' => 'Comma-separated whole dollars offered as quick-pick buttons, e.g. "10,25,50,100". Values above 200 are ignored — 200 is the hard cap.',
+                'default_value' => '10,25,50,100',
+                'show_in_graphql' => true,
+                'show_in_rest' => true,
+            ],
+            [
+                'key'   => 'field_donate_tax_disclaimer',
+                'label' => 'Tax Disclaimer',
+                'name'  => 'donate_tax_disclaimer',
+                'type'  => 'wysiwyg',
+                'instructions' => 'Shown beneath the form. Include the Foundation legal name and EIN.',
+                'show_in_graphql' => true,
+                'show_in_rest' => true,
+            ],
+            [
+                'key'   => 'field_donate_above_cap_body',
+                'label' => 'Above-Cap Body',
+                'name'  => 'donate_above_cap_body',
+                'type'  => 'wysiwyg',
+                'instructions' => 'Shown instead of the checkout button when a donor enters more than $200. Include how to reach the administrative offices.',
+                'show_in_graphql' => true,
+                'show_in_rest' => true,
+            ],
+            [
+                'key'   => 'field_donate_thank_you_body',
+                'label' => 'Thank You Body',
+                'name'  => 'donate_thank_you_body',
+                'type'  => 'wysiwyg',
+                'instructions' => 'Shown when a donor returns from Stripe with ?status=success.',
+                'show_in_graphql' => true,
+                'show_in_rest' => true,
+            ],
+        ],
+        'location' => [
+            [['param' => 'page_template', 'operator' => '==', 'value' => 'templates/donate.php']],
+        ],
+        'show_in_graphql' => true,
+        'graphql_field_name' => 'donateFields',
+        'graphql_types' => ['Page'],
+        'menu_order' => 10,
+    ]);
 });
 
 // ─── Page Templates ──────────────────────────────────────────────────
@@ -2013,6 +2123,7 @@ add_filter('theme_page_templates', function ($templates) {
     $templates['templates/blog.php']      = 'Blog';
     $templates['templates/contact.php']   = 'Contact';
     $templates['templates/governance-toc.php'] = 'Governance TOC';
+    $templates['templates/donate.php']    = 'Donate';
     return $templates;
 });
 

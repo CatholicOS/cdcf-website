@@ -276,6 +276,13 @@ const PAGE_FIELDS = `
   contactFields {
     contactBody
   }
+  donateFields {
+    donateAppealBody
+    donatePresetAmounts
+    donateTaxDisclaimer
+    donateAboveCapBody
+    donateThankYouBody
+  }
 `
 
 // ─── Post fields ─────────────────────────────────────────────────────
@@ -612,6 +619,32 @@ export const GET_ACADEMIC_COLLABORATIONS_FOR_SITEMAP = `
         translations {
           language { code }
           slug
+        }
+      }
+    }
+  }
+`
+
+// ─── Donatable projects (designation picker) ─────────────────────────
+
+export const GET_DONATABLE_PROJECTS = `
+  query GetDonatableProjects($language: LanguageCodeFilterEnum) {
+    projects(where: { language: $language }, first: 100) {
+      nodes {
+        slug
+        title
+        projectFields {
+          projectAcceptsDonations
+        }
+        # The English post is the source of truth for the donation flag and
+        # the reporting slug: Polylang gives each language its own slug and
+        # its own copy of the ACF field.
+        translation(language: EN) {
+          slug
+          title
+          projectFields {
+            projectAcceptsDonations
+          }
         }
       }
     }

@@ -580,5 +580,25 @@
       "rateLimited": "Demasiadas tentativas. Tente mais tarde.",
       "generic": "Algo correu mal. Tente de novo."
     }
+  },
+  "donate": {
+    "amountLabel": "Valor (USD)",
+    "frequencyOnce": "Única",
+    "frequencyMonthly": "Mensal",
+    "designationLabel": "Apoiar (opcional)",
+    "designationGeneral": "Onde for mais necessário",
+    "submit": "Doar agora",
+    "submitting": "A redirecionar…",
+    "belowMinimum": "A doação mínima é de 5 $.",
+    "aboveMaximum": "Doações acima de 200 $ são tratadas diretamente com os nossos serviços administrativos.",
+    "invalidAmount": "Introduza um valor em dólares inteiros.",
+    "failed": "Não foi possível iniciar o pagamento. Tente novamente.",
+    "cancelled": "A sua doação foi cancelada. Nada foi cobrado.",
+    "manageHeading": "Gerir a sua doação mensal",
+    "manageIntro": "Introduza o endereço de e-mail com que doou e enviaremos uma ligação para alterar ou cancelar a sua doação mensal.",
+    "manageEmailLabel": "Endereço de e-mail",
+    "manageSubmit": "Enviar-me uma ligação",
+    "manageSent": "Se este endereço tiver uma doação mensal connosco, enviámos-lhe uma ligação. Pode demorar alguns minutos a chegar.",
+    "manageFailed": "Não foi possível enviar a ligação. Tente novamente mais tarde."
   }
 }

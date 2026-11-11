@@ -218,4 +218,11 @@ export interface WPPage {
   contactFields: {
     contactBody: string | null
   } | null
+  donateFields: {
+    donateAppealBody: string | null
+    donatePresetAmounts: string | null
+    donateTaxDisclaimer: string | null
+    donateAboveCapBody: string | null
+    donateThankYouBody: string | null
+  } | null
 }
