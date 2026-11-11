@@ -215,7 +215,9 @@ function cdcf_rest_donation_acknowledgment(WP_REST_Request $request) {
 
     $lines[] = '';
     $lines[] = '—';
-    $lines[] = 'Catholic Digital Commons Foundation';
+    // The legal name, not the public "Foundation" name: this email is the
+    // donor's tax record, so it names the entity that received the gift.
+    $lines[] = 'Catholic Digital Commons';
     if (defined('CDCF_FOUNDATION_ADDRESS')) {
         $lines[] = CDCF_FOUNDATION_ADDRESS;
     }

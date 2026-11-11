@@ -97,6 +97,29 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         );
     }
 
+    /**
+     * The signature names the legal entity, since the email is the donor's
+     * tax record: "Catholic Digital Commons", not the public name.
+     */
+    public function test_signature_carries_the_legal_name(): void
+    {
+        $captured = '';
+        Functions\when('wp_mail')->alias(
+            function ($to, $subject, $body) use (&$captured) {
+                $captured = $body;
+                return true;
+            }
+        );
+
+        cdcf_rest_donation_acknowledgment($this->request());
+
+        $this->assertStringContainsString("—\nCatholic Digital Commons\n", $captured);
+        $this->assertStringNotContainsString(
+            "—\nCatholic Digital Commons Foundation",
+            $captured
+        );
+    }
+
     /** Body is localized around the English sentence. */
     public function test_body_is_localized_around_the_english_sentence(): void
     {
