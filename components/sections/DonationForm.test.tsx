@@ -199,6 +199,61 @@ describe('DonationStatus', () => {
     search.value = 'status=cancelled'
     expect(status().textContent).toBe('Cancelled.the form')
   })
+
+  describe('bringing the returning donor to the message', () => {
+    let scrolled: ScrollIntoViewOptions[]
+    let reduceMotion: boolean
+
+    beforeEach(() => {
+      scrolled = []
+      reduceMotion = false
+      vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
+        (options?: boolean | ScrollIntoViewOptions) => {
+          scrolled.push(options as ScrollIntoViewOptions)
+        }
+      )
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query === '(prefers-reduced-motion: reduce)' && reduceMotion,
+      }))
+    })
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+      vi.unstubAllGlobals()
+    })
+
+    it('smoothly scrolls to the thank-you copy and focuses it', () => {
+      search.value = 'status=success'
+      const container = status()
+      const message = q(container, '[data-donation-status]')
+      expect(scrolled).toEqual([{ behavior: 'smooth', block: 'start' }])
+      expect(document.activeElement).toBe(message)
+      expect(message.textContent).toContain('Thank you!')
+    })
+
+    it('jumps without animation when the visitor prefers reduced motion', () => {
+      reduceMotion = true
+      search.value = 'status=success'
+      status()
+      expect(scrolled).toEqual([{ behavior: 'auto', block: 'start' }])
+    })
+
+    it('scrolls to the cancelled notice too', () => {
+      search.value = 'status=cancelled'
+      const container = status()
+      expect(scrolled).toHaveLength(1)
+      expect(document.activeElement?.textContent).toBe('Cancelled.')
+      expect(q(container, '[data-donation-status]').textContent).toBe(
+        'Cancelled.'
+      )
+    })
+
+    it('leaves a plain visit where it is', () => {
+      search.value = ''
+      status()
+      expect(scrolled).toEqual([])
+    })
+  })
 })
 
 describe('parsePresets', () => {
