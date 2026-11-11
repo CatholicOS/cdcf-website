@@ -989,11 +989,12 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-// POST /wp-json/cdcf/v1/donation-acknowledgment and /donation-portal-link
-// (edit_posts — called server-to-server by Next.js). Handler bodies live in
-// includes/handlers/donation-*.php.
+// POST /wp-json/cdcf/v1/donation-acknowledgment, /donation-portal-link and
+// /donation-cancellation (edit_posts + signature — called server-to-server
+// by Next.js). Handler bodies live in includes/handlers/donation-*.php.
 require_once __DIR__ . '/includes/handlers/donation-acknowledgment.php';
 require_once __DIR__ . '/includes/handlers/donation-portal-link.php';
+require_once __DIR__ . '/includes/handlers/donation-cancellation.php';
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/donation-acknowledgment', [
@@ -1023,6 +1024,31 @@ add_action('rest_api_init', function () {
             'email'      => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
             'locale'     => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => 'en'],
             'portal_url' => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => ''],
+        ],
+    ]);
+
+    $text = ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => ''];
+    $int  = ['required' => true, 'type' => 'integer', 'sanitize_callback' => 'absint'];
+    register_rest_route('cdcf/v1', '/donation-cancellation', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_donation_cancellation',
+        'permission_callback' => 'cdcf_donation_permission_check',
+        'args' => [
+            'event_id'         => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'livemode'         => ['required' => true, 'type' => 'boolean'],
+            'kind'             => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_key'],
+            'subscription_id'  => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
+            'email'            => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_email', 'default' => ''],
+            'donor_name'       => $text,
+            'locale'           => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => 'en'],
+            'amount_cents'     => $int,
+            'project_title'    => $text,
+            'project_title_en' => $text,
+            'started_at'       => $int,
+            'ends_at'          => $int,
+            'occurred_at'      => $int,
+            'feedback'         => $text,
+            'comment'          => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_textarea_field', 'default' => ''],
         ],
     ]);
 });

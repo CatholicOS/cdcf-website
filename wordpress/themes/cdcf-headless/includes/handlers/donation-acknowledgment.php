@@ -51,6 +51,15 @@ function cdcf_donation_permission_check(WP_REST_Request $request): bool {
 }
 
 /**
+ * Where test-mode donation mail goes (staging shares this backend, so a
+ * test payment must never mail a real person); empty when
+ * CDCF_DONATION_TEST_INBOX is unset, which means send nothing.
+ */
+function cdcf_donation_test_inbox(): string {
+    return defined('CDCF_DONATION_TEST_INBOX') ? (string) CDCF_DONATION_TEST_INBOX : '';
+}
+
+/**
  * Whether a portal link is safe to mail: empty, or an https URL on Stripe's
  * billing.stripe.com host, where Customer Portal sessions live.
  */
@@ -176,7 +185,7 @@ function cdcf_rest_donation_acknowledgment(WP_REST_Request $request) {
     // Staging shares the production WordPress backend, so a test-mode
     // event must never reach the real donor address.
     if (!$request['livemode']) {
-        $test_inbox = defined('CDCF_DONATION_TEST_INBOX') ? CDCF_DONATION_TEST_INBOX : '';
+        $test_inbox = cdcf_donation_test_inbox();
         if ($test_inbox === '') {
             return rest_ensure_response([
                 'success' => true,
