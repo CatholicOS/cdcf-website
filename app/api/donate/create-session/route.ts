@@ -17,6 +17,9 @@ export const runtime = 'nodejs'
 // Card testing is the main abuse vector on a public donation form, and
 // it shows up as a burst of session creations. Same limiter as the other
 // public form routes.
+/** A same-site path: leading slash, then lowercase slug segments only. */
+const SAFE_RETURN_PATH = /^\/(?:[a-z0-9-]+\/)*[a-z0-9-]+$/
+
 const isRateLimited = createIpRateLimiter(10, 60 * 60 * 1000)
 
 /**
@@ -86,7 +89,17 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const donatePath = locale === defaultLocale ? '/donate' : `/${locale}/donate`
+  // The page the donor gave from. Each language's Donate page has its own
+  // slug (/it/dona, /fr/donate-2…), and the redirect from a guessed URL to
+  // the real one drops the query string, so Stripe must return the donor to
+  // the exact path. Only a plain same-site path is accepted.
+  const fallbackPath =
+    locale === defaultLocale ? '/donate' : `/${locale}/donate`
+  const donatePath =
+    typeof body.returnPath === 'string' &&
+    SAFE_RETURN_PATH.test(body.returnPath)
+      ? body.returnPath
+      : fallbackPath
 
   // Metadata must be set on the subscription too: session metadata does
   // NOT propagate, so renewals would otherwise arrive undesignated.

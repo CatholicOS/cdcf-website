@@ -69,6 +69,8 @@ export default function DonationForm({
           frequency,
           projectSlug: projectSlug || null,
           locale,
+          // Where Stripe sends the donor back, so ?status survives.
+          returnPath: window.location.pathname,
         }),
       })
       const data = await response.json()

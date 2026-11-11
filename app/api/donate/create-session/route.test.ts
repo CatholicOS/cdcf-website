@@ -78,6 +78,46 @@ describe('POST /api/donate/create-session', () => {
     expect(params.submit_type).toBe('donate')
   })
 
+  it('returns the donor to the page they gave from, so a localized slug keeps ?status', async () => {
+    // A redirect from /it/donate to the Italian page's real URL (/it/dona)
+    // would drop the query string, and with it the thank-you.
+    await POST(
+      req({
+        amountCents: 500,
+        frequency: 'once',
+        locale: 'it',
+        returnPath: '/it/dona',
+      })
+    )
+
+    const params = createSession.mock.calls[0][0]
+    expect(params.success_url).toBe(
+      'https://example.org/it/dona?status=success'
+    )
+    expect(params.cancel_url).toBe(
+      'https://example.org/it/dona?status=cancelled'
+    )
+  })
+
+  it.each([
+    '//evil.example/x',
+    'https://evil.example/',
+    '/it/dona?x=1',
+    'dona',
+    '/a\\b',
+  ])(
+    'ignores an unsafe return path %s and uses the default',
+    async (returnPath) => {
+      await POST(
+        req({ amountCents: 500, frequency: 'once', locale: 'en', returnPath })
+      )
+
+      expect(createSession.mock.calls[0][0].success_url).toBe(
+        'https://example.org/donate?status=success'
+      )
+    }
+  )
+
   it('refuses a project that does not accept donations', async () => {
     const res = await POST(
       req({

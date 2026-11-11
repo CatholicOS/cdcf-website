@@ -109,6 +109,7 @@ describe('DonationForm', () => {
       frequency: 'monthly',
       projectSlug: 'bibleget',
       locale: 'it',
+      returnPath: window.location.pathname,
     })
     expect(c.textContent).toContain('We could not start the checkout.')
   })
