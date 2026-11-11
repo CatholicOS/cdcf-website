@@ -2,10 +2,16 @@
 
 import { Link } from '@/src/i18n/navigation'
 import { useTranslations } from 'next-intl'
+import { useLocalizedHref } from './LocalizedPaths'
 import Logo from './Logo'
 
+/**
+ * The site footer: brand, social links and the link columns. Site links go
+ * through `localize` so they reach each page's real URL in this language.
+ */
 export default function Footer() {
   const t = useTranslations('footer')
+  const localize = useLocalizedHref()
 
   return (
     <footer className="bg-cdcf-navy text-white">
@@ -141,7 +147,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/community"
+                  href={localize('/community')}
                   className="text-sm text-gray-300 transition-colors hover:text-white"
                 >
                   {t('community.contribute')}
@@ -158,7 +164,7 @@ export default function Footer() {
             <ul className="mt-4 space-y-3">
               <li>
                 <Link
-                  href="/governance"
+                  href={localize('/governance')}
                   className="text-sm text-gray-300 transition-colors hover:text-white"
                 >
                   {t('resources.documentation')}
@@ -166,7 +172,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/blog"
+                  href={localize('/blog')}
                   className="text-sm text-gray-300 transition-colors hover:text-white"
                 >
                   {t('resources.blog')}

@@ -32,6 +32,16 @@ describe('wpQuery', () => {
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 
+  it('passes a cancellation signal through to fetch', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: null }))
+    vi.stubGlobal('fetch', fetchMock)
+    const signal = new AbortController().signal
+
+    await wpQuery('Q', {}, { signal })
+
+    expect(fetchMock.mock.calls[0][1].signal).toBe(signal)
+  })
+
   it('forwards query and variables in the POST body', async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: null }))
     vi.stubGlobal('fetch', fetchMock)

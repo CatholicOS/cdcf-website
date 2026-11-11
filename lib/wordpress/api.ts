@@ -21,6 +21,7 @@ import {
   GET_PROJECT_BY_SLUG,
   GET_SPONSORS,
   GET_DONATABLE_PROJECTS,
+  GET_LOCALIZED_PAGE_PATHS,
 } from './queries'
 import type {
   Nicename,
@@ -682,5 +683,63 @@ export async function getDonatableProjects(
   } catch (error) {
     console.error('Failed to fetch donatable projects:', error)
     return []
+  }
+}
+
+interface LocalizedPathNode {
+  uri: string | null
+  translation: { uri: string | null } | null
+}
+
+/** "/it/community-2/" -> "/community-2" (locale prefix and slashes off). */
+function stripLocale(uri: string, locale: string): string {
+  const trimmed = uri.replace(/^\/+|\/+$/g, '')
+  const segments = trimmed.split('/')
+  if (segments[0] === locale) segments.shift()
+  return `/${segments.join('/')}`
+}
+
+/**
+ * How long the layout waits for the localized paths before rendering with
+ * English links (which still reach the page, through the redirect).
+ */
+export const LOCALIZED_PATHS_TIMEOUT_MS = 3000
+
+/**
+ * English page path -> the same page's path in `locale`, without the locale
+ * prefix (the locale-aware Link adds it): `{ '/community': '/community-2' }`.
+ *
+ * The header and footer link to English paths; in another language those
+ * resolve only through the page route's canonical redirect, which costs a
+ * round trip and renders an empty page body for a frame (a white flash).
+ * The front page and pages whose path is the same in both languages are
+ * left out, and so is everything when WordPress is unreachable or slower
+ * than LOCALIZED_PATHS_TIMEOUT_MS: the redirect still works.
+ */
+export async function getLocalizedPagePaths(
+  locale: string
+): Promise<Record<string, string>> {
+  if (langCode(locale) === 'EN') return {}
+  try {
+    const data = await wpQuery<{ pages: { nodes: LocalizedPathNode[] } }>(
+      GET_LOCALIZED_PAGE_PATHS,
+      { language: langCode(locale) },
+      // Every page's layout waits on this; a stalled WordPress must not
+      // hold it. An abort rejects into the catch below.
+      { signal: AbortSignal.timeout(LOCALIZED_PATHS_TIMEOUT_MS) }
+    )
+    const paths: Record<string, string> = {}
+    for (const node of data.pages.nodes) {
+      if (!node.uri || !node.translation?.uri) continue
+      const english = stripLocale(node.uri, 'en')
+      // The front page is served at the locale root whatever its slug.
+      if (english === '/') continue
+      const localized = stripLocale(node.translation.uri, locale)
+      if (english !== localized) paths[english] = localized
+    }
+    return paths
+  } catch (error) {
+    console.error('Failed to fetch localized page paths:', error)
+    return {}
   }
 }

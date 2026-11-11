@@ -8,6 +8,8 @@ import { auth } from '@/lib/auth'
 import { locales } from '@/src/i18n/routing'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { LocalizedPathsProvider } from '@/components/LocalizedPaths'
+import { getLocalizedPagePaths } from '@/lib/wordpress/api'
 import PreviewBanner from '@/components/PreviewBanner'
 import '@/css/globals.css'
 
@@ -82,6 +84,10 @@ export const viewport: Viewport = {
   themeColor: '#213463',
 }
 
+/**
+ * The shell of every page in a language: fonts, session and messages, and
+ * the header and footer with their links mapped to this language's URLs.
+ */
 export default async function LangLayout({
   children,
   params,
@@ -96,7 +102,11 @@ export default async function LangLayout({
   }
 
   setRequestLocale(lang)
-  const [messages, session] = await Promise.all([getMessages(), auth()])
+  const [messages, session, localizedPaths] = await Promise.all([
+    getMessages(),
+    auth(),
+    getLocalizedPagePaths(lang),
+  ])
 
   return (
     <html
@@ -110,10 +120,12 @@ export default async function LangLayout({
       <body className="flex min-h-screen flex-col bg-white font-sans text-gray-900 antialiased">
         <SessionProvider session={session}>
           <NextIntlClientProvider messages={messages}>
-            <PreviewBanner />
-            <Header />
-            <main className="flex-1">{children}</main>
-            <Footer />
+            <LocalizedPathsProvider paths={localizedPaths}>
+              <PreviewBanner />
+              <Header />
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </LocalizedPathsProvider>
           </NextIntlClientProvider>
         </SessionProvider>
       </body>

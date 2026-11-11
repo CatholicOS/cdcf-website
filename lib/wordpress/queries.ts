@@ -650,3 +650,19 @@ export const GET_DONATABLE_PROJECTS = `
     }
   }
 `
+
+// Every English page's path and its translation's path in one language,
+// so the header and footer can link straight to the real localized URL
+// instead of through the canonical redirect.
+export const GET_LOCALIZED_PAGE_PATHS = `
+  query GetLocalizedPagePaths($language: LanguageCodeEnum!) {
+    pages(where: { language: EN }, first: 200) {
+      nodes {
+        uri
+        translation(language: $language) {
+          uri
+        }
+      }
+    }
+  }
+`
