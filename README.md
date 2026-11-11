@@ -58,7 +58,7 @@ Edit `.env.local`:
 | `CDCF_DONATION_MAIL_SECRET` | Signs requests to the WordPress donation mail endpoints; must match the WordPress constant           |
 | `NEXT_PUBLIC_SITE_URL`      | Public base URL, used for Checkout and Customer Portal return URLs                                   |
 
-Donations also need WordPress constants in `wp-config.php` (`CDCF_DONATION_MAIL_SECRET`, `CDCF_FOUNDATION_EIN`, `CDCF_FOUNDATION_ADDRESS`, `CDCF_DONATION_TEST_INBOX`); see [`docs/donations.md`](docs/donations.md).
+Donations also need WordPress constants in `wp-config.php` (`CDCF_DONATION_MAIL_SECRET`, `CDCF_FOUNDATION_EIN`, `CDCF_FOUNDATION_ADDRESS`, `CDCF_DONATION_TEST_INBOX`, `CDCF_DONATION_NOTIFY_INBOX`); see [`docs/donations.md`](docs/donations.md).
 
 ### Local Identity Provider (Zitadel)
 

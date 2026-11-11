@@ -6,6 +6,10 @@ import {
   buildAcknowledgmentPayload,
   shouldAcknowledge,
 } from '@/lib/donate/acknowledgment'
+import {
+  buildCancellationPayload,
+  classifyCancellation,
+} from '@/lib/donate/cancellation'
 import type { DonationFrequency } from '@/lib/donate/validation'
 import { postToWordPress } from '@/lib/donate/wp-mailer'
 import { createPortalSession } from '@/lib/donate/portal-session'
@@ -36,6 +40,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Stripe webhook signature verification failed:', error)
     return NextResponse.json({ error: 'Invalid signature.' }, { status: 400 })
+  }
+
+  if (
+    event.type === 'customer.subscription.updated' ||
+    event.type === 'customer.subscription.deleted'
+  ) {
+    return handleSubscriptionEvent(event)
   }
 
   const isCheckoutEvent =
@@ -141,5 +152,87 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  return NextResponse.json({ received: true })
+}
+
+/**
+ * A monthly gift was cancelled (or ended after failed payments): hand the
+ * donor confirmation and the Foundation notice to WordPress. Other
+ * subscription updates (a new card, a renewal, a reactivation) are
+ * acknowledged and ignored.
+ */
+async function handleSubscriptionEvent(event: Stripe.Event) {
+  const subscription = event.data.object as Stripe.Subscription
+  const metadata = (subscription.metadata ?? {}) as Record<string, string>
+  const previous = (
+    event.data as { previous_attributes?: Record<string, unknown> }
+  ).previous_attributes
+
+  const kind = classifyCancellation(
+    event.type,
+    {
+      cancelAt: subscription.cancel_at ?? null,
+      cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
+      cancellationReason: subscription.cancellation_details?.reason ?? null,
+      frequency: metadata.frequency,
+    },
+    previous
+  )
+  if (!kind) {
+    return NextResponse.json({ received: true })
+  }
+
+  // The subscription carries only the customer id; the email and name are
+  // on the customer. A deleted customer has neither, and the Foundation is
+  // still told.
+  let email = ''
+  let donorName = ''
+  const customerId =
+    typeof subscription.customer === 'string'
+      ? subscription.customer
+      : subscription.customer?.id
+  if (customerId) {
+    try {
+      const customer = await getStripe().customers.retrieve(customerId)
+      if (!('deleted' in customer && customer.deleted)) {
+        email = customer.email ?? ''
+        donorName = customer.name ?? ''
+      }
+    } catch (error) {
+      console.error('Failed to retrieve the cancelling customer:', error)
+    }
+  }
+
+  const item = subscription.items?.data?.[0]
+  const amountCents = (item?.price?.unit_amount ?? 0) * (item?.quantity ?? 1)
+
+  const payload = buildCancellationPayload({
+    eventId: event.id,
+    livemode: event.livemode,
+    kind,
+    subscriptionId: subscription.id,
+    email,
+    donorName,
+    locale: metadata.locale ?? 'en',
+    amountCents,
+    projectTitle: metadata.project_title ?? '',
+    projectTitleEn: metadata.project_title_en ?? '',
+    startedAt: subscription.start_date,
+    endsAt:
+      kind === 'scheduled'
+        ? (subscription.cancel_at ?? event.created)
+        : (subscription.ended_at ?? subscription.canceled_at ?? event.created),
+    occurredAt: event.created,
+    feedback: subscription.cancellation_details?.feedback ?? null,
+    comment: subscription.cancellation_details?.comment ?? null,
+  })
+
+  const sent = await postToWordPress('cdcf/v1/donation-cancellation', payload)
+  if (!sent) {
+    return NextResponse.json(
+      { error: 'Cancellation notice delivery failed.' },
+      { status: 500 }
+    )
+  }
   return NextResponse.json({ received: true })
 }
