@@ -20,6 +20,7 @@ import {
   GET_PROJECT_BY_ID,
   GET_PROJECT_BY_SLUG,
   GET_SPONSORS,
+  GET_DONATABLE_PROJECTS,
 } from './queries'
 import type {
   Nicename,
@@ -623,6 +624,43 @@ export async function getSponsors(locale: string): Promise<WPSponsor[]> {
     return data.sponsors.nodes
   } catch (error) {
     console.error('Failed to fetch sponsors:', error)
+    return []
+  }
+}
+
+/** A project offered in the donation designation picker. */
+export interface DonatableProject {
+  slug: string
+  title: string
+}
+
+interface DonatableProjectNode {
+  slug: string | null
+  title: string | null
+  projectFields: { projectAcceptsDonations: boolean | null } | null
+}
+
+/**
+ * The curated designation list. A project appears only when an editor has
+ * ticked "Accepts Donations" on it, so dormant projects never become
+ * fundraising destinations by default.
+ */
+export async function getDonatableProjects(
+  locale: string
+): Promise<DonatableProject[]> {
+  try {
+    const data = await wpQuery<{
+      projects: { nodes: DonatableProjectNode[] }
+    }>(GET_DONATABLE_PROJECTS, { language: langCode(locale) })
+
+    return data.projects.nodes
+      .filter((node) => node.projectFields?.projectAcceptsDonations === true)
+      .filter((node): node is DonatableProjectNode & { slug: string } =>
+        Boolean(node.slug)
+      )
+      .map((node) => ({ slug: node.slug, title: node.title ?? node.slug }))
+  } catch (error) {
+    console.error('Failed to fetch donatable projects:', error)
     return []
   }
 }
