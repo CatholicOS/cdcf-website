@@ -32,7 +32,9 @@ export default function HeroBanner({ hero }: HeroBannerProps) {
   return (
     <section
       className={clsx(
-        'relative overflow-hidden py-20 sm:py-28 lg:py-36',
+        // Tall enough to read as a heading, short enough that the page's
+        // own content starts on the first screen.
+        'relative overflow-hidden py-12 sm:py-16 lg:py-20',
         bgClasses
       )}
       style={
@@ -87,24 +89,26 @@ export default function HeroBanner({ hero }: HeroBannerProps) {
           />
         )}
 
-        <div className="mt-10 flex flex-wrap gap-4">
-          {hero.heroPrimaryBtnLabel && (
-            <Link
-              href={hero.heroPrimaryBtnUrl || '#'}
-              className="cdcf-btn-primary text-base"
-            >
-              {hero.heroPrimaryBtnLabel}
-            </Link>
-          )}
-          {hero.heroSecondaryBtnLabel && (
-            <Link
-              href={hero.heroSecondaryBtnUrl || '#'}
-              className="cdcf-btn-secondary border-white text-white hover:bg-white hover:text-cdcf-navy text-base"
-            >
-              {hero.heroSecondaryBtnLabel}
-            </Link>
-          )}
-        </div>
+        {(hero.heroPrimaryBtnLabel || hero.heroSecondaryBtnLabel) && (
+          <div className="mt-8 flex flex-wrap gap-4">
+            {hero.heroPrimaryBtnLabel && (
+              <Link
+                href={hero.heroPrimaryBtnUrl || '#'}
+                className="cdcf-btn-primary text-base"
+              >
+                {hero.heroPrimaryBtnLabel}
+              </Link>
+            )}
+            {hero.heroSecondaryBtnLabel && (
+              <Link
+                href={hero.heroSecondaryBtnUrl || '#'}
+                className="cdcf-btn-secondary border-white text-white hover:bg-white hover:text-cdcf-navy text-base"
+              >
+                {hero.heroSecondaryBtnLabel}
+              </Link>
+            )}
+          </div>
+        )}
       </div>
     </section>
   )
