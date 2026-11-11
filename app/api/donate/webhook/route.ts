@@ -8,6 +8,7 @@ import {
 } from '@/lib/donate/acknowledgment'
 import type { DonationFrequency } from '@/lib/donate/validation'
 import { postToWordPress } from '@/lib/donate/wp-mailer'
+import { portalSessionParams } from '@/lib/donate/portal-session'
 import { getStripe } from '@/lib/stripe'
 
 export const runtime = 'nodejs'
@@ -99,10 +100,9 @@ export async function POST(request: NextRequest) {
   let portalUrl = ''
   if (frequency === 'monthly' && customerId) {
     try {
-      const portal = await getStripe().billingPortal.sessions.create({
-        customer: customerId,
-        return_url: process.env.NEXT_PUBLIC_SITE_URL ?? undefined,
-      })
+      const portal = await getStripe().billingPortal.sessions.create(
+        portalSessionParams(customerId, metadata.locale ?? 'en')
+      )
       portalUrl = portal.url
     } catch (error) {
       // Non-fatal: the acknowledgment is still worth sending without it.
