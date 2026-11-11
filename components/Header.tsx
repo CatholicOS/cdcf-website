@@ -12,6 +12,7 @@ import clsx from 'clsx'
 import Logo from './Logo'
 import LanguageSwitcher from './LanguageSwitcher'
 import AuthButton from './AuthButton'
+import { useLocalizedHref } from './LocalizedPaths'
 
 interface NavChild {
   href: string
@@ -24,6 +25,25 @@ interface NavLink {
   href: string
   label: string
   children?: NavChild[]
+}
+
+/** The same menu with every href passed through `localize`. */
+function localizeNav(
+  links: NavLink[],
+  localize: (href: string) => string
+): NavLink[] {
+  return links.map((link) => ({
+    ...link,
+    href: localize(link.href),
+    children: link.children?.map((child) => ({
+      ...child,
+      href: localize(child.href),
+      children: child.children?.map((grandchild) => ({
+        ...grandchild,
+        href: localize(grandchild.href),
+      })),
+    })),
+  }))
 }
 
 /**
@@ -109,6 +129,7 @@ function DesktopDropdown({
  */
 export default function Header() {
   const t = useTranslations('nav')
+  const localize = useLocalizedHref()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [desktopDropdown, setDesktopDropdown] = useState<string | null>(null)
   const [mobileDropdown, setMobileDropdown] = useState<string | null>(null)
@@ -134,7 +155,9 @@ export default function Header() {
     closeTimeout.current = setTimeout(() => setDesktopDropdown(null), 150)
   }
 
-  const navLinks: NavLink[] = [
+  // Written with English paths; localizeNav swaps in each page's real path
+  // in the current language, so a click never goes through a redirect.
+  const englishNavLinks: NavLink[] = [
     // Community before Projects ("community over code"), About near the end.
     {
       href: '/community',
@@ -255,6 +278,7 @@ export default function Header() {
     },
     { href: '/contact', label: t('contact') },
   ]
+  const navLinks = localizeNav(englishNavLinks, localize)
 
   return (
     <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
@@ -313,7 +337,7 @@ export default function Header() {
           <LanguageSwitcher />
           <AuthButton />
           <Link
-            href="/donate"
+            href={localize('/donate')}
             className="cdcf-btn-primary hidden text-sm sm:inline-flex"
           >
             {t('donate')}
@@ -440,7 +464,7 @@ export default function Header() {
             )
           )}
           <Link
-            href="/donate"
+            href={localize('/donate')}
             onClick={() => setMobileOpen(false)}
             className="cdcf-btn-primary mt-2 mb-2 text-center text-sm"
           >
