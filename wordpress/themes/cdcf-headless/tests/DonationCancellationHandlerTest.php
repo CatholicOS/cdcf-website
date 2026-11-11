@@ -264,12 +264,47 @@ final class DonationCancellationHandlerTest extends TestCase
         );
     }
 
+    /**
+     * Notices that are not cancellations go to the Foundation only, without
+     * a last day or a reason.
+     *
+     * @dataProvider foundationOnlyKinds
+     */
+    public function test_foundation_only_notices(string $kind, string $subject, string $headline): void
+    {
+        $this->captureMail();
+
+        $res = cdcf_rest_donation_cancellation($this->request(['kind' => $kind]));
+
+        $this->assertSame(['success' => true], $res);
+        $this->assertCount(1, $this->mails);
+        [$to, $sent, $body] = $this->mails[0];
+        $this->assertSame('admin@example.org', $to);
+        $this->assertSame($subject, $sent);
+        $this->assertStringContainsString($headline, $body);
+        $this->assertStringContainsString('Jane Donor <donor@example.org>', $body);
+        $this->assertStringContainsString('Designation: BibleGet', $body);
+        $this->assertStringNotContainsString('Last day:', $body);
+        $this->assertStringNotContainsString('Reason:', $body);
+    }
+
+    /** kind => [subject, a phrase of the headline]. */
+    public static function foundationOnlyKinds(): array
+    {
+        return [
+            'started'     => ['started', 'New monthly gift: $25.00', 'A new monthly gift has started'],
+            'reactivated' => ['reactivated', 'Monthly gift reactivated: $25.00', 'withdrew their cancellation'],
+            'paused'      => ['paused', 'Monthly gift paused: $25.00', 'is paused'],
+            'resumed'     => ['resumed', 'Monthly gift resumed: $25.00', 'has resumed'],
+        ];
+    }
+
     /** An unknown kind is refused rather than guessed at. */
     public function test_refuses_an_unknown_kind(): void
     {
         Functions\expect('wp_mail')->never();
 
-        $res = cdcf_rest_donation_cancellation($this->request(['kind' => 'paused']));
+        $res = cdcf_rest_donation_cancellation($this->request(['kind' => 'trialing']));
 
         $this->assertInstanceOf(WP_Error::class, $res);
         $this->assertSame(400, $res->get_error_data()['status']);

@@ -3,13 +3,14 @@
  * REST route handler for /cdcf/v1/donation-cancellation.
  *
  * Called server-to-server by the Next.js Stripe webhook handler when a
- * monthly gift is cancelled or ends after failed payments. It sends up to
- * two emails:
+ * monthly gift starts, is cancelled, reactivated, paused or resumed, or ends
+ * after failed payments. It sends up to two emails:
  *
  *   - a confirmation to the donor, in their language, when they cancelled
  *     (not for failed payments: Stripe already emails the donor about those);
- *   - a notice to the Foundation, in English, with the gift, how long it ran
- *     and the reason and comment the donor gave in the Customer Portal.
+ *   - a notice to the Foundation, in English, with the gift and how long it
+ *     has run, plus, for a cancellation, the last day and the reason and
+ *     comment the donor gave in the Customer Portal.
  *
  * Signed and idempotent like /donation-acknowledgment, with one guard per
  * email, so a retry after one fails resends only that one. A test-mode event
@@ -17,6 +18,14 @@
  */
 
 defined('ABSPATH') || exit;
+
+/** Monthly-gift changes that are cancellations: they carry a last day and a reason. */
+const CDCF_DONATION_CANCELLATION_KINDS = ['scheduled', 'immediate', 'payment_failed'];
+
+/** Every monthly-gift change this endpoint reports. */
+const CDCF_DONATION_NOTICE_KINDS = [
+    'scheduled', 'immediate', 'payment_failed', 'started', 'reactivated', 'paused', 'resumed',
+];
 
 /**
  * Where the Foundation's donation notices go: CDCF_DONATION_NOTIFY_INBOX,
@@ -127,11 +136,16 @@ function cdcf_donation_cancellation_notice_mail(WP_REST_Request $request): array
     $amount = '$' . number_format(((int) $request['amount_cents']) / 100, 2);
     $kind   = (string) $request['kind'];
 
-    $headline = [
-        'scheduled'      => 'A donor cancelled their monthly gift. It ends after the period already paid for.',
-        'immediate'      => 'A monthly gift was cancelled immediately.',
-        'payment_failed' => 'A monthly gift ended because its payments failed and every retry was declined.',
+    [$subject_lead, $headline] = [
+        'scheduled'      => ['Monthly gift cancelled', 'A donor cancelled their monthly gift. It ends after the period already paid for.'],
+        'immediate'      => ['Monthly gift cancelled', 'A monthly gift was cancelled immediately.'],
+        'payment_failed' => ['Monthly gift ended after failed payments', 'A monthly gift ended because its payments failed and every retry was declined.'],
+        'started'        => ['New monthly gift', 'A new monthly gift has started.'],
+        'reactivated'    => ['Monthly gift reactivated', 'A donor withdrew their cancellation: the monthly gift will continue.'],
+        'paused'         => ['Monthly gift paused', 'A monthly gift is paused. Stripe resumes it at the end of the pause the donor chose.'],
+        'resumed'        => ['Monthly gift resumed', 'A paused monthly gift has resumed.'],
     ][$kind];
+    $is_cancellation = in_array($kind, CDCF_DONATION_CANCELLATION_KINDS, true);
 
     $name  = (string) $request['donor_name'];
     $email = (string) $request['email'];
@@ -149,20 +163,19 @@ function cdcf_donation_cancellation_notice_mail(WP_REST_Request $request): array
         'Amount: ' . $amount . ' per month',
         'Designation: ' . ($title !== '' ? $title : 'General fund'),
         'Giving since: ' . wp_date('Y-m-d', (int) $request['started_at']),
-        'Last day: ' . wp_date('Y-m-d', (int) $request['ends_at']),
-        'Reason: ' . cdcf_donation_feedback_label((string) $request['feedback']),
     ];
-    $comment = (string) $request['comment'];
-    if ($comment !== '') {
-        $lines[] = 'Comment: ' . $comment;
+    if ($is_cancellation) {
+        $lines[] = 'Last day: ' . wp_date('Y-m-d', (int) $request['ends_at']);
+        $lines[] = 'Reason: ' . cdcf_donation_feedback_label((string) $request['feedback']);
+        $comment = (string) $request['comment'];
+        if ($comment !== '') {
+            $lines[] = 'Comment: ' . $comment;
+        }
     }
     $lines[] = '';
     $lines[] = 'Stripe: ' . $dashboard;
 
-    $subject = $kind === 'payment_failed'
-        ? "Monthly gift ended after failed payments: {$amount}"
-        : "Monthly gift cancelled: {$amount}";
-    return [$subject, implode("\n", $lines)];
+    return ["{$subject_lead}: {$amount}", implode("\n", $lines)];
 }
 
 /**
@@ -173,7 +186,7 @@ function cdcf_donation_cancellation_notice_mail(WP_REST_Request $request): array
  */
 function cdcf_rest_donation_cancellation(WP_REST_Request $request) {
     $kind = (string) $request['kind'];
-    if (!in_array($kind, ['scheduled', 'immediate', 'payment_failed'], true)) {
+    if (!in_array($kind, CDCF_DONATION_NOTICE_KINDS, true)) {
         return new WP_Error('invalid_kind', 'Unknown cancellation kind.', ['status' => 400]);
     }
 
@@ -192,7 +205,8 @@ function cdcf_rest_donation_cancellation(WP_REST_Request $request) {
     }
 
     $mails = [];
-    if ($kind !== 'payment_failed' && $donor_to !== '') {
+    // Only a donor's own cancellation is confirmed to them.
+    if (in_array($kind, ['scheduled', 'immediate'], true) && $donor_to !== '') {
         $mails['donor'] = [$donor_to, cdcf_donation_cancellation_donor_mail($request)];
     }
     if ($notice_to !== '') {

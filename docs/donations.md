@@ -44,8 +44,15 @@ Checkout, capped at $200 per contribution. Design:
    `cancel_at` newly set (flexible billing mode leaves
    `cancel_at_period_end` false). A cancellation made at once, or the end of
    a gift whose retries ran out, arrives as `customer.subscription.deleted`.
-   When a scheduled cancellation later takes effect nothing more is sent, and
-   a donor who reactivates before the end date gets no email.
+   When a scheduled cancellation later takes effect nothing more is sent.
+
+7. The same endpoint sends the Foundation (only) a short notice when a
+   monthly gift **starts** (`customer.subscription.created`), is
+   **reactivated** (an `updated` event clearing `cancel_at`: the donor
+   withdrew a cancellation before its end date), is **paused** or
+   **resumed** (`customer.subscription.paused` / `.resumed`). The donor
+   already has the acknowledgment, or saw the change confirmed in the
+   portal. Routine updates, such as a renewal or a new card, send nothing.
 
 ## Reporting
 
@@ -168,7 +175,11 @@ settings.
       need more features"), with reasons that fit a gift, for example "My
       financial situation changed", "I'd rather give one-time gifts", "I'm
       supporting the Foundation another way" and "Other". The reason reaches
-      the Foundation in the cancellation notice.
+      the Foundation in the cancellation notice. Optionally, under
+      **Pause**, turn on **Pause subscriptions** and add durations (say one
+      and three months): a donor can then pause instead of cancelling, once
+      every 12 months, from the end of the period already paid for. Pausing
+      exists only in Stripe's redesigned customer portal.
 - [ ] **Stripe's own receipts off.** Settings → Customer emails → Successful
       payments. The Foundation's acknowledgment is the receipt; with both on,
       every donor gets two emails for one gift. Refund emails may stay on.
@@ -183,8 +194,8 @@ settings.
    `https://catholicdigitalcommons.org/api/donate/webhook` in live mode and
    the staging URL in test mode, each subscribed to
    `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
-   `invoice.paid`, `customer.subscription.updated` and
-   `customer.subscription.deleted` only. Put each signing
+   `invoice.paid`, and `customer.subscription.created`, `.updated`,
+   `.deleted`, `.paused` and `.resumed`. Put each signing
    secret in the matching environment's `STRIPE_WEBHOOK_SECRET`.
 2. **Content.** Create the `donate` page in each language with the `Donate`
    template, fill its five fields (appeal, preset amounts, tax disclaimer,

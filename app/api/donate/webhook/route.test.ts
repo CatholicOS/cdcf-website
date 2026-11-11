@@ -334,7 +334,7 @@ describe('POST /api/donate/webhook', () => {
       )
     })
 
-    it('sends nothing when the donor reactivates', async () => {
+    it('tells the Foundation when the donor reactivates', async () => {
       constructEvent.mockReturnValue(
         subscriptionEvent('customer.subscription.updated', subscription(), {
           cancel_at: 1_760_000_000,
@@ -344,6 +344,37 @@ describe('POST /api/donate/webhook', () => {
       const res = await POST(req())
 
       expect(res.status).toBe(200)
+      expect(postToWordPress).toHaveBeenCalledWith(
+        'cdcf/v1/donation-cancellation',
+        expect.objectContaining({ kind: 'reactivated', ends_at: 1_750_000_000 })
+      )
+    })
+
+    it.each([
+      ['customer.subscription.created', 'started'],
+      ['customer.subscription.paused', 'paused'],
+      ['customer.subscription.resumed', 'resumed'],
+    ])('hands %s to WordPress as %s', async (type, kind) => {
+      constructEvent.mockReturnValue(subscriptionEvent(type, subscription()))
+
+      const res = await POST(req())
+
+      expect(res.status).toBe(200)
+      expect(postToWordPress).toHaveBeenCalledWith(
+        'cdcf/v1/donation-cancellation',
+        expect.objectContaining({ kind, email: 'd@example.org' })
+      )
+    })
+
+    it('sends nothing for a routine update such as a renewal', async () => {
+      constructEvent.mockReturnValue(
+        subscriptionEvent('customer.subscription.updated', subscription(), {
+          current_period_end: 1_700_000_000,
+        })
+      )
+
+      await POST(req())
+
       expect(postToWordPress).not.toHaveBeenCalled()
       expect(retrieveCustomer).not.toHaveBeenCalled()
     })
