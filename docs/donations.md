@@ -44,12 +44,15 @@ one is the only key that is the same for every gift to a project.
 
 ### Next.js (`.env.local` locally; the Plesk panel for each Node.js app)
 
-| Variable                    | Purpose                                                                                                             |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `STRIPE_SECRET_KEY`         | `sk_test_…` everywhere except production, which uses the live key.                                                  |
-| `STRIPE_WEBHOOK_SECRET`     | The `whsec_…` of the webhook endpoint for this environment (or of `stripe listen` locally).                         |
-| `CDCF_DONATION_MAIL_SECRET` | Signs the requests to the two WordPress donation endpoints. Must equal the WordPress value. `openssl rand -hex 32`. |
-| `NEXT_PUBLIC_SITE_URL`      | Base of the success, cancel and portal return URLs (`http://localhost:3000` locally).                               |
+In Plesk, add the first three as **secrets**, not plain environment
+variables, on both the production and the staging app.
+
+| Variable                    | Purpose                                                                                                                                                                                                                                               |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `STRIPE_SECRET_KEY`         | A restricted key (`rk_test_…`, or `rk_live_…` in production) with Checkout Sessions: Write, Customer portal: Write and Customers: Read, nothing else. `sk_test_…` also works locally.                                                                 |
+| `STRIPE_WEBHOOK_SECRET`     | The `whsec_…` of the webhook endpoint for this environment (or of `stripe listen` locally).                                                                                                                                                           |
+| `CDCF_DONATION_MAIL_SECRET` | Signs the requests to the two WordPress donation endpoints. Must equal the WordPress value. `openssl rand -hex 32`.                                                                                                                                   |
+| `NEXT_PUBLIC_SITE_URL`      | Base of the success, cancel and portal return URLs (`http://localhost:3000` locally). Not set in Plesk: the deploy workflow passes it to `npm run build` from the GitHub Actions environment's `vars.NEXT_PUBLIC_SITE_URL`, and the build inlines it. |
 
 `WP_REST_URL`, `WP_APP_USERNAME` and `WP_APP_PASSWORD` are reused for the
 WordPress calls. That account needs `edit_posts`.
