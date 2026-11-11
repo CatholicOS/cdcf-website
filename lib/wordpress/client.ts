@@ -5,14 +5,21 @@ interface WPQueryOptions {
   draft?: boolean
   token?: string
   tags?: string[]
+  /** Cancels the request, e.g. `AbortSignal.timeout(ms)` for a bounded wait. */
+  signal?: AbortSignal
 }
 
+/**
+ * POST a GraphQL query to WPGraphQL and return its `data`, cached for
+ * `revalidate` seconds (never for drafts). Throws on a non-2xx, a non-JSON
+ * response, GraphQL errors, or when `signal` aborts.
+ */
 export async function wpQuery<T = unknown>(
   query: string,
   variables: Record<string, unknown> = {},
   options: WPQueryOptions = {}
 ): Promise<T> {
-  const { revalidate = 60, draft = false, token, tags } = options
+  const { revalidate = 60, draft = false, token, tags, signal } = options
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -45,6 +52,7 @@ export async function wpQuery<T = unknown>(
     method: 'POST',
     headers,
     body: JSON.stringify({ query, variables }),
+    signal,
     next: {
       revalidate: draft ? 0 : revalidate,
       ...(tags?.length ? { tags } : {}),

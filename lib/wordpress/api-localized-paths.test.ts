@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('./client', () => ({ wpQuery: vi.fn() }))
 
-import { getLocalizedPagePaths } from './api'
+import { getLocalizedPagePaths, LOCALIZED_PATHS_TIMEOUT_MS } from './api'
 import { wpQuery } from './client'
 
 const mockedQuery = vi.mocked(wpQuery)
@@ -32,9 +32,11 @@ describe('getLocalizedPagePaths', () => {
       '/donate': '/dona',
       '/governance/project-governance': '/governance-2/project-governance-2',
     })
-    expect(mockedQuery).toHaveBeenCalledWith(expect.any(String), {
-      language: 'IT',
-    })
+    expect(mockedQuery).toHaveBeenCalledWith(
+      expect.any(String),
+      { language: 'IT' },
+      { signal: expect.any(AbortSignal) }
+    )
   })
 
   it('leaves out pages with no translation, the same path, or the home page', async () => {
@@ -55,6 +57,27 @@ describe('getLocalizedPagePaths', () => {
   it('needs no lookup for English, whose links are already canonical', async () => {
     await expect(getLocalizedPagePaths('en')).resolves.toEqual({})
     expect(mockedQuery).not.toHaveBeenCalled()
+  })
+
+  it('gives up on a stalled WordPress after a bounded wait', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    // The timeout has already fired by the time the lookup starts.
+    const timeout = vi
+      .spyOn(AbortSignal, 'timeout')
+      .mockImplementation(() =>
+        AbortSignal.abort(new DOMException('timed out', 'TimeoutError'))
+      )
+    // A lookup that never answers and only ends on abort, as fetch does.
+    mockedQuery.mockImplementation((_query, _vars, options) => {
+      const signal = options?.signal
+      return new Promise((_resolve, reject) => {
+        if (signal?.aborted) reject(signal.reason)
+        signal?.addEventListener('abort', () => reject(signal.reason))
+      })
+    })
+
+    await expect(getLocalizedPagePaths('it')).resolves.toEqual({})
+    expect(timeout).toHaveBeenCalledWith(LOCALIZED_PATHS_TIMEOUT_MS)
   })
 
   it('falls back to no mapping when WordPress is unreachable', async () => {
