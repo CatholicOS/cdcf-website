@@ -188,7 +188,9 @@ function cdcf_rest_donation_acknowledgment(WP_REST_Request $request) {
 
     $s      = cdcf_donation_email_strings((string) $request['locale']);
     $amount = '$' . number_format(((int) $request['amount_cents']) / 100, 2);
-    $date   = date_i18n('j F Y', (int) $request['occurred_at']);
+    // ISO day in the site timezone: no translated month names, and never a
+    // day off (date_i18n would treat this UTC timestamp as local time).
+    $date   = wp_date('Y-m-d', (int) $request['occurred_at']);
     $freq   = $request['frequency'] === 'monthly' ? $s['monthly'] : $s['once'];
 
     $lines = [

@@ -20,7 +20,9 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         Functions\when('set_transient')->justReturn(true);
         // wp_mail and delete_transient are stubbed per test: a when() here
         // would win over a later expect(), so its call count never registers.
-        Functions\when('date_i18n')->alias(
+        // wp_date() converts the UTC timestamp to the site timezone; UTC
+        // stands in for it here.
+        Functions\when('wp_date')->alias(
             fn(string $fmt, int $ts) => gmdate($fmt, $ts)
         );
     }
@@ -118,6 +120,25 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         cdcf_rest_donation_acknowledgment($this->request(['locale' => 'ja']));
 
         $this->assertStringContainsString('Thank you', $captured);
+    }
+
+    public function test_dates_the_gift_as_an_iso_day_in_every_language(): void
+    {
+        $captured = '';
+        Functions\when('wp_mail')->alias(
+            function ($to, $subject, $body) use (&$captured) {
+                $captured = $body;
+                return true;
+            }
+        );
+
+        // 2025-08-21 12:00 UTC. An ISO date needs no translated month name,
+        // and wp_date() puts it in the site timezone rather than treating a
+        // UTC timestamp as local (date_i18n's contract).
+        cdcf_rest_donation_acknowledgment($this->request(['locale' => 'de']));
+
+        $this->assertStringContainsString('Datum: 2025-08-21', $captured);
+        $this->assertStringNotContainsString('August', $captured);
     }
 
     public function test_formats_the_amount_as_dollars_not_cents(): void
