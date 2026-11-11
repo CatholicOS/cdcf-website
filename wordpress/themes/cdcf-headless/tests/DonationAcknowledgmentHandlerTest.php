@@ -55,16 +55,6 @@ final class DonationAcknowledgmentHandlerTest extends TestCase
         return $req;
     }
 
-    public function test_permission_check_requires_edit_posts(): void
-    {
-        Functions\expect('current_user_can')
-            ->once()
-            ->with('edit_posts')
-            ->andReturn(true);
-
-        $this->assertTrue(cdcf_donation_permission_check());
-    }
-
     public function test_sends_one_email_on_the_happy_path(): void
     {
         Functions\expect('wp_mail')

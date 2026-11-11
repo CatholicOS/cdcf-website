@@ -1037,9 +1037,11 @@ add_action('rest_api_init', function () {
     ]);
 });
 
-// POST /wp-json/cdcf/v1/donation-acknowledgment (edit_posts — called by the
-// Next.js Stripe webhook). Handler body in includes/handlers/donation-acknowledgment.php.
+// POST /wp-json/cdcf/v1/donation-acknowledgment and /donation-portal-link
+// (edit_posts — called server-to-server by Next.js). Handler bodies live in
+// includes/handlers/donation-*.php.
 require_once __DIR__ . '/includes/handlers/donation-acknowledgment.php';
+require_once __DIR__ . '/includes/handlers/donation-portal-link.php';
 
 add_action('rest_api_init', function () {
     register_rest_route('cdcf/v1', '/donation-acknowledgment', [
@@ -1058,6 +1060,17 @@ add_action('rest_api_init', function () {
             'project_title' => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'sanitize_text_field', 'default' => ''],
             'occurred_at'   => ['required' => true,  'type' => 'integer', 'sanitize_callback' => 'absint'],
             'portal_url'    => ['required' => false, 'type' => 'string',  'sanitize_callback' => 'esc_url_raw', 'default' => ''],
+        ],
+    ]);
+
+    register_rest_route('cdcf/v1', '/donation-portal-link', [
+        'methods'             => 'POST',
+        'callback'            => 'cdcf_rest_donation_portal_link',
+        'permission_callback' => 'cdcf_donation_permission_check',
+        'args' => [
+            'email'      => ['required' => true,  'type' => 'string', 'sanitize_callback' => 'sanitize_email'],
+            'locale'     => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field', 'default' => 'en'],
+            'portal_url' => ['required' => false, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw', 'default' => ''],
         ],
     ]);
 });

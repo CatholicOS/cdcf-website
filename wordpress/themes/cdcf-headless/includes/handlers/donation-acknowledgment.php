@@ -19,10 +19,58 @@
 defined('ABSPATH') || exit;
 
 /**
- * Shared permission callback for both donation endpoints.
+ * The key Next.js signs each donation mail request with. Read from the
+ * CDCF_DONATION_MAIL_SECRET constant in wp-config.php or the environment
+ * variable of the same name; empty when neither is set.
  */
-function cdcf_donation_permission_check(): bool {
-    return current_user_can('edit_posts');
+function cdcf_donation_mail_secret(): string {
+    return defined('CDCF_DONATION_MAIL_SECRET')
+        ? (string) CDCF_DONATION_MAIL_SECRET
+        : (string) (getenv('CDCF_DONATION_MAIL_SECRET') ?: '');
+}
+
+/**
+ * Shared permission callback for both donation endpoints.
+ *
+ * These endpoints send email in the Foundation's name, so edit_posts alone,
+ * which every author and contributor holds, is not enough: the raw body must
+ * also carry an HMAC-SHA256 signature (X-CDCF-Signature) under
+ * CDCF_DONATION_MAIL_SECRET, which only the Next.js server knows. With no
+ * secret configured, every request is refused.
+ */
+function cdcf_donation_permission_check(WP_REST_Request $request): bool {
+    if (!current_user_can('edit_posts')) {
+        return false;
+    }
+    $secret    = cdcf_donation_mail_secret();
+    $signature = (string) $request->get_header('X-CDCF-Signature');
+    if ($secret === '' || $signature === '') {
+        return false;
+    }
+    return hash_equals(hash_hmac('sha256', $request->get_body(), $secret), $signature);
+}
+
+/**
+ * Whether a portal link is safe to mail: empty, or an https URL on Stripe's
+ * billing.stripe.com host, where Customer Portal sessions live.
+ */
+function cdcf_donation_is_portal_url(string $url): bool {
+    if ($url === '') {
+        return true;
+    }
+    $parts = parse_url($url);
+    return is_array($parts)
+        && ($parts['scheme'] ?? '') === 'https'
+        && strtolower($parts['host'] ?? '') === 'billing.stripe.com';
+}
+
+/** The error returned when a request carries a link outside Stripe's portal. */
+function cdcf_donation_invalid_portal_url(): WP_Error {
+    return new WP_Error(
+        'invalid_portal_url',
+        'The portal link must be a billing.stripe.com URL.',
+        ['status' => 400]
+    );
 }
 
 /**
@@ -109,6 +157,10 @@ function cdcf_donation_email_strings(string $locale): array {
  * @return WP_REST_Response|array|WP_Error
  */
 function cdcf_rest_donation_acknowledgment(WP_REST_Request $request) {
+    if (!cdcf_donation_is_portal_url((string) $request['portal_url'])) {
+        return cdcf_donation_invalid_portal_url();
+    }
+
     $event_id  = (string) $request['event_id'];
     $guard_key = 'cdcf_stripe_evt_' . md5($event_id);
 
