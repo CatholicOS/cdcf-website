@@ -22,3 +22,32 @@ export function portalSessionParams(
     after_expiration: { type: 'customer_login' },
   }
 }
+
+type CreatePortal = (
+  params: Stripe.BillingPortal.SessionCreateParams
+) => Promise<{ url: string }>
+
+/**
+ * Create a portal session and return its URL. The expired-link fallback
+ * needs "customer login" switched on in the Dashboard's portal settings;
+ * when Stripe refuses it, retry without, so the donor still gets a link
+ * (one that simply expires) rather than none.
+ */
+export async function createPortalSession(
+  create: CreatePortal,
+  customer: string,
+  locale: string
+): Promise<string> {
+  const params = portalSessionParams(customer, locale)
+  try {
+    return (await create(params)).url
+  } catch (error) {
+    console.error(
+      'Portal session with login fallback refused; retrying without:',
+      error
+    )
+    const plain = { ...params }
+    delete plain.after_expiration
+    return (await create(plain)).url
+  }
+}

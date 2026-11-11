@@ -128,6 +128,10 @@ settings.
       at the end of the period and payment-method updates on; plan switching
       **off** (subscriptions use inline prices, so there is nothing to switch
       to). Set the privacy policy and terms links in Public details.
+      Under **Portal link**, activate the login link: emailed portal links
+      expire quickly, and with customer login on, an expired one lets the
+      donor confirm their email and continue instead of hitting a dead page.
+      Without it the links still work, but only until they expire.
 - [ ] **Stripe's own receipts off.** Settings → Customer emails → Successful
       payments. The Foundation's acknowledgment is the receipt; with both on,
       every donor gets two emails for one gift. Refund emails may stay on.

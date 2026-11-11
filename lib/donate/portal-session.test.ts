@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { portalSessionParams } from './portal-session'
+import { createPortalSession, portalSessionParams } from './portal-session'
 
 afterEach(() => vi.unstubAllEnvs())
 
@@ -26,5 +26,41 @@ describe('portalSessionParams', () => {
       customer: 'cus_1',
       return_url: 'https://example.org',
     })
+  })
+})
+
+describe('createPortalSession', () => {
+  it('uses the login fallback when Stripe accepts it', async () => {
+    const create = vi
+      .fn()
+      .mockResolvedValue({ url: 'https://billing.stripe.com/p/s/1' })
+
+    await expect(createPortalSession(create, 'cus_1', 'it')).resolves.toBe(
+      'https://billing.stripe.com/p/s/1'
+    )
+    expect(create).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries without it when customer login is not enabled in the Dashboard', async () => {
+    // Stripe: "Enable customer login on the selected customer portal
+    // configuration to use session recovery."
+    const create = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Enable customer login …'))
+      .mockResolvedValueOnce({ url: 'https://billing.stripe.com/p/s/2' })
+
+    await expect(createPortalSession(create, 'cus_1', 'it')).resolves.toBe(
+      'https://billing.stripe.com/p/s/2'
+    )
+    expect(create.mock.calls[1][0].after_expiration).toBeUndefined()
+    expect(create.mock.calls[1][0].locale).toBe('it')
+  })
+
+  it('gives up when the plain session fails too', async () => {
+    const create = vi.fn().mockRejectedValue(new Error('No such customer'))
+
+    await expect(createPortalSession(create, 'cus_x', 'en')).rejects.toThrow(
+      'No such customer'
+    )
   })
 })

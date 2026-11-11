@@ -2,7 +2,7 @@ import { after, NextRequest, NextResponse } from 'next/server'
 
 import { postToWordPress } from '@/lib/donate/wp-mailer'
 import { clientIp, createIpRateLimiter } from '@/lib/ip-rate-limit'
-import { portalSessionParams } from '@/lib/donate/portal-session'
+import { createPortalSession } from '@/lib/donate/portal-session'
 import { getStripe } from '@/lib/stripe'
 import { defaultLocale, locales } from '@/src/i18n/routing'
 
@@ -22,13 +22,15 @@ async function sendPortalLink(email: string, locale: string): Promise<void> {
     const customer = customers.data[0]
     if (!customer) return
 
-    const portal = await stripe.billingPortal.sessions.create(
-      portalSessionParams(customer.id, locale)
+    const portalUrl = await createPortalSession(
+      (params) => stripe.billingPortal.sessions.create(params),
+      customer.id,
+      locale
     )
     await postToWordPress('cdcf/v1/donation-portal-link', {
       email,
       locale,
-      portal_url: portal.url,
+      portal_url: portalUrl,
     })
   } catch (error) {
     console.error('Failed to send a billing portal link:', error)
