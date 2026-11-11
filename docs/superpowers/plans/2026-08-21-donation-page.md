@@ -1799,8 +1799,16 @@ export async function POST(request: NextRequest) {
       },
     ],
     metadata,
+    // billing_mode is spelled out even though flexible is the default from
+    // API version 2025-09-30.clover on: it records the intent and survives
+    // an SDK pinned to an older version.
     ...(isRecurring
-      ? { subscription_data: { metadata } }
+      ? {
+          subscription_data: {
+            metadata,
+            billing_mode: { type: "flexible" as const },
+          },
+        }
       : { submit_type: "donate" as const }),
     success_url: `${origin}${donatePath}?status=success`,
     cancel_url: `${origin}${donatePath}?status=cancelled`,
@@ -2765,9 +2773,22 @@ define('CDCF_DONATION_TEST_INBOX', 'qa@example.org');
 
 Create `docs/donations.md` covering:
 
-1. **Stripe Dashboard setup** — apply for the [nonprofit fee discount](https://support.stripe.com/questions/fee-discount-for-nonprofit-organizations) with the EIN or IRS determination letter; enable Apple Pay and Google Pay by verifying `catholicdigitalcommons.org` under Settings → Payment method domains; confirm Radar is active and add a rule blocking high-velocity attempts from one IP.
+1. **Stripe Dashboard setup** — the checklist below. Do it in test mode first, then repeat it in live mode, because the two modes keep separate settings.
+
+   - [ ] **Nonprofit rate.** Apply for the [nonprofit fee discount](https://support.stripe.com/questions/fee-discount-for-nonprofit-organizations) with the EIN or the IRS determination letter. Stripe does not apply it automatically.
+   - [ ] **Wallets.** Verify `catholicdigitalcommons.org` (and the staging host, in test mode) under Settings → Payment method domains, so Apple Pay and Google Pay appear in Checkout.
+   - [ ] **Payment methods.** Leave them to Stripe (the session sets no `payment_method_types`), with Link on.
+   - [ ] **Adaptive Pricing off.** Settings → Payments. The global constraint is USD only: it keeps the $200 cap and the acknowledgment amount unambiguous.
+   - [ ] **Radar Lite.** The included plan. It covers card-testing prevention, which is the threat this form faces; custom rules need Radar Plus, so the per-IP limit lives in `create-session` instead (Task 7). Upgrade only if monitoring (step 7) shows card testing getting through.
+   - [ ] **Billing mode.** Settings → Billing → Subscriptions and emails → Default billing mode: Flexible. The API calls set it explicitly; this covers anything created from the Dashboard.
+   - [ ] **Failed renewals.** Billing → Revenue recovery: Smart Retries on, failed-payment and card-update emails on, and **cancel the subscription** once all retries fail, so a lapsed donor does not sit in `past_due`.
+   - [ ] **Customer Portal.** Settings → Billing → Customer portal: allow cancellation (at the end of the period) and payment-method updates; turn plan switching **off**, because subscriptions use inline `price_data` and there is no catalogue to switch to. Set the business name, privacy policy and terms links.
+   - [ ] **Stripe's own receipts.** Settings → Customer emails → Successful payments: **off**. The Foundation's acknowledgment (Task 5) is the receipt; with both on, every donor gets two emails for one gift.
+   - [ ] **Branding.** Settings → Branding: logo, icon and colours, so the hosted Checkout and Portal pages look like the site.
+   - [ ] **Not needed.** Stripe Tax, Invoicing and Managed Payments stay off: donations to a 501(c)(3) are not taxable sales.
+
 2. **Webhook endpoints** — register `https://catholicdigitalcommons.org/api/donate/webhook` in live mode and the staging URL in test mode, subscribing each to `checkout.session.completed` and `invoice.paid` only. Record each signing secret into the matching environment.
-3. **Customer Portal** — enable it in Settings → Billing → Customer portal, allowing subscription cancellation and payment-method updates.
+3. **Customer Portal** — configured in step 1; confirm the portal link in a test acknowledgment email opens it.
 4. **Content setup** — create the `donate` page per locale with the `Donate` template, fill all five ACF fields, and tick "Accepts Donations" on the projects that should appear.
 5. **Deploy** — `gh workflow run deploy.yml -f environment=production`, then confirm the WordPress steps ran:
 
@@ -2777,7 +2798,7 @@ Create `docs/donations.md` covering:
    ```
 
 6. **Post-deploy verification** — make a live $5 one-time gift and a live $5 monthly gift, confirm both acknowledgment emails arrive with the substantiation sentence, then cancel the subscription through the emailed portal link and refund both in the Dashboard.
-7. **Monitoring** — in the Stripe Dashboard, Payments filtered to `Failed`. A card-testing burst reads as dozens of declines within minutes, mostly at the same amount, from many different cards and one or few IPs. Successful charges stay flat while declines spike. The response is to tighten the Radar velocity rule and, if needed, temporarily raise the donation floor.
+7. **Monitoring** — in the Stripe Dashboard, Payments filtered to `Failed`. A card-testing burst reads as dozens of declines within minutes, mostly at the same amount, from many different cards and one or few IPs. Successful charges stay flat while declines spike. The response is to lower the `create-session` rate limit and, if needed, temporarily raise the donation floor; if bursts keep getting through, move to Radar Plus and add a velocity rule.
 
 - [ ] **Step 4: Verify the markdown gates**
 

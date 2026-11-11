@@ -216,7 +216,9 @@ Public donation forms are the most targeted surface for validating stolen
 cards, precisely because they accept arbitrary amounts from anonymous users.
 Layered mitigation:
 
-- Stripe Radar, plus a rule blocking high-velocity attempts.
+- Stripe Radar Lite, the included plan, which covers card-testing prevention.
+  Custom velocity rules need Radar Plus; adopt it only if card testing gets
+  past Radar Lite and the IP rate limit below.
 - The $5 floor.
 - IP rate limiting on `create-session`, reusing the `rateMap` pattern already
   in `app/api/submit-project/route.ts`.
