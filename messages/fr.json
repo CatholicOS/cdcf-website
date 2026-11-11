@@ -593,6 +593,12 @@
     "aboveMaximum": "Les dons supérieurs à 200 $ sont organisés directement avec nos bureaux administratifs.",
     "invalidAmount": "Veuillez saisir un montant en dollars entiers.",
     "failed": "Le paiement n'a pas pu être lancé. Veuillez réessayer.",
-    "cancelled": "Votre don a été annulé. Rien n'a été débité."
+    "cancelled": "Votre don a été annulé. Rien n'a été débité.",
+    "manageHeading": "Gérer votre don mensuel",
+    "manageIntro": "Saisissez l'adresse e-mail avec laquelle vous avez donné, et nous vous enverrons un lien pour modifier ou annuler votre don mensuel.",
+    "manageEmailLabel": "Adresse e-mail",
+    "manageSubmit": "M'envoyer un lien",
+    "manageSent": "Si cette adresse correspond à un don mensuel, nous lui avons envoyé un lien. Il peut mettre quelques minutes à arriver.",
+    "manageFailed": "Le lien n'a pas pu être envoyé. Veuillez réessayer plus tard."
   }
 }

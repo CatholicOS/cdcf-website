@@ -22,8 +22,8 @@ Checkout, capped at $200 per contribution. Design:
    (`POST /cdcf/v1/donation-acknowledgment`), which sends it with `wp_mail`,
    once per Stripe event. A failure to send is a non-2xx, so Stripe retries
    for up to three days.
-5. A monthly donor can ask for a link to manage their gift at
-   `POST /api/donate/portal`. It always answers `{ "success": true }`, before
+5. A monthly donor can ask for a link to manage their gift with the form
+   under the donation form, which posts to `POST /api/donate/portal`. It always answers `{ "success": true }`, before
    looking the address up, so neither the answer nor its timing shows who has
    donated.
 

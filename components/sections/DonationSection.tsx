@@ -7,6 +7,7 @@ import type { WPPage } from '@/lib/wordpress/types'
 
 import DonationForm from './DonationForm'
 import DonationStatus from './DonationStatus'
+import ManageGivingForm from './ManageGivingForm'
 
 interface DonationSectionProps {
   page: WPPage
@@ -78,6 +79,8 @@ export default async function DonationSection({
           {form}
         </DonationStatus>
       </Suspense>
+
+      <ManageGivingForm locale={locale} />
     </section>
   )
 }

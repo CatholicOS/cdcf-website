@@ -593,6 +593,12 @@
     "aboveMaximum": "Gifts above $200 are arranged directly with our administrative offices.",
     "invalidAmount": "Please enter a whole dollar amount.",
     "failed": "We could not start the checkout. Please try again.",
-    "cancelled": "Your donation was cancelled. Nothing has been charged."
+    "cancelled": "Your donation was cancelled. Nothing has been charged.",
+    "manageHeading": "Manage your monthly gift",
+    "manageIntro": "Enter the email address you gave with, and we will email you a link to update or cancel your monthly gift.",
+    "manageEmailLabel": "Email address",
+    "manageSubmit": "Email me a link",
+    "manageSent": "If this address has a monthly gift with us, we have emailed it a link. It may take a few minutes to arrive.",
+    "manageFailed": "We could not send the link right now. Please try again later."
   }
 }
