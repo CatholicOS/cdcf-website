@@ -410,8 +410,33 @@ final class CallbacksTest extends TestCase
     {
         $out = $this->runListing('cdcf_mcp_cb_list_submitted_projects', 'project');
         $this->assertSame('project', $out['queried_type']);
-        $this->assertSame(7, $out['result'][0]['ID']);
-        $this->assertSame('en', $out['result'][0]['language']);
+        $this->assertSame(1, $out['result']['count']);
+        $this->assertSame(7, $out['result']['items'][0]['ID']);
+        $this->assertSame('en', $out['result']['items'][0]['language']);
+    }
+
+    /**
+     * MCP `structuredContent` must be a JSON object: a bare list encodes as a
+     * JSON array, which strict clients (the Python MCP SDK) reject outright.
+     */
+    public function test_listings_encode_as_json_objects(): void
+    {
+        foreach (['cdcf_mcp_cb_list_submitted_projects', 'cdcf_mcp_cb_list_submitted_community_projects'] as $cb) {
+            $json = json_encode($this->runListing($cb, '')['result']);
+            $this->assertIsString($json);
+            $this->assertStringStartsWith('{', $json, $cb . ' must return a JSON object');
+        }
+    }
+
+    public function test_an_empty_listing_is_still_an_object(): void
+    {
+        Functions\when('absint')->alias(static fn($v) => abs((int) $v));
+        Functions\when('sanitize_key')->returnArg();
+        Functions\when('get_posts')->justReturn([]);
+
+        $out = cdcf_mcp_cb_list_submitted_projects([]);
+        $this->assertSame(['items' => [], 'count' => 0], $out);
+        $this->assertSame('{"items":[],"count":0}', json_encode($out));
     }
 
     public function test_list_submitted_community_projects_queries_that_type(): void
