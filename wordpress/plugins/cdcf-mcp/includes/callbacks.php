@@ -416,12 +416,28 @@ function cdcf_mcp_list_posts(string $post_type, array $input) {
     return $out;
 }
 
+/**
+ * Wraps a listing in an object.
+ *
+ * MCP requires a tool result's `structuredContent` to be a JSON object, and the
+ * adapter passes a callback's return value through as-is. A bare list
+ * therefore becomes a JSON array, which strict clients reject: the Python MCP
+ * SDK (pydantic) fails the whole call with "structuredContent: Input should be
+ * a valid dictionary". Lenient clients happened to accept it.
+ */
+function cdcf_mcp_listing_result(array $items): array {
+    return [
+        'items' => $items,
+        'count' => count($items),
+    ];
+}
+
 function cdcf_mcp_cb_list_submitted_projects(array $input) {
-    return cdcf_mcp_list_posts('project', $input);
+    return cdcf_mcp_listing_result(cdcf_mcp_list_posts('project', $input));
 }
 
 function cdcf_mcp_cb_list_submitted_community_projects(array $input) {
-    return cdcf_mcp_list_posts('community_project', $input);
+    return cdcf_mcp_listing_result(cdcf_mcp_list_posts('community_project', $input));
 }
 
 /**
