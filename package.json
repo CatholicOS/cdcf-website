@@ -51,7 +51,7 @@
     "happy-dom": "21.0.4",
     "markdownlint-cli2": "^0.24.0",
     "postcss": "^8.5.32",
-    "prettier": "^3.9.10",
+    "prettier": "^3.10.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "vitest": "^5.0.0"
