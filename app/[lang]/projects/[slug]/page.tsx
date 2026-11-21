@@ -2,7 +2,13 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { setRequestLocale, getTranslations } from 'next-intl/server'
-import { getProject, getProjectPreview } from '@/lib/wordpress/api'
+import {
+  getDonatableProjects,
+  getLocalizedPagePaths,
+  getProject,
+  getProjectPreview,
+} from '@/lib/wordpress/api'
+import { projectDonateHref } from '@/lib/donate/project-link'
 import { activePreviewId } from '@/lib/wordpress/preview'
 import { Link } from '@/src/i18n/navigation'
 import RepoLanguages from '@/components/projects/RepoLanguages'
@@ -83,14 +89,26 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   // slug yet); otherwise fall through to the normal published lookup.
   const previewId = await activePreviewId('project', slug)
 
-  const [project, t] = await Promise.all([
+  const [project, t, donatable, localizedPaths] = await Promise.all([
     previewId ? getProjectPreview(previewId) : getProject(slug, lang),
     getTranslations('projects'),
+    getDonatableProjects(lang),
+    getLocalizedPagePaths(lang),
   ])
 
   if (!project) {
     notFound()
   }
+
+  // Shown only for projects in the Donate page's designation list (the
+  // English post's "Accepts Donations" flag), and never on a draft preview.
+  const supportHref = previewId
+    ? null
+    : projectDonateHref(
+        project.slug,
+        donatable,
+        localizedPaths['/donate'] ?? '/donate'
+      )
 
   const image = project.featuredImage?.node
   const status = (project.projectFields.projectStatus?.[0] ||
@@ -163,6 +181,15 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               </span>
             ))}
           </div>
+        )}
+
+        {supportHref && (
+          <Link
+            href={supportHref}
+            className="cdcf-btn-primary mt-6 inline-block"
+          >
+            {t('supportProject')}
+          </Link>
         )}
 
         <div className="cdcf-divider" />
