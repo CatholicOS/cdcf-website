@@ -289,6 +289,10 @@
     "contributors": "Mitwirkende",
     "languages": "Sprachen"
   },
+  "sponsors": {
+    "title": "Unsere Sponsoren",
+    "description": "Danke an die Organisationen, deren Großzügigkeit die Arbeit der Stiftung trägt."
+  },
   "Auth": {
     "signIn": "Anmelden",
     "signOut": "Abmelden",

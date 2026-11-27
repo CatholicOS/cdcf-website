@@ -90,12 +90,21 @@ export default async function PageRenderer({
 }
 
 async function renderHome(_page: WPPage, sponsors: WPSponsor[]) {
-  const stats = await getStats()
+  const [stats, t] = await Promise.all([
+    getStats(),
+    getTranslations('sponsors'),
+  ])
   return (
     <>
       <StatsBar stats={stats} />
 
-      {sponsors.length > 0 && <SponsorGrid sponsors={sponsors} />}
+      {sponsors.length > 0 && (
+        <SponsorGrid
+          sponsors={sponsors}
+          title={t('title')}
+          description={t('description')}
+        />
+      )}
     </>
   )
 }
