@@ -4,9 +4,10 @@ import { notFound } from 'next/navigation'
 import { setRequestLocale, getTranslations } from 'next-intl/server'
 import {
   getDonatableProjects,
-  getLocalizedPagePaths,
+  getLocalizedPagePathsOrNull,
   getProject,
   getProjectPreview,
+  LOCALIZED_PATHS_TIMEOUT_MS,
 } from '@/lib/wordpress/api'
 import { projectDonateHref } from '@/lib/donate/project-link'
 import { activePreviewId } from '@/lib/wordpress/preview'
@@ -89,11 +90,18 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   // slug yet); otherwise fall through to the normal published lookup.
   const previewId = await activePreviewId('project', slug)
 
+  // The "Support this project" lookups are skipped on a draft preview (which
+  // never shows the button) and bounded like the layout's path lookup, so a
+  // stalled WordPress costs the button, not the page.
   const [project, t, donatable, localizedPaths] = await Promise.all([
     previewId ? getProjectPreview(previewId) : getProject(slug, lang),
     getTranslations('projects'),
-    getDonatableProjects(lang),
-    getLocalizedPagePaths(lang),
+    previewId
+      ? Promise.resolve([])
+      : getDonatableProjects(lang, {
+          signal: AbortSignal.timeout(LOCALIZED_PATHS_TIMEOUT_MS),
+        }),
+    previewId ? Promise.resolve(null) : getLocalizedPagePathsOrNull(lang),
   ])
 
   if (!project) {
@@ -101,14 +109,17 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   }
 
   // Shown only for projects in the Donate page's designation list (the
-  // English post's "Accepts Donations" flag), and never on a draft preview.
-  const supportHref = previewId
-    ? null
-    : projectDonateHref(
+  // English post's "Accepts Donations" flag). Withheld when the Donate
+  // page's localized path is unknown: a guessed path would reach it only
+  // through the canonical redirect, which drops ?project= and with it the
+  // designation.
+  const supportHref = localizedPaths
+    ? projectDonateHref(
         project.slug,
         donatable,
         localizedPaths['/donate'] ?? '/donate'
       )
+    : null
 
   const image = project.featuredImage?.node
   const status = (project.projectFields.projectStatus?.[0] ||

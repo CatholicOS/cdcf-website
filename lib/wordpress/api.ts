@@ -659,12 +659,18 @@ interface DonatableProjectNode extends DonatableProjectFields {
  * has no English translation), so ticking it once covers every language.
  */
 export async function getDonatableProjects(
-  locale: string
+  locale: string,
+  options: { signal?: AbortSignal } = {}
 ): Promise<DonatableProject[]> {
   try {
     const data = await wpQuery<{
       projects: { nodes: DonatableProjectNode[] }
-    }>(GET_DONATABLE_PROJECTS, { language: langCode(locale) })
+    }>(
+      GET_DONATABLE_PROJECTS,
+      { language: langCode(locale) },
+      // An abort (e.g. a timeout) rejects into the catch below: no list.
+      options.signal ? { signal: options.signal } : {}
+    )
 
     return data.projects.nodes.flatMap((node) => {
       const source = node.translation ?? node
@@ -719,6 +725,17 @@ export const LOCALIZED_PATHS_TIMEOUT_MS = 3000
 export async function getLocalizedPagePaths(
   locale: string
 ): Promise<Record<string, string>> {
+  return (await getLocalizedPagePathsOrNull(locale)) ?? {}
+}
+
+/**
+ * Like getLocalizedPagePaths, but null when the lookup failed or timed out,
+ * for a caller that must not mistake "unknown" for "same path in English":
+ * a link whose query string the canonical redirect would drop.
+ */
+export async function getLocalizedPagePathsOrNull(
+  locale: string
+): Promise<Record<string, string> | null> {
   if (langCode(locale) === 'EN') return {}
   try {
     const data = await wpQuery<{ pages: { nodes: LocalizedPathNode[] } }>(
@@ -740,6 +757,6 @@ export async function getLocalizedPagePaths(
     return paths
   } catch (error) {
     console.error('Failed to fetch localized page paths:', error)
-    return {}
+    return null
   }
 }

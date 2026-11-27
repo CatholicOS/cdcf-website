@@ -87,15 +87,19 @@ describe('DonationForm', () => {
   })
 
   describe('arriving from a project page', () => {
-    let scrolled: number
+    let scrolls: ScrollIntoViewOptions[]
+    let reduceMotion: boolean
     beforeEach(() => {
-      scrolled = 0
+      scrolls = []
+      reduceMotion = false
       vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
-        () => {
-          scrolled++
+        (options?: boolean | ScrollIntoViewOptions) => {
+          scrolls.push(options as ScrollIntoViewOptions)
         }
       )
-      vi.stubGlobal('matchMedia', () => ({ matches: false }))
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query === '(prefers-reduced-motion: reduce)' && reduceMotion,
+      }))
     })
     afterEach(() => {
       window.history.replaceState(null, '', '/')
@@ -107,7 +111,15 @@ describe('DonationForm', () => {
       const c = mount()
 
       expect(q<HTMLSelectElement>(c, 'select').value).toBe('bibleget')
-      expect(scrolled).toBe(1)
+      expect(scrolls).toEqual([{ behavior: 'smooth', block: 'start' }])
+    })
+
+    it('jumps to the form without animation when the visitor prefers reduced motion', () => {
+      reduceMotion = true
+      window.history.replaceState(null, '', '/it/dona?project=bibleget')
+      mount()
+
+      expect(scrolls).toEqual([{ behavior: 'instant', block: 'start' }])
     })
 
     it('ignores a project that does not accept donations', () => {
@@ -115,7 +127,7 @@ describe('DonationForm', () => {
       const c = mount()
 
       expect(q<HTMLSelectElement>(c, 'select').value).toBe('')
-      expect(scrolled).toBe(0)
+      expect(scrolls).toEqual([])
     })
 
     it('leaves a plain visit on the general fund, unscrolled', () => {
@@ -123,7 +135,7 @@ describe('DonationForm', () => {
       const c = mount()
 
       expect(q<HTMLSelectElement>(c, 'select').value).toBe('')
-      expect(scrolled).toBe(0)
+      expect(scrolls).toEqual([])
     })
   })
 
@@ -276,7 +288,7 @@ describe('DonationStatus', () => {
       reduceMotion = true
       search.value = 'status=success'
       status()
-      expect(scrolled).toEqual([{ behavior: 'auto', block: 'start' }])
+      expect(scrolled).toEqual([{ behavior: 'instant', block: 'start' }])
     })
 
     it('scrolls to the cancelled notice too', () => {

@@ -34,8 +34,10 @@ export default function DonationStatus({
     const reduceMotion = window.matchMedia?.(
       '(prefers-reduced-motion: reduce)'
     ).matches
+    // 'instant', not 'auto': 'auto' defers to the html rule's
+    // scroll-behavior: smooth, which would animate anyway.
     message.scrollIntoView({
-      behavior: reduceMotion ? 'auto' : 'smooth',
+      behavior: reduceMotion ? 'instant' : 'smooth',
       block: 'start',
     })
     message.focus({ preventScroll: true })

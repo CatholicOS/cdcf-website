@@ -100,9 +100,30 @@ describe('getDonatableProjects', () => {
 
     await getDonatableProjects('pt')
 
-    expect(mockedQuery).toHaveBeenCalledWith(expect.any(String), {
-      language: 'PT',
-    })
+    expect(mockedQuery).toHaveBeenCalledWith(
+      expect.any(String),
+      { language: 'PT' },
+      {}
+    )
+  })
+
+  it('passes a caller signal through, and gives up with no list on abort', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const signal = AbortSignal.abort(
+      new DOMException('timed out', 'TimeoutError')
+    )
+    mockedQuery.mockImplementation((_query, _vars, options) =>
+      options?.signal?.aborted
+        ? Promise.reject(options.signal.reason)
+        : Promise.resolve({ projects: { nodes: [] } })
+    )
+
+    await expect(getDonatableProjects('it', { signal })).resolves.toEqual([])
+    expect(mockedQuery).toHaveBeenCalledWith(
+      expect.any(String),
+      { language: 'IT' },
+      { signal }
+    )
   })
 
   it('returns an empty list rather than throwing when WordPress is down', async () => {

@@ -3,7 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('./client', () => ({ wpQuery: vi.fn() }))
 
-import { getLocalizedPagePaths, LOCALIZED_PATHS_TIMEOUT_MS } from './api'
+import {
+  getLocalizedPagePaths,
+  getLocalizedPagePathsOrNull,
+  LOCALIZED_PATHS_TIMEOUT_MS,
+} from './api'
 import { wpQuery } from './client'
 
 const mockedQuery = vi.mocked(wpQuery)
@@ -85,5 +89,29 @@ describe('getLocalizedPagePaths', () => {
     mockedQuery.mockRejectedValue(new Error('down'))
 
     await expect(getLocalizedPagePaths('it')).resolves.toEqual({})
+  })
+})
+
+describe('getLocalizedPagePathsOrNull', () => {
+  it('is null, not an empty map, when the lookup fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockedQuery.mockRejectedValue(new Error('down'))
+
+    await expect(getLocalizedPagePathsOrNull('it')).resolves.toBeNull()
+  })
+
+  it('is an empty map when every path is the same as in English', async () => {
+    mockedQuery.mockResolvedValue({
+      pages: {
+        nodes: [{ uri: '/donate/', translation: { uri: '/it/donate/' } }],
+      },
+    })
+
+    await expect(getLocalizedPagePathsOrNull('it')).resolves.toEqual({})
+  })
+
+  it('is an empty map for English without a lookup', async () => {
+    await expect(getLocalizedPagePathsOrNull('en')).resolves.toEqual({})
+    expect(mockedQuery).not.toHaveBeenCalled()
   })
 })
