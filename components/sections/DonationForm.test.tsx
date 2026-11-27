@@ -86,6 +86,59 @@ describe('DonationForm', () => {
     vi.stubGlobal('fetch', fetchMock)
   })
 
+  describe('arriving from a project page', () => {
+    let scrolls: ScrollIntoViewOptions[]
+    let reduceMotion: boolean
+    beforeEach(() => {
+      scrolls = []
+      reduceMotion = false
+      vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(
+        (options?: boolean | ScrollIntoViewOptions) => {
+          scrolls.push(options as ScrollIntoViewOptions)
+        }
+      )
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query === '(prefers-reduced-motion: reduce)' && reduceMotion,
+      }))
+    })
+    afterEach(() => {
+      window.history.replaceState(null, '', '/')
+      vi.restoreAllMocks()
+    })
+
+    it('preselects the project named in ?project= and brings the form into view', () => {
+      window.history.replaceState(null, '', '/it/dona?project=bibleget')
+      const c = mount()
+
+      expect(q<HTMLSelectElement>(c, 'select').value).toBe('bibleget')
+      expect(scrolls).toEqual([{ behavior: 'smooth', block: 'start' }])
+    })
+
+    it('jumps to the form without animation when the visitor prefers reduced motion', () => {
+      reduceMotion = true
+      window.history.replaceState(null, '', '/it/dona?project=bibleget')
+      mount()
+
+      expect(scrolls).toEqual([{ behavior: 'instant', block: 'start' }])
+    })
+
+    it('ignores a project that does not accept donations', () => {
+      window.history.replaceState(null, '', '/it/dona?project=unknown')
+      const c = mount()
+
+      expect(q<HTMLSelectElement>(c, 'select').value).toBe('')
+      expect(scrolls).toEqual([])
+    })
+
+    it('leaves a plain visit on the general fund, unscrolled', () => {
+      window.history.replaceState(null, '', '/it/dona')
+      const c = mount()
+
+      expect(q<HTMLSelectElement>(c, 'select').value).toBe('')
+      expect(scrolls).toEqual([])
+    })
+  })
+
   it('swaps the button for the above-cap panel over $200', () => {
     const c = mount()
     typeInto(q<HTMLInputElement>(c, 'input'), '250')
@@ -235,7 +288,7 @@ describe('DonationStatus', () => {
       reduceMotion = true
       search.value = 'status=success'
       status()
-      expect(scrolled).toEqual([{ behavior: 'auto', block: 'start' }])
+      expect(scrolled).toEqual([{ behavior: 'instant', block: 'start' }])
     })
 
     it('scrolls to the cancelled notice too', () => {

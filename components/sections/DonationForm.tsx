@@ -1,7 +1,7 @@
 // components/sections/DonationForm.tsx
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
 import clsx from 'clsx'
 
@@ -11,6 +11,11 @@ import {
   type DonationFrequency,
 } from '@/lib/donate/validation'
 import type { DonatableProject } from '@/lib/wordpress/api'
+
+/** The query string does not change while the form is mounted. */
+function subscribeToNothing() {
+  return () => {}
+}
 
 interface DonationFormProps {
   locale: string
@@ -35,9 +40,39 @@ export default function DonationForm({
     presetAmounts[0] ? String(presetAmounts[0]) : '25'
   )
   const [frequency, setFrequency] = useState<DonationFrequency>('once')
-  const [projectSlug, setProjectSlug] = useState<string>('')
+  // null until the donor picks a designation themselves.
+  const [chosenSlug, setChosenSlug] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string>('')
+  const formRef = useRef<HTMLFormElement>(null)
+
+  // A project page's "Support this project" link names the project in
+  // ?project=. Read in the browser, like ?status=, so the page stays cached
+  // (the server snapshot is empty, so hydration matches the static render);
+  // anything not in the designation list is ignored (general fund).
+  const search = useSyncExternalStore(
+    subscribeToNothing,
+    () => window.location.search,
+    () => ''
+  )
+  const wanted = new URLSearchParams(search).get('project')
+  const linkedSlug =
+    wanted && projects.some((project) => project.slug === wanted) ? wanted : ''
+  const projectSlug = chosenSlug ?? linkedSlug
+
+  // Bring the form into view for a donor who arrived from a project page.
+  useEffect(() => {
+    if (!linkedSlug) return
+    const reduceMotion = window.matchMedia?.(
+      '(prefers-reduced-motion: reduce)'
+    ).matches
+    // 'instant', not 'auto': 'auto' defers to the html rule's
+    // scroll-behavior: smooth, which would animate anyway.
+    formRef.current?.scrollIntoView({
+      behavior: reduceMotion ? 'instant' : 'smooth',
+      block: 'start',
+    })
+  }, [linkedSlug])
 
   const parsed = Number(dollars)
   const amountCents = Number.isInteger(parsed) ? parsed * 100 : Number.NaN
@@ -94,7 +129,11 @@ export default function DonationForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-lg space-y-6">
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      className="mx-auto max-w-lg scroll-mt-24 space-y-6"
+    >
       <div className="flex gap-2">
         {(['once', 'monthly'] as const).map((option) => (
           <button
@@ -153,7 +192,7 @@ export default function DonationForm({
           </span>
           <select
             value={projectSlug}
-            onChange={(e) => setProjectSlug(e.target.value)}
+            onChange={(e) => setChosenSlug(e.target.value)}
             className="w-full rounded-md border border-gray-300 px-3 py-2"
           >
             <option value="">{t('designationGeneral')}</option>
