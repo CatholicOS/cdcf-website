@@ -289,6 +289,10 @@
     "contributors": "Colaboradores",
     "languages": "Idiomas"
   },
+  "sponsors": {
+    "title": "Nossos patrocinadores",
+    "description": "Obrigado às organizações cuja generosidade sustenta o trabalho da Fundação."
+  },
   "Auth": {
     "signIn": "Entrar",
     "signOut": "Sair",

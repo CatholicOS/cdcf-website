@@ -28,14 +28,15 @@ export default function SponsorGrid({
           </div>
         )}
 
-        <div className="mt-12 grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {/* Centered rows, so a handful of sponsors don't sit flush left. */}
+        <div className="mt-12 flex flex-wrap justify-center gap-8">
           {sponsors.map((sponsor, i) => {
             const className =
-              'flex flex-col items-center gap-3 rounded-lg p-6 transition-shadow hover:shadow-md'
+              'flex w-40 flex-col items-center gap-3 rounded-lg p-6 transition-shadow hover:shadow-md sm:w-52'
             const content = (
               <>
                 {sponsor.featuredImage?.node && (
-                  <div className="h-16 w-32">
+                  <div className="h-20 w-full">
                     <Image
                       src={sponsor.featuredImage.node.sourceUrl}
                       alt={sponsor.featuredImage.node.altText || sponsor.title}

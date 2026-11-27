@@ -289,6 +289,10 @@
     "contributors": "Contributors",
     "languages": "Languages"
   },
+  "sponsors": {
+    "title": "Our Sponsors",
+    "description": "Thank you to the organizations whose generosity sustains the Foundation's work."
+  },
   "Auth": {
     "signIn": "Sign in",
     "signOut": "Sign out",
